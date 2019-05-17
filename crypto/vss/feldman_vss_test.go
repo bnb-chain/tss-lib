@@ -31,12 +31,12 @@ func TestCreate(t *testing.T) {
 	assert.Equal(t, threshold, len(polyG.PolyG))
 
 	// coefs must not be zero
-	for i := 0; i < len(poly.Poly); i++ {
+	for i := range poly.Poly {
 		assert.NotZero(t, poly.Poly[i])
 	}
 
 	// ensure that each polyG len() == 2
-	for i := 0; i < len(polyG.PolyG); i++ {
+	for i := range polyG.PolyG {
 		assert.Equal(t, len(polyG.PolyG[i]), 2)
 		assert.NotZero(t, polyG.PolyG[i][0])
 		assert.NotZero(t, polyG.PolyG[i][1])
