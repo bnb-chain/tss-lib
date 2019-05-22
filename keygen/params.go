@@ -2,8 +2,28 @@ package keygen
 
 type (
 	KGParameters struct {
-		PartyCount uint8
-		Threshold  uint8
-		ShareCount uint8
+		partyCount      int
+		threshold       int
+		localShareCount int // partyCount - 1
 	}
 )
+
+func NewKGParameters(partyCount int, threshold int) *KGParameters {
+	return &KGParameters{
+		partyCount:      partyCount,
+		threshold:       threshold,
+		localShareCount: partyCount - 1,
+	}
+}
+
+func (params *KGParameters) PartyCount() int {
+	return params.partyCount
+}
+
+func (params *KGParameters) Threshold() int {
+	return params.threshold
+}
+
+func (params *KGParameters) LocalShareCount() int {
+	return params.localShareCount
+}

@@ -5,17 +5,20 @@ import (
 	"tss-lib/crypto/paillier"
 	"tss-lib/crypto/schnorrZK"
 	"tss-lib/crypto/vss"
+	"tss-lib/types"
 )
 
 type (
 	KGMessage interface {
-		PartyID() *PartyID
-		Type()    string
+		GetFrom() *types.PartyID
+		GetTo() *types.PartyID
+		GetType() string
 	}
 
 	KGMessageMetadata struct {
-		from      *PartyID
-		stateName string
+		To,
+		From    *types.PartyID
+		MsgType string
 	}
 
 	// C1
@@ -57,62 +60,75 @@ type (
 	}
 )
 
-func (kgMM *KGMessageMetadata) PartyID() *PartyID {
-	return kgMM.from
+// ----- //
+
+func (kgMM *KGMessageMetadata) GetFrom() *types.PartyID {
+	return kgMM.From
 }
 
-func (kgMM *KGMessageMetadata) Type() string {
-	return kgMM.stateName
+func (kgMM *KGMessageMetadata) GetTo() *types.PartyID {
+	return kgMM.To
 }
 
-func NewKGPhase1CommitMessage(from *PartyID, ct cmt.HashCommitment, paillierPk *paillier.PublicKey) *KGPhase1CommitMessage {
+func (kgMM *KGMessageMetadata) GetType() string {
+	return kgMM.MsgType
+}
+
+// ----- //
+
+func NewKGPhase1CommitMessage(to, from *types.PartyID, ct cmt.HashCommitment, paillierPk *paillier.PublicKey) *KGPhase1CommitMessage {
 	return &KGPhase1CommitMessage{
 		KGMessageMetadata: &KGMessageMetadata{
-			from:      from,
-			stateName: "KGPhase1CommitMessage",
+			To:      to,
+			From:    from,
+			MsgType: "KGPhase1CommitMessage",
 		},
 		Commitment: ct,
 		PaillierPk: paillierPk,
 	}
 }
 
-func NewKGPhase2VssMessage(from *PartyID, polyG *vss.PolyG, shares []*vss.Share) *KGPhase2VssMessage {
+func NewKGPhase2VssMessage(to, from *types.PartyID, polyG *vss.PolyG, shares []*vss.Share) *KGPhase2VssMessage {
 	return &KGPhase2VssMessage{
 		KGMessageMetadata: &KGMessageMetadata{
-			from:      from,
-			stateName: "KGPhase2VssMessage",
+			To:      to,
+			From:    from,
+			MsgType: "KGPhase2VssMessage",
 		},
 		PolyG:  polyG,
 		Shares: shares,
 	}
 }
 
-func NewKGPhase2DeCommitMessage(from *PartyID, vssParams vss.Params, deCommitment cmt.HashDeCommitment) *KGPhase2DeCommitMessage {
+func NewKGPhase2DeCommitMessage(to, from *types.PartyID, vssParams vss.Params, deCommitment cmt.HashDeCommitment) *KGPhase2DeCommitMessage {
 	return &KGPhase2DeCommitMessage{
 		KGMessageMetadata: &KGMessageMetadata{
-			from:      from,
-			stateName: "KGPhase2DeCommitMessage",
+			To:      to,
+			From:    from,
+			MsgType: "KGPhase2DeCommitMessage",
 		},
 		VssParams:    vssParams,
 		DeCommitment: deCommitment,
 	}
 }
 
-func NewKGPhase3ZKProofMessage(from *PartyID, ZKProof *paillier.Proof) *KGPhase3ZKProofMessage {
+func NewKGPhase3ZKProofMessage(to, from *types.PartyID, ZKProof *paillier.Proof) *KGPhase3ZKProofMessage {
 	return &KGPhase3ZKProofMessage{
 		KGMessageMetadata: &KGMessageMetadata{
-			from:      from,
-			stateName: "KGPhase3ZKProofMessage",
+			To:      to,
+			From:    from,
+			MsgType: "KGPhase3ZKProofMessage",
 		},
 		ZKProof: ZKProof,
 	}
 }
 
-func NewKGPhase3ZKUProofMessage(from *PartyID, ZKUProof *schnorrZK.ZKProof) *KGPhase3ZKUProofMessage {
+func NewKGPhase3ZKUProofMessage(to, from *types.PartyID, ZKUProof *schnorrZK.ZKProof) *KGPhase3ZKUProofMessage {
 	return &KGPhase3ZKUProofMessage{
 		KGMessageMetadata: &KGMessageMetadata{
-			from:      from,
-			stateName: "KGPhase3ZKUProofMessage",
+			To:      to,
+			From:    from,
+			MsgType: "KGPhase3ZKUProofMessage",
 		},
 		ZKUProof: ZKUProof,
 	}

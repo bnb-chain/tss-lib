@@ -1,6 +1,12 @@
 package keygen
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+
+	"tss-lib/types"
+)
 
 type (
 	PartyStateMonitor interface {
@@ -9,20 +15,16 @@ type (
 		NotifyPhase3Complete()
 	}
 
-	PartyID struct {
-		partyIdx uint8
-		partyID  string
-	}
-
 	PartyState struct {
-		partyID      *PartyID
+		partyID *types.PartyID
 
+		p2pCtx   *types.PeerContext
 		kgParams KGParameters
-		isLocal  bool
 		monitor  PartyStateMonitor
 
+		isLocal  bool
 		currentState string
-		lastMessage  *KGMessage
+		lastMessage  KGMessage
 
 		kgPhase1CommitMessages   []*KGPhase1CommitMessage
 		kgPhase2VssMessages      []*KGPhase2VssMessage
@@ -32,11 +34,13 @@ type (
 	}
 )
 
-func NewPartyState(kgParams KGParameters, partyID *PartyID, monitor PartyStateMonitor) *PartyState {
-	partyCount := kgParams.PartyCount
+func NewPartyState(
+		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, monitor PartyStateMonitor) *PartyState {
+	partyCount := kgParams.partyCount
 	return &PartyState{
 		partyID:                  partyID,
 		kgParams:                 kgParams,
+		p2pCtx:                   p2pCtx,
 		monitor:                  monitor,
 		kgPhase1CommitMessages:   make([]*KGPhase1CommitMessage, partyCount),
 		kgPhase2VssMessages:      make([]*KGPhase2VssMessage, partyCount),
@@ -48,11 +52,11 @@ func NewPartyState(kgParams KGParameters, partyID *PartyID, monitor PartyStateMo
 
 func (p *PartyState) Update(msg KGMessage) (bool, error) {
 	if msg == nil {
-		panic("nil message received by party " + string(p.partyID.partyIdx))
+		panic(fmt.Errorf("nil message received by party %s", p.partyID))
 	}
-	p.lastMessage = &msg
+	p.lastMessage = msg // this is a pointer
 
-	fmt.Printf("party %d:\treceived message %v", p.partyID.partyIdx, msg)
+	fmt.Printf("party %s received message: %s", p.partyID, msg.GetType())
 
 	switch msg.(type) {
 	case KGPhase1CommitMessage:
@@ -61,7 +65,7 @@ func (p *PartyState) Update(msg KGMessage) (bool, error) {
 		}
 		p.tryStartPhase2()
 	default:
-		panic(fmt.Sprintf("unrecognised message: %v", msg))
+		panic(fmt.Errorf("unrecognised message: %v", msg))
 	}
 
 	return true, nil
@@ -93,4 +97,8 @@ func (p *PartyState) hasRequiredMessages(msgs interface{}) bool {
 		}
 	}
 	return firstNil
+}
+
+func (p *PartyState) wrapError(err error, phase int) error {
+	return errors.Wrapf(err, "party %s, phase %d", p.partyID, phase)
 }

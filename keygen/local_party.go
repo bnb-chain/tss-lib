@@ -2,9 +2,11 @@ package keygen
 
 import (
 	"math/big"
+
 	"tss-lib/common/math"
 	cmt "tss-lib/crypto/commitments"
 	"tss-lib/crypto/paillier"
+	"tss-lib/types"
 )
 
 var _ PartyStateMonitor = &LocalParty{}
@@ -16,7 +18,8 @@ type (
 		// messaging
 		outChan     chan<- KGMessage
 
-		// secret fields
+		// secret fields (not shared)
+		ui         *big.Int
 		paillierSk *paillier.PrivateKey
 	}
 )
@@ -25,20 +28,21 @@ const (
 	PaillierKeyLength = 1024
 )
 
-func NewLocalParty(kgParams KGParameters, partyID *PartyID, outChan chan<- KGMessage) *LocalParty {
+func NewLocalParty(
+		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, outChan chan<- KGMessage) *LocalParty {
 	p := &LocalParty{
 		outChan: outChan,
 	}
-	ps := NewPartyState(kgParams, partyID, p)
+	ps := NewPartyState(p2pCtx, kgParams, partyID, p)
 	p.PartyState = ps
 	return p
 }
 
-func (p *LocalParty) GenerateAndStart() (bool, error) {
+func (lp *LocalParty) GenerateAndStart() (bool, error) {
 	// 1. calculate "partial" public key, make commitment -> (C, D)
-	u1 := math.GetRandomPositiveInt(EC.N)
+	ui := math.GetRandomPositiveInt(EC.N)
 
-	uiGx, uiGy := EC.ScalarBaseMult(u1.Bytes())
+	uiGx, uiGy := EC.ScalarBaseMult(ui.Bytes())
 	commitU1G, err := cmt.NewHashCommitment(uiGx, uiGy)
 	if err != nil {
 		return false, err
@@ -52,32 +56,37 @@ func (p *LocalParty) GenerateAndStart() (bool, error) {
 	// u1PaillierPk, u2PaillierPk, u3PaillierPk, u4PaillierPk, u5PaillierPk
 
 	// phase 1 message
-	phase1Msg := NewKGPhase1CommitMessage(p.partyID, commitU1G.C, uiPaillierPk)
+	phase1Msg := NewKGPhase1CommitMessage(nil, lp.partyID, commitU1G.C, uiPaillierPk)
 
-	// for this party, save the generated paillier sk
-	p.paillierSk = uiPaillierSk
+	// for this party, save the generated secrets
+	lp.ui = ui
+	lp.paillierSk = uiPaillierSk
 
-	p.Update(phase1Msg)
-
-	p.sendToPeers(phase1Msg)
+	lp.Update(phase1Msg)
+	lp.sendToPeers(phase1Msg)
 
 	return true, nil
 }
 
-func (p *LocalParty) NotifyPhase1Complete() {
-	ids := make([]*big.Int, 0, p.kgParams.PartyCount)
+func (lp *LocalParty) NotifyPhase1Complete() {
+	// next step: compute the vss shares
+	//ids := lp.p2pCtx.Parties().Keys()
+	//_, polyG, _, shares, err := vss.Create(lp.kgParams.Threshold(), lp.kgParams.PartyCount(), ids, lp.ui)
+	//if err != nil {
+	//	panic(lp.wrapError(err, 1))
+	//}
 }
 
-func (p *LocalParty) NotifyPhase2Complete() {
+func (lp *LocalParty) NotifyPhase2Complete() {
 	panic("implement me")
 }
 
-func (p *LocalParty) NotifyPhase3Complete() {
+func (lp *LocalParty) NotifyPhase3Complete() {
 	panic("implement me")
 }
 
-func (p *LocalParty) sendToPeers(msg KGMessage) {
-	if p.outChan != nil {
-		p.outChan <- msg
+func (lp *LocalParty) sendToPeers(msg KGMessage) {
+	if lp.outChan != nil {
+		lp.outChan <- msg
 	}
 }
