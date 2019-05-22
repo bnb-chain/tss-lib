@@ -29,7 +29,7 @@ const (
 )
 
 func NewLocalParty(
-		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, outChan chan<- KGMessage) *LocalParty {
+		p2pCtx *types.PeerContext, kgParams KGParameters, partyID types.PartyID, outChan chan<- KGMessage) *LocalParty {
 	p := &LocalParty{
 		outChan: outChan,
 	}
@@ -56,7 +56,7 @@ func (lp *LocalParty) GenerateAndStart() (bool, error) {
 	// u1PaillierPk, u2PaillierPk, u3PaillierPk, u4PaillierPk, u5PaillierPk
 
 	// phase 1 message
-	phase1Msg := NewKGPhase1CommitMessage(nil, lp.partyID, commitU1G.C, uiPaillierPk)
+	phase1Msg := NewKGPhase1CommitMessage(nil, &lp.partyID, commitU1G.C, uiPaillierPk)
 
 	// for this party, save the generated secrets
 	lp.ui = ui

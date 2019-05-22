@@ -16,7 +16,7 @@ type (
 	}
 
 	PartyState struct {
-		partyID *types.PartyID
+		partyID types.PartyID
 
 		p2pCtx   *types.PeerContext
 		kgParams KGParameters
@@ -35,7 +35,7 @@ type (
 )
 
 func NewPartyState(
-		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, monitor PartyStateMonitor) *PartyState {
+		p2pCtx *types.PeerContext, kgParams KGParameters, partyID types.PartyID, monitor PartyStateMonitor) *PartyState {
 	partyCount := kgParams.partyCount
 	return &PartyState{
 		partyID:                  partyID,

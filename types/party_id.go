@@ -17,7 +17,7 @@ type (
 	}
 
 	UnSortedPartyIDs []*PartyID
-	SortedPartyIDs []*PartyID
+	SortedPartyIDs   []*PartyID
 )
 
 // ----- //
@@ -31,7 +31,7 @@ func NewPartyID(id string, moniker string) *PartyID {
 	}
 }
 
-func (pid *PartyID) String() string {
+func (pid PartyID) String() string {
 	return fmt.Sprintf("{%d,%s}", pid.Index, pid.Moniker)
 }
 

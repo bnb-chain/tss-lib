@@ -14,7 +14,7 @@ import (
 )
 
 func newRandomPartyID() *types.PartyID {
-	id := string(rand.Int())
+	id      := string(rand.Int())
 	moniker := string(rand.Int())
 	return types.NewPartyID(id, moniker)
 }
