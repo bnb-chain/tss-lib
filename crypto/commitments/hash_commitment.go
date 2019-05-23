@@ -30,7 +30,7 @@ func NewHashCommitment(secrets ...*big.Int) (cmt *HashCommitDecommit, err error)
 	cmt = &HashCommitDecommit{}
 
 	// Generate the random num
-	rnd := math.GetRandomInt(HashLength)
+	rnd := math.MustGetRandomInt(HashLength)
 
 	// TODO revise use of legacy keccak256 which uses non-standard padding
 	keccak256 := sha3.NewLegacyKeccak256()

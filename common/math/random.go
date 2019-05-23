@@ -1,22 +1,23 @@
 package math
 
 import (
+	"crypto/rand"
 	"math/big"
-	"math/rand"
-	"time"
+
+	"github.com/pkg/errors"
 )
 
-func GetRandomInt(length int) *big.Int {
-	// NewInt allocates and returns a new Int set to x.
-	one := big.NewInt(1)
-	// Lsh sets z = x << n and returns z.
-	maxi := new(big.Int).Lsh(one, uint(length))
+func MustGetRandomInt(len int) *big.Int {
+	// Max random value e.g. 2^256 - 1
+	max := new(big.Int)
+	max.Exp(big.NewInt(2), big.NewInt(int64(len)), nil).Sub(max, big.NewInt(1))
 
-	// New returns a new Rand that uses random values from src to generate other random values.
-	// NewSource returns a new pseudo-random Source seeded with the given value.
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// Returns a pseudo-random number in (0, n)
-	return new(big.Int).Rand(random, maxi)
+	// Generate cryptographically strong pseudo-random between 0 - max
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		panic(errors.Wrap(err, "rand.Int failure in MustGetRandomInt!"))
+	}
+	return n
 }
 
 func GetRandomPositiveInt(n *big.Int) *big.Int {
@@ -24,7 +25,7 @@ func GetRandomPositiveInt(n *big.Int) *big.Int {
 	zero := big.NewInt(0)
 
 	for {
-		rnd = GetRandomInt(n.BitLen())
+		rnd = MustGetRandomInt(n.BitLen())
 		if rnd.Cmp(n) < 0 && rnd.Cmp(zero) >= 0 {
 			break
 		}
@@ -39,9 +40,9 @@ func GetRandomPositiveIntStar(n *big.Int) *big.Int {
 	one := big.NewInt(1)
 
 	for {
-		rnd = GetRandomInt(n.BitLen())
+		rnd = MustGetRandomInt(n.BitLen())
 		if rnd.Cmp(n) < 0 && rnd.Cmp(one) >= 0 &&
-				gcd.GCD(nil, nil, rnd, n).Cmp(one) == 0 {
+			gcd.GCD(nil, nil, rnd, n).Cmp(one) == 0 {
 			break
 		}
 	}
@@ -53,7 +54,7 @@ func GetRandomPrimeInt(length int) *big.Int {
 	var rnd *big.Int
 
 	for {
-		rnd = GetRandomInt(length)
+		rnd = MustGetRandomInt(length)
 		if rnd.ProbablyPrime(512) {
 			break
 		}

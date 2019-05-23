@@ -1,7 +1,10 @@
 package math_test
 
 import (
+	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"tss-lib/common/math"
 )
@@ -11,25 +14,25 @@ const (
 )
 
 func TestGetRandomInt(t *testing.T) {
-	rndInt := math.GetRandomInt(randomIntLength)
-	t.Log(rndInt)
+	rnd := math.MustGetRandomInt(randomIntLength)
+	assert.NotZero(t, rnd, "rand int should not be zero")
 }
 
 func TestGetRandomPositiveInt(t *testing.T) {
-	rndInt := math.GetRandomInt(randomIntLength)
-	t.Log(rndInt)
-	rndIntZn := math.GetRandomPositiveInt(rndInt)
-	t.Log(rndIntZn)
+	rnd := math.MustGetRandomInt(randomIntLength)
+	rndPos := math.GetRandomPositiveInt(rnd)
+	assert.NotZero(t, rndPos, "rand int should not be zero")
+	assert.True(t, rndPos.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
 }
 
 func TestGetRandomPositiveIntStar(t *testing.T) {
-	rndInt := math.GetRandomInt(randomIntLength)
-	t.Log(rndInt)
-	rndIntZnStar := math.GetRandomPositiveIntStar(rndInt)
-	t.Log(rndIntZnStar)
+	rnd := math.MustGetRandomInt(randomIntLength)
+	rndPosStar := math.GetRandomPositiveIntStar(rnd)
+	assert.NotZero(t, rndPosStar, "rand int should not be zero")
+	assert.True(t, rndPosStar.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
 }
 
 func TestGetRandomPrimeInt(t *testing.T) {
-	primeInt := math.GetRandomPrimeInt(randomIntLength)
-	t.Log(primeInt)
+	prime := math.GetRandomPrimeInt(randomIntLength)
+	assert.NotZero(t, prime, "rand int should not be zero")
 }
