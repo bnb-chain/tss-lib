@@ -9,16 +9,19 @@ import (
 	"github.com/binance-chain/tss-lib/common/math"
 )
 
-const KeyPairLength = 2048
+// Using a modulus length of 2048 is recommended in the GG18 spec
+const (
+	PaillierKeyLength = 2048
+)
 
 func TestGenerateKeyPair(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(KeyPairLength)
+	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
 	t.Log(publicKey)
 	t.Log(privateKey)
 }
 
 func TestEncrypt(t *testing.T) {
-	publicKey, _ := GenerateKeyPair(KeyPairLength)
+	publicKey, _ := GenerateKeyPair(PaillierKeyLength)
 
 	one := big.NewInt(1)
 
@@ -27,7 +30,7 @@ func TestEncrypt(t *testing.T) {
 }
 
 func TestDecrypt(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(KeyPairLength)
+	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
 
 	num := math.GetRandomPositiveInt(publicKey.N)
 	t.Log(num)
@@ -42,7 +45,7 @@ func TestDecrypt(t *testing.T) {
 }
 
 func TestHomoAdd(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(KeyPairLength)
+	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
 
 	num1 := big.NewInt(10)
 	num2 := big.NewInt(32)
@@ -61,7 +64,7 @@ func TestHomoAdd(t *testing.T) {
 }
 
 func TestZKFactProve(t *testing.T) {
-	_, privateKey := GenerateKeyPair(KeyPairLength)
+	_, privateKey := GenerateKeyPair(PaillierKeyLength)
 
 	zkFactProof := privateKey.ZKFactProve()
 
@@ -69,7 +72,7 @@ func TestZKFactProve(t *testing.T) {
 }
 
 func TestZKFactVerify(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(KeyPairLength)
+	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
 
 	zkFactProof := privateKey.ZKFactProve()
 

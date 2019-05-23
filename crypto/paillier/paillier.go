@@ -43,6 +43,7 @@ type (
 	}
 )
 
+// len is the length of the modulus (two primes)
 func GenerateKeyPair(len int) (*PublicKey, *PrivateKey) {
 	one := big.NewInt(1)
 

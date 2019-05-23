@@ -9,6 +9,11 @@ import (
 	"github.com/binance-chain/tss-lib/types"
 )
 
+const (
+	// Using a modulus length of 2048 is recommended in the GG18 spec
+	PaillierKeyLength = 2048
+)
+
 var _ PartyStateMonitor = &LocalParty{}
 
 type (
@@ -22,10 +27,6 @@ type (
 		ui         *big.Int
 		paillierSk *paillier.PrivateKey
 	}
-)
-
-const (
-	PaillierKeyLength = 1024
 )
 
 func NewLocalParty(
