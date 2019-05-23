@@ -1,11 +1,15 @@
 package keygen
 
 import (
+	"fmt"
 	"math/big"
+
+	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common/math"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/types"
 )
 
@@ -14,80 +18,124 @@ const (
 	PaillierKeyLength = 2048
 )
 
-var _ PartyStateMonitor = &LocalParty{}
+var _ types.Party = (*LocalParty)(nil)
+var _ PartyStateMonitor = (*LocalParty)(nil)
 
 type (
 	LocalParty struct {
 		*PartyState
 
 		// messaging
-		outChan     chan<- KGMessage
+		out        chan<- types.Message
 
 		// secret fields (not shared)
-		ui         *big.Int
-		paillierSk *paillier.PrivateKey
+		ui          *big.Int
+		deCommitUiG cmt.HashDeCommitment
+		uiPolyGs    *vss.PolyGs
+		paillierSk  *paillier.PrivateKey
 	}
 )
 
 func NewLocalParty(
-		p2pCtx *types.PeerContext, kgParams KGParameters, partyID types.PartyID, outChan chan<- KGMessage) *LocalParty {
+		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, out chan<- types.Message) *LocalParty {
 	p := &LocalParty{
-		outChan: outChan,
+		out: out,
 	}
-	ps := NewPartyState(p2pCtx, kgParams, partyID, p)
+	ps := NewPartyState(p2pCtx, kgParams, partyID, true, p)
 	p.PartyState = ps
 	return p
 }
 
-func (lp *LocalParty) GenerateAndStart() (bool, error) {
+func (lp *LocalParty) StartKeygenRound1() error {
 	// 1. calculate "partial" public key, make commitment -> (C, D)
 	ui := math.GetRandomPositiveInt(EC.N)
 
 	uiGx, uiGy := EC.ScalarBaseMult(ui.Bytes())
-	commitU1G, err := cmt.NewHashCommitment(uiGx, uiGy)
+	cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	// 2. generate Paillier public key "Ei" and private key
-	uiPaillierPk, uiPaillierSk := paillier.GenerateKeyPair(PaillierKeyLength)
+	// 2. generate Paillier public key "Ei", proof and private key
+	PiPaillierPk, PiPaillierSk := paillier.GenerateKeyPair(PaillierKeyLength)
+	PiPaillierPf := PiPaillierSk.Proof()
 
-	// 3. broadcast key share
-	// commitU1G.C, commitU2G.C, commitU3G.C, commitU4G.C, commitU5G.C
-	// u1PaillierPk, u2PaillierPk, u3PaillierPk, u4PaillierPk, u5PaillierPk
+	// 3. broadcast key share, (commitments, paillier pks)
 
-	// phase 1 message
-	phase1Msg := NewKGPhase1CommitMessage(nil, &lp.partyID, commitU1G.C, uiPaillierPk)
+	// round 1 message
+	p1msg := NewKGRound1CommitMessage(lp.partyID, cmtDeCmtUiG.C, PiPaillierPk, PiPaillierPf)
 
-	// for this party, save the generated secrets
+	// for this party: store generated secrets, commitments, paillier vars; for round 2
 	lp.ui = ui
-	lp.paillierSk = uiPaillierSk
+	lp.paillierSk = PiPaillierSk
+	lp.deCommitUiG = cmtDeCmtUiG.D
 
-	lp.Update(phase1Msg)
-	lp.sendToPeers(phase1Msg)
+	lp.Update(p1msg)
+	lp.sendToPeers(p1msg)
 
-	return true, nil
+	fmt.Printf("party %s: keygen round 1 complete", lp.partyID)
+
+	return nil
 }
 
-func (lp *LocalParty) NotifyPhase1Complete() {
+func (lp *LocalParty) startKeygenRound2() error {
 	// next step: compute the vss shares
-	//ids := lp.p2pCtx.Parties().Keys()
-	//_, polyG, _, shares, err := vss.Create(lp.kgParams.Threshold(), lp.kgParams.PartyCount(), ids, lp.ui)
-	//if err != nil {
-	//	panic(lp.wrapError(err, 1))
-	//}
+	ids := lp.p2pCtx.Parties().Keys()
+	vsp, polyGs, shares, err := vss.Create(lp.kgParams.Threshold(), lp.kgParams.PartyCount(), ids, lp.ui)
+	lp.uiPolyGs = polyGs
+	if err != nil {
+		panic(lp.wrapError(err, 1))
+	}
+
+	// p2p send share ij to Pj
+	for i, Pi := range lp.p2pCtx.Parties() {
+		// skip our Pi
+		if i == lp.partyID.Index {
+			continue
+		}
+		for _, PiSh := range shares {
+			p2msg1 := NewKGRound2VssMessage(Pi, lp.partyID, PiSh)
+			lp.sendToPeers(p2msg1)
+		}
+	}
+
+	// broadcast de-commitments and Shamir poly * Gs
+	p2msg2 := NewKGRound2DeCommitMessage(lp.partyID, vsp, polyGs, lp.deCommitUiG)
+	lp.sendToPeers(p2msg2)
+
+	fmt.Printf("party %s: keygen round 2 complete", lp.partyID)
+
+	return nil
 }
 
-func (lp *LocalParty) NotifyPhase2Complete() {
-	panic("implement me")
+func (lp *LocalParty) startKeygenRound3() error {
+	return errors.New("implement me")
+
+	fmt.Printf("party %s: keygen round 3 complete", lp.partyID)
+
+	return nil
 }
 
-func (lp *LocalParty) NotifyPhase3Complete() {
-	panic("implement me")
+func (lp *LocalParty) notifyKeygenRound1Complete() {
+	if err := lp.startKeygenRound2(); err != nil {
+		panic(lp.wrapError(err, 2))
+	}
 }
 
-func (lp *LocalParty) sendToPeers(msg KGMessage) {
-	if lp.outChan != nil {
-		lp.outChan <- msg
+func (lp *LocalParty) notifyKeygenRound2Complete() {
+	if err := lp.startKeygenRound3(); err != nil {
+		panic(lp.wrapError(err, 3))
+	}
+}
+
+func (lp *LocalParty) notifyKeygenRound3Complete() {
+	panic("keygen finished!")
+}
+
+func (lp *LocalParty) sendToPeers(msg types.Message) {
+	if lp.out == nil {
+		panic(fmt.Errorf("party %s tried to send a message but out was nil", lp.partyID))
+	} else {
+		lp.out <- msg
 	}
 }

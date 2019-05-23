@@ -10,7 +10,6 @@ package paillier
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"golang.org/x/crypto/sha3"
 
@@ -21,7 +20,7 @@ var ErrMessageTooLong = fmt.Errorf("the message is too long")
 
 type (
 	PublicKey struct {
-		Length   string
+		Length   int
 		N        *big.Int // modulus
 		G        *big.Int // n+1, since p and q are same length
 		NSquared *big.Int // NSquared = N * N
@@ -29,7 +28,7 @@ type (
 
 	PrivateKey struct {
 		PublicKey
-		Length string
+		Length int
 		L *big.Int // (p-1)*(q-1)
 		U *big.Int // L^-1 mod N
 	}
@@ -37,7 +36,7 @@ type (
 	Proof struct {
 		H1 *big.Int
 		H2 *big.Int
-		Y  *big.Int // r+(n-\phi(n))*e
+		Y  *big.Int
 		E  *big.Int
 		N  *big.Int
 	}
@@ -60,22 +59,21 @@ func GenerateKeyPair(len int) (*PublicKey, *PrivateKey) {
 	l := new(big.Int).Mul(pMinus1, qMinus1)
 	u := new(big.Int).ModInverse(l, n)
 
-	publicKey  := &PublicKey{Length: strconv.Itoa(len), N: n, G: g, NSquared: n2}
-	privateKey := &PrivateKey{Length: strconv.Itoa(len), PublicKey: *publicKey, L: l, U: u}
+	publicKey  := &PublicKey{Length: len, N: n, G: g, NSquared: n2}
+	privateKey := &PrivateKey{Length: len, PublicKey: *publicKey, L: l, U: u}
 
 	return publicKey, privateKey
 }
 
-//func (publicKey *PublicKey) Encrypt(mBigInt *big.Int) (*big.Int, error) {
-func (publicKey *PublicKey) Encrypt(mBigInt *big.Int) (*big.Int, *big.Int, error) {
-	if mBigInt.Cmp(publicKey.N) > 0 {
+func (publicKey *PublicKey) Encrypt(m *big.Int) (*big.Int, *big.Int, error) {
+	if m.Cmp(publicKey.N) > 0 {
 		return nil, nil,ErrMessageTooLong
 	}
 
 	rndStar := math.GetRandomPositiveIntStar(publicKey.N)
 
 	// G^m mod NSq
-	Gm := new(big.Int).Exp(publicKey.G, mBigInt, publicKey.NSquared)
+	Gm := new(big.Int).Exp(publicKey.G, m, publicKey.NSquared)
 	// R^N mod NSq
 	RN := new(big.Int).Exp(rndStar, publicKey.N, publicKey.NSquared)
 	// G^m * R^n
@@ -86,15 +84,15 @@ func (publicKey *PublicKey) Encrypt(mBigInt *big.Int) (*big.Int, *big.Int, error
 	return cipher, rndStar,nil
 }
 
-func (privateKey *PrivateKey) Decrypt(cipherBigInt *big.Int) (*big.Int, error) {
+func (privateKey *PrivateKey) Decrypt(cipher *big.Int) (*big.Int, error) {
 	one := big.NewInt(1)
 
-	if cipherBigInt.Cmp(privateKey.NSquared) > 0 {
+	if cipher.Cmp(privateKey.NSquared) > 0 {
 		return nil, ErrMessageTooLong
 	}
 
 	// c^L mod NSq
-	cL := new(big.Int).Exp(cipherBigInt, privateKey.L, privateKey.NSquared)
+	cL := new(big.Int).Exp(cipher, privateKey.L, privateKey.NSquared)
 	// c^L-1
 	cLMinus1 := new(big.Int).Sub(cL, one)
 	// (c^L-1) / N
@@ -118,9 +116,7 @@ func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) *big.Int {
 
 // TODO add Homo Multiply method
 
-// ----- //
-
-func (privateKey *PrivateKey) ZKFactProve() *Proof {
+func (privateKey *PrivateKey) Proof() *Proof {
 	h1 := math.GetRandomPositiveIntStar(privateKey.N)
 	h2 := math.GetRandomPositiveIntStar(privateKey.N)
 	r := math.GetRandomPositiveInt(privateKey.N)
@@ -141,7 +137,7 @@ func (privateKey *PrivateKey) ZKFactProve() *Proof {
 	return &Proof{H1: h1, H2: h2, Y: y, E: e,N: privateKey.N}
 }
 
-func (publicKey *PublicKey) ZKFactVerify(proof *Proof) bool {
+func (proof *Proof) Verify(publicKey *PublicKey) bool {
 	ySubNE := new(big.Int).Mul(publicKey.N, proof.E)
 	ySubNE = new(big.Int).Sub(proof.Y, ySubNE)
 
@@ -160,5 +156,3 @@ func (publicKey *PublicKey) ZKFactVerify(proof *Proof) bool {
 		return false
 	}
 }
-
-// ----- //

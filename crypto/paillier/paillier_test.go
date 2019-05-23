@@ -25,7 +25,7 @@ func TestEncrypt(t *testing.T) {
 
 	one := big.NewInt(1)
 
-	cipher, _,_ := publicKey.Encrypt(one)
+	cipher, _, _ := publicKey.Encrypt(one)
 	t.Log(cipher)
 }
 
@@ -35,7 +35,7 @@ func TestDecrypt(t *testing.T) {
 	num := math.GetRandomPositiveInt(publicKey.N)
 	t.Log(num)
 
-	cipher, _,_ := publicKey.Encrypt(num)
+	cipher, _, _ := publicKey.Encrypt(num)
 
 	m, err := privateKey.Decrypt(cipher)
 
@@ -53,8 +53,8 @@ func TestHomoAdd(t *testing.T) {
 	sum := new(big.Int).Add(num1, num2)
 	sum = new(big.Int).Mod(sum, publicKey.N)
 
-	one, _,_ := publicKey.Encrypt(num1)
-	two, _,_ := publicKey.Encrypt(num2)
+	one, _, _ := publicKey.Encrypt(num1)
+	two, _, _ := publicKey.Encrypt(num2)
 
 	ciphered := publicKey.HomoAdd(one, two)
 
@@ -63,20 +63,20 @@ func TestHomoAdd(t *testing.T) {
 	assert.Equal(t, new(big.Int).Add(num1, num2), plain)
 }
 
-func TestZKFactProve(t *testing.T) {
+func TestProof(t *testing.T) {
 	_, privateKey := GenerateKeyPair(PaillierKeyLength)
 
-	zkFactProof := privateKey.ZKFactProve()
+	zkFactProof := privateKey.Proof()
 
 	t.Log(zkFactProof)
 }
 
-func TestZKFactVerify(t *testing.T) {
+func TestVerifyProof(t *testing.T) {
 	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
 
-	zkFactProof := privateKey.ZKFactProve()
+	proof := privateKey.Proof()
 
-	res := publicKey.ZKFactVerify(zkFactProof)
+	res := proof.Verify(publicKey)
 
 	assert.True(t, res, "zk fact verify result must be true")
 }

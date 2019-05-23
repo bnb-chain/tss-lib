@@ -25,7 +25,6 @@ type (
 	}
 )
 
-
 func NewHashCommitment(secrets ...*big.Int) (cmt *HashCommitDecommit, err error) {
 	cmt = &HashCommitDecommit{}
 

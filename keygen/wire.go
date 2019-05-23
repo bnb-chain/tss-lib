@@ -3,20 +3,21 @@ package keygen
 import (
 	"bytes"
 	"encoding/gob"
+
+	"github.com/binance-chain/tss-lib/types"
 )
 
 func init() {
-	gob.RegisterName("KGPhase1CommitMessage",   KGPhase1CommitMessage{})
-	gob.RegisterName("KGPhase2VssMessage",      KGPhase2VssMessage{})
-	gob.RegisterName("KGPhase2DeCommitMessage", KGPhase2DeCommitMessage{})
-	gob.RegisterName("KGPhase3ZKProofMessage",  KGPhase3ZKProofMessage{})
-	gob.RegisterName("KGPhase3ZKUProofMessage", KGPhase3ZKUProofMessage{})
+	gob.RegisterName("KGRound1CommitMessage",   KGRound1CommitMessage{})
+	gob.RegisterName("KGRound2VssMessage",      KGRound2VssMessage{})
+	gob.RegisterName("KGRound2DeCommitMessage", KGRound2DeCommitMessage{})
+	gob.RegisterName("KGRound3ZKUProofMessage", KGRound3ZKUProofMessage{})
 }
 
 // ----- //
 
 // Encode encodes the Message in `gob` format
-func EncodeMsg(msg KGMessage) ([]byte, error) {
+func EncodeMsg(msg types.Message) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := gob.NewEncoder(buf).Encode(&msg); err != nil {
 		return nil, err
@@ -25,9 +26,9 @@ func EncodeMsg(msg KGMessage) ([]byte, error) {
 }
 
 // Decode decodes the Message from `gob` format
-func DecodeMsg(data []byte) (KGMessage, error) {
+func DecodeMsg(data []byte) (types.Message, error) {
 	buf := bytes.NewBuffer(data)
-	var msg KGMessage
+	var msg types.Message
 	if err := gob.NewDecoder(buf).Decode(&msg); err != nil {
 		return nil, err
 	}

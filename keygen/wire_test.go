@@ -1,12 +1,13 @@
 package keygen_test
 
 import (
-	"math/rand"
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/binance-chain/tss-lib/common/math"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/keygen"
@@ -14,8 +15,8 @@ import (
 )
 
 func newRandomPartyID() *types.PartyID {
-	id      := string(rand.Int())
-	moniker := string(rand.Int())
+	id := fmt.Sprintf("%d", math.MustGetRandomInt(64))
+	moniker := fmt.Sprintf("%d", math.MustGetRandomInt(64))
 	return types.NewPartyID(id, moniker)
 }
 
@@ -24,24 +25,24 @@ func TestEncodeDecodeMsg(t *testing.T) {
 		data []byte
 	}
 
-	to   := newRandomPartyID()
 	from := newRandomPartyID()
-	cmt  := new(commitments.HashCommitment)
-	pk   := new(paillier.PublicKey)
-	msg1 := keygen.KGMessage(keygen.NewKGPhase1CommitMessage(to, from, *cmt, pk))
+	cmt := new(commitments.HashCommitment)
+	pk := new(paillier.PublicKey)
+	pf := new(paillier.Proof)
+	msg1 := types.Message(keygen.NewKGRound1CommitMessage(from, *cmt, pk, pf))
 	emsg1, err := keygen.EncodeMsg(msg1)
 	assert.NoError(t, err, "encode should not fail")
 
 	tests := []struct {
 		name    string
 		args    args
-		want    keygen.KGMessage
+		want    types.Message
 		wantErr bool
 	}{
 		{
-			name: "happy path",
-			args: args{emsg1},
-			want: msg1,
+			name:    "happy path",
+			args:    args{emsg1},
+			want:    msg1,
 			wantErr: false,
 		},
 	}

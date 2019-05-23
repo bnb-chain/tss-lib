@@ -33,14 +33,9 @@ type (
 		NumShares int      // total num
 	}
 
-	PolyG struct {
+	PolyGs struct {
 		Params
 		PolyG [][]*big.Int // x and y
-	}
-
-	Poly struct {
-		PolyG
-		Poly []*big.Int    // coefficient set
 	}
 
 	Share struct {
@@ -53,59 +48,50 @@ type (
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
 //
-func Create(threshold int, num int, indexes []*big.Int, secret *big.Int) (*Params, *PolyG, *Poly, []*Share, error) {
+func Create(threshold, num int, indexes []*big.Int, secret *big.Int) (*Params, *PolyGs, []*Share, error) {
 	if len(indexes) != num {
-		return nil, nil, nil, nil, ErrIdsLenNotEqualToNumShares
+		return nil, nil, nil, ErrIdsLenNotEqualToNumShares
 	}
 
-	shares := make([]*Share, 0, num)
-
-	// polynomials for commitments
-	poly := make([]*big.Int, 0, threshold)
-
-	poly = append(poly, secret)
+	poly := samplePolynomial(threshold, secret)
 
 	// commitments
-	polyG := make([][]*big.Int, 0, threshold)
+	polyGs := make([][]*big.Int, len(poly))
+	coef0X, coef0Y := EC.ScalarBaseMult(secret.Bytes())
+	polyGs[0] = []*big.Int{coef0X, coef0Y}
 
-	pointX, pointY := EC.ScalarBaseMult(secret.Bytes())
-	polyG = append(polyG, []*big.Int{pointX, pointY})
-
-	for i := 0; i < threshold-1; i++ {
-		// sample polynomial
-		rnd := math.GetRandomPositiveInt(EC.N)
-		poly = append(poly, rnd)
-
-		// generate commitment
-		pointX, pointY := EC.ScalarBaseMult(rnd.Bytes())
-		polyG = append(polyG, []*big.Int{pointX, pointY})
-
+	for i := range polyGs {
+		if i == 0 {  // coef0 is secret
+			continue
+		}
+		pointX, pointY := EC.ScalarBaseMult(poly[i].Bytes())
+		polyGs[i] = []*big.Int{pointX, pointY}
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
-	pg := PolyG{Params: params, PolyG: polyG}
+	pg := PolyGs{Params: params, PolyG: polyGs}
+
+	shares := make([]*Share, num)
 
 	for i := 0; i < num; i++ {
-		shareVal := evaluatePolynomial(poly, indexes[i])
-		shareStruct := &Share{Threshold: threshold, Id: indexes[i], Share: shareVal}
-		shares = append(shares, shareStruct)
+		share  := evaluatePolynomial(poly, indexes[i])
+		shareS := &Share{Threshold: threshold, Id: indexes[i], Share: share}
+		shares[i] = shareS
 	}
 
-	ps := &Poly{PolyG: pg, Poly: poly}
-
-	return &params, &pg, ps, shares, nil
+	return &params, &pg, shares, nil
 }
 
-func (share *Share) Verify(polyG *PolyG) bool {
-	if share.Threshold != polyG.Threshold {
+func (share *Share) Verify(polyGs *PolyGs) bool {
+	if share.Threshold != polyGs.Threshold {
 		return false
 	}
 	id := share.Id
 
-	tmpPointX, tmpPointY := polyG.PolyG[0][0], polyG.PolyG[0][1]
+	tmpPointX, tmpPointY := polyGs.PolyG[0][0], polyGs.PolyG[0][1]
 
-	for i := 1; i < polyG.Threshold; i++ {
-		pointX, pointY := EC.ScalarMult(polyG.PolyG[i][0], polyG.PolyG[i][1], id.Bytes())
+	for i := 1; i < polyGs.Threshold; i++ {
+		pointX, pointY := EC.ScalarMult(polyGs.PolyG[i][0], polyGs.PolyG[i][1], id.Bytes())
 
 		tmpPointX, tmpPointY = EC.Add(tmpPointX, tmpPointY, pointX, pointY)
 		id = new(big.Int).Mul(id, share.Id)
@@ -137,24 +123,36 @@ func Combine(shares []*Share) (*big.Int, error) {
 	for i, share := range shares {
 		times := big.NewInt(1)
 
-		// times()
 		for j := 0; j < len(xs); j++ {
 			if j != i {
 				sub := new(big.Int).Sub(xs[j], share.Id)
-				subInverse := new(big.Int).ModInverse(sub, EC.N)
-				div := new(big.Int).Mul(xs[j], subInverse)
+				subInv := new(big.Int).ModInverse(sub, EC.N)
+				div  := new(big.Int).Mul(xs[j], subInv)
 				times = new(big.Int).Mul(times, div)
 				times = new(big.Int).Mod(times, EC.N)
 			}
 		}
 
-		// sum(f(x) * times())
+		// sum of f(x) * times()
 		fTimes := new(big.Int).Mul(share.Share, times)
-		secret = new(big.Int).Add(secret, fTimes)
-		secret = new(big.Int).Mod(secret, EC.N)
+		secret  = new(big.Int).Add(secret, fTimes)
+		secret  = new(big.Int).Mod(secret, EC.N)
 	}
 
 	return secret, nil
+}
+
+func samplePolynomial(threshold int, coef0 *big.Int) []*big.Int {
+	// secret coef is at [0]
+	poly := make([]*big.Int, threshold)
+	poly[0] = coef0
+
+	for i := 1; i < threshold; i++ {
+		rnd := math.GetRandomPositiveInt(EC.N)
+		poly[i] = rnd
+	}
+
+	return poly
 }
 
 // Evauluates a polynomial with coefficients specified in reverse order:

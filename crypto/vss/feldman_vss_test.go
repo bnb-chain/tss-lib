@@ -21,29 +21,22 @@ func TestCreate(t *testing.T) {
 		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
 	}
 
-	params, polyG, poly, shares, err := vss.Create(threshold, num, ids, secret)
+	params, polyGs, shares, err := vss.Create(threshold, num, ids, secret)
 	assert.Nil(t, err)
 
 	assert.Equal(t, threshold, params.Threshold)
 	assert.Equal(t, num, params.NumShares)
 
-	assert.Equal(t, threshold, len(poly.Poly))
-	assert.Equal(t, threshold, len(polyG.PolyG))
+	assert.Equal(t, threshold, len(polyGs.PolyG))
 
-	// coefs must not be zero
-	for i := range poly.Poly {
-		assert.NotZero(t, poly.Poly[i])
+	// ensure that each polyGs len() == 2 and non-zero
+	for i := range polyGs.PolyG {
+		assert.Equal(t, threshold, len(polyGs.PolyG[i]))
+		assert.NotZero(t, polyGs.PolyG[i][0])
+		assert.NotZero(t, polyGs.PolyG[i][1])
 	}
 
-	// ensure that each polyG len() == 2
-	for i := range polyG.PolyG {
-		assert.Equal(t, len(polyG.PolyG[i]), 2)
-		assert.NotZero(t, polyG.PolyG[i][0])
-		assert.NotZero(t, polyG.PolyG[i][1])
-	}
-
-	t.Log(polyG)
-	t.Log(poly)
+	t.Log(polyGs)
 	t.Log(shares)
 }
 
@@ -57,11 +50,11 @@ func TestVerify(t *testing.T) {
 		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
 	}
 
-	_, polyG, _, shares, err := vss.Create(threshold, num, ids, secret)
-	assert.Nil(t, err)
+	_, polyGs, shares, err := vss.Create(threshold, num, ids, secret)
+	assert.NoError(t, err)
 
 	for i := 0; i < num; i++ {
-		assert.True(t, shares[i].Verify(polyG))
+		assert.True(t, shares[i].Verify(polyGs))
 	}
 }
 
@@ -76,21 +69,20 @@ func TestCombine(t *testing.T) {
 		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
 	}
 
-	_, _, _, shares, err := vss.Create(threshold, num, ids, secret)
-	assert.Nil(t, err)
+	_, _, shares, err := vss.Create(threshold, num, ids, secret)
+	assert.NoError(t, err)
 
 	secret2, err2 := vss.Combine(shares[:threshold-1])
 	assert.Error(t, err2) // not enough shares to satisfy the threshold
-	t.Log(err2)
-	t.Log(secret2)
+	assert.Nil(t, secret2)
 
 	secret3, err3 := vss.Combine(shares[:threshold])
-	assert.Nil(t, err3)
-	t.Log(err3)
+	assert.NoError(t, err3)
+	assert.NotZero(t, secret3)
 	t.Log(secret3)
 
 	secret4, err4 := vss.Combine(shares[:num])
-	assert.Nil(t, err4)
-	t.Log(err4)
+	assert.NoError(t, err4)
+	assert.NotZero(t, secret4)
 	t.Log(secret4)
 }

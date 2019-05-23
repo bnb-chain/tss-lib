@@ -9,151 +9,94 @@ import (
 )
 
 type (
-	KGMessage interface {
-		GetFrom() types.PartyID
-		GetTo()   types.PartyID
-		GetType() string
-	}
-
-	KGMessageMetadata struct {
-		To,
-		From types.PartyID
-		MsgType string
-	}
-
-	// C1
+	// KGRound1CommitMessage represents a BROADCAST message sent during Round 1 of the ECDSA TSS keygen protocol
 	// len == (NodeCnt - 1)
-	KGPhase1CommitMessage struct {
-		KGMessageMetadata
+	KGRound1CommitMessage struct {
+		types.MessageMetadata
 		Commitment cmt.HashCommitment
 		PaillierPk paillier.PublicKey
+		PaillierPf paillier.Proof
 	}
 
-	// SHARE1
+	// KGRound2VssMessage represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol
 	// len == (NodeCnt - 1)
-	KGPhase2VssMessage struct {
-		KGMessageMetadata
-		PolyG  *vss.PolyG
-		Shares []*vss.Share
+	KGRound2VssMessage struct {
+		types.MessageMetadata
+		PiShare *vss.Share
 	}
 
-	// D1
+	// KGRound2DeCommitMessage represents a BROADCAST message sent to each party during Round 2 of the ECDSA TSS keygen protocol
 	// len == (NodeCnt - 1)
-	KGPhase2DeCommitMessage struct {
-		KGMessageMetadata
-		VssParams    vss.Params
+	KGRound2DeCommitMessage struct {
+		types.MessageMetadata
+		VssParams    *vss.Params
+		PolyGs       *vss.PolyGs
 		DeCommitment cmt.HashDeCommitment
 	}
 
-	// ZKFACTPROOF
+	// KGRound3ZKUProofMessage
 	// len == (NodeCnt - 1)
-	KGPhase3ZKProofMessage struct {
-		KGMessageMetadata
-		ZKProof *paillier.Proof
-	}
-
-	// ZKUPROOF
-	// len == (NodeCnt - 1)
-	KGPhase3ZKUProofMessage struct {
-		KGMessageMetadata
+	KGRound3ZKUProofMessage struct {
+		types.MessageMetadata
 		ZKUProof *schnorrZK.ZKProof
 	}
 )
 
-// ----- //
-
-func (kgMM KGMessageMetadata) GetFrom() types.PartyID {
-	return kgMM.From
-}
-
-func (kgMM KGMessageMetadata) GetTo() types.PartyID {
-	return kgMM.To
-}
-
-func (kgMM KGMessageMetadata) GetType() string {
-	return kgMM.MsgType
-}
-
-// ----- //
-
-func NewKGPhase1CommitMessage(to, from *types.PartyID, ct cmt.HashCommitment, paillierPk *paillier.PublicKey) KGPhase1CommitMessage {
-	// to may be `nil`
-	var toToUse types.PartyID
-	if to != nil {
-		toToUse = *to
-	}
-	return KGPhase1CommitMessage{
-		KGMessageMetadata: KGMessageMetadata{
-			To:      toToUse,
-			From:    *from,
-			MsgType: "KGPhase1CommitMessage",
+func NewKGRound1CommitMessage(
+		from *types.PartyID,
+		ct cmt.HashCommitment,
+		paillierPk *paillier.PublicKey,
+		paillierPf *paillier.Proof) KGRound1CommitMessage {
+	return KGRound1CommitMessage{
+		MessageMetadata: types.MessageMetadata{
+			To:      nil, // broadcast
+			From:    from,
+			MsgType: "KGRound1CommitMessage",
 		},
 		Commitment: ct,
 		PaillierPk: *paillierPk,
+		PaillierPf: *paillierPf,
 	}
 }
 
-func NewKGPhase2VssMessage(to, from *types.PartyID, polyG *vss.PolyG, shares []*vss.Share) KGPhase2VssMessage {
-	// to may be `nil`
-	var toToUse types.PartyID
-	if to != nil {
-		toToUse = *to
-	}
-	return KGPhase2VssMessage{
-		KGMessageMetadata: KGMessageMetadata{
-			To:      toToUse,
-			From:    *from,
-			MsgType: "KGPhase2VssMessage",
+func NewKGRound2VssMessage(
+		to, from *types.PartyID,
+		share *vss.Share) KGRound2VssMessage {
+	return KGRound2VssMessage{
+		MessageMetadata: types.MessageMetadata{
+			To:      to,
+			From:    from,
+			MsgType: "KGRound2VssMessage",
 		},
-		PolyG:  polyG,
-		Shares: shares,
+		PiShare: share,
 	}
 }
 
-func NewKGPhase2DeCommitMessage(to, from *types.PartyID, vssParams vss.Params, deCommitment cmt.HashDeCommitment) KGPhase2DeCommitMessage {
-	// to may be `nil`
-	var toToUse types.PartyID
-	if to != nil {
-		toToUse = *to
-	}
-	return KGPhase2DeCommitMessage{
-		KGMessageMetadata: KGMessageMetadata{
-			To:      toToUse,
-			From:    *from,
-			MsgType: "KGPhase2DeCommitMessage",
+func NewKGRound2DeCommitMessage(
+		from *types.PartyID,
+		vssParams *vss.Params,
+		polyGs *vss.PolyGs,
+		deCommitment cmt.HashDeCommitment) KGRound2DeCommitMessage {
+	return KGRound2DeCommitMessage{
+		MessageMetadata: types.MessageMetadata{
+			To:      nil, // broadcast
+			From:    from,
+			MsgType: "KGRound2DeCommitMessage",
 		},
 		VssParams:    vssParams,
+		PolyGs:       polyGs,
 		DeCommitment: deCommitment,
 	}
 }
 
-func NewKGPhase3ZKProofMessage(to, from *types.PartyID, ZKProof *paillier.Proof) KGPhase3ZKProofMessage {
-	// to may be `nil`
-	var toToUse types.PartyID
-	if to != nil {
-		toToUse = *to
-	}
-	return KGPhase3ZKProofMessage{
-		KGMessageMetadata: KGMessageMetadata{
-			To:      toToUse,
-			From:    *from,
-			MsgType: "KGPhase3ZKProofMessage",
-		},
-		ZKProof: ZKProof,
-	}
-}
-
-func NewKGPhase3ZKUProofMessage(to, from *types.PartyID, ZKUProof *schnorrZK.ZKProof) KGPhase3ZKUProofMessage {
-	// to may be `nil`
-	var toToUse types.PartyID
-	if to != nil {
-		toToUse = *to
-	}
-	return KGPhase3ZKUProofMessage{
-		KGMessageMetadata: KGMessageMetadata{
-			To:      toToUse,
-			From:    *from,
-			MsgType: "KGPhase3ZKUProofMessage",
+func NewKGRound3ZKUProofMessage(
+		to, from *types.PartyID,
+		ZKUProof *schnorrZK.ZKProof) KGRound3ZKUProofMessage {
+	return KGRound3ZKUProofMessage{
+		MessageMetadata: types.MessageMetadata{
+			To:      to,
+			From:    from,
+			MsgType: "KGRound3ZKUProofMessage",
 		},
 		ZKUProof: ZKUProof,
 	}
