@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
-	"tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/math"
 )
 
 var ErrMessageTooLong = fmt.Errorf("the message is too long")

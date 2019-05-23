@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/commitments"
 )
 
 func TestCommit(t *testing.T) {

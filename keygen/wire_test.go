@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"tss-lib/crypto/commitments"
-	"tss-lib/crypto/paillier"
-	"tss-lib/keygen"
-	"tss-lib/types"
+	"github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/keygen"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 func newRandomPartyID() *types.PartyID {

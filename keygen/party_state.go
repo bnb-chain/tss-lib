@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"tss-lib/types"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 type (

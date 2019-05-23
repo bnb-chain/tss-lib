@@ -1,11 +1,11 @@
 package keygen
 
 import (
-	cmt "tss-lib/crypto/commitments"
-	"tss-lib/crypto/paillier"
-	"tss-lib/crypto/schnorrZK"
-	"tss-lib/crypto/vss"
-	"tss-lib/types"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/schnorrZK"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 type (

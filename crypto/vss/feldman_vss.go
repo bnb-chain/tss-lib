@@ -12,7 +12,7 @@ import (
 
 	s256k1 "github.com/btcsuite/btcd/btcec"
 
-	"tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/math"
 )
 
 var (

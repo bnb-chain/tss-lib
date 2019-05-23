@@ -7,8 +7,8 @@ import (
 	s256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 
-	"tss-lib/common/math"
-	"tss-lib/crypto/schnorrZK"
+	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/crypto/schnorrZK"
 )
 
 func TestZKProve(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	s256k1 "github.com/btcsuite/btcd/btcec"
 	"golang.org/x/crypto/sha3"
 
-	"tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/math"
 )
 
 var (

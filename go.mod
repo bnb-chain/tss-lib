@@ -1,4 +1,4 @@
-module tss-lib
+module github.com/binance-chain/tss-lib
 
 go 1.12
 

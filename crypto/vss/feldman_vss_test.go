@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"tss-lib/common/math"
-	"tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/crypto/vss"
 )
 
 func TestCreate(t *testing.T) {

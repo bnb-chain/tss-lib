@@ -3,10 +3,10 @@ package keygen
 import (
 	"math/big"
 
-	"tss-lib/common/math"
-	cmt "tss-lib/crypto/commitments"
-	"tss-lib/crypto/paillier"
-	"tss-lib/types"
+	"github.com/binance-chain/tss-lib/common/math"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 var _ PartyStateMonitor = &LocalParty{}

@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sort"
 
-	"tss-lib/crypto/hash"
+	"github.com/binance-chain/tss-lib/crypto/hash"
 )
 
 type (
