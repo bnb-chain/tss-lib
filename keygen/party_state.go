@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/types"
 )
@@ -17,15 +18,15 @@ type (
 	}
 
 	PartyState struct {
-		partyID  *types.PartyID
-		isLocal      bool
+		partyID *types.PartyID
+		isLocal bool
 
 		p2pCtx   *types.PeerContext
 		kgParams KGParameters
 		monitor  PartyStateMonitor
 
 		currentRound int
-		lastMessages             []types.Message
+		lastMessages []types.Message
 
 		kgRound1CommitMessages   []*KGRound1CommitMessage
 		kgRound2VssMessages      []*KGRound2VssMessage
@@ -37,21 +38,21 @@ type (
 var _ types.Party = (*PartyState)(nil)
 
 func NewPartyState(
-		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor PartyStateMonitor) *PartyState {
+	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor PartyStateMonitor) *PartyState {
 
 	currentRound := 1
 	partyCount := kgParams.partyCount
 
 	return &PartyState{
-		partyID:                  partyID,
-		isLocal:                  isLocal,
+		partyID: partyID,
+		isLocal: isLocal,
 
-		p2pCtx:                   p2pCtx,
-		kgParams:                 kgParams,
-		monitor:                  monitor,
+		p2pCtx:   p2pCtx,
+		kgParams: kgParams,
+		monitor:  monitor,
 
-		currentRound:             currentRound,
-		lastMessages:             make([]types.Message, partyCount),
+		currentRound: currentRound,
+		lastMessages: make([]types.Message, partyCount),
 
 		kgRound1CommitMessages:   make([]*KGRound1CommitMessage, partyCount),
 		kgRound2VssMessages:      make([]*KGRound2VssMessage, partyCount),
@@ -88,6 +89,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		p.lastMessages[fromPIdx] = msg
 	}(fromPIdx)
 
+	common.Logger.Info("Update for: ", msg)
 	switch msg.(type) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
@@ -133,7 +135,11 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 		return false, p.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", p1msg.From), 1)
 	}
 	// guard - do we have the required number of messages?
-	if !p.hasRequiredMessages(p.kgRound1CommitMessages) {
+	var toCheck = make([]interface{}, len(p.kgRound1CommitMessages))
+	for i, m := range p.kgRound1CommitMessages {
+		toCheck[i] = m
+	}
+	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
 	}
 	// continue - round 2, vss generate
@@ -157,10 +163,19 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 		return false, p.wrapError(fmt.Errorf("decommitment failed (from party %s = %s)", p2msg1.From, p2msg2.From), 2)
 	}
 	// guard - do we have the required number of messages?
-	if !p.hasRequiredMessages(p.kgRound2DeCommitMessages) {
+	var toCheck = make([]interface{}, len(p.kgRound2DeCommitMessages))
+	for i, m := range p.kgRound2DeCommitMessages {
+		toCheck[i] = m
+	}
+	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
 	}
-	if !p.hasRequiredMessages(p.kgRound2VssMessages) {
+	// guard - do we have the required number of messages?
+	var toCheck2 = make([]interface{}, len(p.kgRound2DeCommitMessages))
+	for i, m := range p.kgRound2DeCommitMessages {
+		toCheck[i] = m
+	}
+	if !p.hasRequiredMessages(toCheck2) {
 		return false, nil
 	}
 	// continue - round 3
@@ -173,7 +188,11 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 
 func (p *PartyState) tryNotifyRound3Complete() (bool, error) {
 	// guard - do we have the required number of messages?
-	if !p.hasRequiredMessages(p.kgRound3ZKUProofMessage) {
+	var toCheck = make([]interface{}, len(p.kgRound3ZKUProofMessage))
+	for i, m := range p.kgRound3ZKUProofMessage {
+		toCheck[i] = m
+	}
+	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
 	}
 	// continue - completion
@@ -184,11 +203,7 @@ func (p *PartyState) tryNotifyRound3Complete() (bool, error) {
 	return true, nil
 }
 
-func (p *PartyState) hasRequiredMessages(msgs interface{}) bool {
-	arr, ok := msgs.([]interface{})
-	if !ok {
-		panic("messages could not be casted to an array")
-	}
+func (p *PartyState) hasRequiredMessages(arr []interface{}) bool {
 	firstNil := false // expect one nil (this party)
 	for i := range arr {
 		if arr[i] == nil {
