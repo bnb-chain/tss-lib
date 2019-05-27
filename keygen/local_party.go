@@ -85,9 +85,13 @@ func (lp *LocalParty) StartKeygenRound1() error {
 	lp.Update(p1msg)
 	lp.sendToPeers(p1msg)
 
-	fmt.Printf("party %s: keygen round 1 complete", lp.partyID)
+	common.Logger.Infof("party %s: keygen round 1 complete", lp.partyID)
 
 	return nil
+}
+
+func (lp *LocalParty) String() string {
+	return fmt.Sprintf("%s", lp.PartyState.String())
 }
 
 func (lp *LocalParty) startKeygenRound2() error {
@@ -115,7 +119,7 @@ func (lp *LocalParty) startKeygenRound2() error {
 	p2msg2 := NewKGRound2DeCommitMessage(lp.partyID, vsp, polyGs, lp.data.DeCommitUiG)
 	lp.sendToPeers(p2msg2)
 
-	fmt.Printf("party %s: keygen round 2 complete", lp.partyID)
+	common.Logger.Infof("party %s: keygen round 2 complete", lp.partyID)
 
 	return nil
 }
