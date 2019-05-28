@@ -93,10 +93,8 @@ func (lp *LocalParty) startKeygenRound2() error {
 		if i == lp.partyID.Index {
 			continue
 		}
-		for _, PiSh := range shares {
-			p2msg1 := NewKGRound2VssMessage(Pi, lp.partyID, PiSh)
-			lp.sendToPeers(p2msg1)
-		}
+		p2msg1 := NewKGRound2VssMessage(Pi, lp.partyID, shares[i])
+		lp.sendToPeers(p2msg1)
 	}
 
 	// broadcast de-commitments and Shamir poly * Gs
