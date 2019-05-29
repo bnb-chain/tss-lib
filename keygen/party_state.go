@@ -2,6 +2,7 @@ package keygen
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/pkg/errors"
 
@@ -11,19 +12,13 @@ import (
 )
 
 type (
-	PartyStateMonitor interface {
-		notifyKeygenRound1Complete()
-		notifyKeygenRound2Complete()
-		notifyKeygenRound3Complete()
-	}
-
 	PartyState struct {
 		partyID *types.PartyID
 		isLocal bool
 
 		p2pCtx   *types.PeerContext
 		kgParams KGParameters
-		monitor  PartyStateMonitor
+		monitor  partyStateMonitor
 
 		currentRound int
 		lastMessages []types.Message
@@ -32,13 +27,22 @@ type (
 		kgRound2VssMessages      []*KGRound2VssMessage
 		kgRound2DeCommitMessages []*KGRound2DeCommitMessage
 		kgRound3ZKUProofMessage  []*KGRound3ZKUProofMessage
+
+		// keygen state
+		uiGs [][]*big.Int
+	}
+
+	partyStateMonitor interface {
+		notifyKeygenRound1Complete()
+		notifyKeygenRound2Complete()
+		notifyKeygenRound3Complete()
 	}
 )
 
 var _ types.Party = (*PartyState)(nil)
 
 func NewPartyState(
-	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor PartyStateMonitor) *PartyState {
+	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor partyStateMonitor) *PartyState {
 
 	currentRound := 1
 	partyCount := kgParams.partyCount
@@ -58,6 +62,9 @@ func NewPartyState(
 		kgRound2VssMessages:      make([]*KGRound2VssMessage, partyCount),
 		kgRound2DeCommitMessages: make([]*KGRound2DeCommitMessage, partyCount),
 		kgRound3ZKUProofMessage:  make([]*KGRound3ZKUProofMessage, partyCount),
+
+		// misc state
+		uiGs: make([][]*big.Int, partyCount),
 	}
 }
 
@@ -93,7 +100,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 	switch msg.(type) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
-		// guard - ensure no last message
+		// guard - ensure no last message from Pi
 		if p.lastMessages[fromPIdx] != nil {
 			return false, p.wrapError(errors.New("unexpected lastMessage"), 1)
 		}
@@ -102,7 +109,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		return p.tryNotifyRound1Complete(p1msg)
 
 	case KGRound2VssMessage: // Round 2 P2P messages
-		// guard - verify lastMessage
+		// guard - verify lastMessage from Pi
 		if _, ok := p.lastMessages[fromPIdx].(KGRound1CommitMessage); !ok {
 			return false, p.wrapError(errors.New("unexpected lastMessage"), 2)
 		}
@@ -111,7 +118,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		return true, nil
 
 	case KGRound2DeCommitMessage:
-		// guard - verify lastMessage
+		// guard - verify lastMessage from Pi
 		if _, ok := p.lastMessages[fromPIdx].(KGRound2VssMessage); !ok {
 			return false, p.wrapError(errors.New("unexpected lastMessage"), 2)
 		}
@@ -120,9 +127,16 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		p2msg1 := p.kgRound2VssMessages[fromPIdx]
 		return p.tryNotifyRound2Complete(*p2msg1, p2msg2)
 
-	// TODO add round 3 case(s)
+	case KGRound3ZKUProofMessage:
+		// guard - verify lastMessage from Pi
+		if _, ok := p.lastMessages[fromPIdx].(KGRound2DeCommitMessage); !ok {
+			return false, p.wrapError(errors.New("unexpected lastMessage"), 3)
+		}
+		p3msg := msg.(KGRound3ZKUProofMessage)
+		p.kgRound3ZKUProofMessage[fromPIdx] = &p3msg
+		return p.tryNotifyRound3Complete(p3msg)
 
-	default:
+	default: // unrecognised message!
 		return false, fmt.Errorf("unrecognised message: %v", msg)
 	}
 
@@ -134,7 +148,8 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 	if ok := p1msg.PaillierPf.Verify(&p1msg.PaillierPk); !ok {
 		return false, p.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", p1msg.From), 1)
 	}
-	// guard - do we have the required number of messages?
+
+	// guard - COUNT the required number of messages
 	var toCheck = make([]interface{}, len(p.kgRound1CommitMessages))
 	for i, m := range p.kgRound1CommitMessages {
 		toCheck[i] = m
@@ -142,6 +157,7 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
 	}
+
 	// continue - round 2, vss generate
 	p.currentRound++
 	if p.monitor != nil {
@@ -152,17 +168,26 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 
 func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 KGRound2DeCommitMessage) (bool, error) {
 	fromPIdx := p2msg2.From.Index
-	// guard - VERIFY de-commit and VSS checks for Pi
+
+	// guard - VERIFY and STORE de-commitment
 	cmt := p.kgRound1CommitMessages[fromPIdx].Commitment
-	cmtDeCmt := commitments.HashCommitDecommit{cmt, p2msg2.DeCommitment}
-	ok, err := cmtDeCmt.Verify()
+	cmtDeCmt := commitments.HashCommitDecommit{C: cmt, D: p2msg2.DeCommitment}
+	ok, uiG, err := cmtDeCmt.DeCommit()
 	if err != nil {
 		return false, p.wrapError(err, 2)
 	}
 	if !ok {
-		return false, p.wrapError(fmt.Errorf("decommitment failed (from party %s = %s)", p2msg1.From, p2msg2.From), 2)
+		return false, p.wrapError(fmt.Errorf("decommitment failed (from party %s == %s)", p2msg1.From, p2msg2.From), 2)
 	}
-	// guard - do we have the required number of messages?
+	p.uiGs[fromPIdx] = uiG
+
+	// guard - VERIFY VSS check for Pi
+	polyGs := p2msg2.PolyGs
+	if p2msg1.PiShare.Verify(polyGs) == false {
+		return false, p.wrapError(fmt.Errorf("vss verify failed (from party %s == %s)", p2msg1.From, p2msg2.From), 2)
+	}
+
+	// guard - COUNT the required number of messages
 	var toCheck = make([]interface{}, len(p.kgRound2DeCommitMessages))
 	for i, m := range p.kgRound2DeCommitMessages {
 		toCheck[i] = m
@@ -170,7 +195,7 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
 	}
-	// guard - do we have the required number of messages?
+	// guard - COUNT the required number of messages
 	var toCheck2 = make([]interface{}, len(p.kgRound2DeCommitMessages))
 	for i, m := range p.kgRound2DeCommitMessages {
 		toCheck[i] = m
@@ -178,6 +203,7 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	if !p.hasRequiredMessages(toCheck2) {
 		return false, nil
 	}
+
 	// continue - round 3
 	p.currentRound++
 	if p.monitor != nil {
@@ -186,8 +212,16 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	return true, nil
 }
 
-func (p *PartyState) tryNotifyRound3Complete() (bool, error) {
-	// guard - do we have the required number of messages?
+func (p *PartyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (bool, error) {
+	fromPIdx := p3msg.From.Index
+
+	// guard - VERIFY zk proof of ui
+	uiG := p.uiGs[fromPIdx]
+	if ok := p3msg.ZKUProof.Verify(uiG); !ok {
+		return false, p.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", p3msg.From), 3)
+	}
+
+	// guard - COUNT the required number of messages
 	var toCheck = make([]interface{}, len(p.kgRound3ZKUProofMessage))
 	for i, m := range p.kgRound3ZKUProofMessage {
 		toCheck[i] = m
@@ -195,6 +229,7 @@ func (p *PartyState) tryNotifyRound3Complete() (bool, error) {
 	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
 	}
+
 	// continue - completion
 	p.currentRound = -1
 	if p.monitor != nil {

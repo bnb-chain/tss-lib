@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/pkg/errors"
-
 	"github.com/binance-chain/tss-lib/common/math"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/schnorrZK"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/types"
 )
@@ -19,27 +18,38 @@ const (
 )
 
 var _ types.Party = (*LocalParty)(nil)
-var _ PartyStateMonitor = (*LocalParty)(nil)
+var _ partyStateMonitor = (*LocalParty)(nil)
 
 type (
+	LocalPartySaveData struct {
+		// secret fields (not shared)
+		Ui          *big.Int
+		DeCommitUiG cmt.HashDeCommitment
+		UiPolyGs    *vss.PolyGs
+		PaillierSk  *paillier.PrivateKey
+		PaillierPk  *paillier.PublicKey
+	}
+
 	LocalParty struct {
 		*PartyState
+		data LocalPartySaveData
 
 		// messaging
 		out        chan<- types.Message
-
-		// secret fields (not shared)
-		ui          *big.Int
-		deCommitUiG cmt.HashDeCommitment
-		uiPolyGs    *vss.PolyGs
-		paillierSk  *paillier.PrivateKey
+		end        chan<- LocalPartySaveData
 	}
 )
 
 func NewLocalParty(
-		p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, out chan<- types.Message) *LocalParty {
+		p2pCtx *types.PeerContext,
+		kgParams KGParameters,
+		partyID *types.PartyID,
+		out chan<- types.Message,
+		end chan<- LocalPartySaveData) *LocalParty {
 	p := &LocalParty{
 		out: out,
+		end: end,
+		data: LocalPartySaveData{},
 	}
 	ps := NewPartyState(p2pCtx, kgParams, partyID, true, p)
 	p.PartyState = ps
@@ -60,15 +70,16 @@ func (lp *LocalParty) StartKeygenRound1() error {
 	PiPaillierPk, PiPaillierSk := paillier.GenerateKeyPair(PaillierKeyLength)
 	PiPaillierPf := PiPaillierSk.Proof()
 
-	// 3. broadcast key share, (commitments, paillier pks)
+	// 3. BROADCAST key share, (commitments, paillier pks)
 
 	// round 1 message
 	p1msg := NewKGRound1CommitMessage(lp.partyID, cmtDeCmtUiG.C, PiPaillierPk, PiPaillierPf)
 
-	// for this party: store generated secrets, commitments, paillier vars; for round 2
-	lp.ui = ui
-	lp.paillierSk = PiPaillierSk
-	lp.deCommitUiG = cmtDeCmtUiG.D
+	// for this P: SAVE generated secrets, commitments, paillier vars; for round 2
+	lp.data.Ui = ui
+	lp.data.PaillierSk = PiPaillierSk
+	lp.data.PaillierPk = PiPaillierPk
+	lp.data.DeCommitUiG = cmtDeCmtUiG.D
 
 	lp.Update(p1msg)
 	lp.sendToPeers(p1msg)
@@ -81,11 +92,13 @@ func (lp *LocalParty) StartKeygenRound1() error {
 func (lp *LocalParty) startKeygenRound2() error {
 	// next step: compute the vss shares
 	ids := lp.p2pCtx.Parties().Keys()
-	vsp, polyGs, shares, err := vss.Create(lp.kgParams.Threshold(), lp.kgParams.PartyCount(), ids, lp.ui)
-	lp.uiPolyGs = polyGs
+	vsp, polyGs, shares, err := vss.Create(lp.kgParams.Threshold(), lp.kgParams.PartyCount(), ids, lp.data.Ui)
 	if err != nil {
 		panic(lp.wrapError(err, 1))
 	}
+
+	// for this P: SAVE UiPolyGs
+	lp.data.UiPolyGs = polyGs
 
 	// p2p send share ij to Pj
 	for i, Pi := range lp.p2pCtx.Parties() {
@@ -97,8 +110,8 @@ func (lp *LocalParty) startKeygenRound2() error {
 		lp.sendToPeers(p2msg1)
 	}
 
-	// broadcast de-commitments and Shamir poly * Gs
-	p2msg2 := NewKGRound2DeCommitMessage(lp.partyID, vsp, polyGs, lp.deCommitUiG)
+	// BROADCAST de-commitments and Shamir poly * Gs
+	p2msg2 := NewKGRound2DeCommitMessage(lp.partyID, vsp, polyGs, lp.data.DeCommitUiG)
 	lp.sendToPeers(p2msg2)
 
 	fmt.Printf("party %s: keygen round 2 complete", lp.partyID)
@@ -107,9 +120,46 @@ func (lp *LocalParty) startKeygenRound2() error {
 }
 
 func (lp *LocalParty) startKeygenRound3() error {
-	return errors.New("implement me")
+	uiGs := lp.uiGs  // verified and de-committed in `tryNotifyRound2Complete`
+	Ps := lp.p2pCtx.Parties()
 
-	fmt.Printf("party %s: keygen round 3 complete", lp.partyID)
+	// for all Ps, calculate the public key
+	pkX, pkY := uiGs[0][0], uiGs[0][1] // P1
+	for i := range Ps { // P2..Pn
+		if i == 0 {
+			continue
+		}
+		pkX, pkY = EC.Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
+	}
+
+	// PRINT public key
+	fmt.Printf("public X: %x", pkX)
+	fmt.Printf("public Y: %x", pkY)
+
+	// for all Ps, calculate private key shares
+	skUi := lp.kgRound2VssMessages[0].PiShare.Share
+	for i := range Ps { // P2..Pn
+		share := lp.kgRound2VssMessages[i].PiShare.Share
+		skUi = new(big.Int).Add(skUi, share)
+	}
+	skUi = new(big.Int).Mod(skUi, EC.N)
+
+	// PRINT private share
+	fmt.Printf("private share: %x", skUi)
+
+	// BROADCAST zk proof of ui
+	uiProof := schnorrZK.NewZKProof(lp.data.Ui)
+	p3msg := NewKGRound3ZKUProofMessage(lp.partyID, uiProof)
+	lp.sendToPeers(p3msg)
+
+	return nil
+}
+
+func (lp *LocalParty) finishAndSaveKeygen() error {
+	fmt.Printf("party %s: finished keygen. sending local data.", lp.partyID)
+
+	// output local save data (inc. secrets)
+	lp.end <- lp.data
 
 	return nil
 }
@@ -127,7 +177,9 @@ func (lp *LocalParty) notifyKeygenRound2Complete() {
 }
 
 func (lp *LocalParty) notifyKeygenRound3Complete() {
-	panic("keygen finished!")
+	if err := lp.finishAndSaveKeygen(); err != nil {
+		panic(lp.wrapError(err, 4))
+	}
 }
 
 func (lp *LocalParty) sendToPeers(msg types.Message) {

@@ -49,7 +49,7 @@ func NewKGRound1CommitMessage(
 		paillierPf *paillier.Proof) KGRound1CommitMessage {
 	return KGRound1CommitMessage{
 		MessageMetadata: types.MessageMetadata{
-			To:      nil, // broadcast
+			To:      nil,  // broadcast
 			From:    from,
 			MsgType: "KGRound1CommitMessage",
 		},
@@ -90,11 +90,11 @@ func NewKGRound2DeCommitMessage(
 }
 
 func NewKGRound3ZKUProofMessage(
-		to, from *types.PartyID,
+		from *types.PartyID,
 		ZKUProof *schnorrZK.ZKProof) KGRound3ZKUProofMessage {
 	return KGRound3ZKUProofMessage{
 		MessageMetadata: types.MessageMetadata{
-			To:      to,
+			To:      nil,  // broadcast
 			From:    from,
 			MsgType: "KGRound3ZKUProofMessage",
 		},

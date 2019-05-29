@@ -10,21 +10,13 @@ import (
 	"fmt"
 	"math/big"
 
-	s256k1 "github.com/btcsuite/btcd/btcec"
-
 	"github.com/binance-chain/tss-lib/common/math"
 )
 
 var (
 	ErrIdsLenNotEqualToNumShares = fmt.Errorf("the length of input ids is not equal to the number of shares")
 	ErrNumSharesBelowThreshold   = fmt.Errorf("not enough shares to satisfy the threshold")
-
-	EC *s256k1.KoblitzCurve
 )
-
-func init() {
-	EC = s256k1.S256()
-}
 
 type (
 	// Params represents the parameters used in Shamir secret sharing
