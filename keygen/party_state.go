@@ -88,7 +88,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		return false, fmt.Errorf("nil message received by party %s", p.partyID)
 	}
 
-	fmt.Printf("party %s received message: %s", p.partyID, msg.GetType())
+	common.Logger.Infof("party %s received message: %s", p.partyID, msg.GetType())
 
 	fromPIdx := msg.GetFrom().Index
 
@@ -143,6 +143,10 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 	return true, nil
 }
 
+func (p *PartyState) String() string {
+	return fmt.Sprintf("id: %s, isLocal: %t, round: %d", p.partyID.String(), p.isLocal, p.currentRound)
+}
+
 func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool, error) {
 	// guard - VERIFY received paillier pk/proof for Pi
 	if ok := p1msg.PaillierPf.Verify(&p1msg.PaillierPk); !ok {
@@ -152,7 +156,9 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 	// guard - COUNT the required number of messages
 	var toCheck = make([]interface{}, len(p.kgRound1CommitMessages))
 	for i, m := range p.kgRound1CommitMessages {
-		toCheck[i] = m
+		if m != nil {
+			toCheck[i] = m
+		}
 	}
 	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
@@ -190,7 +196,9 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	// guard - COUNT the required number of messages
 	var toCheck = make([]interface{}, len(p.kgRound2DeCommitMessages))
 	for i, m := range p.kgRound2DeCommitMessages {
-		toCheck[i] = m
+		if m != nil {
+			toCheck[i] = m
+		}
 	}
 	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
@@ -198,7 +206,9 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	// guard - COUNT the required number of messages
 	var toCheck2 = make([]interface{}, len(p.kgRound2DeCommitMessages))
 	for i, m := range p.kgRound2DeCommitMessages {
-		toCheck[i] = m
+		if m != nil {
+			toCheck[i] = m
+		}
 	}
 	if !p.hasRequiredMessages(toCheck2) {
 		return false, nil
@@ -224,7 +234,9 @@ func (p *PartyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (boo
 	// guard - COUNT the required number of messages
 	var toCheck = make([]interface{}, len(p.kgRound3ZKUProofMessage))
 	for i, m := range p.kgRound3ZKUProofMessage {
-		toCheck[i] = m
+		if m != nil {
+			toCheck[i] = m
+		}
 	}
 	if !p.hasRequiredMessages(toCheck) {
 		return false, nil
