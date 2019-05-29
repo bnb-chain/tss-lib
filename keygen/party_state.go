@@ -161,6 +161,7 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 		}
 	}
 	if !p.hasRequiredMessages(toCheck) {
+		common.Logger.Debugf("party %s: waiting for more kgRound1CommitMessages", p.partyID)
 		return false, nil
 	}
 
@@ -194,13 +195,14 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	}
 
 	// guard - COUNT the required number of messages
-	var toCheck = make([]interface{}, len(p.kgRound2DeCommitMessages))
-	for i, m := range p.kgRound2DeCommitMessages {
+	var toCheck = make([]interface{}, len(p.kgRound2VssMessages))
+	for i, m := range p.kgRound2VssMessages {
 		if m != nil {
 			toCheck[i] = m
 		}
 	}
 	if !p.hasRequiredMessages(toCheck) {
+		common.Logger.Debugf("party %s: waiting for more kgRound2VssMessages", p.partyID)
 		return false, nil
 	}
 	// guard - COUNT the required number of messages
@@ -211,6 +213,7 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 		}
 	}
 	if !p.hasRequiredMessages(toCheck2) {
+		common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", p.partyID)
 		return false, nil
 	}
 
@@ -228,6 +231,7 @@ func (p *PartyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (boo
 	// guard - VERIFY zk proof of ui
 	uiG := p.uiGs[fromPIdx]
 	if ok := p3msg.ZKUProof.Verify(uiG); !ok {
+		common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", p.partyID)
 		return false, p.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", p3msg.From), 3)
 	}
 
