@@ -255,16 +255,16 @@ func (p *PartyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (boo
 }
 
 func (p *PartyState) hasRequiredMessages(arr []interface{}) bool {
-	firstNil := false // expect one nil (this party)
-	for i := range arr {
-		if arr[i] == nil {
-			if firstNil == true {
-				return false
-			}
-			firstNil = true
+	for i, v := range arr {
+		// ignore this Pi's (can be nil or set)
+		if i == p.partyID.Index {
+			continue
+		}
+		if v == nil {
+			return false
 		}
 	}
-	return firstNil
+	return true
 }
 
 func (p *PartyState) wrapError(err error, round int) error {

@@ -111,11 +111,12 @@ func (lp *LocalParty) startKeygenRound2() error {
 
 	// p2p send share ij to Pj
 	for i, Pi := range lp.p2pCtx.Parties() {
-		// skip our Pi
+		p2msg1 := NewKGRound2VssMessage(Pi, lp.partyID, shares[i])
+		// do not send to this Pi, but store for round 3
 		if i == lp.partyID.Index {
+			lp.kgRound2VssMessages[i] = &p2msg1
 			continue
 		}
-		p2msg1 := NewKGRound2VssMessage(Pi, lp.partyID, shares[i])
 		lp.sendToPeers(p2msg1)
 	}
 
