@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/math"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
@@ -145,7 +146,7 @@ func (lp *LocalParty) startKeygenRound3() error {
 	skUi = new(big.Int).Mod(skUi, EC.N)
 
 	// PRINT private share
-	fmt.Printf("private share: %x", skUi)
+	common.Logger.Debugf("private share: %x", skUi)
 
 	// BROADCAST zk proof of ui
 	uiProof := schnorrZK.NewZKProof(lp.data.Ui)
@@ -156,7 +157,7 @@ func (lp *LocalParty) startKeygenRound3() error {
 }
 
 func (lp *LocalParty) finishAndSaveKeygen() error {
-	fmt.Printf("party %s: finished keygen. sending local data.", lp.partyID)
+	common.Logger.Infof("party %s: finished keygen. sending local data.", lp.partyID)
 
 	// output local save data (inc. secrets)
 	lp.end <- lp.data
