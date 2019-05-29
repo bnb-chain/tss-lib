@@ -62,6 +62,10 @@ func (lp *LocalParty) StartKeygenRound1() error {
 	ui := math.GetRandomPositiveInt(EC.N)
 
 	uiGx, uiGy := EC.ScalarBaseMult(ui.Bytes())
+
+	// save uiGx, uiGy for this Pi for round 3
+	lp.uiGs[lp.partyID.Index] = []*big.Int{uiGx, uiGy}
+
 	cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
 	if err != nil {
 		return err
