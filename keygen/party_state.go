@@ -88,7 +88,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		return false, fmt.Errorf("nil message received by party %s", p.partyID)
 	}
 
-	common.Logger.Infof("party %s received message: %s", p.partyID, msg.GetType())
+	common.Logger.Infof("party %s received message: %s", p.partyID, msg.String())
 
 	fromPIdx := msg.GetFrom().Index
 
@@ -96,7 +96,7 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 		p.lastMessages[fromPIdx] = msg
 	}(fromPIdx)
 
-	common.Logger.Info("Update for: ", msg)
+	common.Logger.Infof("party %s update for: %s", p.partyID, msg.String())
 	switch msg.(type) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
@@ -209,7 +209,7 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	var toCheck2 = make([]interface{}, len(p.kgRound2DeCommitMessages))
 	for i, m := range p.kgRound2DeCommitMessages {
 		if m != nil {
-			toCheck[i] = m
+			toCheck2[i] = m
 		}
 	}
 	if !p.hasRequiredMessages(toCheck2) {
