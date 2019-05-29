@@ -139,6 +139,9 @@ func (lp *LocalParty) startKeygenRound3() error {
 	// for all Ps, calculate private key shares
 	skUi := lp.kgRound2VssMessages[0].PiShare.Share
 	for i := range Ps { // P2..Pn
+		if i == 0 {
+			continue
+		}
 		share := lp.kgRound2VssMessages[i].PiShare.Share
 		skUi = new(big.Int).Add(skUi, share)
 	}
