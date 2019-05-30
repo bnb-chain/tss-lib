@@ -101,7 +101,7 @@ func (lp *LocalParty) String() string {
 func (lp *LocalParty) startKeygenRound2() error {
 	// next step: compute the vss shares
 	ids := lp.p2pCtx.Parties().Keys()
-	vsp, polyGs, shares, err := vss.Create(lp.kgParams.Threshold(), lp.kgParams.PartyCount(), ids, lp.data.Ui)
+	vsp, polyGs, shares, err := vss.Create(lp.kgParams.Threshold(), lp.data.Ui, ids)
 	if err != nil {
 		panic(lp.wrapError(err, 1))
 	}
