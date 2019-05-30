@@ -32,7 +32,7 @@ type (
 	}
 
 	LocalParty struct {
-		*PartyState
+		*partyState
 		data LocalPartySaveData
 
 		// messaging
@@ -41,6 +41,7 @@ type (
 	}
 )
 
+// Exported, used in `tss` client
 func NewLocalParty(
 		p2pCtx *types.PeerContext,
 		kgParams KGParameters,
@@ -52,9 +53,14 @@ func NewLocalParty(
 		end: end,
 		data: LocalPartySaveData{},
 	}
-	ps := NewPartyState(p2pCtx, kgParams, partyID, true, p)
-	p.PartyState = ps
+	ps := newPartyState(p2pCtx, kgParams, partyID, true, p)
+	p.partyState = ps
 	return p
+}
+
+// Implements Stringer
+func (lp *LocalParty) String() string {
+	return fmt.Sprintf("%s", lp.partyState.String())
 }
 
 func (lp *LocalParty) StartKeygenRound1() error {
@@ -92,10 +98,6 @@ func (lp *LocalParty) StartKeygenRound1() error {
 	common.Logger.Infof("party %s: keygen round 1 complete", lp.partyID)
 
 	return nil
-}
-
-func (lp *LocalParty) String() string {
-	return fmt.Sprintf("%s", lp.PartyState.String())
 }
 
 func (lp *LocalParty) startKeygenRound2() error {

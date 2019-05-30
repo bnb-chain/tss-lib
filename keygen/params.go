@@ -8,6 +8,7 @@ type (
 	}
 )
 
+// Exported, used in `tss` client
 func NewKGParameters(partyCount int, threshold int) *KGParameters {
 	return &KGParameters{
 		partyCount:      partyCount,

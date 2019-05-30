@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	PartyState struct {
+	partyState struct {
 		partyID *types.PartyID
 		isLocal bool
 
@@ -39,15 +39,15 @@ type (
 	}
 )
 
-var _ types.Party = (*PartyState)(nil)
+var _ types.Party = (*partyState)(nil)
 
-func NewPartyState(
-	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor partyStateMonitor) *PartyState {
+func newPartyState(
+	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor partyStateMonitor) *partyState {
 
 	currentRound := 1
 	partyCount := kgParams.partyCount
 
-	return &PartyState{
+	return &partyState{
 		partyID: partyID,
 		isLocal: isLocal,
 
@@ -68,15 +68,15 @@ func NewPartyState(
 	}
 }
 
-func (p *PartyState) IsLocal() bool {
+func (p *partyState) IsLocal() bool {
 	return p.isLocal
 }
 
-func (p *PartyState) CurrentRound() int {
+func (p *partyState) CurrentRound() int {
 	return p.currentRound
 }
 
-func (p *PartyState) Update(msg types.Message) (bool, error) {
+func (p *partyState) Update(msg types.Message) (bool, error) {
 	if msg.GetFrom() == nil {
 		return false, p.wrapError(errors.New("Update received nil msg"), p.currentRound)
 	}
@@ -143,11 +143,11 @@ func (p *PartyState) Update(msg types.Message) (bool, error) {
 	return true, nil
 }
 
-func (p *PartyState) String() string {
+func (p *partyState) String() string {
 	return fmt.Sprintf("id: %s, isLocal: %t, round: %d", p.partyID.String(), p.isLocal, p.currentRound)
 }
 
-func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool, error) {
+func (p *partyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool, error) {
 	// guard - VERIFY received paillier pk/proof for Pi
 	if ok := p1msg.PaillierPf.Verify(&p1msg.PaillierPk); !ok {
 		return false, p.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", p1msg.From), 1)
@@ -173,7 +173,7 @@ func (p *PartyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool,
 	return true, nil
 }
 
-func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 KGRound2DeCommitMessage) (bool, error) {
+func (p *partyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 KGRound2DeCommitMessage) (bool, error) {
 	fromPIdx := p2msg2.From.Index
 
 	// guard - VERIFY and STORE de-commitment
@@ -225,7 +225,7 @@ func (p *PartyState) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	return true, nil
 }
 
-func (p *PartyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (bool, error) {
+func (p *partyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (bool, error) {
 	fromPIdx := p3msg.From.Index
 
 	// guard - VERIFY zk proof of ui
@@ -254,7 +254,7 @@ func (p *PartyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (boo
 	return true, nil
 }
 
-func (p *PartyState) hasRequiredMessages(arr []interface{}) bool {
+func (p *partyState) hasRequiredMessages(arr []interface{}) bool {
 	for i, v := range arr {
 		// ignore this Pi's (can be nil or set)
 		if i == p.partyID.Index {
@@ -267,6 +267,6 @@ func (p *PartyState) hasRequiredMessages(arr []interface{}) bool {
 	return true
 }
 
-func (p *PartyState) wrapError(err error, round int) error {
+func (p *partyState) wrapError(err error, round int) error {
 	return errors.Wrapf(err, "party %s, round %d", p.partyID, round)
 }

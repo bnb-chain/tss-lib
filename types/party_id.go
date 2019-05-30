@@ -22,6 +22,7 @@ type (
 
 // ----- //
 
+// Exported, used in `tss` client
 func NewPartyID(id string, moniker string) *PartyID {
 	return &PartyID{
 		Index:   -1, // not known until sorted
@@ -37,6 +38,7 @@ func (pid PartyID) String() string {
 
 // ----- //
 
+// Exported, used in `tss` client
 func SortPartyIDs(ids UnSortedPartyIDs) SortedPartyIDs {
 	sorted := make(SortedPartyIDs, 0, len(ids))
 	for _, id := range ids {
