@@ -92,8 +92,8 @@ func (lp *LocalParty) StartKeygenRound1() error {
 	lp.data.PaillierPk = PiPaillierPk
 	lp.data.DeCommitUiG = cmtDeCmtUiG.D
 
-	lp.Update(p1msg)
-	lp.sendToPeers(p1msg)
+	lp.kgRound1CommitMessages[lp.partyID.Index] = &p1msg
+	lp.sendMsg(p1msg)
 
 	common.Logger.Infof("party %s: keygen round 1 complete", lp.partyID)
 
@@ -119,12 +119,12 @@ func (lp *LocalParty) startKeygenRound2() error {
 			lp.kgRound2VssMessages[i] = &p2msg1
 			continue
 		}
-		lp.sendToPeers(p2msg1)
+		lp.updateAndSendMsg(p2msg1)
 	}
 
 	// BROADCAST de-commitments and Shamir poly * Gs
 	p2msg2 := NewKGRound2DeCommitMessage(lp.partyID, vsp, polyGs, lp.data.DeCommitUiG)
-	lp.sendToPeers(p2msg2)
+	lp.updateAndSendMsg(p2msg2)
 
 	common.Logger.Infof("party %s: keygen round 2 complete", lp.partyID)
 
@@ -144,10 +144,6 @@ func (lp *LocalParty) startKeygenRound3() error {
 		pkX, pkY = EC.Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
 	}
 
-	// PRINT public key
-	fmt.Printf("public X: %x", pkX)
-	fmt.Printf("public Y: %x", pkY)
-
 	// for all Ps, calculate private key shares
 	skUi := lp.kgRound2VssMessages[0].PiShare.Share
 	for i := range Ps { // P2..Pn
@@ -165,7 +161,7 @@ func (lp *LocalParty) startKeygenRound3() error {
 	// BROADCAST zk proof of ui
 	uiProof := schnorrZK.NewZKProof(lp.data.Ui)
 	p3msg := NewKGRound3ZKUProofMessage(lp.partyID, uiProof)
-	lp.sendToPeers(p3msg)
+	lp.updateAndSendMsg(p3msg)
 
 	return nil
 }
@@ -197,10 +193,17 @@ func (lp *LocalParty) notifyKeygenRound3Complete() {
 	}
 }
 
-func (lp *LocalParty) sendToPeers(msg types.Message) {
+func (lp *LocalParty) sendMsg(msg types.Message) {
 	if lp.out == nil {
 		panic(fmt.Errorf("party %s tried to send a message but out was nil", lp.partyID))
 	} else {
 		lp.out <- msg
 	}
+}
+
+func (lp *LocalParty) updateAndSendMsg(msg types.Message) {
+	if _, err := lp.Update(msg); err != nil {
+		panic(lp.wrapError(err, -1))
+	}
+	lp.sendMsg(msg)
 }

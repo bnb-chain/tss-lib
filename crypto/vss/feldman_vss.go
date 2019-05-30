@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common/math"
 )
 
@@ -38,6 +40,10 @@ type (
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
 //
 func Create(threshold int, secret *big.Int, indexes []*big.Int) (*Params, *PolyGs, []*Share, error) {
+	if secret == nil || indexes == nil {
+		return nil, nil, nil, errors.New("vss secret or indexes == nil")
+	}
+
 	num := len(indexes)
 
 	if num < threshold {

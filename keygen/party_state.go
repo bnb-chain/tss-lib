@@ -42,7 +42,11 @@ type (
 var _ types.Party = (*partyState)(nil)
 
 func newPartyState(
-	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, monitor partyStateMonitor) *partyState {
+		p2pCtx *types.PeerContext,
+		kgParams KGParameters,
+		partyID *types.PartyID,
+		isLocal bool,
+		monitor partyStateMonitor) *partyState {
 
 	currentRound := 1
 	partyCount := kgParams.partyCount
@@ -68,6 +72,15 @@ func newPartyState(
 	}
 }
 
+// implements Stringer
+func (p *partyState) String() string {
+	return fmt.Sprintf("id: %s, isLocal: %t, round: %d", p.partyID.String(), p.isLocal, p.currentRound)
+}
+
+func (p *partyState) ID() *types.PartyID {
+	return p.partyID
+}
+
 func (p *partyState) IsLocal() bool {
 	return p.isLocal
 }
@@ -79,10 +92,6 @@ func (p *partyState) CurrentRound() int {
 func (p *partyState) Update(msg types.Message) (bool, error) {
 	if msg.GetFrom() == nil {
 		return false, p.wrapError(errors.New("Update received nil msg"), p.currentRound)
-	}
-	// P i != j
-	if msg.GetFrom().Index == p.partyID.Index {
-		return false, nil
 	}
 	if msg == nil {
 		return false, fmt.Errorf("nil message received by party %s", p.partyID)
@@ -102,36 +111,32 @@ func (p *partyState) Update(msg types.Message) (bool, error) {
 	case KGRound1CommitMessage: // Round 1 broadcast messages
 		// guard - ensure no last message from Pi
 		if p.lastMessages[fromPIdx] != nil {
-			return false, p.wrapError(errors.New("unexpected lastMessage"), 1)
+			return false, nil
 		}
 		p1msg := msg.(KGRound1CommitMessage)
 		p.kgRound1CommitMessages[fromPIdx] = &p1msg
 		return p.tryNotifyRound1Complete(p1msg)
 
 	case KGRound2VssMessage: // Round 2 P2P messages
-		// guard - verify lastMessage from Pi
-		if _, ok := p.lastMessages[fromPIdx].(KGRound1CommitMessage); !ok {
-			return false, p.wrapError(errors.New("unexpected lastMessage"), 2)
-		}
+		// TODO guard - verify lastMessage from Pi (security)
 		p2msg1 := msg.(KGRound2VssMessage)
 		p.kgRound2VssMessages[fromPIdx] = &p2msg1 // just collect
-		return true, nil
+		if p2msg2 := p.kgRound2DeCommitMessages[fromPIdx]; p2msg2 != nil {
+			return p.tryNotifyRound2Complete(p2msg1, *p2msg2)
+		}
+		return false, nil
 
 	case KGRound2DeCommitMessage:
-		// guard - verify lastMessage from Pi
-		if _, ok := p.lastMessages[fromPIdx].(KGRound2VssMessage); !ok {
-			return false, p.wrapError(errors.New("unexpected lastMessage"), 2)
-		}
+		// TODO guard - verify lastMessage from Pi (security)
 		p2msg2 := msg.(KGRound2DeCommitMessage)
 		p.kgRound2DeCommitMessages[fromPIdx] = &p2msg2
-		p2msg1 := p.kgRound2VssMessages[fromPIdx]
-		return p.tryNotifyRound2Complete(*p2msg1, p2msg2)
+		if p2msg1 := p.kgRound2VssMessages[fromPIdx]; p2msg1 != nil {
+			return p.tryNotifyRound2Complete(*p2msg1, p2msg2)
+		}
+		return false, nil
 
 	case KGRound3ZKUProofMessage:
-		// guard - verify lastMessage from Pi
-		if _, ok := p.lastMessages[fromPIdx].(KGRound2DeCommitMessage); !ok {
-			return false, p.wrapError(errors.New("unexpected lastMessage"), 3)
-		}
+		// TODO guard - verify lastMessage from Pi (security)
 		p3msg := msg.(KGRound3ZKUProofMessage)
 		p.kgRound3ZKUProofMessage[fromPIdx] = &p3msg
 		return p.tryNotifyRound3Complete(p3msg)
@@ -141,10 +146,6 @@ func (p *partyState) Update(msg types.Message) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func (p *partyState) String() string {
-	return fmt.Sprintf("id: %s, isLocal: %t, round: %d", p.partyID.String(), p.isLocal, p.currentRound)
 }
 
 func (p *partyState) tryNotifyRound1Complete(p1msg KGRound1CommitMessage) (bool, error) {
@@ -255,12 +256,9 @@ func (p *partyState) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (boo
 }
 
 func (p *partyState) hasRequiredMessages(arr []interface{}) bool {
-	for i, v := range arr {
-		// ignore this Pi's (can be nil or set)
-		if i == p.partyID.Index {
-			continue
-		}
-		if v == nil {
+	for _, v := range arr {
+		_, ok := v.(types.Message)
+		if !ok || v == nil {
 			return false
 		}
 	}
