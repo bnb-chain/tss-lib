@@ -20,6 +20,7 @@ type (
 
 		getCurrentRound() int
 		getPartyID() *types.PartyID
+		getStateBase() *partyStateBase
 		wrapError(err error, round int) error
 	}
 
@@ -36,23 +37,23 @@ type (
 		lastMessages []types.Message
 
 		// keygen state
-		uiGs [][]*big.Int
+		uiGs                     [][]*big.Int
+		kgRound1CommitMessages   []*KGRound1CommitMessage
+		kgRound2VssMessages      []*KGRound2VssMessage
+		kgRound2DeCommitMessages []*KGRound2DeCommitMessage
+		kgRound3ZKUProofMessage  []*KGRound3ZKUProofMessage
 	}
 
 	round1 struct {
 		*partyStateBase
-		kgRound1CommitMessages []*KGRound1CommitMessage
 	}
 
 	round2 struct {
-		*round1
-		kgRound2VssMessages      []*KGRound2VssMessage
-		kgRound2DeCommitMessages []*KGRound2DeCommitMessage
+		*partyStateBase
 	}
 
 	round3 struct {
-		*round2
-		kgRound3ZKUProofMessage []*KGRound3ZKUProofMessage
+		*partyStateBase
 	}
 
 	partyStateMonitor interface {
@@ -92,6 +93,21 @@ func (p *partyStateBase) getPartyID() *types.PartyID {
 	return p.partyID
 }
 
-func (lp *partyStateBase) wrapError(err error, round int) error {
-	return errors.Wrapf(err, "party %s, round %d", lp.getPartyID(), lp.getCurrentRound())
+func (p *partyStateBase) wrapError(err error, round int) error {
+	return errors.Wrapf(err, "party %s, round %d", p.getPartyID(), p.getCurrentRound())
+}
+
+func (p *partyStateBase) stageMessage(msg types.Message) {
+	switch roundMsg := msg.(type) {
+	case KGRound2VssMessage:
+		p.kgRound2VssMessages[msg.GetFrom().Index] = &roundMsg
+	case KGRound2DeCommitMessage:
+		p.kgRound2DeCommitMessages[msg.GetFrom().Index] = &roundMsg
+	case KGRound3ZKUProofMessage:
+		p.kgRound3ZKUProofMessage[msg.GetFrom().Index] = &roundMsg
+	}
+}
+
+func (p *partyStateBase) getStateBase() *partyStateBase {
+	return p
 }

@@ -35,12 +35,15 @@ func NewRound1State(
 		lastMessages: make([]types.Message, partyCount),
 
 		// misc state
-		uiGs: make([][]*big.Int, partyCount),
+		uiGs:                     make([][]*big.Int, partyCount),
+		kgRound1CommitMessages:   make([]*KGRound1CommitMessage, partyCount),
+		kgRound2VssMessages:      make([]*KGRound2VssMessage, partyCount),
+		kgRound2DeCommitMessages: make([]*KGRound2DeCommitMessage, partyCount),
+		kgRound3ZKUProofMessage:  make([]*KGRound3ZKUProofMessage, partyCount),
 	}
 
 	round1 := &round1{
 		&base,
-		make([]*KGRound1CommitMessage, partyCount),
 	}
 
 	return round1, nil
@@ -135,18 +138,17 @@ func (round *round1) Update(msg types.Message) (bool, error) {
 	}(fromPIdx)
 
 	common.Logger.Infof("party %s update for: %s", round.partyID, msg.String())
-	switch msg.(type) {
+	switch roundMsg := msg.(type) {
 	case KGRound1CommitMessage: // Round 1 broadcast messages
 		// guard - ensure no last message from Pi
 		if round.lastMessages[fromPIdx] != nil {
-			return false, round.wrapError(errors.New("unexpected lastMessage"), 1)
+			return false, round.wrapError(fmt.Errorf("unexpected lastMessage %s", round.lastMessages[fromPIdx]), 1)
 		}
-		p1msg := msg.(KGRound1CommitMessage)
-		round.kgRound1CommitMessages[fromPIdx] = &p1msg
+		round.kgRound1CommitMessages[fromPIdx] = &roundMsg
 
 		// guard - VERIFY received paillier pk/proof for Pi
-		if ok := p1msg.PaillierPf.Verify(&p1msg.PaillierPk); !ok {
-			return false, round.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", p1msg.From), 1)
+		if ok := roundMsg.PaillierPf.Verify(&roundMsg.PaillierPk); !ok {
+			return false, round.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", roundMsg.From), 1)
 		}
 
 		// guard - COUNT the required number of messages
@@ -160,9 +162,11 @@ func (round *round1) Update(msg types.Message) (bool, error) {
 			round.monitor.notifyKeygenRound1Complete()
 		}
 		return true, nil
-
+	case types.Message: // Other round messages
+		round.stageMessage(roundMsg)
+		return false, nil
 	default: // unrecognised message!
-		return false, fmt.Errorf("unrecognised message: %v", msg)
+		return false, round.wrapError(fmt.Errorf("unrecognised message: %v", msg), 1)
 	}
 }
 

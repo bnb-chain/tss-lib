@@ -11,11 +11,9 @@ import (
 
 var _ partyState = (*round2)(nil)
 
-func NewRound2State(r1 *round1) partyState {
+func NewRound2State(base *partyStateBase) partyState {
 	return &round2{
-		r1,
-		make([]*KGRound2VssMessage, r1.kgParams.partyCount),
-		make([]*KGRound2DeCommitMessage, r1.kgParams.partyCount),
+		base,
 	}
 }
 
@@ -63,27 +61,31 @@ func (round *round2) Update(msg types.Message) (bool, error) {
 	}(fromPIdx)
 
 	common.Logger.Infof("party %s update for: %s", round.partyID, msg.String())
-	switch msg.(type) {
+	switch roundMsg := msg.(type) {
+	case KGRound1CommitMessage:
+		return false, round.wrapError(fmt.Errorf("unrecognised message: %v", msg), 2)
 	case KGRound2VssMessage: // Round 2 P2P messages
 		// TODO guard - verify lastMessage from Pi (security)
-		p2msg1 := msg.(KGRound2VssMessage)
-		round.kgRound2VssMessages[fromPIdx] = &p2msg1 // just collect
+		round.kgRound2VssMessages[fromPIdx] = &roundMsg // just collect
 		if p2msg2 := round.kgRound2DeCommitMessages[fromPIdx]; p2msg2 != nil {
-			return round.tryNotifyRound2Complete(p2msg1, *p2msg2)
+			return round.tryNotifyRound2Complete(roundMsg, *p2msg2)
 		}
 		return true, nil
 
 	case KGRound2DeCommitMessage:
 		// TODO guard - verify lastMessage from Pi (security)
-		p2msg2 := msg.(KGRound2DeCommitMessage)
-		round.kgRound2DeCommitMessages[fromPIdx] = &p2msg2
+		round.kgRound2DeCommitMessages[fromPIdx] = &roundMsg
 		if p2msg1 := round.kgRound2VssMessages[fromPIdx]; p2msg1 != nil {
-			return round.tryNotifyRound2Complete(*p2msg1, p2msg2)
+			return round.tryNotifyRound2Complete(*p2msg1, roundMsg)
 		}
 		return false, nil
 
+	case types.Message:
+		round.stageMessage(roundMsg)
+		return false, nil
+
 	default: // unrecognised message!
-		return false, fmt.Errorf("unrecognised message: %v", msg)
+		return false, round.wrapError(fmt.Errorf("unrecognised message: %v", msg), 2)
 	}
 }
 

@@ -102,7 +102,7 @@ func (lp *LocalParty) setState(state partyState) {
 }
 
 func (lp *LocalParty) notifyKeygenRound1Complete() {
-	lp.setState(NewRound2State(lp.partyState.(*round1)))
+	lp.setState(NewRound2State(lp.partyState.getStateBase()))
 
 	if err := lp.partyState.start(); err != nil {
 		panic(lp.wrapError(err, 2))
@@ -110,7 +110,7 @@ func (lp *LocalParty) notifyKeygenRound1Complete() {
 }
 
 func (lp *LocalParty) notifyKeygenRound2Complete() {
-	lp.setState(NewRound3State(lp.partyState.(*round2)))
+	lp.setState(NewRound3State(lp.partyState.getStateBase()))
 
 	if err := lp.partyState.start(); err != nil {
 		panic(lp.wrapError(err, 3))
