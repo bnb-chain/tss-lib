@@ -18,7 +18,7 @@ import (
 var _ partyState = (*round1)(nil)
 
 func NewRound1State(
-	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, isLocal bool, lp *LocalParty) (partyState, error) {
+	p2pCtx *types.PeerContext, kgParams KGParameters, partyID *types.PartyID, lp *LocalParty) (partyState, error) {
 
 	partyCount := kgParams.partyCount
 
@@ -30,12 +30,10 @@ func NewRound1State(
 		msgSender: lp,
 		monitor:   lp,
 		savedData: &lp.data,
+		tempData:  &lp.temp,
 
 		currentRound: 1,
 		lastMessages: make([]types.Message, partyCount),
-
-		// misc state
-		uiGs: make([][]*big.Int, partyCount),
 	}
 
 	round1 := &round1{
@@ -53,9 +51,10 @@ func (round *round1) start() error {
 	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes())
 
 	// save uiGx, uiGy for this Pi for round 3
-	round.uiGs[round.partyID.Index] = []*big.Int{uiGx, uiGy}
+	round.savedData.BigXj = make([][]*big.Int, round.kgParams.partyCount)
+	round.savedData.BigXj[round.partyID.Index] = []*big.Int{uiGx, uiGy}
 
-	// prepare for concurrent key generation
+	// prepare for concurrent Paillier, RSA key generation
 	paiCh := make(chan paillier.Paillier)
 	cmtCh := make(chan *cmt.HashCommitDecommit)
 	rsaCh := make(chan *rsa.PrivateKey)
@@ -70,18 +69,6 @@ func (round *round1) start() error {
 		ch <- paillier
 	}(paiCh)
 
-	// 3. generate commitment of uiGx to reveal to other Pj later
-	go func(ch chan<- *cmt.HashCommitDecommit) {
-		start := time.Now()
-		cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
-		if err != nil {
-			common.Logger.Errorf("Commitment generation error: %s", err)
-			ch <- nil
-		}
-		common.Logger.Debugf("party %s: commitment generated. took %s\n", round, time.Since(start))
-		ch <- cmtDeCmtUiG
-	}(cmtCh)
-
 	// 4. generate auxilliary RSA primes for ZKPs later on
 	go func(ch chan<- *rsa.PrivateKey) {
 		start := time.Now()
@@ -94,24 +81,36 @@ func (round *round1) start() error {
 		ch <- pk
 	}(rsaCh)
 
+	// 3. generate commitment of uiGx to reveal to other Pj later
+	go func(ch chan<- *cmt.HashCommitDecommit) {
+		start := time.Now()
+		cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
+		if err != nil {
+			common.Logger.Errorf("Commitment generation error: %s", err)
+			ch <- nil
+		}
+		common.Logger.Debugf("party %s: commitment generated. took %s\n", round, time.Since(start))
+		ch <- cmtDeCmtUiG
+	}(cmtCh)
+
 	pai := <-paiCh
-	cmt := <-cmtCh
-	if cmt == nil {
-		return errors.New("Commitment generation failed!")
-	}
 	rsa := <-rsaCh
 	if rsa == nil {
 		return errors.New("RSA generation failed!")
+	}
+	cmt := <-cmtCh
+	if cmt == nil {
+		return errors.New("Commitment generation failed!")
 	}
 
 	// 5. collect and BROADCAST commitments, paillier pk + proof; round 1 message
 	p1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, pai.Proof, &rsa.PublicKey)
 
 	// for this P: SAVE generated secrets, commitments, paillier vars; for round 2
-	round.savedData.Ui = ui
+	round.tempData.Ui = ui
+	round.tempData.DeCommitUiG = cmt.D
 	round.savedData.PaillierSk = pai.PrivateKey
 	round.savedData.PaillierPk = &pai.PublicKey
-	round.savedData.DeCommitUiG = cmt.D
 	round.savedData.RSAKey = rsa
 
 	round.kgRound1CommitMessages[round.partyID.Index] = &p1msg

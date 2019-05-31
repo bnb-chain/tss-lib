@@ -24,26 +24,34 @@ var _ partyStateMonitor = (*LocalParty)(nil)
 var _ partyStateMessageSender = (*LocalParty)(nil)
 
 type (
+	// Everything in LocalPartySaveData is saved locally to user's HD when done
 	LocalPartySaveData struct {
+		// secret fields (not shared, but stored locally)
+		Xi, ShareID *big.Int     // xi, kj
+		BigXj       [][]*big.Int // Xj
+		UiPolyGs    *vss.PolyGs
+		PaillierSk  *paillier.PrivateKey // ski
+		PaillierPk  *paillier.PublicKey  // pki
+		RSAKey      *rsa.PrivateKey      // N(tilde)j
+
 		// public key (sum of ui * G for all P)
 		PKX, PKY *big.Int
 
 		// h1, h2 for range proofs (GG18 Fig. 13)
 		H1 *big.Int
 		H2 *big.Int
+	}
 
-		// secret fields (not shared)
-		Ui          *big.Int
+	LocalPartyTempData struct {
+		Ui *big.Int
 		DeCommitUiG cmt.HashDeCommitment
-		UiPolyGs    *vss.PolyGs
-		PaillierSk  *paillier.PrivateKey
-		PaillierPk  *paillier.PublicKey
-		RSAKey      *rsa.PrivateKey
 	}
 
 	LocalParty struct {
 		partyState
+
 		data LocalPartySaveData
+		temp LocalPartyTempData
 
 		// messaging
 		out chan<- types.Message
@@ -62,8 +70,9 @@ func NewLocalParty(
 		out:  out,
 		end:  end,
 		data: LocalPartySaveData{},
+		temp: LocalPartyTempData{},
 	}
-	ps, err := NewRound1State(p2pCtx, kgParams, partyID, true, p)
+	ps, err := NewRound1State(p2pCtx, kgParams, partyID, p)
 	if err != nil {
 		panic(err)
 	}

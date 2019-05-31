@@ -22,24 +22,25 @@ func (p *round3) start() error {
 	Ps := p.p2pCtx.Parties()
 
 	// for all Ps, calculate the public key
-	uiGs := p.uiGs                     // de-committed in `tryNotifyRound2Complete`
-	pkX, pkY := uiGs[0][0], uiGs[0][1] // P1
-	for i := range Ps {                // P2..Pn
-		if i == 0 {
+	bigXj := p.savedData.BigXj           // de-committed in `tryNotifyRound2Complete`
+	pkX, pkY := bigXj[0][0], bigXj[0][1] // P1
+	for j := range Ps { // P2..Pn
+		if j == 0 {
 			continue
 		}
-		pkX, pkY = EC().Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
+		pkX, pkY = EC().Add(pkX, pkY, bigXj[j][0], bigXj[j][1])
 	}
 	p.savedData.PKX,
-	p.savedData.PKY = pkX, pkY
+		p.savedData.PKY = pkX, pkY
+	p.savedData.BigXj = bigXj
 
 	// for all Ps, calculate private key shares
 	skUi := p.kgRound2VssMessages[0].PiShare.Share
-	for i := range Ps { // P2..Pn
-		if i == 0 {
+	for j := range Ps { // P2..Pn
+		if j == 0 {
 			continue
 		}
-		share := p.kgRound2VssMessages[i].PiShare.Share
+		share := p.kgRound2VssMessages[j].PiShare.Share
 		skUi = new(big.Int).Add(skUi, share)
 	}
 	skUi = new(big.Int).Mod(skUi, EC().N)
@@ -48,7 +49,7 @@ func (p *round3) start() error {
 	common.Logger.Debugf("private share: %x", skUi)
 
 	// BROADCAST zk proof of ui
-	uiProof := schnorrZK.NewZKProof(p.savedData.Ui)
+	uiProof := schnorrZK.NewZKProof(p.tempData.Ui)
 	p3msg := NewKGRound3ZKUProofMessage(p.partyID, uiProof)
 	p.msgSender.updateAndSendMsg(p3msg)
 
@@ -88,7 +89,7 @@ func (p *round3) tryNotifyRound3Complete(p3msg KGRound3ZKUProofMessage) (bool, e
 	fromPIdx := p3msg.From.Index
 
 	// guard - VERIFY zk proof of ui
-	uiG := p.uiGs[fromPIdx]
+	uiG := p.savedData.BigXj[fromPIdx]
 	if ok := p3msg.ZKUProof.Verify(uiG); !ok {
 		common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", p.partyID)
 		return false, p.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", p3msg.From), 3)

@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/pkg/errors"
 
@@ -31,12 +30,10 @@ type (
 		msgSender partyStateMessageSender
 		monitor   partyStateMonitor
 		savedData *LocalPartySaveData
+		tempData  *LocalPartyTempData
 
 		currentRound int
 		lastMessages []types.Message
-
-		// keygen state
-		uiGs [][]*big.Int
 	}
 
 	round1 struct {
