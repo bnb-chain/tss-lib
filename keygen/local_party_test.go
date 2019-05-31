@@ -119,7 +119,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 	}
 
 	var ended int32
-	datas := make([]LocalPartySaveData, 0, len(pIDs))
+	datas := make([]LocalPartyTempData, 0, len(pIDs))
 	dmtx := sync.Mutex{}
 	for {
 		select {
@@ -150,7 +150,9 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			}
 		case data := <-end:
 			dmtx.Lock()
-			datas = append(datas, data)
+			for _, P := range players {
+				datas = append(datas, P.temp)
+			}
 			dmtx.Unlock()
 			atomic.AddInt32(&ended, 1)
 			ended++
@@ -172,11 +174,12 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				for j := range players {
 					pShares := make(vss.Shares, 0)
 					for _, P := range players {
-						round3 := P.partyState.(*round3)
+						round3  := P.partyState.(*round3)
 						vssMsgs := round3.kgRound2VssMessages
-						pShares = append(pShares, vssMsgs[j].PiShare)
+						pShares  = append(pShares, vssMsgs[j].PiShare)
 					}
 					xi, err := pShares[:threshold].Combine() // fail if threshold-1
+					assert.Equal(t, players[j].data.Xi, xi)
 					assert.NoError(t, err, "vss.Combine should not throw error")
 					x = new(big.Int).Add(x, xi)
 				}
@@ -192,6 +195,17 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 					PublicKey: pk,
 					D:         x,
 				}
+
+				// test pub key Xj shares
+				bigXjX, bigXjY := data.BigXj[0][0], data.BigXj[0][1]
+				for j, Xj := range data.BigXj {
+					if j == 0 {
+						continue
+					}
+					bigXjX, bigXjY = EC().Add(bigXjX, bigXjY, Xj[0], Xj[1])
+				}
+				assert.Equal(t, pkX, bigXjX, "pk shares should add up to produce bigXkX")
+				assert.Equal(t, pkY, bigXjY, "pk shares should add up to produce bigXkY")
 
 				// test pub key, should be on curve and match pkX, pkY
 				assert.True(t, sk.IsOnCurve(pkX, pkY), "public key must be on curve")

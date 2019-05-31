@@ -22,27 +22,35 @@ func NewRound2State(r1 *round1) partyState {
 func (round *round2) start() error {
 	// next step: compute the vss shares
 	ids := round.p2pCtx.Parties().Keys()
-	vsp, polyGs, shares, err := vss.Create(round.kgParams.Threshold(), round.savedData.Ui, ids)
+	vsp, polyGs, shares, err := vss.Create(round.kgParams.Threshold(), round.tempData.Ui, ids)
 	if err != nil {
 		panic(round.wrapError(err, 1))
 	}
+
+	// for this P: SAVE Xi (combined Shamir shares)
+	if round.savedData.Xi, err = shares.Combine(); err != nil {
+		return err
+	}
+
+	// for this P: SAVE shareIdx
+	round.savedData.ShareID = ids[round.partyID.Index]
 
 	// for this P: SAVE UiPolyGs
 	round.savedData.UiPolyGs = polyGs
 
 	// p2p send share ij to Pj
-	for i, Pi := range round.p2pCtx.Parties() {
-		p2msg1 := NewKGRound2VssMessage(Pi, round.partyID, shares[i])
-		// do not send to this Pi, but store for round 3
-		if i == round.partyID.Index {
-			round.kgRound2VssMessages[i] = &p2msg1
+	for j, Pj := range round.p2pCtx.Parties() {
+		p2msg1 := NewKGRound2VssMessage(Pj, round.partyID, shares[j])
+		// do not send to this Pj, but store for round 3
+		if j == round.partyID.Index {
+			round.kgRound2VssMessages[j] = &p2msg1
 			continue
 		}
 		round.msgSender.updateAndSendMsg(p2msg1)
 	}
 
 	// BROADCAST de-commitments and Shamir poly * Gs
-	p2msg2 := NewKGRound2DeCommitMessage(round.partyID, vsp, polyGs, round.savedData.DeCommitUiG)
+	p2msg2 := NewKGRound2DeCommitMessage(round.partyID, vsp, polyGs, round.tempData.DeCommitUiG)
 	round.msgSender.updateAndSendMsg(p2msg2)
 
 	common.Logger.Infof("party %s: keygen round 2 started", round.partyID)
@@ -100,7 +108,7 @@ func (round *round2) tryNotifyRound2Complete(p2msg1 KGRound2VssMessage, p2msg2 K
 	if !ok {
 		return false, round.wrapError(fmt.Errorf("decommitment failed (from party %s == %s)", p2msg1.From, p2msg2.From), 2)
 	}
-	round.uiGs[fromPIdx] = uiG
+	round.savedData.BigXj[fromPIdx] = uiG
 
 	// guard - VERIFY VSS check for Pi
 	polyGs := p2msg2.PolyGs
