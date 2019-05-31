@@ -46,14 +46,14 @@ type (
 )
 
 func NewKGRound1CommitMessage(
-		from *types.PartyID,
-		ct cmt.HashCommitment,
-		paillierPk *paillier.PublicKey,
-		paillierPf *paillier.Proof,
-		rsaPk *rsa.PublicKey) KGRound1CommitMessage {
+	from *types.PartyID,
+	ct cmt.HashCommitment,
+	paillierPk *paillier.PublicKey,
+	paillierPf *paillier.Proof,
+	rsaPk *rsa.PublicKey) KGRound1CommitMessage {
 	return KGRound1CommitMessage{
 		MessageMetadata: types.MessageMetadata{
-			To:      nil,  // broadcast
+			To:      nil, // broadcast
 			From:    from,
 			MsgType: "KGRound1CommitMessage",
 		},
@@ -65,8 +65,8 @@ func NewKGRound1CommitMessage(
 }
 
 func NewKGRound2VssMessage(
-		to, from *types.PartyID,
-		share *vss.Share) KGRound2VssMessage {
+	to, from *types.PartyID,
+	share *vss.Share) KGRound2VssMessage {
 	return KGRound2VssMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      to,
@@ -78,10 +78,10 @@ func NewKGRound2VssMessage(
 }
 
 func NewKGRound2DeCommitMessage(
-		from *types.PartyID,
-		vssParams *vss.Params,
-		polyGs *vss.PolyGs,
-		deCommitment cmt.HashDeCommitment) KGRound2DeCommitMessage {
+	from *types.PartyID,
+	vssParams *vss.Params,
+	polyGs *vss.PolyGs,
+	deCommitment cmt.HashDeCommitment) KGRound2DeCommitMessage {
 	return KGRound2DeCommitMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      nil, // broadcast
@@ -95,11 +95,11 @@ func NewKGRound2DeCommitMessage(
 }
 
 func NewKGRound3ZKUProofMessage(
-		from *types.PartyID,
-		ZKUProof *schnorrZK.ZKProof) KGRound3ZKUProofMessage {
+	from *types.PartyID,
+	ZKUProof *schnorrZK.ZKProof) KGRound3ZKUProofMessage {
 	return KGRound3ZKUProofMessage{
 		MessageMetadata: types.MessageMetadata{
-			To:      nil,  // broadcast
+			To:      nil, // broadcast
 			From:    from,
 			MsgType: "KGRound3ZKUProofMessage",
 		},

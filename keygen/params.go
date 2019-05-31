@@ -17,14 +17,14 @@ func NewKGParameters(partyCount int, threshold int) *KGParameters {
 	}
 }
 
-func (params *KGParameters) PartyCount() int {
+func (params KGParameters) PartyCount() int {
 	return params.partyCount
 }
 
-func (params *KGParameters) Threshold() int {
+func (params KGParameters) Threshold() int {
 	return params.threshold
 }
 
-func (params *KGParameters) LocalShareCount() int {
+func (params KGParameters) LocalShareCount() int {
 	return params.localShareCount
 }
