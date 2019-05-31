@@ -14,14 +14,13 @@ func TestCreate(t *testing.T) {
 	num, threshold := 3, 2
 
 	secret := math.GetRandomPositiveInt(vss.EC.N)
-	t.Log(secret)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
 		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
 	}
 
-	params, polyGs, shares, err := vss.Create(threshold, secret, ids)
+	params, polyGs, _, err := vss.Create(threshold, secret, ids)
 	assert.Nil(t, err)
 
 	assert.Equal(t, threshold, params.Threshold)
@@ -35,9 +34,6 @@ func TestCreate(t *testing.T) {
 		assert.NotZero(t, polyGs.PolyG[i][0])
 		assert.NotZero(t, polyGs.PolyG[i][1])
 	}
-
-	t.Log(polyGs)
-	t.Log(shares)
 }
 
 func TestVerify(t *testing.T) {
@@ -56,4 +52,30 @@ func TestVerify(t *testing.T) {
 	for i := 0; i < num; i++ {
 		assert.True(t, shares[i].Verify(polyGs))
 	}
+}
+
+func TestCombine(t *testing.T) {
+	num, threshold := 3, 2
+
+	secret := math.GetRandomPositiveInt(vss.EC.N)
+
+	ids := make([]*big.Int, 0)
+	for i := 0; i < num; i++ {
+		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
+	}
+
+	_, _, shares, err := vss.Create(threshold, secret, ids)
+	assert.NoError(t, err)
+
+	secret2, err2 := shares[:threshold-1].Combine()
+	assert.Error(t, err2) // not enough shares to satisfy the threshold
+	assert.Nil(t, secret2)
+
+	secret3, err3 := shares[:threshold].Combine()
+	assert.NoError(t, err3)
+	assert.NotZero(t, secret3)
+
+	secret4, err4 := shares[:num].Combine()
+	assert.NoError(t, err4)
+	assert.NotZero(t, secret4)
 }
