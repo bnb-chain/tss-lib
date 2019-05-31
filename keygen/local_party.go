@@ -34,6 +34,10 @@ type (
 		PkX         *big.Int
 		PkY         *big.Int
 
+		// h1, h2 for range proofs (GG18 Fig. 13)
+		H1          *big.Int
+		H2          *big.Int
+
 		// secret fields (not shared)
 		Ui          *big.Int
 		DeCommitUiG cmt.HashDeCommitment
@@ -221,8 +225,15 @@ func (lp *LocalParty) startKeygenRound3() error {
 func (lp *LocalParty) finishAndSaveKeygen() error {
 	common.Logger.Infof("party %s: finished keygen. sending local data.", lp.partyID)
 
+	// generate h1, h2 for range proofs (GG18 Fig. 13)
+	lp.data.H1, lp.data.H2 = generateH1H2ForRangeProofs()
+
 	// output local save data (inc. secrets)
-	lp.end <- lp.data
+	if lp.end != nil {
+		lp.end <- lp.data
+	} else {
+		common.Logger.Warningf("party %s: end chan is nil, you missed this event", lp)
+	}
 
 	return nil
 }

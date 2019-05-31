@@ -47,6 +47,7 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.L.Bytes()))
 	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
+
 func TestStartKeygenRound1RSA(t *testing.T) {
 	setUp("debug")
 
@@ -67,6 +68,27 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	assert.Equal(t, 1024 / 8, len(lp.data.RSAKey.Primes[0].Bytes()))
 	assert.Equal(t, 1024 / 8, len(lp.data.RSAKey.Primes[1].Bytes()))
 	assert.Equal(t, 2048 / 8, len(lp.data.RSAKey.PublicKey.N.Bytes()))
+}
+
+func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
+	setUp("debug")
+
+	pIDs := types.GeneratePartyIDs(1)
+	p2pCtx := types.NewPeerContext(pIDs)
+	threshold := 1
+	params := NewKGParameters(len(pIDs), threshold)
+
+	out := make(chan types.Message, len(pIDs))
+	lp := NewLocalParty(p2pCtx, *params, pIDs[0], out, nil)
+	if err := lp.finishAndSaveKeygen(); err != nil {
+		assert.FailNow(t, err.Error())
+	}
+
+	// RSA modulus 2048 (two 1024-bit primes)
+	assert.Equal(t, 32 * 8, len(lp.data.H1.Bytes()), "h1 should be correct len")
+	assert.Equal(t, 32 * 8, len(lp.data.H2.Bytes()), "h2 should be correct len")
+	assert.NotZero(t, lp.data.H1, "h1 should be non-zero")
+	assert.NotZero(t, lp.data.H2, "h2 should be non-zero")
 }
 
 func TestLocalPartyE2EConcurrent(t *testing.T) {
