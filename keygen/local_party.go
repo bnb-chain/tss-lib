@@ -23,6 +23,10 @@ var _ partyStateMonitor = (*LocalParty)(nil)
 
 type (
 	LocalPartySaveData struct {
+		// public key (sum of ui * G for all P)
+		PkX         *big.Int
+		PkY         *big.Int
+
 		// secret fields (not shared)
 		Ui          *big.Int
 		DeCommitUiG cmt.HashDeCommitment
@@ -132,10 +136,10 @@ func (lp *LocalParty) startKeygenRound2() error {
 }
 
 func (lp *LocalParty) startKeygenRound3() error {
-	uiGs := lp.uiGs  // verified and de-committed in `tryNotifyRound2Complete`
 	Ps := lp.p2pCtx.Parties()
 
 	// for all Ps, calculate the public key
+	uiGs := lp.uiGs  // de-committed in `tryNotifyRound2Complete`
 	pkX, pkY := uiGs[0][0], uiGs[0][1] // P1
 	for i := range Ps { // P2..Pn
 		if i == 0 {
@@ -143,6 +147,7 @@ func (lp *LocalParty) startKeygenRound3() error {
 		}
 		pkX, pkY = EC.Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
 	}
+	lp.data.PkX, lp.data.PkY = pkX, pkY
 
 	// for all Ps, calculate private key shares
 	skUi := lp.kgRound2VssMessages[0].PiShare.Share
