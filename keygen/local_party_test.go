@@ -19,7 +19,7 @@ import (
 
 const (
 	TestParticipants = 20
-	TestThreshold = TestParticipants / 2
+	TestThreshold    = TestParticipants / 2
 )
 
 func setUp(level string) {
@@ -44,8 +44,8 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	_ = <-out
 
 	// Paillier modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.L.Bytes()))
-	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.L.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
 
 func TestStartKeygenRound1RSA(t *testing.T) {
@@ -65,9 +65,9 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 
 	// RSA modulus 2048 (two 1024-bit primes)
 	assert.Equal(t, 2, len(lp.data.RSAKey.Primes))
-	assert.Equal(t, 1024 / 8, len(lp.data.RSAKey.Primes[0].Bytes()))
-	assert.Equal(t, 1024 / 8, len(lp.data.RSAKey.Primes[1].Bytes()))
-	assert.Equal(t, 2048 / 8, len(lp.data.RSAKey.PublicKey.N.Bytes()))
+	assert.Equal(t, 1024/8, len(lp.data.RSAKey.Primes[0].Bytes()))
+	assert.Equal(t, 1024/8, len(lp.data.RSAKey.Primes[1].Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.RSAKey.PublicKey.N.Bytes()))
 }
 
 func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
@@ -85,8 +85,8 @@ func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
 	}
 
 	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 32 * 8, len(lp.data.H1.Bytes()), "h1 should be correct len")
-	assert.Equal(t, 32 * 8, len(lp.data.H2.Bytes()), "h2 should be correct len")
+	assert.Equal(t, 32*8, len(lp.data.H1.Bytes()), "h1 should be correct len")
+	assert.Equal(t, 32*8, len(lp.data.H2.Bytes()), "h2 should be correct len")
 	assert.NotZero(t, lp.data.H1, "h1 should be non-zero")
 	assert.NotZero(t, lp.data.H2, "h2 should be non-zero")
 }
@@ -109,12 +109,12 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 		P := NewLocalParty(p2pCtx, *params, pIDs[i], out, end)
 		players = append(players, P)
 		go func(P *LocalParty) {
-			pmtxs[P.ID().Index].Lock()
+			pmtxs[P.getPartyID().Index].Lock()
 			if err := P.StartKeygenRound1(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
 				assert.FailNow(t, err.Error())
 			}
-			pmtxs[P.ID().Index].Unlock()
+			pmtxs[P.getPartyID().Index].Unlock()
 		}(P)
 	}
 
@@ -127,23 +127,25 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			dest := msg.GetTo()
 			if dest == nil {
 				for _, P := range players {
-					go func(P *LocalParty, msg types.Message) {
-						pmtxs[P.ID().Index].Lock()
-						if _, err := P.Update(msg); err != nil {
-							common.Logger.Errorf("Error: %s", err)
-							assert.FailNow(t, err.Error())
-						}
-						pmtxs[P.ID().Index].Unlock()
-					}(P, msg)
+					if P.getPartyID().Index != msg.GetFrom().Index {
+						go func(P *LocalParty, msg types.Message) {
+							pmtxs[P.getPartyID().Index].Lock()
+							if _, err := P.Update(msg); err != nil {
+								common.Logger.Errorf("Error: %s", err)
+								assert.FailNow(t, err.Error())
+							}
+							pmtxs[P.getPartyID().Index].Unlock()
+						}(P, msg)
+					}
 				}
 			} else {
 				go func(P *LocalParty) {
-					pmtxs[P.ID().Index].Lock()
+					pmtxs[P.getPartyID().Index].Lock()
 					if _, err := P.Update(msg); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error())
 					}
-					pmtxs[P.ID().Index].Unlock()
+					pmtxs[P.getPartyID().Index].Unlock()
 				}(players[dest.Index])
 			}
 		case data := <-end:
@@ -170,10 +172,11 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				for j := range players {
 					pShares := make(vss.Shares, 0)
 					for _, P := range players {
-						vssMsgs := P.kgRound2VssMessages
+						round3 := P.partyState.(*round3)
+						vssMsgs := round3.kgRound2VssMessages
 						pShares = append(pShares, vssMsgs[j].PiShare)
 					}
-					xi, err := pShares[:threshold].Combine()  // fail if threshold-1
+					xi, err := pShares[:threshold].Combine() // fail if threshold-1
 					assert.NoError(t, err, "vss.Combine should not throw error")
 					x = new(big.Int).Add(x, xi)
 				}
