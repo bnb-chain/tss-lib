@@ -22,13 +22,15 @@ const (
 	TestThreshold = TestParticipants / 2
 )
 
-func setUp() {
-	if err := log.SetLogLevel("tss-lib", "info"); err != nil {
+func setUp(level string) {
+	if err := log.SetLogLevel("tss-lib", level); err != nil {
 		panic(err)
 	}
 }
 
 func TestStartKeygenRound1Paillier(t *testing.T) {
+	setUp("debug")
+
 	pIDs := types.GeneratePartyIDs(1)
 	p2pCtx := types.NewPeerContext(pIDs)
 	threshold := 1
@@ -46,6 +48,8 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
 func TestStartKeygenRound1RSA(t *testing.T) {
+	setUp("debug")
+
 	pIDs := types.GeneratePartyIDs(1)
 	p2pCtx := types.NewPeerContext(pIDs)
 	threshold := 1
@@ -66,7 +70,7 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 }
 
 func TestLocalPartyE2EConcurrent(t *testing.T) {
-	setUp()
+	setUp("info")
 
 	pIDs := types.GeneratePartyIDs(TestParticipants)
 	threshold := TestThreshold

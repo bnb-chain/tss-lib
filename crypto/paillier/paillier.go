@@ -75,7 +75,7 @@ func (publicKey *PublicKey) Encrypt(m *big.Int) (*big.Int, *big.Int, error) {
 		return nil, nil,ErrMessageTooLong
 	}
 
-	rndStar := math.GetRandomPositiveIntStar(publicKey.N)
+	rndStar := math.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
 
 	// G^m mod NSq
 	Gm := new(big.Int).Exp(publicKey.G, m, publicKey.NSquared)
@@ -122,8 +122,8 @@ func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) *big.Int {
 // TODO add Homo Multiply method
 
 func (privateKey *PrivateKey) Proof() *Proof {
-	h1 := math.GetRandomPositiveIntStar(privateKey.N)
-	h2 := math.GetRandomPositiveIntStar(privateKey.N)
+	h1 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
+	h2 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
 	r := math.GetRandomPositiveInt(privateKey.N)
 
 	h1R := new(big.Int).Exp(h1, r, privateKey.N)

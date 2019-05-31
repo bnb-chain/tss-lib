@@ -25,14 +25,16 @@ func TestGetRandomPositiveInt(t *testing.T) {
 	assert.True(t, rndPos.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
 }
 
-func TestGetRandomPositiveIntStar(t *testing.T) {
+func TestGetRandomPositiveRelativelyPrimeInt(t *testing.T) {
 	rnd := math.MustGetRandomInt(randomIntLength)
-	rndPosStar := math.GetRandomPositiveIntStar(rnd)
-	assert.NotZero(t, rndPosStar, "rand int should not be zero")
-	assert.True(t, rndPosStar.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
+	rndPosRP := math.GetRandomPositiveRelativelyPrimeInt(rnd)
+	assert.NotZero(t, rndPosRP, "rand int should not be zero")
+	assert.True(t, rndPosRP.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
+	// TODO test for relative primeness
 }
 
 func TestGetRandomPrimeInt(t *testing.T) {
 	prime := math.GetRandomPrimeInt(randomIntLength)
-	assert.NotZero(t, prime, "rand int should not be zero")
+	assert.NotZero(t, prime, "rand prime should not be zero")
+	assert.True(t, prime.ProbablyPrime(50), "rand prime should be prime")
 }

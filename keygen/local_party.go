@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -90,29 +91,35 @@ func (lp *LocalParty) StartKeygenRound1() error {
 
 	// 2. generate Paillier public key "Ei", private key and proof
 	go func(ch chan<- paillier.Paillier) {
+		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk
 		PiPaillierPf := PiPaillierSk.Proof()
 		paillier := paillier.Paillier{PiPaillierSk, PiPaillierPf}
+		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", lp, time.Since(start))
 		ch <- paillier
 	}(paiCh)
 
 	// 3. generate commitment of uiGx to reveal to other Pj later
 	go func(ch chan<- *cmt.HashCommitDecommit) {
+		start := time.Now()
 		cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
 		if err != nil {
 			common.Logger.Errorf("Commitment generation error: %s", err)
 			ch <- nil
 		}
+		common.Logger.Debugf("party %s: commitment generated. took %s\n", lp, time.Since(start))
 		ch <- cmtDeCmtUiG
 	}(cmtCh)
 
 	// 4. generate auxilliary RSA primes for ZKPs later on
 	go func(ch chan<- *rsa.PrivateKey) {
+		start := time.Now()
 		pk, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, RSAModulusLen)
 		if err != nil {
 			common.Logger.Errorf("RSA generation error: %s", err)
 			ch <- nil
 		}
+		common.Logger.Debugf("party %s: rsa keygen done. took %s\n", lp, time.Since(start))
 		ch <- pk
 	}(rsaCh)
 
