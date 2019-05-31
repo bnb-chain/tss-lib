@@ -30,7 +30,8 @@ func (p *round3) start() error {
 		}
 		pkX, pkY = EC().Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
 	}
-	p.savedData.PkX, p.savedData.PkY = pkX, pkY
+	p.savedData.PKX,
+	p.savedData.PKY = pkX, pkY
 
 	// for all Ps, calculate private key shares
 	skUi := p.kgRound2VssMessages[0].PiShare.Share

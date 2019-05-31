@@ -182,7 +182,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				}
 
 				// build ecdsa key pair
-				pkX, pkY := data.PkX, data.PkY
+				pkX, pkY := data.PKX, data.PKY
 				pk := ecdsa.PublicKey{
 					Curve: EC(),
 					X:     pkX,

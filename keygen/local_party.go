@@ -26,8 +26,7 @@ var _ partyStateMessageSender = (*LocalParty)(nil)
 type (
 	LocalPartySaveData struct {
 		// public key (sum of ui * G for all P)
-		PkX *big.Int
-		PkY *big.Int
+		PKX, PKY *big.Int
 
 		// h1, h2 for range proofs (GG18 Fig. 13)
 		H1 *big.Int
