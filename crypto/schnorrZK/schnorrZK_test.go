@@ -11,7 +11,7 @@ import (
 )
 
 func TestZKProve(t *testing.T) {
-	u := math.GetRandomPositiveInt(schnorrZK.EC.N)
+	u := math.GetRandomPositiveInt(schnorrZK.EC().N)
 	proof := schnorrZK.NewZKProof(u)
 
 	assert.NotZero(t, proof.E)
@@ -19,9 +19,9 @@ func TestZKProve(t *testing.T) {
 }
 
 func TestZKVerify(t *testing.T) {
-	u := math.GetRandomPositiveInt(schnorrZK.EC.N)
+	u := math.GetRandomPositiveInt(schnorrZK.EC().N)
 
-	uGx, uGy := schnorrZK.EC.ScalarBaseMult(u.Bytes())
+	uGx, uGy := schnorrZK.EC().ScalarBaseMult(u.Bytes())
 	uG := []*big.Int{uGx, uGy}
 
 	proof := schnorrZK.NewZKProof(u)
@@ -31,10 +31,10 @@ func TestZKVerify(t *testing.T) {
 }
 
 func TestZKVerifyBad(t *testing.T) {
-	u  := math.GetRandomPositiveInt(schnorrZK.EC.N)
-	u2 := math.GetRandomPositiveInt(schnorrZK.EC.N)
+	u  := math.GetRandomPositiveInt(schnorrZK.EC().N)
+	u2 := math.GetRandomPositiveInt(schnorrZK.EC().N)
 
-	uGx, uGy := schnorrZK.EC.ScalarBaseMult(u.Bytes())
+	uGx, uGy := schnorrZK.EC().ScalarBaseMult(u.Bytes())
 	uG := []*big.Int{uGx, uGy}
 
 	proof := schnorrZK.NewZKProof(u2)

@@ -28,6 +28,43 @@ func setUp() {
 	}
 }
 
+func TestStartKeygenRound1Paillier(t *testing.T) {
+	pIDs := types.GeneratePartyIDs(1)
+	p2pCtx := types.NewPeerContext(pIDs)
+	threshold := 1
+	params := NewKGParameters(len(pIDs), threshold)
+
+	out := make(chan types.Message, len(pIDs))
+	lp := NewLocalParty(p2pCtx, *params, pIDs[0], out, nil)
+	if err := lp.StartKeygenRound1(); err != nil {
+		assert.FailNow(t, err.Error())
+	}
+	_ = <-out
+
+	// Paillier modulus 2048 (two 1024-bit primes)
+	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.L.Bytes()))
+	assert.Equal(t, 2048 / 8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
+}
+func TestStartKeygenRound1RSA(t *testing.T) {
+	pIDs := types.GeneratePartyIDs(1)
+	p2pCtx := types.NewPeerContext(pIDs)
+	threshold := 1
+	params := NewKGParameters(len(pIDs), threshold)
+
+	out := make(chan types.Message, len(pIDs))
+	lp := NewLocalParty(p2pCtx, *params, pIDs[0], out, nil)
+	if err := lp.StartKeygenRound1(); err != nil {
+		assert.FailNow(t, err.Error())
+	}
+	_ = <-out
+
+	// RSA modulus 2048 (two 1024-bit primes)
+	assert.Equal(t, 2, len(lp.data.RSAKey.Primes))
+	assert.Equal(t, 1024 / 8, len(lp.data.RSAKey.Primes[0].Bytes()))
+	assert.Equal(t, 1024 / 8, len(lp.data.RSAKey.Primes[1].Bytes()))
+	assert.Equal(t, 2048 / 8, len(lp.data.RSAKey.PublicKey.N.Bytes()))
+}
+
 func TestLocalPartyE2EConcurrent(t *testing.T) {
 	setUp()
 
@@ -49,7 +86,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			pmtxs[P.ID().Index].Lock()
 			if err := P.StartKeygenRound1(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
-				panic(err)
+				assert.FailNow(t, err.Error())
 			}
 			pmtxs[P.ID().Index].Unlock()
 		}(P)
@@ -68,7 +105,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 						pmtxs[P.ID().Index].Lock()
 						if _, err := P.Update(msg); err != nil {
 							common.Logger.Errorf("Error: %s", err)
-							panic(err)
+							assert.FailNow(t, err.Error())
 						}
 						pmtxs[P.ID().Index].Unlock()
 					}(P, msg)
@@ -78,7 +115,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 					pmtxs[P.ID().Index].Lock()
 					if _, err := P.Update(msg); err != nil {
 						common.Logger.Errorf("Error: %s", err)
-						panic(err)
+						assert.FailNow(t, err.Error())
 					}
 					pmtxs[P.ID().Index].Unlock()
 				}(players[dest.Index])
@@ -118,7 +155,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				// build ecdsa key pair
 				pkX, pkY := data.PkX, data.PkY
 				pk := ecdsa.PublicKey{
-					Curve: EC,
+					Curve: EC(),
 					X:     pkX,
 					Y:     pkY,
 				}
@@ -130,7 +167,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				// test pub key, should be on curve and match pkX, pkY
 				assert.True(t, sk.IsOnCurve(pkX, pkY), "public key must be on curve")
 
-				ourPkX, ourPkY := EC.ScalarBaseMult(x.Bytes())
+				ourPkX, ourPkY := EC().ScalarBaseMult(x.Bytes())
 				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from x")
 				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from x")
 				t.Log("Public key tests passed.")

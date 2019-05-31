@@ -67,7 +67,7 @@ func NewHashCommitment(secrets ...*big.Int) (cmt *HashCommitDecommit, err error)
 	cmt.C = digestBigInt
 	cmt.D = D
 
-	return
+	return cmt, nil
 }
 
 func (cmt *HashCommitDecommit) Verify() (bool, error) {

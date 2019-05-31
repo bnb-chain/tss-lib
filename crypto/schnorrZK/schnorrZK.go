@@ -18,8 +18,8 @@ type ZKProof struct {
 }
 
 func NewZKProof(x *big.Int) *ZKProof {
-	r := math.GetRandomPositiveInt(EC.N)
-	rGx, rGy := EC.ScalarBaseMult(r.Bytes())
+	r := math.GetRandomPositiveInt(EC().N)
+	rGx, rGy := EC().ScalarBaseMult(r.Bytes())
 
 	plain   := SAMPLE
 	sha3256 := sha3.New256()
@@ -32,19 +32,19 @@ func NewZKProof(x *big.Int) *ZKProof {
 
 	s := new(big.Int).Mul(e, x)
 	s  = new(big.Int).Add(r, s)
-	s  = new(big.Int).Mod(s, EC.N)
+	s  = new(big.Int).Mod(s, EC().N)
 
 	return &ZKProof{E: e, S: s}
 }
 
 func (pf *ZKProof) Verify(uG []*big.Int) bool {
-	sGx, sGy := EC.ScalarBaseMult(pf.S.Bytes())
+	sGx, sGy := EC().ScalarBaseMult(pf.S.Bytes())
 
 	minusE := new(big.Int).Mul(big.NewInt(-1), pf.E)
-	minusE  = new(big.Int).Mod(minusE, EC.N)
+	minusE  = new(big.Int).Mod(minusE, EC().N)
 
-	eUx, eUy := EC.ScalarMult(uG[0], uG[1], minusE.Bytes())
-	rGx, rGy := EC.Add(sGx, sGy, eUx, eUy)
+	eUx, eUy := EC().ScalarMult(uG[0], uG[1], minusE.Bytes())
+	rGx, rGy := EC().Add(sGx, sGy, eUx, eUy)
 
 	plain := SAMPLE
 	sha3256 := sha3.New256()

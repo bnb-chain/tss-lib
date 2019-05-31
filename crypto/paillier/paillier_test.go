@@ -30,7 +30,7 @@ func TestEncrypt(t *testing.T) {
 }
 
 func TestDecrypt(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
 
 	num := math.GetRandomPositiveInt(publicKey.N)
 	t.Log(num)
@@ -45,7 +45,7 @@ func TestDecrypt(t *testing.T) {
 }
 
 func TestHomoAdd(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
 
 	num1 := big.NewInt(10)
 	num2 := big.NewInt(32)
@@ -64,7 +64,7 @@ func TestHomoAdd(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
-	_, privateKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
 
 	zkFactProof := privateKey.Proof()
 
@@ -72,7 +72,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestVerifyProof(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
 
 	proof := privateKey.Proof()
 

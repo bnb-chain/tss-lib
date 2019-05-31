@@ -57,7 +57,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*Params, *PolyG
 	polyGs := make([][]*big.Int, len(poly))
 
 	for i, ai := range poly {
-		pointX, pointY := EC.ScalarBaseMult(ai.Bytes())
+		pointX, pointY := ec.ScalarBaseMult(ai.Bytes())
 		polyGs[i] = []*big.Int{pointX, pointY}
 	}
 
@@ -82,13 +82,13 @@ func (share *Share) Verify(polyGs *PolyGs) bool {
 	t := share.ID
 
 	for i := 1; i < polyGs.Threshold; i++ {
-		X, Y := EC.ScalarMult(polyGs.PolyG[i][0], polyGs.PolyG[i][1], t.Bytes())
-		vX, vY = EC.Add(vX, vY, X, Y)
+		X, Y := ec.ScalarMult(polyGs.PolyG[i][0], polyGs.PolyG[i][1], t.Bytes())
+		vX, vY = ec.Add(vX, vY, X, Y)
 		t = new(big.Int).Mul(t, share.ID)
-		t = new(big.Int).Mod(t, EC.N)
+		t = new(big.Int).Mod(t, ec.N)
 	}
 
-	opX, opY := EC.ScalarBaseMult(share.Share.Bytes())
+	opX, opY := ec.ScalarBaseMult(share.Share.Bytes())
 
 	if vX.Cmp(opX) == 0 && vY.Cmp(opY) == 0 {
 		return true
@@ -116,16 +116,16 @@ func (shares Shares) Combine() (*big.Int, error) {
 		for j := 0; j < len(xs); j++ {
 			if j != i {
 				sub := new(big.Int).Sub(xs[j], share.ID)
-				subInv := new(big.Int).ModInverse(sub, EC.N)
+				subInv := new(big.Int).ModInverse(sub, ec.N)
 				div  := new(big.Int).Mul(xs[j], subInv)
 				times = new(big.Int).Mul(times, div)
-				times = new(big.Int).Mod(times, EC.N)
+				times = new(big.Int).Mod(times, ec.N)
 			}
 		}
 
 		fTimes := new(big.Int).Mul(share.Share, times)
 		secret  = new(big.Int).Add(secret, fTimes)
-		secret  = new(big.Int).Mod(secret, EC.N)
+		secret  = new(big.Int).Mod(secret, ec.N)
 	}
 
 	return secret, nil
@@ -137,7 +137,7 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 	poly[0] = secret
 
 	for i := 1; i < threshold; i++ {
-		ai := math.GetRandomPositiveInt(EC.N)
+		ai := math.GetRandomPositiveInt(ec.N)
 		poly[i] = ai
 	}
 
@@ -155,7 +155,7 @@ func evaluatePolynomial(poly []*big.Int, value *big.Int) *big.Int {
 	for i := last - 1; i >= 0; i-- {
 		result = result.Mul(result, value)
 		result = result.Add(result, poly[i])
-		result = result.Mod(result, EC.N)
+		result = result.Mod(result, ec.N)
 	}
 
 	return result

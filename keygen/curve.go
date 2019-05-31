@@ -5,9 +5,13 @@ import (
 )
 
 var (
-	EC *s256k1.KoblitzCurve
+	ec *s256k1.KoblitzCurve
 )
 
 func init() {
-	EC = s256k1.S256()
+	ec = s256k1.S256()
+}
+
+func EC() *s256k1.KoblitzCurve {
+	return ec
 }

@@ -13,11 +13,11 @@ import (
 func TestCreate(t *testing.T) {
 	num, threshold := 3, 2
 
-	secret := math.GetRandomPositiveInt(vss.EC.N)
+	secret := math.GetRandomPositiveInt(vss.EC().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
+		ids = append(ids, math.GetRandomPositiveInt(vss.EC().N))
 	}
 
 	params, polyGs, _, err := vss.Create(threshold, secret, ids)
@@ -39,11 +39,11 @@ func TestCreate(t *testing.T) {
 func TestVerify(t *testing.T) {
 	num, threshold := 3, 2
 
-	secret := math.GetRandomPositiveInt(vss.EC.N)
+	secret := math.GetRandomPositiveInt(vss.EC().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
+		ids = append(ids, math.GetRandomPositiveInt(vss.EC().N))
 	}
 
 	_, polyGs, shares, err := vss.Create(threshold, secret, ids)
@@ -57,11 +57,11 @@ func TestVerify(t *testing.T) {
 func TestCombine(t *testing.T) {
 	num, threshold := 3, 2
 
-	secret := math.GetRandomPositiveInt(vss.EC.N)
+	secret := math.GetRandomPositiveInt(vss.EC().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, math.GetRandomPositiveInt(vss.EC.N))
+		ids = append(ids, math.GetRandomPositiveInt(vss.EC().N))
 	}
 
 	_, _, shares, err := vss.Create(threshold, secret, ids)

@@ -1,8 +1,12 @@
 package keygen
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"math/big"
+
+	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/math"
@@ -15,7 +19,9 @@ import (
 
 const (
 	// Using a modulus length of 2048 is recommended in the GG18 spec
-	PaillierKeyLength = 2048
+	PaillierModulusLen = 2048
+	// RSA also 2048-bit modulus; two 1024-bit primes
+	RSAModulusLen = 2048
 )
 
 var _ types.Party = (*LocalParty)(nil)
@@ -33,6 +39,7 @@ type (
 		UiPolyGs    *vss.PolyGs
 		PaillierSk  *paillier.PrivateKey
 		PaillierPk  *paillier.PublicKey
+		RSAKey      *rsa.PrivateKey
 	}
 
 	LocalParty struct {
@@ -69,32 +76,65 @@ func (lp *LocalParty) String() string {
 
 func (lp *LocalParty) StartKeygenRound1() error {
 	// 1. calculate "partial" public key, make commitment -> (C, D)
-	ui := math.GetRandomPositiveInt(EC.N)
+	ui := math.GetRandomPositiveInt(EC().N)
 
-	uiGx, uiGy := EC.ScalarBaseMult(ui.Bytes())
+	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes())
 
 	// save uiGx, uiGy for this Pi for round 3
 	lp.uiGs[lp.partyID.Index] = []*big.Int{uiGx, uiGy}
 
-	cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
-	if err != nil {
-		return err
+	// prepare for concurrent key generation
+	paiCh := make(chan paillier.Paillier)
+	cmtCh := make(chan *cmt.HashCommitDecommit)
+	rsaCh := make(chan *rsa.PrivateKey)
+
+	// 2. generate Paillier public key "Ei", private key and proof
+	go func(ch chan<- paillier.Paillier) {
+		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk
+		PiPaillierPf := PiPaillierSk.Proof()
+		paillier := paillier.Paillier{PiPaillierSk, PiPaillierPf}
+		ch <- paillier
+	}(paiCh)
+
+	// 3. generate commitment of uiGx to reveal to other Pj later
+	go func(ch chan<- *cmt.HashCommitDecommit) {
+		cmtDeCmtUiG, err := cmt.NewHashCommitment(uiGx, uiGy)
+		if err != nil {
+			common.Logger.Errorf("Commitment generation error: %s", err)
+			ch <- nil
+		}
+		ch <- cmtDeCmtUiG
+	}(cmtCh)
+
+	// 4. generate auxilliary RSA primes for ZKPs later on
+	go func(ch chan<- *rsa.PrivateKey) {
+		pk, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, RSAModulusLen)
+		if err != nil {
+			common.Logger.Errorf("RSA generation error: %s", err)
+			ch <- nil
+		}
+		ch <- pk
+	}(rsaCh)
+
+	pai := <-paiCh
+	cmt := <-cmtCh
+	if cmt == nil {
+		return errors.New("Commitment generation failed!")
+	}
+	rsa := <-rsaCh
+	if rsa == nil {
+		return errors.New("RSA generation failed!")
 	}
 
-	// 2. generate Paillier public key "Ei", proof and private key
-	PiPaillierPk, PiPaillierSk := paillier.GenerateKeyPair(PaillierKeyLength)
-	PiPaillierPf := PiPaillierSk.Proof()
-
-	// 3. BROADCAST key share, (commitments, paillier pks)
-
-	// round 1 message
-	p1msg := NewKGRound1CommitMessage(lp.partyID, cmtDeCmtUiG.C, PiPaillierPk, PiPaillierPf)
+	// 5. collect and BROADCAST commitments, paillier pk + proof; round 1 message
+	p1msg := NewKGRound1CommitMessage(lp.partyID, cmt.C, &pai.PublicKey, pai.Proof, &rsa.PublicKey)
 
 	// for this P: SAVE generated secrets, commitments, paillier vars; for round 2
 	lp.data.Ui = ui
-	lp.data.PaillierSk = PiPaillierSk
-	lp.data.PaillierPk = PiPaillierPk
-	lp.data.DeCommitUiG = cmtDeCmtUiG.D
+	lp.data.PaillierSk = pai.PrivateKey
+	lp.data.PaillierPk = &pai.PublicKey
+	lp.data.DeCommitUiG = cmt.D
+	lp.data.RSAKey = rsa
 
 	lp.kgRound1CommitMessages[lp.partyID.Index] = &p1msg
 	lp.sendMsg(p1msg)
@@ -145,7 +185,7 @@ func (lp *LocalParty) startKeygenRound3() error {
 		if i == 0 {
 			continue
 		}
-		pkX, pkY = EC.Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
+		pkX, pkY = EC().Add(pkX, pkY, uiGs[i][0], uiGs[i][1])
 	}
 	lp.data.PkX, lp.data.PkY = pkX, pkY
 
@@ -158,7 +198,7 @@ func (lp *LocalParty) startKeygenRound3() error {
 		share := lp.kgRound2VssMessages[i].PiShare.Share
 		skUi = new(big.Int).Add(skUi, share)
 	}
-	skUi = new(big.Int).Mod(skUi, EC.N)
+	skUi = new(big.Int).Mod(skUi, EC().N)
 
 	// PRINT private share
 	common.Logger.Debugf("private share: %x", skUi)

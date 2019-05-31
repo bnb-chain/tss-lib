@@ -19,8 +19,14 @@ import (
 var ErrMessageTooLong = fmt.Errorf("the message is too long")
 
 type (
+	// Paillier struct, used when generating keys in the keygen
+	// (concurrency helper)
+	Paillier struct {
+		*PrivateKey
+		*Proof
+	}
+
 	PublicKey struct {
-		Length   int
 		N        *big.Int // modulus
 		G        *big.Int // n+1, since p and q are same length
 		NSquared *big.Int // NSquared = N * N
@@ -28,7 +34,6 @@ type (
 
 	PrivateKey struct {
 		PublicKey
-		Length int
 		L *big.Int // (p-1)*(q-1)
 		U *big.Int // L^-1 mod N
 	}
@@ -42,8 +47,8 @@ type (
 	}
 )
 
-// len is the length of the modulus (two primes)
-func GenerateKeyPair(len int) (*PublicKey, *PrivateKey) {
+// len is the length of the modulus (both primes)
+func GenerateKeyPair(len int) (*PrivateKey, *PublicKey) {
 	one := big.NewInt(1)
 
 	p := math.GetRandomPrimeInt(len / 2)
@@ -59,10 +64,10 @@ func GenerateKeyPair(len int) (*PublicKey, *PrivateKey) {
 	l := new(big.Int).Mul(pMinus1, qMinus1)
 	u := new(big.Int).ModInverse(l, n)
 
-	publicKey  := &PublicKey{Length: len, N: n, G: g, NSquared: n2}
-	privateKey := &PrivateKey{Length: len, PublicKey: *publicKey, L: l, U: u}
+	publicKey  := &PublicKey{N: n, G: g, NSquared: n2}
+	privateKey := &PrivateKey{PublicKey: *publicKey, L: l, U: u}
 
-	return publicKey, privateKey
+	return privateKey, publicKey
 }
 
 func (publicKey *PublicKey) Encrypt(m *big.Int) (*big.Int, *big.Int, error) {

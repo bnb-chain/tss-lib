@@ -1,6 +1,7 @@
 package keygen_test
 
 import (
+	rsa2 "crypto/rsa"
 	"fmt"
 	"reflect"
 	"testing"
@@ -29,7 +30,8 @@ func TestEncodeDecodeMsg(t *testing.T) {
 	cmt := new(commitments.HashCommitment)
 	pk := new(paillier.PublicKey)
 	pf := new(paillier.Proof)
-	msg1 := types.Message(keygen.NewKGRound1CommitMessage(from, *cmt, pk, pf))
+	rsa := new(rsa2.PublicKey)
+	msg1 := types.Message(keygen.NewKGRound1CommitMessage(from, *cmt, pk, pf, rsa))
 	emsg1, err := keygen.EncodeMsg(msg1)
 	assert.NoError(t, err, "encode should not fail")
 

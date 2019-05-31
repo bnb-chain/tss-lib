@@ -1,6 +1,8 @@
 package keygen
 
 import (
+	"crypto/rsa"
+
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/schnorrZK"
@@ -13,9 +15,10 @@ type (
 	// len == (NodeCnt - 1)
 	KGRound1CommitMessage struct {
 		types.MessageMetadata
-		Commitment cmt.HashCommitment
+		Commitment cmt.HashCommitment // cannot be pointers due to wire_test
 		PaillierPk paillier.PublicKey
 		PaillierPf paillier.Proof
+		RSAModulus rsa.PublicKey
 	}
 
 	// KGRound2VssMessage represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol
@@ -46,7 +49,8 @@ func NewKGRound1CommitMessage(
 		from *types.PartyID,
 		ct cmt.HashCommitment,
 		paillierPk *paillier.PublicKey,
-		paillierPf *paillier.Proof) KGRound1CommitMessage {
+		paillierPf *paillier.Proof,
+		rsaPk *rsa.PublicKey) KGRound1CommitMessage {
 	return KGRound1CommitMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      nil,  // broadcast
@@ -56,6 +60,7 @@ func NewKGRound1CommitMessage(
 		Commitment: ct,
 		PaillierPk: *paillierPk,
 		PaillierPf: *paillierPf,
+		RSAModulus: *rsaPk,
 	}
 }
 
