@@ -127,6 +127,7 @@ func (lp *LocalParty) sendMsg(msg types.Message) {
 	if lp.out == nil {
 		panic(fmt.Errorf("party %s tried to send a message but out was nil", lp.getPartyID()))
 	} else {
+		common.Logger.Infof("party %s send message: %s", lp.getPartyID(), msg)
 		lp.out <- msg
 	}
 }

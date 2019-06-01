@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	TestParticipants = 20
+	TestParticipants = 50
 	TestThreshold    = TestParticipants / 2
 )
 
@@ -99,22 +99,28 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 
 	p2pCtx := types.NewPeerContext(pIDs)
 	players := make([]*LocalParty, 0, len(pIDs))
-	pmtxs := make([]sync.Mutex, len(pIDs))
 	params := NewKGParameters(len(pIDs), threshold)
 
 	out := make(chan types.Message, len(pIDs))
+	in := make(map[*LocalParty]chan types.Message, len(pIDs))
 	end := make(chan LocalPartySaveData, len(pIDs))
 
 	for i := 0; i < len(pIDs); i++ {
 		P := NewLocalParty(p2pCtx, *params, pIDs[i], out, end)
+		in[P] = make(chan types.Message, 4*len(pIDs))
 		players = append(players, P)
 		go func(P *LocalParty) {
-			pmtxs[P.getPartyID().Index].Lock()
 			if err := P.StartKeygenRound1(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
 				assert.FailNow(t, err.Error())
 			}
-			pmtxs[P.getPartyID().Index].Unlock()
+
+			for msg := range in[P] {
+				if _, err := P.Update(msg); err != nil {
+					common.Logger.Errorf("Error: %s", err)
+					assert.FailNow(t, err.Error())
+				}
+			}
 		}(P)
 	}
 
@@ -128,25 +134,11 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			if dest == nil {
 				for _, P := range players {
 					if P.getPartyID().Index != msg.GetFrom().Index {
-						go func(P *LocalParty, msg types.Message) {
-							pmtxs[P.getPartyID().Index].Lock()
-							if _, err := P.Update(msg); err != nil {
-								common.Logger.Errorf("Error: %s", err)
-								assert.FailNow(t, err.Error())
-							}
-							pmtxs[P.getPartyID().Index].Unlock()
-						}(P, msg)
+						in[P] <- msg
 					}
 				}
 			} else {
-				go func(P *LocalParty) {
-					pmtxs[P.getPartyID().Index].Lock()
-					if _, err := P.Update(msg); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error())
-					}
-					pmtxs[P.getPartyID().Index].Unlock()
-				}(players[dest.Index])
+				in[players[dest.Index]] <- msg
 			}
 		case data := <-end:
 			dmtx.Lock()
