@@ -5,10 +5,9 @@
 package vss
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
-
-	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common/math"
 )

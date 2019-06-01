@@ -34,10 +34,10 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	pIDs := types.GeneratePartyIDs(1)
 	p2pCtx := types.NewPeerContext(pIDs)
 	threshold := 1
-	params := NewKGParameters(len(pIDs), threshold)
+	params := NewKGParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan types.Message, len(pIDs))
-	lp := NewLocalParty(p2pCtx, *params, pIDs[0], out, nil)
+	lp := NewLocalParty(params, out, nil)
 	if err := lp.StartKeygenRound1(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -54,10 +54,10 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	pIDs := types.GeneratePartyIDs(1)
 	p2pCtx := types.NewPeerContext(pIDs)
 	threshold := 1
-	params := NewKGParameters(len(pIDs), threshold)
+	params := NewKGParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan types.Message, len(pIDs))
-	lp := NewLocalParty(p2pCtx, *params, pIDs[0], out, nil)
+	lp := NewLocalParty(params, out, nil)
 	if err := lp.StartKeygenRound1(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -76,10 +76,10 @@ func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
 	pIDs := types.GeneratePartyIDs(1)
 	p2pCtx := types.NewPeerContext(pIDs)
 	threshold := 1
-	params := NewKGParameters(len(pIDs), threshold)
+	params := NewKGParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan types.Message, len(pIDs))
-	lp := NewLocalParty(p2pCtx, *params, pIDs[0], out, nil)
+	lp := NewLocalParty(params, out, nil)
 	if err := lp.finishAndSaveKeygen(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -100,21 +100,21 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 	p2pCtx := types.NewPeerContext(pIDs)
 	players := make([]*LocalParty, 0, len(pIDs))
 	pmtxs := make([]sync.Mutex, len(pIDs))
-	params := NewKGParameters(len(pIDs), threshold)
 
 	out := make(chan types.Message, len(pIDs))
 	end := make(chan LocalPartySaveData, len(pIDs))
 
 	for i := 0; i < len(pIDs); i++ {
-		P := NewLocalParty(p2pCtx, *params, pIDs[i], out, end)
+		params := NewKGParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
+		P := NewLocalParty(params, out, end)
 		players = append(players, P)
 		go func(P *LocalParty) {
-			pmtxs[P.getPartyID().Index].Lock()
+			pmtxs[P.partyID.Index].Lock()
 			if err := P.StartKeygenRound1(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
 				assert.FailNow(t, err.Error())
 			}
-			pmtxs[P.getPartyID().Index].Unlock()
+			pmtxs[P.partyID.Index].Unlock()
 		}(P)
 	}
 
@@ -127,25 +127,28 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			dest := msg.GetTo()
 			if dest == nil {
 				for _, P := range players {
-					if P.getPartyID().Index != msg.GetFrom().Index {
+					if P.partyID.Index != msg.GetFrom().Index {
 						go func(P *LocalParty, msg types.Message) {
-							pmtxs[P.getPartyID().Index].Lock()
+							pmtxs[P.partyID.Index].Lock()
 							if _, err := P.Update(msg); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error())
 							}
-							pmtxs[P.getPartyID().Index].Unlock()
+							pmtxs[P.partyID.Index].Unlock()
 						}(P, msg)
 					}
 				}
 			} else {
+				if dest.Index == msg.GetFrom().Index {
+					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
+				}
 				go func(P *LocalParty) {
-					pmtxs[P.getPartyID().Index].Lock()
+					pmtxs[P.partyID.Index].Lock()
 					if _, err := P.Update(msg); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error())
 					}
-					pmtxs[P.getPartyID().Index].Unlock()
+					pmtxs[P.partyID.Index].Unlock()
 				}(players[dest.Index])
 			}
 		case data := <-end:
@@ -174,8 +177,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				for j := range players {
 					pShares := make(vss.Shares, 0)
 					for _, P := range players {
-						round3  := P.partyState.(*round3)
-						vssMsgs := round3.kgRound2VssMessages
+						vssMsgs := P.temp.kgRound2VssMessages
 						pShares  = append(pShares, vssMsgs[j].PiShare)
 					}
 					xi, err := pShares[:threshold].Combine() // fail if threshold-1

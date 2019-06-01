@@ -37,7 +37,7 @@ type (
 		DeCommitment cmt.HashDeCommitment
 	}
 
-	// KGRound3ZKUProofMessage
+	// KGRound3ZKUProofMessage represents a BROADCAST message sent to each party during Round 3 of the ECDSA TSS keygen protocol
 	// len == (NodeCnt - 1)
 	KGRound3ZKUProofMessage struct {
 		types.MessageMetadata
