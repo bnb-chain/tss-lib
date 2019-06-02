@@ -11,7 +11,7 @@ import (
 	"github.com/binance-chain/tss-lib/common/math"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/keygen"
+	. "github.com/binance-chain/tss-lib/keygen"
 	"github.com/binance-chain/tss-lib/types"
 )
 
@@ -31,8 +31,8 @@ func TestEncodeDecodeMsg(t *testing.T) {
 	pk := new(paillier.PublicKey)
 	pf := new(paillier.Proof)
 	rsa := new(rsa2.PublicKey)
-	msg1 := types.Message(keygen.NewKGRound1CommitMessage(from, *cmt, pk, pf, rsa))
-	emsg1, err := keygen.EncodeMsg(msg1)
+	msg1 := types.Message(NewKGRound1CommitMessage(from, *cmt, pk, pf, rsa))
+	emsg1, err := EncodeMsg(msg1)
 	assert.NoError(t, err, "encode should not fail")
 
 	tests := []struct {
@@ -50,7 +50,7 @@ func TestEncodeDecodeMsg(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := keygen.DecodeMsg(tt.args.data)
+			got, err := DecodeMsg(tt.args.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DecodeMsg() error = %v, wantErr %v", err, tt.wantErr)
 				return

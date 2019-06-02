@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/crypto/commitments"
+	. "github.com/binance-chain/tss-lib/crypto/commitments"
 )
 
 func TestCommit(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
-	commitment, err := commitments.NewHashCommitment(zero, one)
+	commitment, err := NewHashCommitment(zero, one)
 	assert.NoError(t, err)
 
 	t.Log(commitment.C)
@@ -24,7 +24,7 @@ func TestVerify(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
-	commitment, err := commitments.NewHashCommitment(zero, one)
+	commitment, err := NewHashCommitment(zero, one)
 	assert.NoError(t, err)
 
 	pass, err := commitment.Verify()
@@ -40,7 +40,7 @@ func TestDeCommit(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
-	commitment, err := commitments.NewHashCommitment(zero, one)
+	commitment, err := NewHashCommitment(zero, one)
 	assert.NoError(t, err)
 
 	pass, secrets, err := commitment.DeCommit()

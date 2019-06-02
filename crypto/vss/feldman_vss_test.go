@@ -7,20 +7,20 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common/math"
-	"github.com/binance-chain/tss-lib/crypto/vss"
+	. "github.com/binance-chain/tss-lib/crypto/vss"
 )
 
 func TestCreate(t *testing.T) {
 	num, threshold := 3, 2
 
-	secret := math.GetRandomPositiveInt(vss.EC().N)
+	secret := math.GetRandomPositiveInt(EC().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, math.GetRandomPositiveInt(vss.EC().N))
+		ids = append(ids, math.GetRandomPositiveInt(EC().N))
 	}
 
-	params, polyGs, _, err := vss.Create(threshold, secret, ids)
+	params, polyGs, _, err := Create(threshold, secret, ids)
 	assert.Nil(t, err)
 
 	assert.Equal(t, threshold, params.Threshold)
@@ -39,14 +39,14 @@ func TestCreate(t *testing.T) {
 func TestVerify(t *testing.T) {
 	num, threshold := 3, 2
 
-	secret := math.GetRandomPositiveInt(vss.EC().N)
+	secret := math.GetRandomPositiveInt(EC().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, math.GetRandomPositiveInt(vss.EC().N))
+		ids = append(ids, math.GetRandomPositiveInt(EC().N))
 	}
 
-	_, polyGs, shares, err := vss.Create(threshold, secret, ids)
+	_, polyGs, shares, err := Create(threshold, secret, ids)
 	assert.NoError(t, err)
 
 	for i := 0; i < num; i++ {
@@ -57,14 +57,14 @@ func TestVerify(t *testing.T) {
 func TestCombine(t *testing.T) {
 	num, threshold := 3, 2
 
-	secret := math.GetRandomPositiveInt(vss.EC().N)
+	secret := math.GetRandomPositiveInt(EC().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, math.GetRandomPositiveInt(vss.EC().N))
+		ids = append(ids, math.GetRandomPositiveInt(EC().N))
 	}
 
-	_, _, shares, err := vss.Create(threshold, secret, ids)
+	_, _, shares, err := Create(threshold, secret, ids)
 	assert.NoError(t, err)
 
 	secret2, err2 := shares[:threshold-1].Combine()

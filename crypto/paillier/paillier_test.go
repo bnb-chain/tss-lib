@@ -1,4 +1,4 @@
-package paillier
+package paillier_test
 
 import (
 	"math/big"
@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common/math"
+	. "github.com/binance-chain/tss-lib/crypto/paillier"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
