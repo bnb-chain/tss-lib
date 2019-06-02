@@ -20,10 +20,10 @@ func (round *round3) start() error {
 		return round.wrapError(errors.New("round already started"))
 	}
 	round.started = true
-
-	Ps := round.p2pCtx.Parties()
+	round.resetOk()
 
 	// compute uiG for each Pj
+	Ps := round.p2pCtx.Parties()
 	for j, Pj := range Ps {
 		p1Cmt := round.temp.kgRound1CommitMessages[j].Commitment
 		p2msg2 := round.temp.kgRound2DeCommitMessages[j]
@@ -74,42 +74,29 @@ func (round *round3) start() error {
 }
 
 func (round *round3) canAccept(msg types.Message) bool {
-	if _, ok := msg.(KGRound3ZKUProofMessage); !ok {
+	if msg, ok := msg.(*KGRound3ZKUProofMessage); !ok || msg == nil {
 		return false
 	}
 	return true
 }
 
-func (round *round3) update(msg types.Message) (bool, error) {
-	if !round.canAccept(msg) { // double check
-		return false, nil
-	}
-
-	fromPIdx := msg.GetFrom().Index
-	p3msg := msg.(KGRound3ZKUProofMessage)
-
+func (round *round3) update() (bool, error) {
 	// guard - VERIFY zk proof of ui
-	uiG := round.save.BigXj[fromPIdx]
-	if ok := p3msg.ZKUProof.Verify(uiG); !ok {
-		common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", round.partyID)
-		return false, round.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", p3msg.From))
+	for j, msg := range round.temp.kgRound3ZKUProofMessage {
+		if round.ok[j] { continue }
+		if !round.canAccept(msg) {
+			return false, nil
+		}
+		uiG := round.save.BigXj[j]
+		if ok := msg.ZKUProof.Verify(uiG); !ok {
+			common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", round.partyID)
+			return false, round.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", msg.From))
+		}
+		round.ok[j] = true
 	}
 	return true, nil
 }
 
-func (round *round3) canProceed() bool {
-	for i := 0; i < round.params().partyCount; i++ {
-		if round.temp.kgRound3ZKUProofMessage[i] == nil {
-			common.Logger.Debugf("party %s: waiting for more kgRound3ZKUProofMessage", round.partyID)
-			return false
-		}
-	}
-	return true
-}
-
 func (round *round3) nextRound() round {
-	if !round.canProceed() {
-		return round
-	}
 	return nil // finished!
 }

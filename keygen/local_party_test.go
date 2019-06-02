@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
@@ -160,7 +159,6 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			atomic.AddInt32(&ended, 1)
 			ended++
 			if atomic.LoadInt32(&ended) >= int32(len(pIDs)) {
-				time.Sleep(100 * time.Millisecond)
 				t.Logf("Done. Received save data from %d participants", ended)
 
 				// calculate private key

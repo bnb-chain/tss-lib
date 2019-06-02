@@ -106,65 +106,72 @@ func (p *LocalParty) StartKeygenRound1() error {
 }
 
 func (p *LocalParty) Update(msg types.Message) (bool, error) {
-	fromPIdx := msg.GetFrom().Index
-
 	if _, err := p.validateMessage(msg); err != nil {
 		return false, err
 	}
-
-	defer func(fromPIdx int) {
-		common.Logger.Infof("party %s: keygen round %d update()", p.round.params().partyID, p.round.roundNumber())
-		if p.round.canAccept(msg) {
-			p.round.update(msg)
+	if p.round != nil {
+		common.Logger.Infof("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())
+	}
+	if _, err := p.storeMessage(msg); err != nil {
+		return false, err
+	}
+	if p.round != nil {
+		common.Logger.Debugf("party %s: keygen round %d update()", p.round.params().partyID, p.round.roundNumber())
+		if _, err := p.round.update(); err != nil {
+			return false, err
 		}
 		if p.round.canProceed() {
-			p.round = p.round.nextRound()
-			if p.round != nil {
+			if p.round = p.round.nextRound(); p.round != nil {
 				common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, p.round.roundNumber())
 				p.round.start()
-			} else {  // finished!
-				p.end <- p.data
 			}
+			return p.Update(msg) // re-run round update or finish
 		}
-	}(fromPIdx)
-
-	common.Logger.Infof("party %s update for: %s", p.partyID, msg.String())
-	switch msg.(type) {
-
-	case KGRound1CommitMessage: // Round 1 broadcast messages
-		p1msg := msg.(KGRound1CommitMessage)
-		p.temp.kgRound1CommitMessages[fromPIdx] = &p1msg
 		return true, nil
-
-	case KGRound2VssMessage: // Round 2 P2P messages
-		p2msg1 := msg.(KGRound2VssMessage)
-		p.temp.kgRound2VssMessages[fromPIdx] = &p2msg1 // just collect
-		return true, nil
-
-	case KGRound2DeCommitMessage:
-		p2msg2 := msg.(KGRound2DeCommitMessage)
-		p.temp.kgRound2DeCommitMessages[fromPIdx] = &p2msg2
-		return true, nil
-
-	case KGRound3ZKUProofMessage:
-		p3msg := msg.(KGRound3ZKUProofMessage)
-		p.temp.kgRound3ZKUProofMessage[fromPIdx] = &p3msg
-		return true, nil
-
-	default: // unrecognised message!
-		return false, fmt.Errorf("unrecognised message: %v", msg)
 	}
+	// finished!
+	common.Logger.Infof("party %s: finished!", p.partyID)
+	p.end <- p.data
+	return true, nil
 }
 
 func (p *LocalParty) validateMessage(msg types.Message) (bool, error) {
 	if msg.GetFrom() == nil {
-		return false, p.wrapError(errors.New("Update received nil msg"), p.round.roundNumber())
+		return false, p.wrapError(errors.New("update received nil msg"), p.round.roundNumber())
 	}
 	if msg == nil {
 		return false, fmt.Errorf("nil message received by party %s", p.partyID)
 	}
 
-	common.Logger.Infof("party %s received message: %s", p.partyID, msg.String())
+	common.Logger.Debugf("party %s received message: %s", p.partyID, msg.String())
+	return true, nil
+}
+
+func (p *LocalParty) storeMessage(msg types.Message) (bool, error) {
+	fromPIdx := msg.GetFrom().Index
+
+	// switch/case is necessary to store messages beyond current round
+	switch msg.(type) {
+
+	case KGRound1CommitMessage: // Round 1 broadcast messages
+		p1msg := msg.(KGRound1CommitMessage)
+		p.temp.kgRound1CommitMessages[fromPIdx] = &p1msg
+
+	case KGRound2VssMessage: // Round 2 P2P messages
+		p2msg1 := msg.(KGRound2VssMessage)
+		p.temp.kgRound2VssMessages[fromPIdx] = &p2msg1 // just collect
+
+	case KGRound2DeCommitMessage:
+		p2msg2 := msg.(KGRound2DeCommitMessage)
+		p.temp.kgRound2DeCommitMessages[fromPIdx] = &p2msg2
+
+	case KGRound3ZKUProofMessage:
+		p3msg := msg.(KGRound3ZKUProofMessage)
+		p.temp.kgRound3ZKUProofMessage[fromPIdx] = &p3msg
+
+	default: // unrecognised message!
+		return false, fmt.Errorf("unrecognised message: %v", msg)
+	}
 	return true, nil
 }
 

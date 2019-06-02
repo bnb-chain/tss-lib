@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -16,7 +17,7 @@ import (
 )
 
 func NewRound1State(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- types.Message) round {
-	return &round1{params, save, temp, out, false}
+	return &round1{params, save, temp, out, &sync.RWMutex{}, make([]bool, params.partyCount), false}
 }
 
 func (round *round1) roundNumber() int {
@@ -28,6 +29,7 @@ func (round *round1) start() error {
 		return round.wrapError(errors.New("round already started"))
 	}
 	round.started = true
+	round.resetOk()
 
 	// calculate "partial" public key, make commitment -> (C, D)
 	ui := math.GetRandomPositiveInt(EC().N)
@@ -91,38 +93,43 @@ func (round *round1) start() error {
 }
 
 func (round *round1) canAccept(msg types.Message) bool {
-	if _, ok := msg.(KGRound1CommitMessage); !ok {
+	if msg, ok := msg.(*KGRound1CommitMessage); !ok || msg == nil {
 		return false
 	}
 	return true
 }
 
-func (round *round1) update(msg types.Message) (bool, error) {
-	if !round.canAccept(msg) { // double check
-		return false, nil
-	}
-	p1msg := msg.(KGRound1CommitMessage)
-
-	// guard - VERIFY received paillier pk/proof for Pi
-	if ok := p1msg.PaillierPf.Verify(&p1msg.PaillierPk); !ok {
-		return false, round.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", p1msg.From))
+func (round *round1) update() (bool, error) {
+	// guard - VERIFY received paillier pk/proofs for all Pj
+	for j, msg := range round.temp.kgRound1CommitMessages {
+		if round.ok[j] { continue }
+		if !round.canAccept(msg) {
+			return false, nil
+		}
+		if ok := msg.PaillierPf.Verify(&msg.PaillierPk); !ok {
+			return false, round.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", msg.From))
+		}
+		round.ok[j] = true
 	}
 	return true, nil
 }
 
 func (round *round1) canProceed() bool {
-	for i := 0; i < round.params().partyCount; i++ {
-		if round.temp.kgRound1CommitMessages[i] == nil {
-			common.Logger.Debugf("party %s: waiting for more kgRound1CommitMessages", round.partyID)
-			return false
-		}
+	if !round.started { return false }
+	for _, ok := range round.ok {
+		if !ok { return false }
 	}
 	return true
 }
 
 func (round *round1) nextRound() round {
-	if !round.canProceed() {
-		return round
+	round.started = false
+	return &round2{round}
+}
+
+// `ok` tracks parties which have been verified by update()
+func (round *round1) resetOk() {
+	for j := range round.ok {
+		round.ok[j] = false
 	}
-	return &round2{round, false}
 }

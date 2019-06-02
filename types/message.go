@@ -37,5 +37,5 @@ func (kgMM MessageMetadata) String() string {
 	if kgMM.To != nil {
 		toStr = kgMM.To.String()
 	}
-	return fmt.Sprintf("From: %s, To: %s, MsgTpe: %s", kgMM.From.String(), toStr, kgMM.MsgType)
+	return fmt.Sprintf("From: %s, To: %s, MsgType: %s", kgMM.From.String(), toStr, kgMM.MsgType)
 }
