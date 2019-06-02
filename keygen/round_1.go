@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sync"
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -16,8 +15,8 @@ import (
 	"github.com/binance-chain/tss-lib/types"
 )
 
-func NewRound1State(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- types.Message) round {
-	return &round1{params, save, temp, out, &sync.RWMutex{}, make([]bool, params.partyCount), false}
+func newRound1(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- types.Message) round {
+	return &round1{params, save, temp, out, make([]bool, params.partyCount), false}
 }
 
 func (round *round1) roundNumber() int {
@@ -31,15 +30,6 @@ func (round *round1) start() error {
 	round.started = true
 	round.resetOk()
 
-	// calculate "partial" public key, make commitment -> (C, D)
-	ui := math.GetRandomPositiveInt(EC().N)
-
-	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes())
-
-	// save uiGx, uiGy for this Pi for round 3
-	round.save.BigXj = make([][]*big.Int, round.partyCount)
-	round.save.BigXj[round.partyID.Index] = []*big.Int{uiGx, uiGy}
-
 	// prepare for concurrent Paillier, RSA key generation
 	paiCh := make(chan paillier.Paillier)
 	rsaCh := make(chan *rsa.PrivateKey)
@@ -49,7 +39,7 @@ func (round *round1) start() error {
 		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk
 		PiPaillierPf := PiPaillierSk.Proof()
-		paillier := paillier.Paillier{PiPaillierSk, PiPaillierPf}
+		paillier := paillier.Paillier{PrivateKey: PiPaillierSk, Proof: PiPaillierPf}
 		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", round, time.Since(start))
 		ch <- paillier
 	}(paiCh)
@@ -66,13 +56,15 @@ func (round *round1) start() error {
 		ch <- pk
 	}(rsaCh)
 
+	// calculate "partial" key share ui, make commitment -> (C, D)
+	ui := math.GetRandomPositiveInt(EC().N)
+	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes()) // pubkey
 	cmt, err := cmt.NewHashCommitment(uiGx, uiGy)
 	if err != nil {
 		return err
 	}
 
-	pai := <-paiCh
-	rsa := <-rsaCh
+	pai, rsa := <-paiCh, <-rsaCh
 	if rsa == nil {
 		return errors.New("RSA generation failed!")
 	}
@@ -80,9 +72,13 @@ func (round *round1) start() error {
 	// collect and BROADCAST commitments, paillier pk + proof; round 1 message
 	p1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, pai.Proof, &rsa.PublicKey)
 
+	// save uiGx, uiGy for this Pi for round 3
+	round.save.BigXj = make([][]*big.Int, round.partyCount)
+	round.save.BigXj[round.partyID.Index] = []*big.Int{uiGx, uiGy}
+
 	// for this P: SAVE generated secrets, commitments, paillier vars; for round 2
-	round.temp.Ui = ui
-	round.temp.DeCommitUiG = cmt.D
+	round.temp.ui = ui
+	round.temp.deCommitUiG = cmt.D
 	round.save.PaillierSk = pai.PrivateKey
 	round.save.PaillierPk = &pai.PublicKey
 	round.save.RSAKey = rsa

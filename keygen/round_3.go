@@ -66,7 +66,7 @@ func (round *round3) start() error {
 	common.Logger.Debugf("private share: %x", skUi)
 
 	// BROADCAST zk proof of ui
-	uiProof := schnorrZK.NewZKProof(round.temp.Ui)
+	uiProof := schnorrZK.NewZKProof(round.temp.ui)
 	p3msg := NewKGRound3ZKUProofMessage(round.partyID, uiProof)
 	round.temp.kgRound3ZKUProofMessage[round.partyID.Index] = &p3msg
 	round.out <- p3msg
@@ -88,6 +88,9 @@ func (round *round3) update() (bool, error) {
 			return false, nil
 		}
 		uiG := round.save.BigXj[j]
+		if len(uiG) != 2 {
+			return false, nil
+		}
 		if ok := msg.ZKUProof.Verify(uiG); !ok {
 			common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", round.partyID)
 			return false, round.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", msg.From))

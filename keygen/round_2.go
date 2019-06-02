@@ -21,7 +21,7 @@ func (round *round2) start() error {
 
 	// next step: compute the vss shares
 	ids := round.p2pCtx.Parties().Keys()
-	vsp, polyGs, shares, err := vss.Create(round.params().Threshold(), round.temp.Ui, ids)
+	vsp, polyGs, shares, err := vss.Create(round.params().Threshold(), round.temp.ui, ids)
 	if err != nil {
 		panic(round.wrapError(err))
 	}
@@ -50,7 +50,7 @@ func (round *round2) start() error {
 	}
 
 	// BROADCAST de-commitments and Shamir poly * Gs
-	p2msg2 := NewKGRound2DeCommitMessage(round.partyID, vsp, polyGs, round.temp.DeCommitUiG)
+	p2msg2 := NewKGRound2DeCommitMessage(round.partyID, vsp, polyGs, round.temp.deCommitUiG)
 	round.temp.kgRound2DeCommitMessages[round.partyID.Index] = &p2msg2
 	round.out <- p2msg2
 	return nil

@@ -1,8 +1,6 @@
 package keygen
 
 import (
-	"sync"
-
 	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/types"
@@ -11,7 +9,6 @@ import (
 type (
 	round interface {
 		params() *KGParameters
-		mutex() *sync.RWMutex
 		start() error
 		update() (bool, error)
 		canAccept(msg types.Message) bool
@@ -25,7 +22,6 @@ type (
 		save    *LocalPartySaveData
 		temp    *LocalPartyTempData
 		out     chan<- types.Message
-		mtx     *sync.RWMutex
 		ok      []bool // `ok` tracks parties which have been verified by update()
 		started bool
 	}
@@ -43,9 +39,6 @@ var _ round = (*round3)(nil)
 
 func (round *round1) params() *KGParameters {
 	return round.KGParameters
-}
-func (round *round1) mutex() *sync.RWMutex {
-	return round.mtx
 }
 
 // TODO maybe do this better

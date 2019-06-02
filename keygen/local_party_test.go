@@ -98,7 +98,6 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 
 	p2pCtx := types.NewPeerContext(pIDs)
 	players := make([]*LocalParty, 0, len(pIDs))
-	pmtxs := make([]sync.Mutex, len(pIDs))
 
 	out := make(chan types.Message, len(pIDs))
 	end := make(chan LocalPartySaveData, len(pIDs))
@@ -108,12 +107,10 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 		P := NewLocalParty(params, out, end)
 		players = append(players, P)
 		go func(P *LocalParty) {
-			pmtxs[P.partyID.Index].Lock()
 			if err := P.StartKeygenRound1(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
 				assert.FailNow(t, err.Error())
 			}
-			pmtxs[P.partyID.Index].Unlock()
 		}(P)
 	}
 
@@ -128,12 +125,10 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				for _, P := range players {
 					if P.partyID.Index != msg.GetFrom().Index {
 						go func(P *LocalParty, msg types.Message) {
-							pmtxs[P.partyID.Index].Lock()
 							if _, err := P.Update(msg); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error())
 							}
-							pmtxs[P.partyID.Index].Unlock()
 						}(P, msg)
 					}
 				}
@@ -142,12 +137,10 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
 				}
 				go func(P *LocalParty) {
-					pmtxs[P.partyID.Index].Lock()
 					if _, err := P.Update(msg); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error())
 					}
-					pmtxs[P.partyID.Index].Unlock()
 				}(players[dest.Index])
 			}
 		case data := <-end:
@@ -167,7 +160,7 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 					if i == 0 {
 						continue
 					}
-					u = new(big.Int).Add(u, d.Ui)
+					u = new(big.Int).Add(u, d.ui)
 				}
 
 				// combine vss shares for each Pj to get x

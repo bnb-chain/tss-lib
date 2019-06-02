@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -24,10 +25,11 @@ const (
 type (
 	LocalParty struct {
 		*KGParameters
+		round round
 
+		mtx   *sync.Mutex
 		data  LocalPartySaveData
 		temp  LocalPartyTempData
-		round round
 
 		// messaging
 		out chan<- types.Message
@@ -64,8 +66,8 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after keygen)
-		Ui          *big.Int
-		DeCommitUiG cmt.HashDeCommitment
+		ui          *big.Int
+		deCommitUiG cmt.HashDeCommitment
 	}
 )
 
@@ -78,17 +80,18 @@ func NewLocalParty(
 	partyCount := params.partyCount
 	p := &LocalParty{
 		KGParameters: params,
-		out:          out,
-		end:          end,
+		mtx:          &sync.Mutex{},
 		data:         LocalPartySaveData{},
 		temp:         LocalPartyTempData{},
+		out:          out,
+		end:          end,
 	}
 	p.data.BigXj = make([][]*big.Int, partyCount)
 	p.temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
 	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
 	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
 	p.temp.kgRound3ZKUProofMessage = make([]*KGRound3ZKUProofMessage, partyCount)
-	round := NewRound1State(params, &p.data, &p.temp, out)
+	round := newRound1(params, &p.data, &p.temp, out)
 	p.round = round
 	return p
 }
@@ -106,33 +109,40 @@ func (p *LocalParty) StartKeygenRound1() error {
 }
 
 func (p *LocalParty) Update(msg types.Message) (bool, error) {
+	p.mtx.Lock()
+	// needed, L137 is recursive so cannot use defer
+	r := func(a1 bool, a2 error) (bool, error) {
+		p.mtx.Unlock()
+		return a1, a2
+	}
 	if _, err := p.validateMessage(msg); err != nil {
-		return false, err
+		return r(false, err)
 	}
 	if p.round != nil {
 		common.Logger.Infof("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())
 	}
 	if _, err := p.storeMessage(msg); err != nil {
-		return false, err
+		return r(false, err)
 	}
 	if p.round != nil {
 		common.Logger.Debugf("party %s: keygen round %d update()", p.round.params().partyID, p.round.roundNumber())
 		if _, err := p.round.update(); err != nil {
-			return false, err
+			return r(false, err)
 		}
 		if p.round.canProceed() {
 			if p.round = p.round.nextRound(); p.round != nil {
 				common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, p.round.roundNumber())
 				p.round.start()
 			}
-			return p.Update(msg) // re-run round update or finish
+			p.mtx.Unlock() // recursive so can't defer after return
+			return p.Update(msg) // re-run round update or finish)
 		}
-		return true, nil
+		return r(true, nil)
 	}
 	// finished!
 	common.Logger.Infof("party %s: finished!", p.partyID)
 	p.end <- p.data
-	return true, nil
+	return r(true, nil)
 }
 
 func (p *LocalParty) validateMessage(msg types.Message) (bool, error) {
