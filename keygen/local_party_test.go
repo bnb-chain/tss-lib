@@ -150,7 +150,6 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			}
 			dmtx.Unlock()
 			atomic.AddInt32(&ended, 1)
-			ended++
 			if atomic.LoadInt32(&ended) >= int32(len(pIDs)) {
 				t.Logf("Done. Received save data from %d participants", ended)
 
