@@ -33,7 +33,7 @@ func NewPartyID(id string, moniker string) *PartyID {
 }
 
 func (pid PartyID) String() string {
-	return fmt.Sprintf("{%d,%s}", pid.Index, pid.Moniker)
+	return fmt.Sprintf("id: %s, moniker: %s, index: %d, key: %s\n", pid.ID, pid.Moniker, pid.Index, pid.Key)
 }
 
 // ----- //
@@ -56,10 +56,10 @@ func GeneratePartyIDs(count int) SortedPartyIDs {
 	ids := make(SortedPartyIDs, 0, count)
 	for i := 0; i < count; i++ {
 		ids = append(ids, &PartyID{
-			ID: fmt.Sprintf("%d", i),
-			Moniker: fmt.Sprintf("P[%d]", i + 1),
-			Index: i,
-			Key: big.NewInt(int64(i)),
+			ID:      fmt.Sprintf("%d", i),
+			Moniker: fmt.Sprintf("P[%d]", i+1),
+			Index:   i,
+			Key:     big.NewInt(int64(i)),
 		})
 	}
 	return ids

@@ -21,7 +21,7 @@ func (round *round2) start() error {
 
 	// next step: compute the vss shares
 	ids := round.p2pCtx.Parties().Keys()
-	vsp, polyGs, shares, err := vss.Create(round.params().Threshold(), round.temp.ui, ids)
+	_, polyGs, shares, err := vss.Create(round.params().Threshold(), round.temp.ui, ids)
 	if err != nil {
 		panic(round.wrapError(err))
 	}
@@ -50,7 +50,7 @@ func (round *round2) start() error {
 	}
 
 	// BROADCAST de-commitments and Shamir poly * Gs
-	p2msg2 := NewKGRound2DeCommitMessage(round.partyID, vsp, polyGs, round.temp.deCommitUiG)
+	p2msg2 := NewKGRound2DeCommitMessage(round.partyID, polyGs, round.temp.deCommitUiG)
 	round.temp.kgRound2DeCommitMessages[round.partyID.Index] = &p2msg2
 	round.out <- p2msg2
 	return nil
@@ -68,7 +68,9 @@ func (round *round2) canAccept(msg types.Message) bool {
 func (round *round2) update() (bool, error) {
 	// guard - VERIFY VSS check for all Pj
 	for j, msg := range round.temp.kgRound2VssMessages {
-		if round.ok[j] { continue }
+		if round.ok[j] {
+			continue
+		}
 		if !round.canAccept(msg) {
 			return false, nil
 		}

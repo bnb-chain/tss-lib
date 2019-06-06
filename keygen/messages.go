@@ -2,6 +2,7 @@ package keygen
 
 import (
 	"crypto/rsa"
+	"fmt"
 
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
@@ -32,7 +33,6 @@ type (
 	// len == (NodeCnt - 1)
 	KGRound2DeCommitMessage struct {
 		types.MessageMetadata
-		VssParams    *vss.Params
 		PolyGs       *vss.PolyGs
 		DeCommitment cmt.HashDeCommitment
 	}
@@ -44,6 +44,10 @@ type (
 		ZKUProof *schnorrZK.ZKProof
 	}
 )
+
+func (m KGRound2DeCommitMessage) String() string {
+	return fmt.Sprintf("Metadata: %s, polyGs: %s, decommitment: %v", m.MessageMetadata, m.PolyGs, m.DeCommitment)
+}
 
 func NewKGRound1CommitMessage(
 	from *types.PartyID,
@@ -79,7 +83,6 @@ func NewKGRound2VssMessage(
 
 func NewKGRound2DeCommitMessage(
 	from *types.PartyID,
-	vssParams *vss.Params,
 	polyGs *vss.PolyGs,
 	deCommitment cmt.HashDeCommitment) KGRound2DeCommitMessage {
 	return KGRound2DeCommitMessage{
@@ -88,7 +91,6 @@ func NewKGRound2DeCommitMessage(
 			From:    from,
 			MsgType: "KGRound2DeCommitMessage",
 		},
-		VssParams:    vssParams,
 		PolyGs:       polyGs,
 		DeCommitment: deCommitment,
 	}

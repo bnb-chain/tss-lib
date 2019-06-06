@@ -13,14 +13,14 @@ import (
 )
 
 var (
-	ErrNumSharesBelowThreshold   = fmt.Errorf("not enough shares to satisfy the threshold")
+	ErrNumSharesBelowThreshold = fmt.Errorf("not enough shares to satisfy the threshold")
 )
 
 type (
 	// Params represents the parameters used in Shamir secret sharing
 	Params struct {
-		Threshold int      // threshold
-		NumShares int      // total num
+		Threshold int // threshold
+		NumShares int // total num
 	}
 
 	Share struct {
@@ -36,6 +36,14 @@ type (
 
 	Shares []*Share
 )
+
+func (p Params) String() string {
+	return fmt.Sprintf("Params: threshold: %d, numshares: %d", p.Threshold, p.NumShares)
+}
+
+func (p PolyGs) String() string {
+	return fmt.Sprintf("PolyGs: params: %s, PolyG: %v", p.Params, p.PolyG)
+}
 
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
@@ -61,12 +69,12 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*Params, *PolyG
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
-	pGs    := PolyGs{Params: params, PolyG: polyGs}
+	pGs := PolyGs{Params: params, PolyG: polyGs}
 
 	shares := make(Shares, num)
 
 	for i := 0; i < num; i++ {
-		share  := evaluatePolynomial(poly, indexes[i])
+		share := evaluatePolynomial(poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
 	return &params, &pGs, shares, nil
@@ -116,15 +124,15 @@ func (shares Shares) Combine() (*big.Int, error) {
 			if j != i {
 				sub := new(big.Int).Sub(xs[j], share.ID)
 				subInv := new(big.Int).ModInverse(sub, ec.N)
-				div  := new(big.Int).Mul(xs[j], subInv)
+				div := new(big.Int).Mul(xs[j], subInv)
 				times = new(big.Int).Mul(times, div)
 				times = new(big.Int).Mod(times, ec.N)
 			}
 		}
 
 		fTimes := new(big.Int).Mul(share.Share, times)
-		secret  = new(big.Int).Add(secret, fTimes)
-		secret  = new(big.Int).Mod(secret, ec.N)
+		secret = new(big.Int).Add(secret, fTimes)
+		secret = new(big.Int).Mod(secret, ec.N)
 	}
 
 	return secret, nil
