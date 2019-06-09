@@ -48,15 +48,15 @@ func (p PolyGs) String() string {
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
 //
-func Create(threshold int, secret *big.Int, indexes []*big.Int) (*Params, *PolyGs, Shares, error) {
+func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares, error) {
 	if secret == nil || indexes == nil {
-		return nil, nil, nil, errors.New("vss secret or indexes == nil")
+		return nil, nil, errors.New("vss secret or indexes == nil")
 	}
 
 	num := len(indexes)
 
 	if num < threshold {
-		return nil, nil, nil, ErrNumSharesBelowThreshold
+		return nil, nil, ErrNumSharesBelowThreshold
 	}
 
 	poly := samplePolynomial(threshold, secret)
@@ -77,7 +77,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*Params, *PolyG
 		share := evaluatePolynomial(poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
-	return &params, &pGs, shares, nil
+	return &pGs, shares, nil
 }
 
 func (share *Share) Verify(polyGs *PolyGs) bool {

@@ -20,11 +20,11 @@ func TestCreate(t *testing.T) {
 		ids = append(ids, math.GetRandomPositiveInt(EC().N))
 	}
 
-	params, polyGs, _, err := Create(threshold, secret, ids)
+	polyGs, _, err := Create(threshold, secret, ids)
 	assert.Nil(t, err)
 
-	assert.Equal(t, threshold, params.Threshold)
-	assert.Equal(t, num, params.NumShares)
+	assert.Equal(t, threshold, polyGs.Params.Threshold)
+	assert.Equal(t, num, polyGs.Params.NumShares)
 
 	assert.Equal(t, threshold, len(polyGs.PolyG))
 
@@ -46,7 +46,7 @@ func TestVerify(t *testing.T) {
 		ids = append(ids, math.GetRandomPositiveInt(EC().N))
 	}
 
-	_, polyGs, shares, err := Create(threshold, secret, ids)
+	polyGs, shares, err := Create(threshold, secret, ids)
 	assert.NoError(t, err)
 
 	for i := 0; i < num; i++ {
@@ -64,7 +64,7 @@ func TestCombine(t *testing.T) {
 		ids = append(ids, math.GetRandomPositiveInt(EC().N))
 	}
 
-	_, _, shares, err := Create(threshold, secret, ids)
+	_, shares, err := Create(threshold, secret, ids)
 	assert.NoError(t, err)
 
 	secret2, err2 := shares[:threshold-1].Combine()

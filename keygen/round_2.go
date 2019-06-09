@@ -21,7 +21,7 @@ func (round *round2) start() error {
 
 	// next step: compute the vss shares
 	ids := round.p2pCtx.Parties().Keys()
-	_, polyGs, shares, err := vss.Create(round.params().Threshold(), round.temp.ui, ids)
+	polyGs, shares, err := vss.Create(round.params().Threshold(), round.temp.ui, ids)
 	if err != nil {
 		panic(round.wrapError(err))
 	}

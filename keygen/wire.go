@@ -4,19 +4,12 @@ import (
 	"bytes"
 	"encoding/gob"
 
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/types"
 )
 
 func init() {
 	gob.Register(KGRound1CommitMessage{})
 	gob.Register(KGRound2VssMessage{})
-	gob.Register(types.PartyID{})
-	gob.Register(types.MessageMetadata{})
-	gob.Register(vss.Params{})
-	gob.Register(vss.PolyGs{})
-	gob.Register(commitments.HashDeCommitment{})
 	gob.Register(KGRound2DeCommitMessage{})
 	gob.Register(KGRound3ZKUProofMessage{})
 }
