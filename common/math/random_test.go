@@ -25,10 +25,11 @@ func TestGetRandomPositiveInt(t *testing.T) {
 	assert.True(t, rndPos.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
 }
 
-func TestGetRandomPositiveRelativelyPrimeInt(t *testing.T) {
+func TestGetRandomNumberInMultiplicativeGroup(t *testing.T) {
 	rnd := MustGetRandomInt(randomIntLength)
-	rndPosRP := GetRandomPositiveRelativelyPrimeInt(rnd)
+	rndPosRP := GetRandomNumberInMultiplicativeGroup(rnd)
 	assert.NotZero(t, rndPosRP, "rand int should not be zero")
+	assert.True(t, IsNumberInMultiplicativeGroup(rnd, rndPosRP))
 	assert.True(t, rndPosRP.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
 	// TODO test for relative primeness
 }
