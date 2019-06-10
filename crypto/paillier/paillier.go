@@ -4,38 +4,44 @@
 // * Encrypted integers can be added together
 // * Encrypted integers can be multiplied by an unencrypted integer
 // * Encrypted integers and unencrypted integers can be added together
+//
+// Implementation adheres to GG18Spec (6)
 
 package paillier
 
 import (
+	"crypto"
 	"fmt"
+	gmath "math"
 	"math/big"
+	"strconv"
 
 	"golang.org/x/crypto/sha3"
 
 	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/primes"
 )
 
-var ErrMessageTooLong = fmt.Errorf("the message is too long")
+const (
+	Proof2Iters = 13
+)
+
+var (
+	zero = big.NewInt(0)
+	one  = big.NewInt(1)
+
+	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
+)
 
 type (
-	// Paillier struct, used when generating keys in the keygen
-	// (concurrency helper)
-	Paillier struct {
-		*PrivateKey
-		*Proof
-	}
-
 	PublicKey struct {
-		N        *big.Int // modulus
-		G        *big.Int // n+1, since p and q are same length
-		NSquared *big.Int // NSquared = N * N
+		N, PhiN *big.Int
+		Gamma   *big.Int
 	}
 
 	PrivateKey struct {
 		PublicKey
-		L *big.Int // (p-1)*(q-1)
-		U *big.Int // L^-1 mod N
+		LambdaN *big.Int // lcm(p-1, q-1)
 	}
 
 	Proof struct {
@@ -45,85 +51,117 @@ type (
 		E  *big.Int
 		N  *big.Int
 	}
+
+	// Proof2 uses the new GenerateXs method in GG18Spec (6)
+	Proof2 []*big.Int
 )
 
-// len is the length of the modulus (both primes)
-func GenerateKeyPair(len int) (*PrivateKey, *PublicKey) {
-	one := big.NewInt(1)
-
-	p := math.GetRandomPrimeInt(len / 2)
-	q := math.GetRandomPrimeInt(len / 2)
-
-	n  := new(big.Int).Mul(p, q)
-	n2 := new(big.Int).Mul(n, n)
-	g  := new(big.Int).Add(n, one)
-
-	pMinus1 := new(big.Int).Sub(p, one)
-	qMinus1 := new(big.Int).Sub(q, one)
-
-	l := new(big.Int).Mul(pMinus1, qMinus1)
-	u := new(big.Int).ModInverse(l, n)
-
-	publicKey  := &PublicKey{N: n, G: g, NSquared: n2}
-	privateKey := &PrivateKey{PublicKey: *publicKey, L: l, U: u}
-
-	return privateKey, publicKey
+func init() {
+	// init primes cache
+	_ = primes.Globally.Until(1000)
 }
 
-func (publicKey *PublicKey) Encrypt(m *big.Int) (*big.Int, *big.Int, error) {
-	if m.Cmp(publicKey.N) > 0 {
-		return nil, nil,ErrMessageTooLong
+// len is the length of the modulus (each prime = len / 2)
+func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
+	P, Q := math.GetRandomPrimeInt(len/2), math.GetRandomPrimeInt(len/2)
+	N := new(big.Int).Mul(P, Q)
+	// phiN = P-1 * Q-1
+	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
+	phiN := new(big.Int).Mul(PMinus1, QMinus1)
+
+	// TODO fix, breaks Decrypt if gamma is random
+	// N2 := new(big.Int).Mul(N, N)
+	// gamma := math.GetRandomNumberInMultiplicativeGroup(N2)
+	// gamma equals N+1 for now
+	gamma := new(big.Int).Add(N, one)
+
+	// lambdaN = lcm(P−1, Q−1)
+	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
+	lcm := new(big.Int).Div(phiN, gcd)
+
+	publicKey = &PublicKey{N: N, PhiN: phiN, Gamma: gamma}
+	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lcm}
+	return
+}
+
+// ----- //
+
+func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, x *big.Int, err error) {
+	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
+		return nil, nil, ErrMessageTooLong
 	}
-
-	rndStar := math.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
-
-	// G^m mod NSq
-	Gm := new(big.Int).Exp(publicKey.G, m, publicKey.NSquared)
-	// R^N mod NSq
-	RN := new(big.Int).Exp(rndStar, publicKey.N, publicKey.NSquared)
-	// G^m * R^n
-	GmRN := new(big.Int).Mul(Gm, RN)
-	// G^m * R^n mod NSq
-	cipher := new(big.Int).Mod(GmRN, publicKey.NSquared)
-
-	return cipher, rndStar,nil
+	x = math.GetRandomNumberInMultiplicativeGroup(publicKey.N)
+	N2 := publicKey.NSquare()
+	// 1. gamma^m mod N2
+	Gm := new(big.Int).Exp(publicKey.Gamma, m, N2)
+	// 2. x^N mod N2
+	xN := new(big.Int).Exp(x, publicKey.N, N2)
+	// 3. (1) * (2)
+	GmxN := new(big.Int).Mul(Gm, xN)
+	// 4. (3) mod N2
+	c = new(big.Int).Mod(GmxN, N2)
+	return
 }
 
-func (privateKey *PrivateKey) Decrypt(cipher *big.Int) (*big.Int, error) {
-	one := big.NewInt(1)
+func (publicKey *PublicKey) Encrypt(m *big.Int) (c *big.Int, err error) {
+	c, _, err = publicKey.EncryptAndReturnRandomness(m)
+	return
+}
 
-	if cipher.Cmp(privateKey.NSquared) > 0 {
+func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
+	N2 := publicKey.NSquare()
+	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
 		return nil, ErrMessageTooLong
 	}
-
-	// c^L mod NSq
-	cL := new(big.Int).Exp(cipher, privateKey.L, privateKey.NSquared)
-	// c^L-1
-	cLMinus1 := new(big.Int).Sub(cL, one)
-	// (c^L-1) / N
-	cLMinus1DivN := new(big.Int).Div(cLMinus1, privateKey.N)
-	// (c^L-1) / N*U
-	cLMinus1DivNMulU := new(big.Int).Mul(cLMinus1DivN, privateKey.U)
-	// (c^L-1) / N*U mod N
-	mBigInt := new(big.Int).Mod(cLMinus1DivNMulU, privateKey.N)
-
-	return mBigInt, nil
-}
-
-func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) *big.Int {
+	if c2.Cmp(zero) == -1 || c2.Cmp(N2) != -1 { // c2 < 0 || c2 >= N2 ?
+		return nil, ErrMessageTooLong
+	}
 	// c1 * c2
 	c1c2 := new(big.Int).Mul(c1, c2)
-	// c1 * c2 mod NSq
-	newCipher := new(big.Int).Mod(c1c2, publicKey.NSquared)
-
-	return newCipher
+	// c1 * c2 mod N2
+	return new(big.Int).Mod(c1c2, N2), nil
 }
 
-// TODO add Homo Multiply method
+func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
+	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
+		return nil, ErrMessageTooLong
+	}
+	N2 := publicKey.NSquare()
+	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
+		return nil, ErrMessageTooLong
+	}
+	// cipher^m mod N2
+	return new(big.Int).Exp(c1, m, N2), nil
+}
+
+func (publicKey *PublicKey) NSquare() *big.Int {
+	return new(big.Int).Mul(publicKey.N, publicKey.N)
+}
+
+// ----- //
+
+func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
+	N2 := privateKey.NSquare()
+	if c.Cmp(zero) == -1 || c.Cmp(N2) != -1 { // c < 0 || c >= N2 ?
+		return nil, ErrMessageTooLong
+	}
+	// c^LambdaN
+	// L(u) = (c^LambdaN-1) / N mod N
+	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, N2), privateKey.N)
+	// Gamma^LambdaN
+	// L(u) = (Gamma^LambdaN-1) / N
+	// ((c^LambdaN-1) / N) / ((Gamma^LambdaN-1) / N)
+	inv := new(big.Int).ModInverse(privateKey.LambdaN, privateKey.PublicKey.N)
+	cLMinus1DivNMulInv := new(big.Int).Mul(Lc, inv)
+	// ((c^LambdaN-1) / N) / ((Gamma^LambdaN-1) / N) mod N
+	return new(big.Int).Mod(cLMinus1DivNMulInv, privateKey.N), nil
+}
+
+// ----- //
 
 func (privateKey *PrivateKey) Proof() *Proof {
-	h1 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	h2 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
+	h1 := math.GetRandomNumberInMultiplicativeGroup(privateKey.N)
+	h2 := math.GetRandomNumberInMultiplicativeGroup(privateKey.N)
 	r := math.GetRandomPositiveInt(privateKey.N)
 
 	h1R := new(big.Int).Exp(h1, r, privateKey.N)
@@ -135,11 +173,11 @@ func (privateKey *PrivateKey) Proof() *Proof {
 	eBytes := sha3256.Sum(nil)
 	e := new(big.Int).SetBytes(eBytes)
 
-	y := new(big.Int).Add(privateKey.N, privateKey.L)
+	y := new(big.Int).Add(privateKey.N, privateKey.LambdaN)
 	y = new(big.Int).Mul(y, e)
 	y = new(big.Int).Add(y, r)
 
-	return &Proof{H1: h1, H2: h2, Y: y, E: e,N: privateKey.N}
+	return &Proof{H1: h1, H2: h2, Y: y, E: e, N: privateKey.N}
 }
 
 func (proof *Proof) Verify(publicKey *PublicKey) bool {
@@ -160,4 +198,108 @@ func (proof *Proof) Verify(publicKey *PublicKey) bool {
 	} else {
 		return false
 	}
+}
+
+// ----- //
+
+// Proof2 is an implementation of Gennaro, R., Micciancio, D., Rabin, T.:
+// An efficient non-interactive statistical zero-knowledge proof system for quasi-safe prime products.
+// In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
+
+func (privateKey *PrivateKey) Proof2(k, sX, sY *big.Int) Proof2 {
+	iters := Proof2Iters
+	pi := make(Proof2, iters)
+	xs := GenerateXs(iters, k, sX, sY, privateKey.N)
+	for i := 0; i < iters; i++ {
+		M := new(big.Int).ModInverse(privateKey.N, privateKey.PhiN)
+		pi[i] = new(big.Int).Exp(xs[i], M, privateKey.N)
+	}
+	return pi
+}
+
+func (proof Proof2) Verify2(pkN, k, sX, sY *big.Int) (bool, error) {
+	iters := Proof2Iters
+	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
+	go func(ch chan<- bool) {
+		prms := primes.Until(1000).List() // uses cache primed in init()
+		for _, prm := range prms {
+			// If prm divides N then Return 0
+			if new(big.Int).Mod(pkN, big.NewInt(prm)).Cmp(zero) == 0 {
+				ch <- false // is divisible
+				return
+			}
+		}
+		ch <- true
+	}(pch)
+	go func(ch chan<- []*big.Int) {
+		ch <- GenerateXs(iters, k, sX, sY, pkN)
+	}(xch)
+	for j := 0; j < 2; j++ {
+		select {
+		case ok := <-pch:
+			if !ok {
+				return false, nil
+			}
+		case xs := <-xch:
+			if len(xs) != iters {
+				return false, fmt.Errorf("paillier verify2: expected %d xs but got %d", iters, len(xs))
+			}
+			for i, xi := range xs {
+				xiModN := new(big.Int).Mod(xi, pkN)
+				yiExpN := new(big.Int).Exp(proof[i], pkN, pkN)
+				if xiModN.Cmp(yiExpN) != 0 {
+					return false, nil
+				}
+			}
+		}
+	}
+	return true, nil
+}
+
+// ----- utils
+
+func L(u, N *big.Int) *big.Int {
+	t := new(big.Int).Sub(u, one)
+	return new(big.Int).Div(t, N)
+}
+
+// GenerateXs generates the challenges used in Paillier key Proof2
+func GenerateXs(m int, k, sX, sY, N *big.Int) []*big.Int {
+	var i, n int
+	ret := make([]*big.Int, m)
+	kb, sXb, sYb, Nb := k.Bytes(), sX.Bytes(), sY.Bytes(), N.Bytes()
+	bits := N.BitLen()
+	blocks := int(gmath.Ceil(float64(bits) / 256))
+	chs := make([]chan []byte, blocks)
+	for k := range chs {
+		chs[k] = make(chan []byte)
+	}
+	for i < m {
+		xi := make([]byte, 0, blocks*32)
+		ib := []byte(strconv.Itoa(i))
+		nb := []byte(strconv.Itoa(n))
+		for j := 0; j < blocks; j++ {
+			go func(j int) {
+				xij := crypto.SHA256.New() // TODO BLAKE2b_256 is faster than SHA256!
+				xij.Write(kb)              // TODO unhandled errors, probably never thrown on a hash update!
+				xij.Write(sXb)
+				xij.Write(sYb)
+				xij.Write(Nb)
+				xij.Write(ib)
+				xij.Write([]byte(strconv.Itoa(j)))
+				xij.Write(nb) // nonce
+				chs[j] <- xij.Sum(nil)
+			}(j)
+		}
+		for _, ch := range chs { // must be in order
+			xi = append(xi, <-ch...) // xi1||···||xib
+		}
+		ret[i] = new(big.Int).SetBytes(xi)
+		if math.IsNumberInMultiplicativeGroup(N, ret[i]) {
+			i++
+		} else {
+			n++
+		}
+	}
+	return ret
 }
