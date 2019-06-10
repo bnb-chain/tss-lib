@@ -69,17 +69,15 @@ func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
 	phiN := new(big.Int).Mul(PMinus1, QMinus1)
 
-	// TODO fix, breaks Decrypt if gamma is random. gamma equals N+1 for now
-	// N2 := new(big.Int).Mul(N, N)
-	// gamma := math.GetRandomPositiveRelativelyPrimeInt(N2)
-	gamma := new(big.Int).Add(N, one)
+	N2 := new(big.Int).Mul(N, N)
+	gamma := math.GetRandomPositiveRelativelyPrimeInt(N2)
 
 	// lambdaN = lcm(P−1, Q−1)
 	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
-	lcm := new(big.Int).Div(phiN, gcd)
+	lambdaN := new(big.Int).Div(phiN, gcd)
 
 	publicKey = &PublicKey{N: N, PhiN: phiN, Gamma: gamma}
-	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lcm}
+	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN}
 	return
 }
 
@@ -144,16 +142,15 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 	if c.Cmp(zero) == -1 || c.Cmp(N2) != -1 { // c < 0 || c >= N2 ?
 		return nil, ErrMessageTooLong
 	}
-	// c^LambdaN
-	// L(u) = (c^LambdaN-1) / N mod N
+	// 1. L(u) = (c^LambdaN-1 mod N2) / N
 	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, N2), privateKey.N)
-	// Gamma^LambdaN
-	// L(u) = (Gamma^LambdaN-1) / N
-	// ((c^LambdaN-1) / N) / ((Gamma^LambdaN-1) / N)
-	inv := new(big.Int).ModInverse(privateKey.LambdaN, privateKey.PublicKey.N)
-	cLMinus1DivNMulInv := new(big.Int).Mul(Lc, inv)
-	// ((c^LambdaN-1) / N) / ((Gamma^LambdaN-1) / N) mod N
-	return new(big.Int).Mod(cLMinus1DivNMulInv, privateKey.N), nil
+	// 2. L(u) = (Gamma^LambdaN-1 mod N2) / N
+	Lg := L(new(big.Int).Exp(privateKey.Gamma, privateKey.LambdaN, N2), privateKey.N)
+	// 3. (1) * modInv(2) mod N
+	inv := new(big.Int).ModInverse(Lg, privateKey.N)
+	LcDivLg := new(big.Int).Mul(Lc, inv)
+	LcDivLgMod := new(big.Int).Mod(LcDivLg, privateKey.N)
+	return LcDivLgMod, nil
 }
 
 // ----- //
