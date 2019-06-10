@@ -31,17 +31,15 @@ func (round *round1) start() error {
 	round.resetOk()
 
 	// prepare for concurrent Paillier, RSA key generation
-	paiCh := make(chan paillier.Paillier)
+	paiCh := make(chan *paillier.PrivateKey)
 	rsaCh := make(chan *rsa.PrivateKey)
 
 	// generate Paillier public key "Ei", private key and proof
-	go func(ch chan<- paillier.Paillier) {
+	go func(ch chan<- *paillier.PrivateKey) {
 		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk
-		PiPaillierPf := PiPaillierSk.Proof()
-		paillier := paillier.Paillier{PrivateKey: PiPaillierSk, Proof: PiPaillierPf}
 		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", round, time.Since(start))
-		ch <- paillier
+		ch <- PiPaillierSk
 	}(paiCh)
 
 	// generate auxilliary RSA primes for ZKPs later on
@@ -70,7 +68,7 @@ func (round *round1) start() error {
 	}
 
 	// collect and BROADCAST commitments, paillier pk + proof; round 1 message
-	p1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, pai.Proof, &rsa.PublicKey)
+	p1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, pai.Proof(), &rsa.PublicKey)
 
 	// save uiGx, uiGy for this Pi for round 3
 	round.save.BigXj = make([][]*big.Int, round.partyCount)
@@ -79,7 +77,7 @@ func (round *round1) start() error {
 	// for this P: SAVE generated secrets, commitments, paillier vars; for round 2
 	round.temp.ui = ui
 	round.temp.deCommitUiG = cmt.D
-	round.save.PaillierSk = pai.PrivateKey
+	round.save.PaillierSk = pai
 	round.save.PaillierPk = &pai.PublicKey
 	round.save.RSAKey = rsa
 
