@@ -37,15 +37,15 @@ func TestEncryptDecrypt(t *testing.T) {
 	for i := 1; i < 10; i++ {
 		privateKey, _ := GenerateKeyPair(PaillierKeyLength)
 
-		initialValue := big.NewInt(100)
-		cypher, err := privateKey.Encrypt(initialValue)
+		exp := big.NewInt(100)
+		cypher, err := privateKey.Encrypt(exp)
 		if err != nil {
 			t.Error(err)
 		}
-		returnedValue, err := privateKey.Decrypt(cypher)
+		ret, err := privateKey.Decrypt(cypher)
 		assert.NoError(t, err)
-		assert.Equal(t, 0, initialValue.Cmp(returnedValue),
-			"wrong decryption ", returnedValue, " is not ", initialValue)
+		assert.Equal(t, 0, exp.Cmp(ret),
+			"wrong decryption ", ret, " is not ", exp)
 	}
 }
 
