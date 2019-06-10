@@ -43,7 +43,7 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	_ = <-out
 
 	// Paillier modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.L.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.LambdaN.Bytes()))
 	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
 
