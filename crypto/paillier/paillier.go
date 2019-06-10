@@ -69,10 +69,9 @@ func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
 	phiN := new(big.Int).Mul(PMinus1, QMinus1)
 
-	// TODO fix, breaks Decrypt if gamma is random
+	// TODO fix, breaks Decrypt if gamma is random. gamma equals N+1 for now
 	// N2 := new(big.Int).Mul(N, N)
-	// gamma := math.GetRandomNumberInMultiplicativeGroup(N2)
-	// gamma equals N+1 for now
+	// gamma := math.GetRandomPositiveRelativelyPrimeInt(N2)
 	gamma := new(big.Int).Add(N, one)
 
 	// lambdaN = lcm(P−1, Q−1)
@@ -90,7 +89,7 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
 		return nil, nil, ErrMessageTooLong
 	}
-	x = math.GetRandomNumberInMultiplicativeGroup(publicKey.N)
+	x = math.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
 	N2 := publicKey.NSquare()
 	// 1. gamma^m mod N2
 	Gm := new(big.Int).Exp(publicKey.Gamma, m, N2)
@@ -160,8 +159,8 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 // ----- //
 
 func (privateKey *PrivateKey) Proof() *Proof {
-	h1 := math.GetRandomNumberInMultiplicativeGroup(privateKey.N)
-	h2 := math.GetRandomNumberInMultiplicativeGroup(privateKey.N)
+	h1 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
+	h2 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
 	r := math.GetRandomPositiveInt(privateKey.N)
 
 	h1R := new(big.Int).Exp(h1, r, privateKey.N)

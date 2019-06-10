@@ -57,7 +57,7 @@ func GetRandomPrimeInt(bits int) *big.Int {
 
 // Generate a random element in the group of all the elements in Z/nZ that
 // has a multiplicative inverse.
-func GetRandomNumberInMultiplicativeGroup(n *big.Int) *big.Int {
+func GetRandomPositiveRelativelyPrimeInt(n *big.Int) *big.Int {
 	var try *big.Int
 	for {
 		try = MustGetRandomInt(n.BitLen())
@@ -79,6 +79,6 @@ func IsNumberInMultiplicativeGroup(n, v *big.Int) bool {
 //  threshold signature paper in the Victor Shoup
 // https://github.com/didiercrunch/paillier/blob/d03e8850a8e4c53d04e8016a2ce8762af3278b71/utils.go#L39
 func GetRandomGeneratorOfTheQuadraticResidue(n *big.Int) *big.Int {
-	r := GetRandomNumberInMultiplicativeGroup(n)
+	r := GetRandomPositiveRelativelyPrimeInt(n)
 	return new(big.Int).Mod(new(big.Int).Mul(r, r), n)
 }
