@@ -8,6 +8,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common/math"
 	. "github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/keygen"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -17,32 +18,35 @@ const (
 
 func TestGenerateKeyPair(t *testing.T) {
 	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
-	t.Log(publicKey)
+
+	assert.NotZero(t, publicKey)
+	assert.NotZero(t, privateKey)
 	t.Log(privateKey)
 }
 
 func TestEncrypt(t *testing.T) {
 	publicKey, _ := GenerateKeyPair(PaillierKeyLength)
+	cipher, err := publicKey.Encrypt(big.NewInt(1))
 
-	one := big.NewInt(1)
-
-	cipher, _, _ := publicKey.Encrypt(one)
+	assert.NoError(t, err, "must not error")
+	assert.NotZero(t, cipher)
 	t.Log(cipher)
 }
 
-func TestDecrypt(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+func TestEncryptDecrypt(t *testing.T) {
+	for i := 1; i < 10; i++ {
+		privateKey, _ := GenerateKeyPair(PaillierKeyLength)
 
-	num := math.GetRandomPositiveInt(publicKey.N)
-	t.Log(num)
-
-	cipher, _, _ := publicKey.Encrypt(num)
-
-	m, err := privateKey.Decrypt(cipher)
-
-	assert.NoError(t, err, "must not error")
-
-	t.Log(m)
+		initialValue := big.NewInt(100)
+		cypher, err := privateKey.Encrypt(initialValue)
+		if err != nil {
+			t.Error(err)
+		}
+		returnedValue, err := privateKey.Decrypt(cypher)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, initialValue.Cmp(returnedValue),
+			"wrong decryption ", returnedValue, " is not ", initialValue)
+	}
 }
 
 func TestHomoAdd(t *testing.T) {
@@ -54,30 +58,101 @@ func TestHomoAdd(t *testing.T) {
 	sum := new(big.Int).Add(num1, num2)
 	sum = new(big.Int).Mod(sum, publicKey.N)
 
-	one, _, _ := publicKey.Encrypt(num1)
-	two, _, _ := publicKey.Encrypt(num2)
+	one, _ := publicKey.Encrypt(num1)
+	two, _ := publicKey.Encrypt(num2)
 
-	ciphered := publicKey.HomoAdd(one, two)
+	ciphered, _ := publicKey.HomoAdd(one, two)
 
 	plain, _ := privateKey.Decrypt(ciphered)
 
 	assert.Equal(t, new(big.Int).Add(num1, num2), plain)
 }
 
-func TestProof(t *testing.T) {
+func TestHomoMul(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
 
-	zkFactProof := privateKey.Proof()
+	three, err := privateKey.Encrypt(big.NewInt(3))
+	assert.NoError(t, err)
 
-	t.Log(zkFactProof)
+	cm, err := privateKey.HomoMult(big.NewInt(6), three)
+	assert.NoError(t, err)
+	multiple, err := privateKey.Decrypt(cm)
+	assert.NoError(t, err)
+
+	// 3 * 6 = 18
+	exp := int64(18)
+	assert.Equal(t, 0, multiple.Cmp(big.NewInt(exp)))
 }
 
-func TestVerifyProof(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-
+func TestProof(t *testing.T) {
+	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
 	proof := privateKey.Proof()
+	t.Log(proof)
+}
 
+func TestProofVerify(t *testing.T) {
+	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	proof := privateKey.Proof()
 	res := proof.Verify(publicKey)
+	assert.True(t, res, "proof verify result must be true")
+}
 
-	assert.True(t, res, "zk fact verify result must be true")
+func TestProof2(t *testing.T) {
+	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
+	ki := math.MustGetRandomInt(256) // index
+	ui := math.GetRandomPositiveInt(keygen.EC().N)   // ECDSA private
+	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	proof := privateKey.Proof2(ki, yX, yY)
+	for _, yi := range proof {
+		assert.NotZero(t, yi)
+		// TODO add a better assertion
+	}
+	t.Log(proof)
+}
+
+func TestProofVerify2(t *testing.T) {
+	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	ki := math.MustGetRandomInt(256) // index
+	ui := math.GetRandomPositiveInt(keygen.EC().N)   // ECDSA private
+	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	proof := privateKey.Proof2(ki, yX, yY)
+	res, err := proof.Verify2(publicKey.N, ki, yX, yY)
+	assert.NoError(t, err)
+	assert.True(t, res, "proof verify2 result must be true")
+}
+
+func TestProofVerify2Fail(t *testing.T) {
+	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	ki := math.MustGetRandomInt(256) // index
+	ui := math.GetRandomPositiveInt(keygen.EC().N)   // ECDSA private
+	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	proof := privateKey.Proof2(ki, yX, yY)
+	last := proof[len(proof) - 1]
+	last.Sub(last, big.NewInt(1))
+	res, err := proof.Verify2(publicKey.N, ki, yX, yY)
+	assert.NoError(t, err)
+	assert.False(t, res, "proof verify2 result must be true")
+}
+
+func TestComputeL(t *testing.T) {
+	u := big.NewInt(21)
+	n := big.NewInt(3)
+
+	expected := big.NewInt(6)
+	actual := L(u, n)
+
+	assert.Equal(t, 0, expected.Cmp(actual))
+}
+
+func TestGenerateXs(t *testing.T) {
+	k := math.MustGetRandomInt(256)
+	sX := math.MustGetRandomInt(256)
+	sY := math.MustGetRandomInt(256)
+	N := math.GetRandomPrimeInt(2048)
+
+	xs := GenerateXs(13, k, sX, sY, N)
+	assert.Equal(t, 13, len(xs))
+	for _, xi := range xs {
+		assert.True(t, math.IsNumberInMultiplicativeGroup(N, xi))
+	}
 }
