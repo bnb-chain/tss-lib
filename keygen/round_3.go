@@ -46,7 +46,7 @@ func (round *round3) start() *keygenError {
 			return round.wrapError(err, Pj)
 		}
 		if !ok {
-			return round.wrapError(errors.New("de-commitment failed"), Pj)
+			return round.wrapError(errors.New("de-commitment verify failed"), Pj)
 		}
 		PjPolyGs, err := types.UnFlattenECPoints(flatPolyGs)
 		if err != nil {

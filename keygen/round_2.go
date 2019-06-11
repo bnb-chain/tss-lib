@@ -3,7 +3,6 @@ package keygen
 import (
 	"errors"
 
-	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/types"
 )
 
@@ -62,16 +61,6 @@ func (round *round2) update() (bool, *keygenError) {
 		msg2 := round.temp.kgRound2DeCommitMessages[j]
 		if !round.canAccept(msg2) {
 			return false, nil
-		}
-		// de-commitment pre-verify
-		C, D := round.temp.kgRound1CommitMessages[j].Commitment, msg2.DeCommitment
-		CDCmt := &commitments.HashCommitDecommit{C, D}
-		ok, err := CDCmt.Verify()
-		if err != nil {
-			return false, round.wrapError(err, msg.From)
-		}
-		if !ok {
-			return false, round.wrapError(errors.New("de-commitment verify failed"), msg.From)
 		}
 		round.ok[j] = true
 	}
