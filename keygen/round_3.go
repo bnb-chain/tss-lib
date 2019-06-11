@@ -110,7 +110,6 @@ func (round *round3) canAccept(msg types.Message) bool {
 }
 
 func (round *round3) update() (bool, *keygenError) {
-	// guard - VERIFY zk proof of ui
 	for j, msg := range round.temp.kgRound3PaillierProveMessage {
 		if round.ok[j] { continue }
 		if !round.canAccept(msg) {

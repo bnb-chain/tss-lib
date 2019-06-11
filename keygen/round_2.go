@@ -15,6 +15,13 @@ func (round *round2) start() *keygenError {
 	round.started = true
 	round.resetOk()
 
+	// store r1 message pieces
+	for j, r1msg := range round.temp.kgRound1CommitMessages {
+		round.save.PaillierPks[j] = &r1msg.PaillierPk // used in round 4
+		round.save.NTildej[j] = r1msg.NTildei
+		round.save.H1j[j], round.save.H2j[j] = r1msg.h1i, r1msg.h2i
+	}
+
 	// p2p send share ij to Pj
 	shares := round.temp.shares
 	for j, Pj := range round.p2pCtx.Parties() {

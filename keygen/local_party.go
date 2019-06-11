@@ -112,15 +112,15 @@ func (p *LocalParty) StartKeygenRound1() *keygenError {
 }
 
 func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
-	p.mtx.Lock()
-	// needed, L137 is recursive so cannot use defer
+	if _, err := p.validateMessage(msg); err != nil {
+		return false, err
+	}
+	// need this mtx unlock hook, L137 is recursive so cannot use defer
 	r := func(ok bool, err *keygenError) (bool, *keygenError) {
 		p.mtx.Unlock()
 		return ok, err
 	}
-	if _, err := p.validateMessage(msg); err != nil {
-		return r(false, err)
-	}
+	p.mtx.Lock() // data is written to P state below
 	common.Logger.Debugf("party %s received message: %s", p.partyID, msg.String())
 	if p.round != nil {
 		common.Logger.Infof("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())

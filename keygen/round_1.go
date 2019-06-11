@@ -129,7 +129,6 @@ func (round *round1) canAccept(msg types.Message) bool {
 }
 
 func (round *round1) update() (bool, *keygenError) {
-	// guard - VERIFY received paillier pk/proofs for all Pj
 	for j, msg := range round.temp.kgRound1CommitMessages {
 		if round.ok[j] {
 			continue
@@ -137,9 +136,7 @@ func (round *round1) update() (bool, *keygenError) {
 		if !round.canAccept(msg) {
 			return false, nil
 		}
-		round.save.PaillierPks[j] = &msg.PaillierPk // used in round 4
-		round.save.NTildej[j] = msg.NTildei
-		round.save.H1j[j], round.save.H2j[j] = msg.h1i, msg.h2i
+		// vss check is in round 2
 		round.ok[j] = true
 	}
 	return true, nil
