@@ -38,9 +38,10 @@ func (round *round3) start() *keygenError {
 		if j == round.partyID.Index { continue }
 
 		// round 3, steps 4-9
-		cmt := round.temp.kgRound1CommitMessages[j].Commitment
+		KGCj := round.temp.KGCs[j]
 		r2msg2 := round.temp.kgRound2DeCommitMessages[j]
-		cmtDeCmt := commitments.HashCommitDecommit{C: cmt, D: r2msg2.DeCommitment}
+		KGDj := r2msg2.DeCommitment
+		cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
 		ok, flatPolyGs, err := cmtDeCmt.DeCommit()
 		if err != nil {
 			return round.wrapError(err, Pj)

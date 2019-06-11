@@ -62,6 +62,7 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after keygen)
+		KGCs          []*cmt.HashCommitment
 		polyGs        *vss.PolyGs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
@@ -89,6 +90,7 @@ func NewLocalParty(
 	p.data.NTildej = make([]*big.Int, partyCount)
 	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	// msgs init
+	p.temp.KGCs = make([]*cmt.HashCommitment, partyCount)
 	p.temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
 	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
 	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
