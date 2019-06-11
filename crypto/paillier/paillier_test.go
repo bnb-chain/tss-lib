@@ -110,7 +110,7 @@ func TestProof2(t *testing.T) {
 	t.Log(proof)
 }
 
-func TestProofVerify2(t *testing.T) {
+func TestProof2Verify2(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
 	ki := random.MustGetRandomInt(256)               // index
 	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
@@ -121,7 +121,7 @@ func TestProofVerify2(t *testing.T) {
 	assert.True(t, res, "proof verify2 result must be true")
 }
 
-func TestProofVerify2Fail(t *testing.T) {
+func TestProof2Verify2Fail(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
 	ki := random.MustGetRandomInt(256)               // index
 	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private

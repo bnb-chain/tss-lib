@@ -147,8 +147,6 @@ func evaluatePolynomial(poly []*big.Int, value *big.Int) *big.Int {
 	for i := last - 1; i >= 0; i-- {
 		result = result.Mul(result, value)
 		result = result.Add(result, poly[i])
-		result = result.Mod(result, EC().N)
 	}
-
-	return result
+	return result.Mod(result, ec.N)
 }
