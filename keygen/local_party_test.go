@@ -165,10 +165,10 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 						vssMsgs := P.temp.kgRound2VssMessages
 						pShares  = append(pShares, vssMsgs[j].PiShare)
 					}
-					xi, err := pShares[:threshold].ReConstruct() // fail if threshold-1
-					assert.Equal(t, parties[j].data.Xi, xi)
+					xj, err := pShares[:threshold].ReConstruct() // fail if threshold-1
+					assert.Equal(t, parties[j].data.Xi, xj)
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
-					x = new(big.Int).Add(x, xi)
+					x = new(big.Int).Add(x, xj)
 				}
 
 				// build ecdsa key pair

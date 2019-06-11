@@ -59,10 +59,6 @@ func (round *round1) start() *keygenError {
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
 	ui := random.GetRandomPositiveInt(EC().N)
 
-	// generate pub key share BigXj
-	uiGX, uiGY := EC().ScalarBaseMult(ui.Bytes())
-	uiG := types.NewECPoint(uiGX, uiGY)
-
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	rsa, pai := <-rsaCh, <-paiCh
 
@@ -107,10 +103,6 @@ func (round *round1) start() *keygenError {
 	round.save.ShareID = ids[pIdx]
 	round.temp.polyGs = polyGs
 	round.temp.shares = shares
-
-	// save uiGx, uiGy (pubkey) for this Pi for round 3
-	round.save.BigXj = make([]*types.ECPoint, round.partyCount)
-	round.save.BigXj[pIdx] = uiG
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
 	round.save.PaillierSk = pai
