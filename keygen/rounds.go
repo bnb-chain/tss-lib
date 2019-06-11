@@ -1,21 +1,19 @@
 package keygen
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/binance-chain/tss-lib/types"
 )
 
 type (
 	round interface {
 		params() *KGParameters
-		start() error
-		update() (bool, error)
+		start() *keygenError
+		update() (bool, *keygenError)
 		canAccept(msg types.Message) bool
 		canProceed() bool
 		nextRound() round
 		roundNumber() int
-		wrapError(err error) error
+		wrapError(err error, culprit *types.PartyID) *keygenError
 	}
 
 	// round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
@@ -77,6 +75,6 @@ func (round *base) resetOk() {
 	}
 }
 
-func (round *base) wrapError(err error) error {
-	return errors.Wrapf(err, "party %s, round %d", round.partyID, round.number)
+func (round *base) wrapError(err error, culprit *types.PartyID) *keygenError {
+	return newError(err, round.number, round.partyID, culprit)
 }

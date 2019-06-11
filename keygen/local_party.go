@@ -104,17 +104,17 @@ func (p *LocalParty) String() string {
 	return fmt.Sprintf("id: %s, round: %d", p.partyID.String(), p.round)
 }
 
-func (p *LocalParty) StartKeygenRound1() error {
+func (p *LocalParty) StartKeygenRound1() *keygenError {
 	if _, ok := p.round.(*round1); !ok {
-		return errors.New("Could not start keygen. This party is in an unexpected round.")
+		return p.wrapError(errors.New("Could not start keygen. This party is in an unexpected round."), nil)
 	}
 	return p.round.start()
 }
 
-func (p *LocalParty) Update(msg types.Message) (ok bool, err error) {
+func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
 	p.mtx.Lock()
 	// needed, L137 is recursive so cannot use defer
-	r := func(ok bool, err error) (bool, error) {
+	r := func(ok bool, err *keygenError) (bool, *keygenError) {
 		p.mtx.Unlock()
 		return ok, err
 	}
@@ -151,20 +151,20 @@ func (p *LocalParty) Update(msg types.Message) (ok bool, err error) {
 	return r(true, nil)
 }
 
-func (p *LocalParty) validateMessage(msg types.Message) (bool, error) {
+func (p *LocalParty) validateMessage(msg types.Message) (bool, *keygenError) {
 	if msg.GetFrom() == nil {
-		return false, p.wrapError(fmt.Errorf("update received nil msg: %s", msg))
+		return false, p.wrapError(fmt.Errorf("update received nil msg: %s", msg), nil)
 	}
 	if msg == nil {
-		return false, p.wrapError(fmt.Errorf("nil message received: %s", msg))
+		return false, p.wrapError(fmt.Errorf("nil message received: %s", msg), msg.GetFrom())
 	}
 	if !msg.ValidateBasic() {
-		return false, p.wrapError(fmt.Errorf("message failed ValidateBasic: %s", msg))
+		return false, p.wrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
 	}
 	return true, nil
 }
 
-func (p *LocalParty) storeMessage(msg types.Message) (bool, error) {
+func (p *LocalParty) storeMessage(msg types.Message) (bool, *keygenError) {
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -187,7 +187,7 @@ func (p *LocalParty) storeMessage(msg types.Message) (bool, error) {
 		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
 
 	default: // unrecognised message!
-		return false, fmt.Errorf("unrecognised message: %v", msg)
+		return false, p.wrapError(fmt.Errorf("unrecognised message: %v", msg), msg.GetFrom())
 	}
 	return true, nil
 }
@@ -208,6 +208,6 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 	return nil
 }
 
-func (p *LocalParty) wrapError(err error) error {
-	return errors.Wrapf(err, "party %s, round %d", p.partyID, p.round.roundNumber())
+func (p *LocalParty) wrapError(err error, culprit *types.PartyID) *keygenError {
+	return p.round.wrapError(err, culprit)
 }

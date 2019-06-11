@@ -22,9 +22,9 @@ func newRound1(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyT
 		&base{params, save, temp, out, make([]bool, params.partyCount), false, 1}}
 }
 
-func (round *round1) start() error {
+func (round *round1) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.wrapError(errors.New("round already started"), nil)
 	}
 	round.number = 1
 	round.started = true
@@ -59,28 +59,35 @@ func (round *round1) start() error {
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
 	ui := random.GetRandomPositiveInt(EC().N)
 
+	// generate pub key share BigXj
+	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes())
+
+	// errors can be thrown in the following code; consume chans to end goroutines in case
+	rsa := <-rsaCh
+	pai := <-paiCh
+
 	// 1. compute the vss shares
 	ids := round.p2pCtx.Parties().Keys()
 	polyGs, shares, err := vss.Create(round.params().Threshold(), ui, ids)
 	if err != nil {
-		return round.wrapError(err)
+		return round.wrapError(err, nil)
 	}
-	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes()) // pubkey
+
+	// security: the original ui may be discarded
+	ui = ui.Set(big.NewInt(0))
+
 	pGFlat, err := cmt.FlattenPointsForCommit(polyGs.PolyG)
 	if err != nil {
-		return err
+		return round.wrapError(err, nil)
 	}
 	cmt, err := cmt.NewHashCommitment(pGFlat...)
 	if err != nil {
-		return err
+		return round.wrapError(err, nil)
 	}
-	// the original ui may be discarded
-	ui = ui.Set(big.NewInt(0))
 
 	// 9-11. compute h1, h2 (uses RSA primes)
-	rsa := <-rsaCh
 	if rsa == nil {
-		return errors.New("RSA generation failed")
+		return round.wrapError(errors.New("RSA generation failed"), nil)
 	}
 
 	NTildei, h1i, h2i, err := generateNTildei(rsa.Primes[:2])
@@ -92,18 +99,17 @@ func (round *round1) start() error {
 	// - Shamir PolyGs
 	// - our set of Shamir shares
 	if round.save.Xi, err = shares.ReConstruct(); err != nil {
-		return err
+		return round.wrapError(err, nil)
 	}
 	round.save.ShareID = ids[pIdx]
 	round.temp.polyGs = polyGs
 	round.temp.shares = shares
 
-	// save uiGx, uiGy for this Pi for round 3
+	// save uiGx, uiGy (pubkey) for this Pi for round 3
 	round.save.BigXj = make([][]*big.Int, round.partyCount)
 	round.save.BigXj[pIdx] = []*big.Int{uiGx, uiGy}
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
-	pai := <-paiCh
 	round.save.PaillierSk = pai
 	round.save.PaillierPks[pIdx] = &pai.PublicKey
 	round.temp.deCommitPolyG = cmt.D
@@ -122,7 +128,7 @@ func (round *round1) canAccept(msg types.Message) bool {
 	return true
 }
 
-func (round *round1) update() (bool, error) {
+func (round *round1) update() (bool, *keygenError) {
 	// guard - VERIFY received paillier pk/proofs for all Pj
 	for j, msg := range round.temp.kgRound1CommitMessages {
 		if round.ok[j] {

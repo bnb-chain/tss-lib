@@ -2,15 +2,14 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/types"
 )
 
-func (round *round2) start() error {
+func (round *round2) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.wrapError(errors.New("round already started"), nil)
 	}
 	round.number = 2
 	round.started = true
@@ -46,7 +45,7 @@ func (round *round2) canAccept(msg types.Message) bool {
 	return true
 }
 
-func (round *round2) update() (bool, error) {
+func (round *round2) update() (bool, *keygenError) {
 	// guard - VERIFY de-commit for all Pj
 	for j, msg := range round.temp.kgRound2VssMessages {
 		if round.ok[j] { continue }
@@ -62,10 +61,10 @@ func (round *round2) update() (bool, error) {
 		CDCmt := &commitments.HashCommitDecommit{C, D}
 		ok, err := CDCmt.Verify()
 		if err != nil {
-			return false, round.wrapError(err)
+			return false, round.wrapError(err, msg.From)
 		}
 		if !ok {
-			return false, round.wrapError(fmt.Errorf("decommitment verify failed (from party %s)", msg.From))
+			return false, round.wrapError(errors.New("de-commitment verify failed"), msg.From)
 		}
 		round.ok[j] = true
 	}

@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -10,9 +9,9 @@ import (
 	"github.com/binance-chain/tss-lib/types"
 )
 
-func (round *round3) start() error {
+func (round *round3) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.wrapError(errors.New("round already started"), nil)
 	}
 	round.number = 3
 	round.started = true
@@ -44,19 +43,19 @@ func (round *round3) start() error {
 		cmtDeCmt := commitments.HashCommitDecommit{C: cmt, D: r2msg2.DeCommitment}
 		ok, flatPolyGs, err := cmtDeCmt.DeCommit()
 		if err != nil {
-			return round.wrapError(err)
+			return round.wrapError(err, Pj)
 		}
 		if !ok {
-			return round.wrapError(fmt.Errorf("decommitment failed (from party %s)", Pj))
+			return round.wrapError(errors.New("de-commitment failed"), Pj)
 		}
 		PjPolyGs, err := commitments.UnFlattenPointsAfterDecommit(flatPolyGs)
 		if err != nil {
-			return err
+			return round.wrapError(err, Pj)
 		}
 		PjShare := round.temp.kgRound2VssMessages[j].PiShare
 		// TODO verify in a goroutine
 		if ok = PjShare.Verify(round.params().threshold, PjPolyGs); !ok {
-			return round.wrapError(fmt.Errorf("vss verify failed (from party %s)", Pj))
+			return round.wrapError(errors.New("vss verify failed"), Pj)
 		}
 		// round 3, step 9 handled above
 
@@ -86,7 +85,7 @@ func (round *round3) start() error {
 	// for all Ps, compute and SAVE the ECDSA public key
 	pkX, pkY := Vc[0][0], Vc[0][1] // P1
 	if !EC().IsOnCurve(pkX, pkY) {
-		return round.wrapError(errors.New("public key is not on the curve"))
+		return round.wrapError(errors.New("public key is not on the curve"), nil)
 	}
 	round.save.PKX, round.save.PKY = pkX, pkY
 
@@ -110,7 +109,7 @@ func (round *round3) canAccept(msg types.Message) bool {
 	return true
 }
 
-func (round *round3) update() (bool, error) {
+func (round *round3) update() (bool, *keygenError) {
 	// guard - VERIFY zk proof of ui
 	for j, msg := range round.temp.kgRound3PaillierProveMessage {
 		if round.ok[j] { continue }

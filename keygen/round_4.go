@@ -9,9 +9,9 @@ import (
 	"github.com/binance-chain/tss-lib/types"
 )
 
-func (round *round4) start() error {
+func (round *round4) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.wrapError(errors.New("round already started"), nil)
 	}
 	round.number = 4
 	round.started = true
@@ -24,7 +24,7 @@ func (round *round4) start() error {
 	r3msgs := round.temp.kgRound3PaillierProveMessage
 	for i, msg := range r3msgs {
 		if msg == nil {
-			return round.wrapError(fmt.Errorf("r3msg %d is nil", i))
+			return round.wrapError(fmt.Errorf("r3msg %d is nil", i), nil)
 		}
 	}
 
@@ -41,7 +41,7 @@ func (round *round4) start() error {
 			ppk := round.save.PaillierPks[j]
 			ok, err := prf.Verify2(ppk.N, kj[j], pkX, pkY)
 			if err != nil {
-				common.Logger.Error(round.wrapError(err).Error())
+				common.Logger.Error(round.wrapError(err, Pj[j]).Error())
 				ch <- false
 				return
 			}
@@ -55,7 +55,7 @@ func (round *round4) start() error {
 		}
 		round.ok[j] = <- ch
 		if !round.ok[j] {
-			return round.wrapError(fmt.Errorf("paillier verify failed for party %s", Pj[j]))
+			return round.wrapError(errors.New("paillier verify failed"), Pj[j])
 		}
 		common.Logger.Debugf("paillier verify passed for party %s", Pj[j])
 	}
@@ -68,7 +68,7 @@ func (round *round4) canAccept(msg types.Message) bool {
 	return false
 }
 
-func (round *round4) update() (bool, error) {
+func (round *round4) update() (bool, *keygenError) {
 	// not expecting any incoming messages in this round
 	return false, nil
 }
