@@ -9,6 +9,7 @@ import (
 	"github.com/binance-chain/tss-lib/common/random"
 	. "github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/keygen"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -102,7 +103,7 @@ func TestProof2(t *testing.T) {
 	ki := random.MustGetRandomInt(256)               // index
 	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
 	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, yX, yY)
+	proof := privateKey.Proof2(ki, types.NewECPoint(yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
 		// TODO add a better assertion
@@ -115,8 +116,8 @@ func TestProof2Verify2(t *testing.T) {
 	ki := random.MustGetRandomInt(256)               // index
 	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
 	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, yX, yY)
-	res, err := proof.Verify2(publicKey.N, ki, yX, yY)
+	proof := privateKey.Proof2(ki, types.NewECPoint(yX, yY))
+	res, err := proof.Verify2(publicKey.N, ki, types.NewECPoint(yX, yY))
 	assert.NoError(t, err)
 	assert.True(t, res, "proof verify2 result must be true")
 }
@@ -126,10 +127,10 @@ func TestProof2Verify2Fail(t *testing.T) {
 	ki := random.MustGetRandomInt(256)               // index
 	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
 	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, yX, yY)
+	proof := privateKey.Proof2(ki, types.NewECPoint(yX, yY))
 	last := proof[len(proof) - 1]
 	last.Sub(last, big.NewInt(1))
-	res, err := proof.Verify2(publicKey.N, ki, yX, yY)
+	res, err := proof.Verify2(publicKey.N, ki, types.NewECPoint(yX, yY))
 	assert.NoError(t, err)
 	assert.False(t, res, "proof verify2 result must be true")
 }
@@ -150,7 +151,7 @@ func TestGenerateXs(t *testing.T) {
 	sY := random.MustGetRandomInt(256)
 	N := random.GetRandomPrimeInt(2048)
 
-	xs := GenerateXs(13, k, sX, sY, N)
+	xs := GenerateXs(13, k, N, types.NewECPoint(sX, sY))
 	assert.Equal(t, 13, len(xs))
 	for _, xi := range xs {
 		assert.True(t, random.IsNumberInMultiplicativeGroup(N, xi))

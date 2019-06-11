@@ -28,7 +28,7 @@ func (round *round3) start() *keygenError {
 	xi = new(big.Int).Mod(xi, EC().N)
 
 	// round 3, steps 2-3
-	Vc := make([][]*big.Int, round.params().threshold)
+	Vc := make([]*types.ECPoint, round.params().threshold)
 	for c := range Vc {
 		Vc[c] = round.temp.polyGs.PolyG[c] // ours
 	}
@@ -48,7 +48,7 @@ func (round *round3) start() *keygenError {
 		if !ok {
 			return round.wrapError(errors.New("de-commitment failed"), Pj)
 		}
-		PjPolyGs, err := commitments.UnFlattenPointsAfterDecommit(flatPolyGs)
+		PjPolyGs, err := types.UnFlattenECPoints(flatPolyGs)
 		if err != nil {
 			return round.wrapError(err, Pj)
 		}
@@ -62,7 +62,7 @@ func (round *round3) start() *keygenError {
 		// round 3, steps 10-11
 		for c := 0; c < round.params().threshold; c++ {
 			VcX, VcY := EC().Add(Vc[c][0], Vc[c][1], PjPolyGs[c][0], PjPolyGs[c][1])
-			Vc[c] = []*big.Int{VcX, VcY}
+			Vc[c] = types.NewECPoint(VcX, VcY)
 		}
 	}
 
@@ -79,23 +79,23 @@ func (round *round3) start() *keygenError {
 			kj = new(big.Int).Mul(kj, Pj.Key)
 			kj = new(big.Int).Mod(kj, EC().N)
 		}
-		bigXj[j] = []*big.Int{XjX, XjY}
+		bigXj[j] = types.NewECPoint(XjX, XjY)
 	}
 
 	// for all Ps, compute and SAVE the ECDSA public key
-	pkX, pkY := Vc[0][0], Vc[0][1] // P1
-	if !EC().IsOnCurve(pkX, pkY) {
+	ecdsaPubKey := types.NewECPoint(Vc[0][0], Vc[0][1])
+	if !ecdsaPubKey.IsOnCurve(ec) {
 		return round.wrapError(errors.New("public key is not on the curve"), nil)
 	}
-	round.save.PKX, round.save.PKY = pkX, pkY
+	round.save.ECDSAPub = ecdsaPubKey
 
 	// PRINT public key & private share
-	common.Logger.Debugf("%s public key: %x", round.partyID, []*big.Int{pkX, pkY})
+	common.Logger.Debugf("%s public key: %x", round.partyID, ecdsaPubKey)
 	common.Logger.Debugf("%s private share xi: %x", round.partyID, xi)
 
 	// BROADCAST paillier proof for Pi
 	ki := round.partyID.Key
-	proof := round.save.PaillierSk.Proof2(ki, pkX, pkY)
+	proof := round.save.PaillierSk.Proof2(ki, ecdsaPubKey)
 	r3msg := NewKGRound3PaillierProveMessage(round.partyID, proof)
 	round.temp.kgRound3PaillierProveMessage[round.partyID.Index] = &r3msg
 	round.out <- r3msg

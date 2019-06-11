@@ -10,28 +10,29 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 var (
-	ErrNumSharesBelowThreshold   = fmt.Errorf("not enough shares to satisfy the threshold")
+	ErrNumSharesBelowThreshold = fmt.Errorf("not enough shares to satisfy the threshold")
 )
 
 type (
 	// Params represents the parameters used in Shamir secret sharing
 	Params struct {
-		Threshold int      // threshold
-		NumShares int      // total num
+		Threshold,    // threshold
+		NumShares int // total num
 	}
 
 	Share struct {
 		Threshold int
-		ID        *big.Int // xi
+		ID,                // xi
 		Share     *big.Int // Sigma i
 	}
 
 	PolyGs struct {
 		Params
-		PolyG [][]*big.Int // v0..vt
+		PolyG []*types.ECPoint // v0..vt
 	}
 
 	Shares []*Share
@@ -50,26 +51,25 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	}
 
 	poly := samplePolynomial(threshold, secret)
-	poly[0] = secret // becomes sigma * G in polyG
-	polyGs := make([][]*big.Int, len(poly))
-
+	poly[0] = secret // becomes sigma*G in polyG
+	polyGs := make([]*types.ECPoint, len(poly))
 	for i, ai := range poly {
-		pointX, pointY := EC().ScalarBaseMult(ai.Bytes())
-		polyGs[i] = []*big.Int{pointX, pointY}
+		X, Y := EC().ScalarBaseMult(ai.Bytes())
+		polyGs[i] = types.NewECPoint(X, Y)
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
-	pGs    := PolyGs{Params: params, PolyG: polyGs}
+	pGs := PolyGs{Params: params, PolyG: polyGs}
 
 	shares := make(Shares, num)
 	for i := 0; i < num; i++ {
-		share  := evaluatePolynomial(poly, indexes[i])
+		share := evaluatePolynomial(poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
 	return &pGs, shares, nil
 }
 
-func (share *Share) Verify(threshold int, polyGs [][]*big.Int) bool {
+func (share *Share) Verify(threshold int, polyGs []*types.ECPoint) bool {
 	if share.Threshold != threshold {
 		return false
 	}
@@ -109,15 +109,15 @@ func (shares Shares) ReConstruct() (*big.Int, error) {
 			if j != i {
 				sub := new(big.Int).Sub(xs[j], share.ID)
 				subInv := new(big.Int).ModInverse(sub, EC().N)
-				div  := new(big.Int).Mul(xs[j], subInv)
+				div := new(big.Int).Mul(xs[j], subInv)
 				times = new(big.Int).Mul(times, div)
 				times = new(big.Int).Mod(times, EC().N)
 			}
 		}
 
 		fTimes := new(big.Int).Mul(share.Share, times)
-		secret  = new(big.Int).Add(secret, fTimes)
-		secret  = new(big.Int).Mod(secret, EC().N)
+		secret = new(big.Int).Add(secret, fTimes)
+		secret = new(big.Int).Mod(secret, EC().N)
 	}
 
 	return secret, nil

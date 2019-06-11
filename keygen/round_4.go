@@ -19,7 +19,7 @@ func (round *round4) start() *keygenError {
 
 	Pj := round.p2pCtx.Parties()
 	kj := Pj.Keys()
-	pkX, pkY := round.save.PKX, round.save.PKY
+	ecdsaPub := round.save.ECDSAPub
 
 	r3msgs := round.temp.kgRound3PaillierProveMessage
 	for i, msg := range r3msgs {
@@ -39,7 +39,7 @@ func (round *round4) start() *keygenError {
 		}
 		go func(prf paillier.Proof2, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
-			ok, err := prf.Verify2(ppk.N, kj[j], pkX, pkY)
+			ok, err := prf.Verify2(ppk.N, kj[j], ecdsaPub)
 			if err != nil {
 				common.Logger.Error(round.wrapError(err, Pj[j]).Error())
 				ch <- false

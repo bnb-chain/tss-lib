@@ -7,7 +7,6 @@ import (
 	"crypto"
 	"math/big"
 
-	"github.com/pkg/errors"
 	_ "golang.org/x/crypto/sha3"
 
 	"github.com/binance-chain/tss-lib/common/random"
@@ -27,34 +26,6 @@ type (
 		D  HashDeCommitment
 	}
 )
-
-func FlattenPointsForCommit(in [][]*big.Int) ([]*big.Int, error) {
-	flat := make([]*big.Int, 0, len(in) * 2)
-	for _, point := range in {
-		if point[0] == nil || point[1] == nil {
-			return nil, errors.New("FlattenPointsForCommit found nil coordinate")
-		}
-		flat = append(flat, point[0])
-		flat = append(flat, point[1])
-	}
-	return flat, nil
-}
-
-func UnFlattenPointsAfterDecommit(in []*big.Int) ([][]*big.Int, error) {
-	if len(in) % 2 != 0 {
-		return nil, errors.New("UnFlattenPointsAfterDecommit expected an in len divisible by 2")
-	}
-	unFlat := make([][]*big.Int, len(in) / 2)
-	for i, j := 0, 0; i < len(in); i, j = i + 2, j + 1 {
-		unFlat[j] = []*big.Int{in[i], in[i + 1]}
-	}
-	for _, point := range unFlat {
-		if point[0] == nil || point[1] == nil {
-			return nil, errors.New("UnFlattenPointsAfterDecommit found nil coordinate after unpack")
-		}
-	}
-	return unFlat, nil
-}
 
 func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 	security := random.MustGetRandomInt(HashLength) // r

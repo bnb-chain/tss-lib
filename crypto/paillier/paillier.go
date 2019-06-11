@@ -20,6 +20,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/common/primes"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 const (
@@ -202,10 +203,10 @@ func (proof *Proof) Verify(publicKey *PublicKey) bool {
 // An efficient non-interactive statistical zero-knowledge proof system for quasi-safe prime products.
 // In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
 
-func (privateKey *PrivateKey) Proof2(k, sX, sY *big.Int) Proof2 {
+func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *types.ECPoint) Proof2 {
 	iters := Proof2Iters
 	pi := make(Proof2, iters)
-	xs := GenerateXs(iters, k, sX, sY, privateKey.N)
+	xs := GenerateXs(iters, k, privateKey.N, ecdsaPub)
 	for i := 0; i < iters; i++ {
 		M := new(big.Int).ModInverse(privateKey.N, privateKey.PhiN)
 		pi[i] = new(big.Int).Exp(xs[i], M, privateKey.N)
@@ -213,7 +214,7 @@ func (privateKey *PrivateKey) Proof2(k, sX, sY *big.Int) Proof2 {
 	return pi
 }
 
-func (proof Proof2) Verify2(pkN, k, sX, sY *big.Int) (bool, error) {
+func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *types.ECPoint) (bool, error) {
 	iters := Proof2Iters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	go func(ch chan<- bool) {
@@ -228,7 +229,7 @@ func (proof Proof2) Verify2(pkN, k, sX, sY *big.Int) (bool, error) {
 		ch <- true
 	}(pch)
 	go func(ch chan<- []*big.Int) {
-		ch <- GenerateXs(iters, k, sX, sY, pkN)
+		ch <- GenerateXs(iters, k, pkN, ecdsaPub)
 	}(xch)
 	for j := 0; j < 2; j++ {
 		select {
@@ -260,9 +261,10 @@ func L(u, N *big.Int) *big.Int {
 }
 
 // GenerateXs generates the challenges used in Paillier key Proof2
-func GenerateXs(m int, k, sX, sY, N *big.Int) []*big.Int {
+func GenerateXs(m int, k, N *big.Int, ecdsaPub *types.ECPoint) []*big.Int {
 	var i, n int
 	ret := make([]*big.Int, m)
+	sX, sY := ecdsaPub.X(), ecdsaPub.Y()
 	kb, sXb, sYb, Nb := k.Bytes(), sX.Bytes(), sY.Bytes(), N.Bytes()
 	bits := N.BitLen()
 	blocks := int(gmath.Ceil(float64(bits) / 256))

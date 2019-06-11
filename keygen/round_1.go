@@ -60,13 +60,13 @@ func (round *round1) start() *keygenError {
 	ui := random.GetRandomPositiveInt(EC().N)
 
 	// generate pub key share BigXj
-	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes())
+	uiGX, uiGY := EC().ScalarBaseMult(ui.Bytes())
+	uiG := types.NewECPoint(uiGX, uiGY)
 
-	// errors can be thrown in the following code; consume chans to end goroutines in case
-	rsa := <-rsaCh
-	pai := <-paiCh
+	// errors can be thrown in the following code; consume chans to end goroutines here
+	rsa, pai := <-rsaCh, <-paiCh
 
-	// 1. compute the vss shares
+	// 2. compute the vss shares
 	ids := round.p2pCtx.Parties().Keys()
 	polyGs, shares, err := vss.Create(round.params().Threshold(), ui, ids)
 	if err != nil {
@@ -76,7 +76,7 @@ func (round *round1) start() *keygenError {
 	// security: the original ui may be discarded
 	ui = ui.Set(big.NewInt(0))
 
-	pGFlat, err := cmt.FlattenPointsForCommit(polyGs.PolyG)
+	pGFlat, err := types.FlattenECPoints(polyGs.PolyG)
 	if err != nil {
 		return round.wrapError(err, nil)
 	}
@@ -91,6 +91,9 @@ func (round *round1) start() *keygenError {
 	}
 
 	NTildei, h1i, h2i, err := generateNTildei(rsa.Primes[:2])
+	if err != nil {
+		return round.wrapError(err, nil)
+	}
 	round.save.NTildej[pIdx] = NTildei
 	round.save.H1j[pIdx], round.save.H2j[pIdx] = h1i, h2i
 
@@ -106,8 +109,8 @@ func (round *round1) start() *keygenError {
 	round.temp.shares = shares
 
 	// save uiGx, uiGy (pubkey) for this Pi for round 3
-	round.save.BigXj = make([][]*big.Int, round.partyCount)
-	round.save.BigXj[pIdx] = []*big.Int{uiGx, uiGy}
+	round.save.BigXj = make([]*types.ECPoint, round.partyCount)
+	round.save.BigXj[pIdx] = uiG
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
 	round.save.PaillierSk = pai

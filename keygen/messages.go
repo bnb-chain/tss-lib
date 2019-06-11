@@ -15,10 +15,11 @@ type (
 	// len == (NodeCnt - 1)
 	KGRound1CommitMessage struct {
 		types.MessageMetadata
-		Commitment        cmt.HashCommitment // cannot be pointers due to wire_test
-		PaillierPk        paillier.PublicKey
-		RSAModulus        rsa.PublicKey
-		NTildei, h1i, h2i *big.Int
+		Commitment cmt.HashCommitment // cannot be pointers due to wire_test
+		PaillierPk paillier.PublicKey
+		RSAModulus rsa.PublicKey
+		NTildei,
+		H1i, H2i *big.Int
 	}
 
 	// KGRound2VssMessage represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol
@@ -62,8 +63,8 @@ func NewKGRound1CommitMessage(
 		Commitment: ct,
 		PaillierPk: *paillierPk,
 		NTildei:    NTildei,
-		h1i:        h1i,
-		h2i:        h2i,
+		H1i:        h1i,
+		H2i:        h2i,
 	}
 }
 
@@ -72,8 +73,8 @@ func (msg KGRound1CommitMessage) ValidateBasic() bool {
 		msg.PaillierPk.N.Cmp(big.NewInt(0)) != 0 &&
 		msg.PaillierPk.NSquare().Cmp(big.NewInt(0)) != 0 &&
 		msg.NTildei.Cmp(big.NewInt(0)) != 0 &&
-		msg.h1i.Cmp(big.NewInt(0)) != 0 &&
-		msg.h2i.Cmp(big.NewInt(0)) != 0
+		msg.H1i.Cmp(big.NewInt(0)) != 0 &&
+		msg.H2i.Cmp(big.NewInt(0)) != 0
 }
 
 // ----- //

@@ -42,8 +42,8 @@ type (
 		PaillierSk  *paillier.PrivateKey // ski
 
 		// public keys (Xj = uj*G for each Pj)
-		BigXj       [][]*big.Int          // Xj
-		PKX, PKY    *big.Int              // y
+		BigXj       []*types.ECPoint      // Xj
+		ECDSAPub    *types.ECPoint        // y
 		PaillierPks []*paillier.PublicKey // pkj
 
 		// h1, h2 for range proofs
@@ -84,7 +84,7 @@ func NewLocalParty(
 		end:          end,
 	}
 	// data init
-	p.data.BigXj = make([][]*big.Int, partyCount)
+	p.data.BigXj = make([]*types.ECPoint, partyCount)
 	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
 	p.data.NTildej = make([]*big.Int, partyCount)
 	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
