@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto/hash"
 )
 
@@ -53,16 +54,16 @@ func SortPartyIDs(ids UnSortedPartyIDs) SortedPartyIDs {
 }
 
 func GeneratePartyIDs(count int) SortedPartyIDs {
-	ids := make(SortedPartyIDs, 0, count)
+	ids := make(UnSortedPartyIDs, 0, count)
 	for i := 0; i < count; i++ {
 		ids = append(ids, &PartyID{
-			ID: fmt.Sprintf("%d", i),
+			ID:      fmt.Sprintf("%d", i + 1),
 			Moniker: fmt.Sprintf("P[%d]", i + 1),
-			Index: i,
-			Key: big.NewInt(int64(i)),
+			Index:   i,
+			Key:     random.MustGetRandomInt(256),
 		})
 	}
-	return ids
+	return SortPartyIDs(ids)
 }
 
 func (spids SortedPartyIDs) Keys() []*big.Int {

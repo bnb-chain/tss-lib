@@ -9,6 +9,7 @@ type (
 		GetTo() *PartyID
 		GetFrom() *PartyID
 		GetType() string
+		ValidateBasic() bool
 		String() string
 	}
 

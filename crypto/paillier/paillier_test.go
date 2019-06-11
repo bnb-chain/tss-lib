@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/random"
 	. "github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/keygen"
 )
@@ -99,8 +99,8 @@ func TestProofVerify(t *testing.T) {
 
 func TestProof2(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
-	ki := math.MustGetRandomInt(256) // index
-	ui := math.GetRandomPositiveInt(keygen.EC().N)   // ECDSA private
+	ki := random.MustGetRandomInt(256)               // index
+	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
 	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
 	proof := privateKey.Proof2(ki, yX, yY)
 	for _, yi := range proof {
@@ -112,8 +112,8 @@ func TestProof2(t *testing.T) {
 
 func TestProofVerify2(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	ki := math.MustGetRandomInt(256) // index
-	ui := math.GetRandomPositiveInt(keygen.EC().N)   // ECDSA private
+	ki := random.MustGetRandomInt(256)               // index
+	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
 	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
 	proof := privateKey.Proof2(ki, yX, yY)
 	res, err := proof.Verify2(publicKey.N, ki, yX, yY)
@@ -123,8 +123,8 @@ func TestProofVerify2(t *testing.T) {
 
 func TestProofVerify2Fail(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	ki := math.MustGetRandomInt(256) // index
-	ui := math.GetRandomPositiveInt(keygen.EC().N)   // ECDSA private
+	ki := random.MustGetRandomInt(256)               // index
+	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
 	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
 	proof := privateKey.Proof2(ki, yX, yY)
 	last := proof[len(proof) - 1]
@@ -145,14 +145,14 @@ func TestComputeL(t *testing.T) {
 }
 
 func TestGenerateXs(t *testing.T) {
-	k := math.MustGetRandomInt(256)
-	sX := math.MustGetRandomInt(256)
-	sY := math.MustGetRandomInt(256)
-	N := math.GetRandomPrimeInt(2048)
+	k := random.MustGetRandomInt(256)
+	sX := random.MustGetRandomInt(256)
+	sY := random.MustGetRandomInt(256)
+	N := random.GetRandomPrimeInt(2048)
 
 	xs := GenerateXs(13, k, sX, sY, N)
 	assert.Equal(t, 13, len(xs))
 	for _, xi := range xs {
-		assert.True(t, math.IsNumberInMultiplicativeGroup(N, xi))
+		assert.True(t, random.IsNumberInMultiplicativeGroup(N, xi))
 	}
 }

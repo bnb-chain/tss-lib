@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/common/primes"
 )
 
@@ -63,14 +63,14 @@ func init() {
 
 // len is the length of the modulus (each prime = len / 2)
 func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
-	P, Q := math.GetRandomPrimeInt(len/2), math.GetRandomPrimeInt(len/2)
+	P, Q := random.GetRandomPrimeInt(len/2), random.GetRandomPrimeInt(len/2)
 	N := new(big.Int).Mul(P, Q)
 	// phiN = P-1 * Q-1
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
 	phiN := new(big.Int).Mul(PMinus1, QMinus1)
 
 	N2 := new(big.Int).Mul(N, N)
-	gamma := math.GetRandomPositiveRelativelyPrimeInt(N2)
+	gamma := random.GetRandomPositiveRelativelyPrimeInt(N2)
 
 	// lambdaN = lcm(P−1, Q−1)
 	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
@@ -87,7 +87,7 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
 		return nil, nil, ErrMessageTooLong
 	}
-	x = math.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
+	x = random.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
 	N2 := publicKey.NSquare()
 	// 1. gamma^m mod N2
 	Gm := new(big.Int).Exp(publicKey.Gamma, m, N2)
@@ -156,9 +156,9 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 // ----- //
 
 func (privateKey *PrivateKey) Proof() *Proof {
-	h1 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	h2 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	r := math.GetRandomPositiveInt(privateKey.N)
+	h1 := random.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
+	h2 := random.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
+	r := random.GetRandomPositiveInt(privateKey.N)
 
 	h1R := new(big.Int).Exp(h1, r, privateKey.N)
 	h2R := new(big.Int).Exp(h2, r, privateKey.N)
@@ -291,7 +291,7 @@ func GenerateXs(m int, k, sX, sY, N *big.Int) []*big.Int {
 			xi = append(xi, <-ch...) // xi1||···||xib
 		}
 		ret[i] = new(big.Int).SetBytes(xi)
-		if math.IsNumberInMultiplicativeGroup(N, ret[i]) {
+		if random.IsNumberInMultiplicativeGroup(N, ret[i]) {
 			i++
 		} else {
 			n++
