@@ -16,10 +16,8 @@ import (
 	"math/big"
 	"strconv"
 
-	"golang.org/x/crypto/sha3"
-
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/common/primes"
+	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/types"
 )
 
@@ -152,49 +150,6 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 	LcDivLg := new(big.Int).Mul(Lc, inv)
 	LcDivLgMod := new(big.Int).Mod(LcDivLg, privateKey.N)
 	return LcDivLgMod, nil
-}
-
-// ----- //
-
-func (privateKey *PrivateKey) Proof() *Proof {
-	h1 := random.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	h2 := random.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	r := random.GetRandomPositiveInt(privateKey.N)
-
-	h1R := new(big.Int).Exp(h1, r, privateKey.N)
-	h2R := new(big.Int).Exp(h2, r, privateKey.N)
-
-	sha3256 := sha3.New256()
-	sha3256.Write(h1R.Bytes())
-	sha3256.Write(h2R.Bytes())
-	eBytes := sha3256.Sum(nil)
-	e := new(big.Int).SetBytes(eBytes)
-
-	y := new(big.Int).Add(privateKey.N, privateKey.LambdaN)
-	y = new(big.Int).Mul(y, e)
-	y = new(big.Int).Add(y, r)
-
-	return &Proof{H1: h1, H2: h2, Y: y, E: e, N: privateKey.N}
-}
-
-func (proof *Proof) Verify(publicKey *PublicKey) bool {
-	ySubNE := new(big.Int).Mul(publicKey.N, proof.E)
-	ySubNE = new(big.Int).Sub(proof.Y, ySubNE)
-
-	h1R := new(big.Int).Exp(proof.H1, ySubNE, publicKey.N)
-	h2R := new(big.Int).Exp(proof.H2, ySubNE, publicKey.N)
-
-	sha3256 := sha3.New256()
-	sha3256.Write(h1R.Bytes())
-	sha3256.Write(h2R.Bytes())
-	eBytes := sha3256.Sum(nil)
-	e := new(big.Int).SetBytes(eBytes)
-
-	if e.Cmp(proof.E) == 0 {
-		return true
-	} else {
-		return false
-	}
 }
 
 // ----- //

@@ -85,19 +85,6 @@ func TestHomoMul(t *testing.T) {
 	assert.Equal(t, 0, multiple.Cmp(big.NewInt(exp)))
 }
 
-func TestProof(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
-	proof := privateKey.Proof()
-	t.Log(proof)
-}
-
-func TestProofVerify(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	proof := privateKey.Proof()
-	res := proof.Verify(publicKey)
-	assert.True(t, res, "proof verify result must be true")
-}
-
 func TestProof2(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
 	ki := random.MustGetRandomInt(256)               // index
