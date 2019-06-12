@@ -111,6 +111,7 @@ func (p *LocalParty) StartKeygenRound1() *keygenError {
 	if _, ok := p.round.(*round1); !ok {
 		return p.wrapError(errors.New("Could not start keygen. This party is in an unexpected round."), nil)
 	}
+	common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, 1)
 	return p.round.start()
 }
 
@@ -126,7 +127,7 @@ func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
 	p.mtx.Lock() // data is written to P state below
 	common.Logger.Debugf("party %s received message: %s", p.partyID, msg.String())
 	if p.round != nil {
-		common.Logger.Infof("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())
+		common.Logger.Debugf("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())
 	}
 	if _, err := p.storeMessage(msg); err != nil {
 		return r(false, err)
