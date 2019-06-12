@@ -28,7 +28,7 @@ func (round *round3) start() *keygenError {
 	Ps := round.p2pCtx.Parties()
 	PIdx := round.partyID.Index
 
-	// round 3, steps 1,9: calculate xi
+	// 1,9. calculate xi
 	xi := round.temp.shares[PIdx].Share
 	for j := range Ps {
 		if j == PIdx { continue }
@@ -37,13 +37,13 @@ func (round *round3) start() *keygenError {
 	}
 	round.save.Xi = xi
 
-	// round 3, steps 2-3
+	// 2-3.
 	Vc := make([]*types.ECPoint, round.params().threshold)
 	for c := range Vc {
 		Vc[c] = round.temp.polyGs.PolyG[c] // ours
 	}
 
-	// round 3, steps 4-11
+	// 4-11.
 	chs := make([]chan r3ChOut, len(Ps))
 	for i := range chs {
 		if i == PIdx { continue }
@@ -51,9 +51,9 @@ func (round *round3) start() *keygenError {
 	}
 	for j := range Ps {
 		if j == PIdx { continue }
-		// round 3, steps 6-8
+		// 6-8.
 		go func(j int, ch chan<- r3ChOut) {
-			// round 3, steps 4-9
+			// 4-9.
 			KGCj := round.temp.KGCs[j]
 			r2msg2 := round.temp.kgRound2DeCommitMessages[j]
 			KGDj := r2msg2.DeCommitment
@@ -77,7 +77,7 @@ func (round *round3) start() *keygenError {
 				ch <- r3ChOut{errors.New("vss verify failed"), nil}
 				return
 			}
-			// round 3, step 9 handled above
+			// (9) handled above
 			ch <- r3ChOut{nil, PjPolyGs}
 		}(j, chs[j])
 	}
@@ -93,7 +93,7 @@ func (round *round3) start() *keygenError {
 		if r3ChOuts[j].unWrappedErr != nil {
 			return round.wrapError(r3ChOuts[j].unWrappedErr, Pj)
 		}
-		// round 3, steps 10-11
+		// 10-11.
 		PjPolyGs := r3ChOuts[j].pjPolyGs
 		for c := 0; c < round.params().threshold; c++ {
 			VcX, VcY := EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
@@ -101,7 +101,7 @@ func (round *round3) start() *keygenError {
 		}
 	}
 
-	// round 3, steps 12-16: compute Xj for each Pj
+	// 12-16. compute Xj for each Pj
 	bigXj := round.save.BigXj
 	for j, Pj := range Ps {
 		XjX, XjY := Vc[0].X(), Vc[0].Y()
@@ -117,7 +117,7 @@ func (round *round3) start() *keygenError {
 	}
 	round.save.BigXj = bigXj
 
-	// for all Ps, compute and SAVE the ECDSA public key `y`
+	// 17. compute and SAVE the ECDSA public key `y`
 	ecdsaPubKey := types.NewECPoint(Vc[0].X(), Vc[0].Y())
 	if !ecdsaPubKey.IsOnCurve(ec) {
 		return round.wrapError(errors.New("public key is not on the curve"), nil)

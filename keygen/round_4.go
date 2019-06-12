@@ -28,7 +28,7 @@ func (round *round4) start() *keygenError {
 		}
 	}
 
-	// round 4, steps 1-3 (concurrent)
+	// 1-3. (concurrent)
 	chs := make([]chan bool, len(r3msgs))
 	for i := range chs {
 		chs[i] = make(chan bool)
