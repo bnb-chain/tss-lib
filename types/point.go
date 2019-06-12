@@ -28,10 +28,13 @@ func (p *ECPoint) IsOnCurve(curve elliptic.Curve) bool {
 // ----- //
 
 func FlattenECPoints(in []*ECPoint) ([]*big.Int, error) {
+	if in == nil {
+		return nil, errors.New("FlattenECPoints encountered a nil in slice")
+	}
 	flat := make([]*big.Int, 0, len(in) * 2)
 	for _, point := range in {
-		if point[0] == nil || point[1] == nil {
-			return nil, errors.New("FlattenECPoints found nil coordinate")
+		if point == nil || point[0] == nil || point[1] == nil {
+			return nil, errors.New("FlattenECPoints found nil point/coordinate")
 		}
 		flat = append(flat, point[0])
 		flat = append(flat, point[1])
@@ -40,7 +43,7 @@ func FlattenECPoints(in []*ECPoint) ([]*big.Int, error) {
 }
 
 func UnFlattenECPoints(in []*big.Int) ([]*ECPoint, error) {
-	if len(in) % 2 != 0 {
+	if in == nil || len(in) % 2 != 0 {
 		return nil, errors.New("UnFlattenECPoints expected an in len divisible by 2")
 	}
 	unFlat := make([]*ECPoint, len(in) / 2)
