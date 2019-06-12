@@ -9,6 +9,14 @@ import (
 	"github.com/binance-chain/tss-lib/types"
 )
 
+type (
+	// convenience structure returned through the channel below
+	r3ChOut struct {
+		unWrappedErr error
+		pjPolyGs     []*types.ECPoint
+	}
+)
+
 func (round *round3) start() *keygenError {
 	if round.started {
 		return round.wrapError(errors.New("round already started"), nil)
@@ -36,33 +44,57 @@ func (round *round3) start() *keygenError {
 	}
 
 	// round 3, steps 4-11
+	chs := make([]chan r3ChOut, len(Ps))
+	for i := range chs {
+		if i == PIdx { continue }
+		chs[i] = make(chan r3ChOut)
+	}
+	for j := range Ps {
+		if j == PIdx { continue }
+		// round 3, steps 6-8
+		go func(j int, ch chan<- r3ChOut) {
+			// round 3, steps 4-9
+			KGCj := round.temp.KGCs[j]
+			r2msg2 := round.temp.kgRound2DeCommitMessages[j]
+			KGDj := r2msg2.DeCommitment
+			cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
+			ok, flatPolyGs, err := cmtDeCmt.DeCommit()
+			if err != nil {
+				ch <- r3ChOut{err, nil}
+				return
+			}
+			if !ok || flatPolyGs == nil {
+				ch <- r3ChOut{errors.New("de-commitment verify failed"), nil}
+				return
+			}
+			PjPolyGs, err := types.UnFlattenECPoints(flatPolyGs)
+			if err != nil {
+				ch <- r3ChOut{err, nil}
+				return
+			}
+			PjShare := round.temp.kgRound2VssMessages[j].PiShare
+			if ok = PjShare.Verify(round.params().threshold, PjPolyGs); !ok {
+				ch <- r3ChOut{errors.New("vss verify failed"), nil}
+				return
+			}
+			// round 3, step 9 handled above
+			ch <- r3ChOut{nil, PjPolyGs}
+		}(j, chs[j])
+	}
+
+	// consume all channels (end the goroutines)
+	r3ChOuts := make([]r3ChOut, len(chs))
+	for i := range chs {
+		if i == PIdx { continue }
+		r3ChOuts[i] = <- chs[i]
+	}
 	for j, Pj := range Ps {
 		if j == PIdx { continue }
-
-		// round 3, steps 4-9
-		KGCj := round.temp.KGCs[j]
-		r2msg2 := round.temp.kgRound2DeCommitMessages[j]
-		KGDj := r2msg2.DeCommitment
-		cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
-		ok, flatPolyGs, err := cmtDeCmt.DeCommit()
-		if err != nil {
-			return round.wrapError(err, Pj)
+		if r3ChOuts[j].unWrappedErr != nil {
+			return round.wrapError(r3ChOuts[j].unWrappedErr, Pj)
 		}
-		if !ok {
-			return round.wrapError(errors.New("de-commitment verify failed"), Pj)
-		}
-		PjPolyGs, err := types.UnFlattenECPoints(flatPolyGs)
-		if err != nil {
-			return round.wrapError(err, Pj)
-		}
-		PjShare := round.temp.kgRound2VssMessages[j].PiShare
-		// TODO verify in a goroutine
-		if ok = PjShare.Verify(round.params().threshold, PjPolyGs); !ok {
-			return round.wrapError(errors.New("vss verify failed"), Pj)
-		}
-		// round 3, step 9 handled above
-
 		// round 3, steps 10-11
+		PjPolyGs := r3ChOuts[j].pjPolyGs
 		for c := 0; c < round.params().threshold; c++ {
 			VcX, VcY := EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
 			Vc[c] = types.NewECPoint(VcX, VcY)
@@ -71,7 +103,7 @@ func (round *round3) start() *keygenError {
 
 	// round 3, steps 12-16: compute Xj for each Pj
 	bigXj := round.save.BigXj
-	for j, Pj := range Ps { // TODO all players or just P2..?
+	for j, Pj := range Ps {
 		XjX, XjY := Vc[0].X(), Vc[0].Y()
 		z := (*big.Int)(nil)
 		for c := 1; c < round.params().threshold; c++ {
@@ -85,7 +117,7 @@ func (round *round3) start() *keygenError {
 	}
 	round.save.BigXj = bigXj
 
-	// for all Ps, compute and SAVE the ECDSA public key
+	// for all Ps, compute and SAVE the ECDSA public key `y`
 	ecdsaPubKey := types.NewECPoint(Vc[0].X(), Vc[0].Y())
 	if !ecdsaPubKey.IsOnCurve(ec) {
 		return round.wrapError(errors.New("public key is not on the curve"), nil)
