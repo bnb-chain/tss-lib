@@ -48,18 +48,22 @@ func (round *round4) start() *keygenError {
 			ch <- ok
 		}(msg.Proof, j, chs[j])
 	}
+
+	// consume unbuffered channels (end the goroutines)
 	for j, ch := range chs {
 		if j == round.partyID.Index {
 			round.ok[j] = true
 			continue
 		}
 		round.ok[j] = <- ch
-		if !round.ok[j] {
+	}
+	for j, ok := range round.ok {
+		if !ok {
 			return round.wrapError(errors.New("paillier verify failed"), Pj[j])
 		}
 		common.Logger.Debugf("paillier verify passed for party %s", Pj[j])
-	}
 
+	}
 	return nil
 }
 

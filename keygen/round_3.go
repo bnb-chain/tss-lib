@@ -82,7 +82,7 @@ func (round *round3) start() *keygenError {
 		}(j, chs[j])
 	}
 
-	// consume all channels (end the goroutines)
+	// consume unbuffered channels (end the goroutines)
 	r3ChOuts := make([]r3ChOut, len(chs))
 	for i := range chs {
 		if i == PIdx { continue }
