@@ -8,7 +8,7 @@ import (
 
 func (round *round2) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"), nil)
+		return round.wrapError(errors.New("round already started"))
 	}
 	round.number = 2
 	round.started = true

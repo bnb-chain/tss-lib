@@ -13,7 +13,7 @@ type (
 		canProceed() bool
 		nextRound() round
 		roundNumber() int
-		wrapError(err error, culprit *types.PartyID) *keygenError
+		wrapError(err error, culprits ...*types.PartyID) *keygenError
 	}
 
 	// round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
@@ -75,6 +75,6 @@ func (round *base) resetOk() {
 	}
 }
 
-func (round *base) wrapError(err error, culprit *types.PartyID) *keygenError {
-	return newError(err, round.number, round.partyID, culprit)
+func (round *base) wrapError(err error, culprits ...*types.PartyID) *keygenError {
+	return newError(err, round.number, round.partyID, culprits...)
 }

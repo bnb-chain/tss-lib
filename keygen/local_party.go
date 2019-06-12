@@ -109,7 +109,7 @@ func (p *LocalParty) String() string {
 
 func (p *LocalParty) StartKeygenRound1() *keygenError {
 	if _, ok := p.round.(*round1); !ok {
-		return p.wrapError(errors.New("Could not start keygen. This party is in an unexpected round."), nil)
+		return p.wrapError(errors.New("Could not start keygen. This party is in an unexpected round."))
 	}
 	common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, 1)
 	return p.round.start()
@@ -157,7 +157,7 @@ func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
 
 func (p *LocalParty) validateMessage(msg types.Message) (bool, *keygenError) {
 	if msg.GetFrom() == nil {
-		return false, p.wrapError(fmt.Errorf("update received nil msg: %s", msg), nil)
+		return false, p.wrapError(fmt.Errorf("update received nil msg: %s", msg))
 	}
 	if msg == nil {
 		return false, p.wrapError(fmt.Errorf("nil message received: %s", msg), msg.GetFrom())
@@ -212,6 +212,6 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 	return nil
 }
 
-func (p *LocalParty) wrapError(err error, culprit *types.PartyID) *keygenError {
-	return p.round.wrapError(err, culprit)
+func (p *LocalParty) wrapError(err error, culprits ...*types.PartyID) *keygenError {
+	return p.round.wrapError(err, culprits...)
 }

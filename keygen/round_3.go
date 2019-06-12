@@ -19,7 +19,7 @@ type (
 
 func (round *round3) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"), nil)
+		return round.wrapError(errors.New("round already started"))
 	}
 	round.number = 3
 	round.started = true
@@ -83,16 +83,21 @@ func (round *round3) start() *keygenError {
 	}
 
 	// consume unbuffered channels (end the goroutines)
-	r3ChOuts := make([]r3ChOut, len(chs))
-	for i := range chs {
-		if i == PIdx { continue }
-		r3ChOuts[i] = <- chs[i]
-	}
+	r3ChOuts := make([]r3ChOut, len(Ps))
+	culprits := make([]*types.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, Pj := range Ps {
 		if j == PIdx { continue }
-		if r3ChOuts[j].unWrappedErr != nil {
-			return round.wrapError(r3ChOuts[j].unWrappedErr, Pj)
+		r3ChOuts[j] = <- chs[j]
+		// collect culprits to error out with
+		if err := r3ChOuts[j].unWrappedErr; err != nil {
+			culprits = append(culprits, Pj)
 		}
+	}
+	if len(culprits) > 0 {
+		return round.wrapError(r3ChOuts[0].unWrappedErr, culprits...)
+	}
+	for j := range Ps {
+		if j == PIdx { continue }
 		// 10-11.
 		PjPolyGs := r3ChOuts[j].pjPolyGs
 		for c := 0; c < round.params().threshold; c++ {
@@ -120,7 +125,7 @@ func (round *round3) start() *keygenError {
 	// 17. compute and SAVE the ECDSA public key `y`
 	ecdsaPubKey := types.NewECPoint(Vc[0].X(), Vc[0].Y())
 	if !ecdsaPubKey.IsOnCurve(ec) {
-		return round.wrapError(errors.New("public key is not on the curve"), nil)
+		return round.wrapError(errors.New("public key is not on the curve"))
 	}
 	round.save.ECDSAPub = ecdsaPubKey
 

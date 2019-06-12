@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
@@ -11,22 +10,18 @@ import (
 
 func (round *round4) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"), nil)
+		return round.wrapError(errors.New("round already started"))
 	}
 	round.number = 4
 	round.started = true
 	round.resetOk()
 
-	Pj := round.p2pCtx.Parties()
-	kj := Pj.Keys()
+	Ps := round.p2pCtx.Parties()
+	PIDs := Ps.Keys()
 	ecdsaPub := round.save.ECDSAPub
 
+	// r3 messages are assumed to be available and != nil in this function
 	r3msgs := round.temp.kgRound3PaillierProveMessage
-	for i, msg := range r3msgs {
-		if msg == nil {
-			return round.wrapError(fmt.Errorf("r3msg %d is nil", i), nil)
-		}
-	}
 
 	// 1-3. (concurrent)
 	chs := make([]chan bool, len(r3msgs))
@@ -34,14 +29,12 @@ func (round *round4) start() *keygenError {
 		chs[i] = make(chan bool)
 	}
 	for j, msg := range r3msgs {
-		if j == round.partyID.Index {
-			continue
-		}
+		if j == round.partyID.Index { continue }
 		go func(prf paillier.Proof2, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
-			ok, err := prf.Verify2(ppk.N, kj[j], ecdsaPub)
+			ok, err := prf.Verify2(ppk.N, PIDs[j], ecdsaPub)
 			if err != nil {
-				common.Logger.Error(round.wrapError(err, Pj[j]).Error())
+				common.Logger.Error(round.wrapError(err, Ps[j]).Error())
 				ch <- false
 				return
 			}
@@ -57,12 +50,18 @@ func (round *round4) start() *keygenError {
 		}
 		round.ok[j] = <- ch
 	}
+	culprits := make([]*types.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, ok := range round.ok {
 		if !ok {
-			return round.wrapError(errors.New("paillier verify failed"), Pj[j])
+			culprits = append(culprits, Ps[j])
+			common.Logger.Warningf("paillier verify failed for party %s", Ps[j])
+			continue
 		}
-		common.Logger.Debugf("paillier verify passed for party %s", Pj[j])
+		common.Logger.Debugf("paillier verify passed for party %s", Ps[j])
 
+	}
+	if len(culprits) > 0 {
+		return round.wrapError(errors.New("paillier verify failed"), culprits...)
 	}
 	return nil
 }

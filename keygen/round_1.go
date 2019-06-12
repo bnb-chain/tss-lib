@@ -24,7 +24,7 @@ func newRound1(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyT
 
 func (round *round1) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"), nil)
+		return round.wrapError(errors.New("round already started"))
 	}
 	round.number = 1
 	round.started = true
@@ -67,7 +67,7 @@ func (round *round1) start() *keygenError {
 	ids := round.p2pCtx.Parties().Keys()
 	polyGs, shares, err := vss.Create(round.params().Threshold(), ui, ids)
 	if err != nil {
-		return round.wrapError(err, nil)
+		return round.wrapError(err)
 	}
 
 	// security: the original ui may be discarded
@@ -75,21 +75,21 @@ func (round *round1) start() *keygenError {
 
 	pGFlat, err := types.FlattenECPoints(polyGs.PolyG)
 	if err != nil {
-		return round.wrapError(err, nil)
+		return round.wrapError(err)
 	}
 	cmt, err := cmt.NewHashCommitment(pGFlat...)
 	if err != nil {
-		return round.wrapError(err, nil)
+		return round.wrapError(err)
 	}
 
 	// 9-11. compute h1, h2 (uses RSA primes)
 	if rsa == nil {
-		return round.wrapError(errors.New("RSA generation failed"), nil)
+		return round.wrapError(errors.New("RSA generation failed"))
 	}
 
 	NTildei, h1i, h2i, err := generateNTildei(rsa.Primes[:2])
 	if err != nil {
-		return round.wrapError(err, nil)
+		return round.wrapError(err)
 	}
 	round.save.NTildej[pIdx] = NTildei
 	round.save.H1j[pIdx], round.save.H2j[pIdx] = h1i, h2i
