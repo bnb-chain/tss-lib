@@ -58,6 +58,7 @@ func (round *round1) start() *keygenError {
 
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
 	ui := random.GetRandomPositiveInt(EC().N)
+	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	rsa, pai := <-rsaCh, <-paiCh
@@ -70,7 +71,7 @@ func (round *round1) start() *keygenError {
 	}
 
 	// security: the original ui may be discarded
-	ui = ui.Set(big.NewInt(0))
+	ui = big.NewInt(0)
 
 	pGFlat, err := types.FlattenECPoints(polyGs.PolyG)
 	if err != nil {
@@ -97,9 +98,6 @@ func (round *round1) start() *keygenError {
 	// - shareID
 	// - Shamir PolyGs
 	// - our set of Shamir shares
-	if round.save.Xi, err = shares.ReConstruct(); err != nil {
-		return round.wrapError(err, nil)
-	}
 	round.save.ShareID = ids[pIdx]
 	round.temp.polyGs = polyGs
 	round.temp.shares = shares

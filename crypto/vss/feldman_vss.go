@@ -13,10 +13,6 @@ import (
 	"github.com/binance-chain/tss-lib/types"
 )
 
-var (
-	ErrNumSharesBelowThreshold = fmt.Errorf("not enough shares to satisfy the threshold")
-)
-
 type (
 	// Params represents the parameters used in Shamir secret sharing
 	Params struct {
@@ -36,6 +32,13 @@ type (
 	}
 
 	Shares []*Share
+)
+
+var (
+	ErrNumSharesBelowThreshold = fmt.Errorf("not enough shares to satisfy the threshold")
+
+	zero = big.NewInt(0)
+	one = big.NewInt(1)
 )
 
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
@@ -73,13 +76,14 @@ func (share *Share) Verify(threshold int, polyGs []*types.ECPoint) bool {
 	if share.Threshold != threshold {
 		return false
 	}
-	vX, vY := polyGs[0][0], polyGs[0][1]
-	kj := share.ID
-	for i := 1; i < threshold; i++ {
-		X, Y := EC().ScalarMult(polyGs[i][0], polyGs[i][1], kj.Bytes())
-		vX, vY = EC().Add(vX, vY, X, Y)
-		kj = new(big.Int).Mul(kj, share.ID)
-		kj = new(big.Int).Mod(kj, EC().N)
+	vX, vY := polyGs[0].X(), polyGs[0].Y()
+	t := (*big.Int)(nil)
+	for j := 1; j < threshold; j++ {
+		// t = ki^j
+		t = new(big.Int).Exp(share.ID, big.NewInt(int64(j)), EC().N)
+		// v = v * vj^t
+		vtjX, vtjY := EC().ScalarMult(polyGs[j].X(), polyGs[j].Y(), t.Bytes())
+		vX, vY = EC().Add(vX, vY, vtjX, vtjY)
 	}
 	sigmaGiX, sigmaGiY := EC().ScalarBaseMult(share.Share.Bytes())
 	if vX.Cmp(sigmaGiX) == 0 && vY.Cmp(sigmaGiY) == 0 {
@@ -89,7 +93,7 @@ func (share *Share) Verify(threshold int, polyGs []*types.ECPoint) bool {
 	}
 }
 
-func (shares Shares) ReConstruct() (*big.Int, error) {
+func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 	if shares != nil && shares[0].Threshold > len(shares) {
 		return nil, ErrNumSharesBelowThreshold
 	}
@@ -100,19 +104,16 @@ func (shares Shares) ReConstruct() (*big.Int, error) {
 		xs = append(xs, share.ID)
 	}
 
-	secret := big.NewInt(0)
-
+	secret = zero
 	for i, share := range shares {
-		times := big.NewInt(1)
-
+		times := one
 		for j := 0; j < len(xs); j++ {
-			if j != i {
-				sub := new(big.Int).Sub(xs[j], share.ID)
-				subInv := new(big.Int).ModInverse(sub, EC().N)
-				div := new(big.Int).Mul(xs[j], subInv)
-				times = new(big.Int).Mul(times, div)
-				times = new(big.Int).Mod(times, EC().N)
-			}
+			if j == i { continue }
+			sub := new(big.Int).Sub(xs[j], share.ID)
+			subInv := new(big.Int).ModInverse(sub, EC().N)
+			div := new(big.Int).Mul(xs[j], subInv)
+			times = new(big.Int).Mul(times, div)
+			times = new(big.Int).Mod(times, EC().N)
 		}
 
 		fTimes := new(big.Int).Mul(share.Share, times)
@@ -132,7 +133,6 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 		ai := random.GetRandomPositiveInt(EC().N)
 		poly[i] = ai
 	}
-
 	return poly
 }
 
@@ -140,12 +140,12 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 // evaluatePolynomial([a, b, c, d], x):
 // 		returns a + bx + cx^2 + dx^3
 //
-func evaluatePolynomial(poly []*big.Int, value *big.Int) *big.Int {
+func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
 	last := len(poly) - 1
 	result := big.NewInt(0).Set(poly[last])
 
 	for i := last - 1; i >= 0; i-- {
-		result = result.Mul(result, value)
+		result = result.Mul(result, id)
 		result = result.Add(result, poly[i])
 	}
 	return result.Mod(result, ec.N)

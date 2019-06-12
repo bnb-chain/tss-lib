@@ -31,8 +31,8 @@ func TestCreate(t *testing.T) {
 	// ensure that each polyGs len() == 2 and non-zero
 	for i := range polyGs.PolyG {
 		assert.Equal(t, threshold, len(polyGs.PolyG[i]))
-		assert.NotZero(t, polyGs.PolyG[i][0])
-		assert.NotZero(t, polyGs.PolyG[i][1])
+		assert.NotZero(t, polyGs.PolyG[i].X())
+		assert.NotZero(t, polyGs.PolyG[i].Y())
 	}
 }
 

@@ -62,6 +62,7 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after keygen)
+		ui            *big.Int // used for tests
 		KGCs          []*cmt.HashCommitment
 		polyGs        *vss.PolyGs
 		shares        vss.Shares

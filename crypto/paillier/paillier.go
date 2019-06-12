@@ -25,13 +25,6 @@ const (
 	Proof2Iters = 13
 )
 
-var (
-	zero = big.NewInt(0)
-	one  = big.NewInt(1)
-
-	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
-)
-
 type (
 	PublicKey struct {
 		N, PhiN *big.Int
@@ -53,6 +46,13 @@ type (
 
 	// Proof2 uses the new GenerateXs method in GG18Spec (6)
 	Proof2 []*big.Int
+)
+
+var (
+	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
+
+	zero = big.NewInt(0)
+	one  = big.NewInt(1)
 )
 
 func init() {

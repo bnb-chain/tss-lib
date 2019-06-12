@@ -18,14 +18,16 @@ func (round *round3) start() *keygenError {
 	round.resetOk()
 
 	Ps := round.p2pCtx.Parties()
+	PIdx := round.partyID.Index
 
-	// round 3, steps 1,9: initialize xi = σji
-	xi := round.temp.kgRound2VssMessages[0].PiShare.Share
-	for j := range Ps[1:] { // P2..Pn
-		share := round.temp.kgRound2VssMessages[j + 1].PiShare.Share
+	// round 3, steps 1,9: calculate xi
+	xi := round.temp.shares[PIdx].Share
+	for j := range Ps {
+		if j == PIdx { continue }
+		share := round.temp.kgRound2VssMessages[j].PiShare.Share
 		xi = new(big.Int).Add(xi, share)
 	}
-	xi = new(big.Int).Mod(xi, EC().N)
+	round.save.Xi = xi
 
 	// round 3, steps 2-3
 	Vc := make([]*types.ECPoint, round.params().threshold)
@@ -35,7 +37,7 @@ func (round *round3) start() *keygenError {
 
 	// round 3, steps 4-11
 	for j, Pj := range Ps {
-		if j == round.partyID.Index { continue }
+		if j == PIdx { continue }
 
 		// round 3, steps 4-9
 		KGCj := round.temp.KGCs[j]
@@ -62,29 +64,29 @@ func (round *round3) start() *keygenError {
 
 		// round 3, steps 10-11
 		for c := 0; c < round.params().threshold; c++ {
-			VcX, VcY := EC().Add(Vc[c][0], Vc[c][1], PjPolyGs[c][0], PjPolyGs[c][1])
+			VcX, VcY := EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
 			Vc[c] = types.NewECPoint(VcX, VcY)
 		}
 	}
 
 	// round 3, steps 12-16: compute Xj for each Pj
 	bigXj := round.save.BigXj
-	for j, Pj := range Ps {
-		XjX, XjY := Vc[0][0], Vc[0][1]
-		kj := Pj.Key // z
+	for j, Pj := range Ps { // TODO all players or just P2..?
+		XjX, XjY := Vc[0].X(), Vc[0].Y()
+		z := (*big.Int)(nil)
 		for c := 1; c < round.params().threshold; c++ {
-			// Vcz = Vcz^z
-			VczX, VczY := EC().ScalarMult(Vc[c][0], Vc[c][1], kj.Bytes())
-			// Xj = Xj+Vcz
+			// z = kj^c
+			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), ec.N)
+			// Xj = Xj * Vcz^z
+			VczX, VczY := EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
 			XjX, XjY = EC().Add(XjX, XjY, VczX, VczY)
-			kj = new(big.Int).Mul(kj, Pj.Key)
-			kj = new(big.Int).Mod(kj, EC().N)
 		}
 		bigXj[j] = types.NewECPoint(XjX, XjY)
 	}
+	round.save.BigXj = bigXj
 
 	// for all Ps, compute and SAVE the ECDSA public key
-	ecdsaPubKey := types.NewECPoint(Vc[0][0], Vc[0][1])
+	ecdsaPubKey := types.NewECPoint(Vc[0].X(), Vc[0].Y())
 	if !ecdsaPubKey.IsOnCurve(ec) {
 		return round.wrapError(errors.New("public key is not on the curve"), nil)
 	}
@@ -98,7 +100,7 @@ func (round *round3) start() *keygenError {
 	ki := round.partyID.Key
 	proof := round.save.PaillierSk.Proof2(ki, ecdsaPubKey)
 	r3msg := NewKGRound3PaillierProveMessage(round.partyID, proof)
-	round.temp.kgRound3PaillierProveMessage[round.partyID.Index] = &r3msg
+	round.temp.kgRound3PaillierProveMessage[PIdx] = &r3msg
 	round.out <- r3msg
 	return nil
 }

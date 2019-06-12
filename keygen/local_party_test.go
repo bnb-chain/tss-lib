@@ -157,18 +157,43 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
 				t.Logf("Done. Received save data from %d participants", ended)
 
-				// combine vss shares for each Pj to get x
-				x := new(big.Int)
-				for j := range parties {
+				// combine shares for each Pj to get u
+				u := new(big.Int)
+				for j, Pj := range parties {
 					pShares := make(vss.Shares, 0)
-					for _, P := range parties {
+					for j2, P := range parties {
+						if j2 == j { continue }
 						vssMsgs := P.temp.kgRound2VssMessages
 						pShares  = append(pShares, vssMsgs[j].PiShare)
 					}
-					xj, err := pShares[:threshold].ReConstruct() // fail if threshold-1
-					assert.Equal(t, parties[j].data.Xi, xj)
+					uj, err := pShares[:threshold].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
-					x = new(big.Int).Add(x, xj)
+
+					// uG test: u*G[j] == V[0]
+					assert.Equal(t, uj, Pj.temp.ui)
+					uGX, uGY := EC().ScalarBaseMult(uj.Bytes())
+					assert.Equal(t, uGX, Pj.temp.polyGs.PolyG[0].X())
+					assert.Equal(t, uGY, Pj.temp.polyGs.PolyG[0].Y())
+
+					// xj test: BigXj == xj*G
+					xj := Pj.data.Xi
+					gXjX, gXjY := EC().ScalarBaseMult(xj.Bytes())
+					BigXjX, BigXjY := Pj.data.BigXj[j].X(), Pj.data.BigXj[j].Y()
+					assert.Equal(t, BigXjX, gXjX)
+					assert.Equal(t, BigXjY, gXjY)
+
+					// fails if threshold cannot be satisfied (bad share)
+					{
+						badShares := pShares[:threshold]
+						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
+						uj, _ := pShares[:threshold].ReConstruct()
+						assert.NotEqual(t, parties[j].temp.ui, uj)
+						BigXjX, BigXjY := EC().ScalarBaseMult(uj.Bytes())
+						assert.NotEqual(t, BigXjX, Pj.temp.polyGs.PolyG[0].X())
+						assert.NotEqual(t, BigXjY, Pj.temp.polyGs.PolyG[0].Y())
+					}
+
+					u = new(big.Int).Add(u, uj)
 				}
 
 				// build ecdsa key pair
@@ -180,18 +205,24 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				}
 				sk := ecdsa.PrivateKey{
 					PublicKey: pk,
-					D:         x,
+					D:         u,
 				}
-
 				// test pub key, should be on curve and match pkX, pkY
 				assert.True(t, sk.IsOnCurve(pkX, pkY), "public key must be on curve")
 
 				// Public key tests
-				assert.NotZero(t, x, "x should not be zero")
-				ourPkX, ourPkY := EC().ScalarBaseMult(x.Bytes())
-				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from x")
-				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from x")
+				assert.NotZero(t, u, "u should not be zero")
+				ourPkX, ourPkY := EC().ScalarBaseMult(u.Bytes())
+				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from u")
+				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from u")
 				t.Log("Public key tests done.")
+
+				// make sure everyone has the same ECDSA public key
+				for _, Pj := range parties {
+					assert.Equal(t, pkX, Pj.data.ECDSAPub.X())
+					assert.Equal(t, pkY, Pj.data.ECDSAPub.Y())
+				}
+				t.Log("Public key distribution test done.")
 
 				// test sign/verify
 				data := make([]byte, 32)
