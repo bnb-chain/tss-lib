@@ -2,104 +2,129 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/schnorrZK"
 	"github.com/binance-chain/tss-lib/types"
 )
 
-func (round *round3) roundNumber() int {
-	return 3
-}
-
-func (round *round3) start() error {
+func (round *round3) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.wrapError(errors.New("round already started"), nil)
 	}
+	round.number = 3
 	round.started = true
 	round.resetOk()
 
-	// compute uiG for each Pj
 	Ps := round.p2pCtx.Parties()
+	PIdx := round.partyID.Index
+
+	// round 3, steps 1,9: calculate xi
+	xi := round.temp.shares[PIdx].Share
+	for j := range Ps {
+		if j == PIdx { continue }
+		share := round.temp.kgRound2VssMessages[j].PiShare.Share
+		xi = new(big.Int).Add(xi, share)
+	}
+	round.save.Xi = xi
+
+	// round 3, steps 2-3
+	Vc := make([]*types.ECPoint, round.params().threshold)
+	for c := range Vc {
+		Vc[c] = round.temp.polyGs.PolyG[c] // ours
+	}
+
+	// round 3, steps 4-11
 	for j, Pj := range Ps {
-		p1Cmt := round.temp.kgRound1CommitMessages[j].Commitment
-		p2msg2 := round.temp.kgRound2DeCommitMessages[j]
-		cmtDeCmt := commitments.HashCommitDecommit{C: p1Cmt, D: p2msg2.DeCommitment}
-		ok, uiG, err := cmtDeCmt.DeCommit()
+		if j == PIdx { continue }
+
+		// round 3, steps 4-9
+		KGCj := round.temp.KGCs[j]
+		r2msg2 := round.temp.kgRound2DeCommitMessages[j]
+		KGDj := r2msg2.DeCommitment
+		cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
+		ok, flatPolyGs, err := cmtDeCmt.DeCommit()
 		if err != nil {
-			return round.wrapError(err)
+			return round.wrapError(err, Pj)
 		}
 		if !ok {
-			return round.wrapError(fmt.Errorf("decommitment failed (from party %s)", Pj))
+			return round.wrapError(errors.New("de-commitment verify failed"), Pj)
 		}
-		round.save.BigXj[j] = uiG
+		PjPolyGs, err := types.UnFlattenECPoints(flatPolyGs)
+		if err != nil {
+			return round.wrapError(err, Pj)
+		}
+		PjShare := round.temp.kgRound2VssMessages[j].PiShare
+		// TODO verify in a goroutine
+		if ok = PjShare.Verify(round.params().threshold, PjPolyGs); !ok {
+			return round.wrapError(errors.New("vss verify failed"), Pj)
+		}
+		// round 3, step 9 handled above
+
+		// round 3, steps 10-11
+		for c := 0; c < round.params().threshold; c++ {
+			VcX, VcY := EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
+			Vc[c] = types.NewECPoint(VcX, VcY)
+		}
 	}
 
-	// for all Ps, compute the public key
-	bigXj := round.save.BigXj            // de-committed above
-	pkX, pkY := bigXj[0][0], bigXj[0][1] // P1
-	for j := range Ps { // P2..Pn
-		if j == 0 {
-			continue
+	// round 3, steps 12-16: compute Xj for each Pj
+	bigXj := round.save.BigXj
+	for j, Pj := range Ps { // TODO all players or just P2..?
+		XjX, XjY := Vc[0].X(), Vc[0].Y()
+		z := (*big.Int)(nil)
+		for c := 1; c < round.params().threshold; c++ {
+			// z = kj^c
+			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), ec.N)
+			// Xj = Xj * Vcz^z
+			VczX, VczY := EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
+			XjX, XjY = EC().Add(XjX, XjY, VczX, VczY)
 		}
-		pkX, pkY = EC().Add(pkX, pkY, bigXj[j][0], bigXj[j][1])
+		bigXj[j] = types.NewECPoint(XjX, XjY)
 	}
-	round.save.PKX,
-		round.save.PKY = pkX, pkY
 	round.save.BigXj = bigXj
 
-	// for all Ps, compute private key shares
-	skUi := round.temp.kgRound2VssMessages[0].PiShare.Share
-	for j := range Ps { // P2..Pn
-		if j == 0 {
-			continue
-		}
-		share := round.temp.kgRound2VssMessages[j].PiShare.Share
-		skUi = new(big.Int).Add(skUi, share)
+	// for all Ps, compute and SAVE the ECDSA public key
+	ecdsaPubKey := types.NewECPoint(Vc[0].X(), Vc[0].Y())
+	if !ecdsaPubKey.IsOnCurve(ec) {
+		return round.wrapError(errors.New("public key is not on the curve"), nil)
 	}
-	skUi = new(big.Int).Mod(skUi, EC().N)
+	round.save.ECDSAPub = ecdsaPubKey
 
-	// PRINT private share
-	common.Logger.Debugf("private share: %x", skUi)
+	// PRINT public key & private share
+	common.Logger.Debugf("%s public key: %x", round.partyID, ecdsaPubKey)
+	common.Logger.Debugf("%s private share xi: %x", round.partyID, xi)
 
-	// BROADCAST zk proof of ui
-	uiProof := schnorrZK.NewZKProof(round.temp.ui)
-	p3msg := NewKGRound3ZKUProofMessage(round.partyID, uiProof)
-	round.temp.kgRound3ZKUProofMessage[round.partyID.Index] = &p3msg
-	round.out <- p3msg
+	// BROADCAST paillier proof for Pi
+	ki := round.partyID.Key
+	proof := round.save.PaillierSk.Proof2(ki, ecdsaPubKey)
+	r3msg := NewKGRound3PaillierProveMessage(round.partyID, proof)
+	round.temp.kgRound3PaillierProveMessage[PIdx] = &r3msg
+	round.out <- r3msg
 	return nil
 }
 
 func (round *round3) canAccept(msg types.Message) bool {
-	if msg, ok := msg.(*KGRound3ZKUProofMessage); !ok || msg == nil {
+	if msg, ok := msg.(*KGRound3PaillierProveMessage); !ok || msg == nil {
 		return false
 	}
 	return true
 }
 
-func (round *round3) update() (bool, error) {
-	// guard - VERIFY zk proof of ui
-	for j, msg := range round.temp.kgRound3ZKUProofMessage {
+func (round *round3) update() (bool, *keygenError) {
+	for j, msg := range round.temp.kgRound3PaillierProveMessage {
 		if round.ok[j] { continue }
 		if !round.canAccept(msg) {
 			return false, nil
 		}
-		uiG := round.save.BigXj[j]
-		if len(uiG) != 2 {
-			return false, nil
-		}
-		if ok := msg.ZKUProof.Verify(uiG); !ok {
-			common.Logger.Debugf("party %s: waiting for more kgRound2DeCommitMessages", round.partyID)
-			return false, round.wrapError(fmt.Errorf("zk verify ui failed (from party %s)", msg.From))
-		}
+		// proof check is in round 4
 		round.ok[j] = true
 	}
 	return true, nil
 }
 
 func (round *round3) nextRound() round {
-	return nil // finished!
+	round.started = false
+	return &round4{round}
 }

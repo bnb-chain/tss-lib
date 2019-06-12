@@ -11,7 +11,7 @@ func init() {
 	gob.RegisterName("KGRound1CommitMessage",   KGRound1CommitMessage{})
 	gob.RegisterName("KGRound2VssMessage",      KGRound2VssMessage{})
 	gob.RegisterName("KGRound2DeCommitMessage", KGRound2DeCommitMessage{})
-	gob.RegisterName("KGRound3ZKUProofMessage", KGRound3ZKUProofMessage{})
+	gob.RegisterName("KGRound3PaillierProveMessage", KGRound3PaillierProveMessage{})
 }
 
 // ----- //

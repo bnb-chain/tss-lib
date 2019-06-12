@@ -1,7 +1,6 @@
 package keygen
 
 import (
-	"crypto/rsa"
 	"fmt"
 	"math/big"
 	"sync"
@@ -27,9 +26,9 @@ type (
 		*KGParameters
 		round round
 
-		mtx   *sync.Mutex
-		data  LocalPartySaveData
-		temp  LocalPartyTempData
+		mtx  *sync.Mutex
+		data LocalPartySaveData
+		temp LocalPartyTempData
 
 		// messaging
 		out chan<- types.Message
@@ -39,35 +38,35 @@ type (
 	// Everything in LocalPartySaveData is saved locally to user's HD when done
 	LocalPartySaveData struct {
 		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int     // xi, kj
-		BigXj       [][]*big.Int // Xj
-		UiPolyGs    *vss.PolyGs
+		Xi, ShareID *big.Int             // xi, kj
 		PaillierSk  *paillier.PrivateKey // ski
-		PaillierPk  *paillier.PublicKey  // pki
-		RSAKey      *rsa.PrivateKey      // N(tilde)j
 
-		// public key (sum of ui * G for all P)
-		PKX, PKY *big.Int
+		// public keys (Xj = uj*G for each Pj)
+		BigXj       []*types.ECPoint      // Xj
+		ECDSAPub    *types.ECPoint        // y
+		PaillierPks []*paillier.PublicKey // pkj
 
-		// h1, h2 for range proofs (GG18 Fig. 13)
-		H1 *big.Int
-		H2 *big.Int
+		// h1, h2 for range proofs
+		NTildej, H1j, H2j []*big.Int
 	}
 
 	LocalPartyMessageStore struct {
 		// messages
-		kgRound1CommitMessages   []*KGRound1CommitMessage
-		kgRound2VssMessages      []*KGRound2VssMessage
-		kgRound2DeCommitMessages []*KGRound2DeCommitMessage
-		kgRound3ZKUProofMessage  []*KGRound3ZKUProofMessage
+		kgRound1CommitMessages       []*KGRound1CommitMessage
+		kgRound2VssMessages          []*KGRound2VssMessage
+		kgRound2DeCommitMessages     []*KGRound2DeCommitMessage
+		kgRound3PaillierProveMessage []*KGRound3PaillierProveMessage
 	}
 
 	LocalPartyTempData struct {
 		LocalPartyMessageStore
 
 		// temp data (thrown away after keygen)
-		ui          *big.Int
-		deCommitUiG cmt.HashDeCommitment
+		ui            *big.Int // used for tests
+		KGCs          []*cmt.HashCommitment
+		polyGs        *vss.PolyGs
+		shares        vss.Shares
+		deCommitPolyG cmt.HashDeCommitment
 	}
 )
 
@@ -86,11 +85,18 @@ func NewLocalParty(
 		out:          out,
 		end:          end,
 	}
-	p.data.BigXj = make([][]*big.Int, partyCount)
+	// data init
+	p.data.BigXj = make([]*types.ECPoint, partyCount)
+	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
+	p.data.NTildej = make([]*big.Int, partyCount)
+	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
+	// msgs init
+	p.temp.KGCs = make([]*cmt.HashCommitment, partyCount)
 	p.temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
 	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
 	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
-	p.temp.kgRound3ZKUProofMessage = make([]*KGRound3ZKUProofMessage, partyCount)
+	p.temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
+	//
 	round := newRound1(params, &p.data, &p.temp, out)
 	p.round = round
 	return p
@@ -101,23 +107,24 @@ func (p *LocalParty) String() string {
 	return fmt.Sprintf("id: %s, round: %d", p.partyID.String(), p.round)
 }
 
-func (p *LocalParty) StartKeygenRound1() error {
+func (p *LocalParty) StartKeygenRound1() *keygenError {
 	if _, ok := p.round.(*round1); !ok {
-		return errors.New("Could not start keygen. This party is in an unexpected round.")
+		return p.wrapError(errors.New("Could not start keygen. This party is in an unexpected round."), nil)
 	}
 	return p.round.start()
 }
 
-func (p *LocalParty) Update(msg types.Message) (bool, error) {
-	p.mtx.Lock()
-	// needed, L137 is recursive so cannot use defer
-	r := func(a1 bool, a2 error) (bool, error) {
-		p.mtx.Unlock()
-		return a1, a2
-	}
+func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
 	if _, err := p.validateMessage(msg); err != nil {
-		return r(false, err)
+		return false, err
 	}
+	// need this mtx unlock hook, L137 is recursive so cannot use defer
+	r := func(ok bool, err *keygenError) (bool, *keygenError) {
+		p.mtx.Unlock()
+		return ok, err
+	}
+	p.mtx.Lock() // data is written to P state below
+	common.Logger.Debugf("party %s received message: %s", p.partyID, msg.String())
 	if p.round != nil {
 		common.Logger.Infof("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())
 	}
@@ -132,9 +139,11 @@ func (p *LocalParty) Update(msg types.Message) (bool, error) {
 		if p.round.canProceed() {
 			if p.round = p.round.nextRound(); p.round != nil {
 				common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, p.round.roundNumber())
-				p.round.start()
+				if err := p.round.start(); err != nil {
+					return r(false, err)
+				}
 			}
-			p.mtx.Unlock() // recursive so can't defer after return
+			p.mtx.Unlock()       // recursive so can't defer after return
 			return p.Update(msg) // re-run round update or finish)
 		}
 		return r(true, nil)
@@ -145,42 +154,43 @@ func (p *LocalParty) Update(msg types.Message) (bool, error) {
 	return r(true, nil)
 }
 
-func (p *LocalParty) validateMessage(msg types.Message) (bool, error) {
+func (p *LocalParty) validateMessage(msg types.Message) (bool, *keygenError) {
 	if msg.GetFrom() == nil {
-		return false, p.wrapError(errors.New("update received nil msg"), p.round.roundNumber())
+		return false, p.wrapError(fmt.Errorf("update received nil msg: %s", msg), nil)
 	}
 	if msg == nil {
-		return false, fmt.Errorf("nil message received by party %s", p.partyID)
+		return false, p.wrapError(fmt.Errorf("nil message received: %s", msg), msg.GetFrom())
 	}
-
-	common.Logger.Debugf("party %s received message: %s", p.partyID, msg.String())
+	if !msg.ValidateBasic() {
+		return false, p.wrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
+	}
 	return true, nil
 }
 
-func (p *LocalParty) storeMessage(msg types.Message) (bool, error) {
+func (p *LocalParty) storeMessage(msg types.Message) (bool, *keygenError) {
 	fromPIdx := msg.GetFrom().Index
 
-	// switch/case is necessary to store messages beyond current round
+	// switch/case is necessary to store any messages beyond current round
 	switch msg.(type) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
-		p1msg := msg.(KGRound1CommitMessage)
-		p.temp.kgRound1CommitMessages[fromPIdx] = &p1msg
+		r1msg := msg.(KGRound1CommitMessage)
+		p.temp.kgRound1CommitMessages[fromPIdx] = &r1msg
 
 	case KGRound2VssMessage: // Round 2 P2P messages
-		p2msg1 := msg.(KGRound2VssMessage)
-		p.temp.kgRound2VssMessages[fromPIdx] = &p2msg1 // just collect
+		r2msg1 := msg.(KGRound2VssMessage)
+		p.temp.kgRound2VssMessages[fromPIdx] = &r2msg1 // just collect
 
 	case KGRound2DeCommitMessage:
-		p2msg2 := msg.(KGRound2DeCommitMessage)
-		p.temp.kgRound2DeCommitMessages[fromPIdx] = &p2msg2
+		r2msg2 := msg.(KGRound2DeCommitMessage)
+		p.temp.kgRound2DeCommitMessages[fromPIdx] = &r2msg2
 
-	case KGRound3ZKUProofMessage:
-		p3msg := msg.(KGRound3ZKUProofMessage)
-		p.temp.kgRound3ZKUProofMessage[fromPIdx] = &p3msg
+	case KGRound3PaillierProveMessage:
+		r3msg := msg.(KGRound3PaillierProveMessage)
+		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
 
 	default: // unrecognised message!
-		return false, fmt.Errorf("unrecognised message: %v", msg)
+		return false, p.wrapError(fmt.Errorf("unrecognised message: %v", msg), msg.GetFrom())
 	}
 	return true, nil
 }
@@ -188,12 +198,12 @@ func (p *LocalParty) storeMessage(msg types.Message) (bool, error) {
 func (p *LocalParty) finishAndSaveKeygen() error {
 	common.Logger.Infof("party %s: finished keygen. sending local data.", p.partyID)
 
-	// generate h1, h2 for range proofs (GG18 Fig. 13)
-	p.data.H1, p.data.H2 = generateH1H2ForRangeProofs()
+	close(p.out)
 
 	// output local save data (inc. secrets)
 	if p.end != nil {
 		p.end <- p.data
+		close(p.end)
 	} else {
 		common.Logger.Warningf("party %s: end chan is nil, you missed this event", p)
 	}
@@ -201,6 +211,6 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 	return nil
 }
 
-func (p *LocalParty) wrapError(err error, round int) error {
-	return errors.Wrapf(err, "party %s, round %d", p.partyID, round)
+func (p *LocalParty) wrapError(err error, culprit *types.PartyID) *keygenError {
+	return p.round.wrapError(err, culprit)
 }

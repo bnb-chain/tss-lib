@@ -3,7 +3,9 @@ package keygen
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"fmt"
 	"math/big"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -63,10 +65,9 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	_ = <-out
 
 	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2, len(lp.data.RSAKey.Primes))
-	assert.Equal(t, 1024/8, len(lp.data.RSAKey.Primes[0].Bytes()))
-	assert.Equal(t, 1024/8, len(lp.data.RSAKey.Primes[1].Bytes()))
-	assert.Equal(t, 2048/8, len(lp.data.RSAKey.PublicKey.N.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.NTildej[pIDs[0].Index].Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.H1j[pIDs[0].Index].Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.H2j[pIDs[0].Index].Bytes()))
 }
 
 func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
@@ -79,15 +80,15 @@ func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
 
 	out := make(chan types.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
-	if err := lp.finishAndSaveKeygen(); err != nil {
+	if err := lp.StartKeygenRound1(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
 
 	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 32*8, len(lp.data.H1.Bytes()), "h1 should be correct len")
-	assert.Equal(t, 32*8, len(lp.data.H2.Bytes()), "h2 should be correct len")
-	assert.NotZero(t, lp.data.H1, "h1 should be non-zero")
-	assert.NotZero(t, lp.data.H2, "h2 should be non-zero")
+	assert.Equal(t, 32*8, len(lp.data.H1j[0].Bytes()), "h1 should be correct len")
+	assert.Equal(t, 32*8, len(lp.data.H2j[0].Bytes()), "h2 should be correct len")
+	assert.NotZero(t, lp.data.H1j, "h1 should be non-zero")
+	assert.NotZero(t, lp.data.H2j, "h2 should be non-zero")
 }
 
 func TestLocalPartyE2EConcurrent(t *testing.T) {
@@ -97,15 +98,17 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 	threshold := TestThreshold
 
 	p2pCtx := types.NewPeerContext(pIDs)
-	players := make([]*LocalParty, 0, len(pIDs))
+	parties := make([]*LocalParty, 0, len(pIDs))
 
 	out := make(chan types.Message, len(pIDs))
 	end := make(chan LocalPartySaveData, len(pIDs))
 
+	startGR := runtime.NumGoroutine()
+
 	for i := 0; i < len(pIDs); i++ {
 		params := NewKGParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		P := NewLocalParty(params, out, end)
-		players = append(players, P)
+		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.StartKeygenRound1(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
@@ -118,16 +121,17 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 	datas := make([]LocalPartyTempData, 0, len(pIDs))
 	dmtx := sync.Mutex{}
 	for {
+		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
 		case msg := <-out:
 			dest := msg.GetTo()
 			if dest == nil {
-				for _, P := range players {
+				for _, P := range parties {
 					if P.partyID.Index != msg.GetFrom().Index {
 						go func(P *LocalParty, msg types.Message) {
 							if _, err := P.Update(msg); err != nil {
 								common.Logger.Errorf("Error: %s", err)
-								assert.FailNow(t, err.Error())
+								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 							}
 						}(P, msg)
 					}
@@ -139,45 +143,61 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg); err != nil {
 						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error())
+						assert.FailNow(t, err.Error())// TODO fail outside goroutine
 					}
-				}(players[dest.Index])
+				}(parties[dest.Index])
 			}
-		case data := <-end:
+		case save := <-end:
 			dmtx.Lock()
-			for _, P := range players {
+			for _, P := range parties {
 				datas = append(datas, P.temp)
 			}
 			dmtx.Unlock()
 			atomic.AddInt32(&ended, 1)
-			if atomic.LoadInt32(&ended) >= int32(len(pIDs)) {
+			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
 				t.Logf("Done. Received save data from %d participants", ended)
 
-				// calculate private key
+				// combine shares for each Pj to get u
 				u := new(big.Int)
-				for i, d := range datas {
-					if i == 0 {
-						continue
-					}
-					u = new(big.Int).Add(u, d.ui)
-				}
-
-				// combine vss shares for each Pj to get x
-				x := new(big.Int)
-				for j := range players {
+				for j, Pj := range parties {
 					pShares := make(vss.Shares, 0)
-					for _, P := range players {
+					for j2, P := range parties {
+						if j2 == j { continue }
 						vssMsgs := P.temp.kgRound2VssMessages
 						pShares  = append(pShares, vssMsgs[j].PiShare)
 					}
-					xi, err := pShares[:threshold].Combine() // fail if threshold-1
-					assert.Equal(t, players[j].data.Xi, xi)
-					assert.NoError(t, err, "vss.Combine should not throw error")
-					x = new(big.Int).Add(x, xi)
+					uj, err := pShares[:threshold].ReConstruct()
+					assert.NoError(t, err, "vss.ReConstruct should not throw error")
+
+					// uG test: u*G[j] == V[0]
+					assert.Equal(t, uj, Pj.temp.ui)
+					uGX, uGY := EC().ScalarBaseMult(uj.Bytes())
+					assert.Equal(t, uGX, Pj.temp.polyGs.PolyG[0].X())
+					assert.Equal(t, uGY, Pj.temp.polyGs.PolyG[0].Y())
+
+					// xj test: BigXj == xj*G
+					xj := Pj.data.Xi
+					gXjX, gXjY := EC().ScalarBaseMult(xj.Bytes())
+					BigXjX, BigXjY := Pj.data.BigXj[j].X(), Pj.data.BigXj[j].Y()
+					assert.Equal(t, BigXjX, gXjX)
+					assert.Equal(t, BigXjY, gXjY)
+
+					// fails if threshold cannot be satisfied (bad share)
+					{
+						badShares := pShares[:threshold]
+						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
+						uj, _ := pShares[:threshold].ReConstruct()
+						assert.NotEqual(t, parties[j].temp.ui, uj)
+						BigXjX, BigXjY := EC().ScalarBaseMult(uj.Bytes())
+						assert.NotEqual(t, BigXjX, Pj.temp.polyGs.PolyG[0].X())
+						assert.NotEqual(t, BigXjY, Pj.temp.polyGs.PolyG[0].Y())
+					}
+
+					u = new(big.Int).Add(u, uj)
 				}
 
 				// build ecdsa key pair
-				pkX, pkY := data.PKX, data.PKY
+				pkX, pkY := save.ECDSAPub.X(), save.ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
 					Curve: EC(),
 					X:     pkX,
@@ -185,27 +205,24 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				}
 				sk := ecdsa.PrivateKey{
 					PublicKey: pk,
-					D:         x,
+					D:         u,
 				}
-
-				// test pub key Xj shares
-				bigXjX, bigXjY := data.BigXj[0][0], data.BigXj[0][1]
-				for j, Xj := range data.BigXj {
-					if j == 0 {
-						continue
-					}
-					bigXjX, bigXjY = EC().Add(bigXjX, bigXjY, Xj[0], Xj[1])
-				}
-				assert.Equal(t, pkX, bigXjX, "pk shares should add up to produce bigXkX")
-				assert.Equal(t, pkY, bigXjY, "pk shares should add up to produce bigXkY")
-
 				// test pub key, should be on curve and match pkX, pkY
 				assert.True(t, sk.IsOnCurve(pkX, pkY), "public key must be on curve")
 
-				ourPkX, ourPkY := EC().ScalarBaseMult(x.Bytes())
-				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from x")
-				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from x")
-				t.Log("Public key tests passed.")
+				// Public key tests
+				assert.NotZero(t, u, "u should not be zero")
+				ourPkX, ourPkY := EC().ScalarBaseMult(u.Bytes())
+				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from u")
+				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from u")
+				t.Log("Public key tests done.")
+
+				// make sure everyone has the same ECDSA public key
+				for _, Pj := range parties {
+					assert.Equal(t, pkX, Pj.data.ECDSAPub.X())
+					assert.Equal(t, pkY, Pj.data.ECDSAPub.Y())
+				}
+				t.Log("Public key distribution test done.")
 
 				// test sign/verify
 				data := make([]byte, 32)
@@ -216,7 +233,9 @@ func TestLocalPartyE2EConcurrent(t *testing.T) {
 				assert.NoError(t, err, "sign should not throw an error")
 				ok := ecdsa.Verify(&pk, data, r, s)
 				assert.True(t, ok, "signature should be ok")
-				t.Log("ECDSA signing test passed.")
+				t.Log("ECDSA signing test done.")
+
+				t.Logf("Start goroutines: %d, End goroutines: %d", startGR, runtime.NumGoroutine())
 
 				return
 			}

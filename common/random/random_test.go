@@ -1,4 +1,4 @@
-package math_test
+package random_test
 
 import (
 	"math/big"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/binance-chain/tss-lib/common/math"
+	. "github.com/binance-chain/tss-lib/common/random"
 )
 
 const (

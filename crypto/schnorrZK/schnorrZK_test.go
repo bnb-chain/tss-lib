@@ -6,12 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/random"
 	. "github.com/binance-chain/tss-lib/crypto/schnorrZK"
 )
 
 func TestZKProve(t *testing.T) {
-	u := math.GetRandomPositiveInt(EC().N)
+	u := random.GetRandomPositiveInt(EC().N)
 	proof := NewZKProof(u)
 
 	assert.NotZero(t, proof.E)
@@ -19,7 +19,7 @@ func TestZKProve(t *testing.T) {
 }
 
 func TestZKVerify(t *testing.T) {
-	u := math.GetRandomPositiveInt(EC().N)
+	u := random.GetRandomPositiveInt(EC().N)
 
 	uGx, uGy := EC().ScalarBaseMult(u.Bytes())
 	uG := []*big.Int{uGx, uGy}
@@ -31,8 +31,8 @@ func TestZKVerify(t *testing.T) {
 }
 
 func TestZKVerifyBad(t *testing.T) {
-	u  := math.GetRandomPositiveInt(EC().N)
-	u2 := math.GetRandomPositiveInt(EC().N)
+	u  := random.GetRandomPositiveInt(EC().N)
+	u2 := random.GetRandomPositiveInt(EC().N)
 
 	uGx, uGy := EC().ScalarBaseMult(u.Bytes())
 	uG := []*big.Int{uGx, uGy}

@@ -16,21 +16,13 @@ import (
 	"math/big"
 	"strconv"
 
-	"golang.org/x/crypto/sha3"
-
-	"github.com/binance-chain/tss-lib/common/math"
 	"github.com/binance-chain/tss-lib/common/primes"
+	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 const (
 	Proof2Iters = 13
-)
-
-var (
-	zero = big.NewInt(0)
-	one  = big.NewInt(1)
-
-	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
 )
 
 type (
@@ -56,6 +48,13 @@ type (
 	Proof2 []*big.Int
 )
 
+var (
+	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
+
+	zero = big.NewInt(0)
+	one  = big.NewInt(1)
+)
+
 func init() {
 	// init primes cache
 	_ = primes.Globally.Until(1000)
@@ -63,14 +62,14 @@ func init() {
 
 // len is the length of the modulus (each prime = len / 2)
 func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
-	P, Q := math.GetRandomPrimeInt(len/2), math.GetRandomPrimeInt(len/2)
+	P, Q := random.GetRandomPrimeInt(len/2), random.GetRandomPrimeInt(len/2)
 	N := new(big.Int).Mul(P, Q)
 	// phiN = P-1 * Q-1
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
 	phiN := new(big.Int).Mul(PMinus1, QMinus1)
 
 	N2 := new(big.Int).Mul(N, N)
-	gamma := math.GetRandomPositiveRelativelyPrimeInt(N2)
+	gamma := random.GetRandomPositiveRelativelyPrimeInt(N2)
 
 	// lambdaN = lcm(P−1, Q−1)
 	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
@@ -87,7 +86,7 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
 		return nil, nil, ErrMessageTooLong
 	}
-	x = math.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
+	x = random.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
 	N2 := publicKey.NSquare()
 	// 1. gamma^m mod N2
 	Gm := new(big.Int).Exp(publicKey.Gamma, m, N2)
@@ -155,57 +154,14 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 
 // ----- //
 
-func (privateKey *PrivateKey) Proof() *Proof {
-	h1 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	h2 := math.GetRandomPositiveRelativelyPrimeInt(privateKey.N)
-	r := math.GetRandomPositiveInt(privateKey.N)
-
-	h1R := new(big.Int).Exp(h1, r, privateKey.N)
-	h2R := new(big.Int).Exp(h2, r, privateKey.N)
-
-	sha3256 := sha3.New256()
-	sha3256.Write(h1R.Bytes())
-	sha3256.Write(h2R.Bytes())
-	eBytes := sha3256.Sum(nil)
-	e := new(big.Int).SetBytes(eBytes)
-
-	y := new(big.Int).Add(privateKey.N, privateKey.LambdaN)
-	y = new(big.Int).Mul(y, e)
-	y = new(big.Int).Add(y, r)
-
-	return &Proof{H1: h1, H2: h2, Y: y, E: e, N: privateKey.N}
-}
-
-func (proof *Proof) Verify(publicKey *PublicKey) bool {
-	ySubNE := new(big.Int).Mul(publicKey.N, proof.E)
-	ySubNE = new(big.Int).Sub(proof.Y, ySubNE)
-
-	h1R := new(big.Int).Exp(proof.H1, ySubNE, publicKey.N)
-	h2R := new(big.Int).Exp(proof.H2, ySubNE, publicKey.N)
-
-	sha3256 := sha3.New256()
-	sha3256.Write(h1R.Bytes())
-	sha3256.Write(h2R.Bytes())
-	eBytes := sha3256.Sum(nil)
-	e := new(big.Int).SetBytes(eBytes)
-
-	if e.Cmp(proof.E) == 0 {
-		return true
-	} else {
-		return false
-	}
-}
-
-// ----- //
-
 // Proof2 is an implementation of Gennaro, R., Micciancio, D., Rabin, T.:
 // An efficient non-interactive statistical zero-knowledge proof system for quasi-safe prime products.
 // In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
 
-func (privateKey *PrivateKey) Proof2(k, sX, sY *big.Int) Proof2 {
+func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *types.ECPoint) Proof2 {
 	iters := Proof2Iters
 	pi := make(Proof2, iters)
-	xs := GenerateXs(iters, k, sX, sY, privateKey.N)
+	xs := GenerateXs(iters, k, privateKey.N, ecdsaPub)
 	for i := 0; i < iters; i++ {
 		M := new(big.Int).ModInverse(privateKey.N, privateKey.PhiN)
 		pi[i] = new(big.Int).Exp(xs[i], M, privateKey.N)
@@ -213,7 +169,7 @@ func (privateKey *PrivateKey) Proof2(k, sX, sY *big.Int) Proof2 {
 	return pi
 }
 
-func (proof Proof2) Verify2(pkN, k, sX, sY *big.Int) (bool, error) {
+func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *types.ECPoint) (bool, error) {
 	iters := Proof2Iters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	go func(ch chan<- bool) {
@@ -228,7 +184,7 @@ func (proof Proof2) Verify2(pkN, k, sX, sY *big.Int) (bool, error) {
 		ch <- true
 	}(pch)
 	go func(ch chan<- []*big.Int) {
-		ch <- GenerateXs(iters, k, sX, sY, pkN)
+		ch <- GenerateXs(iters, k, pkN, ecdsaPub)
 	}(xch)
 	for j := 0; j < 2; j++ {
 		select {
@@ -260,9 +216,10 @@ func L(u, N *big.Int) *big.Int {
 }
 
 // GenerateXs generates the challenges used in Paillier key Proof2
-func GenerateXs(m int, k, sX, sY, N *big.Int) []*big.Int {
+func GenerateXs(m int, k, N *big.Int, ecdsaPub *types.ECPoint) []*big.Int {
 	var i, n int
 	ret := make([]*big.Int, m)
+	sX, sY := ecdsaPub.X(), ecdsaPub.Y()
 	kb, sXb, sYb, Nb := k.Bytes(), sX.Bytes(), sY.Bytes(), N.Bytes()
 	bits := N.BitLen()
 	blocks := int(gmath.Ceil(float64(bits) / 256))
@@ -291,7 +248,7 @@ func GenerateXs(m int, k, sX, sY, N *big.Int) []*big.Int {
 			xi = append(xi, <-ch...) // xi1||···||xib
 		}
 		ret[i] = new(big.Int).SetBytes(xi)
-		if math.IsNumberInMultiplicativeGroup(N, ret[i]) {
+		if random.IsNumberInMultiplicativeGroup(N, ret[i]) {
 			i++
 		} else {
 			n++

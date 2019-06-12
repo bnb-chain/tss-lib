@@ -9,94 +9,91 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common/math"
-)
-
-var (
-	ErrNumSharesBelowThreshold   = fmt.Errorf("not enough shares to satisfy the threshold")
+	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/types"
 )
 
 type (
 	// Params represents the parameters used in Shamir secret sharing
 	Params struct {
-		Threshold int      // threshold
-		NumShares int      // total num
+		Threshold,    // threshold
+		NumShares int // total num
 	}
 
 	Share struct {
 		Threshold int
-		ID        *big.Int // xi
+		ID,                // xi
 		Share     *big.Int // Sigma i
 	}
 
 	PolyGs struct {
 		Params
-		PolyG [][]*big.Int // v0..vt
+		PolyG []*types.ECPoint // v0..vt
 	}
 
 	Shares []*Share
 )
 
+var (
+	ErrNumSharesBelowThreshold = fmt.Errorf("not enough shares to satisfy the threshold")
+
+	zero = big.NewInt(0)
+	one = big.NewInt(1)
+)
+
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
 //
-func Create(threshold int, secret *big.Int, indexes []*big.Int) (*Params, *PolyGs, Shares, error) {
+func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares, error) {
 	if secret == nil || indexes == nil {
-		return nil, nil, nil, errors.New("vss secret or indexes == nil")
+		return nil, nil, errors.New("vss secret or indexes == nil")
 	}
-
 	num := len(indexes)
-
 	if num < threshold {
-		return nil, nil, nil, ErrNumSharesBelowThreshold
+		return nil, nil, ErrNumSharesBelowThreshold
 	}
 
 	poly := samplePolynomial(threshold, secret)
-	poly[0] = secret // becomes sigma * G
-	polyGs := make([][]*big.Int, len(poly))
-
+	poly[0] = secret // becomes sigma*G in polyG
+	polyGs := make([]*types.ECPoint, len(poly))
 	for i, ai := range poly {
-		pointX, pointY := ec.ScalarBaseMult(ai.Bytes())
-		polyGs[i] = []*big.Int{pointX, pointY}
+		X, Y := EC().ScalarBaseMult(ai.Bytes())
+		polyGs[i] = types.NewECPoint(X, Y)
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
-	pGs    := PolyGs{Params: params, PolyG: polyGs}
+	pGs := PolyGs{Params: params, PolyG: polyGs}
 
 	shares := make(Shares, num)
-
 	for i := 0; i < num; i++ {
-		share  := evaluatePolynomial(poly, indexes[i])
+		share := evaluatePolynomial(poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
-	return &params, &pGs, shares, nil
+	return &pGs, shares, nil
 }
 
-func (share *Share) Verify(polyGs *PolyGs) bool {
-	if share.Threshold != polyGs.Threshold {
+func (share *Share) Verify(threshold int, polyGs []*types.ECPoint) bool {
+	if share.Threshold != threshold {
 		return false
 	}
-
-	vX, vY := polyGs.PolyG[0][0], polyGs.PolyG[0][1]
-	t := share.ID
-
-	for i := 1; i < polyGs.Threshold; i++ {
-		X, Y := ec.ScalarMult(polyGs.PolyG[i][0], polyGs.PolyG[i][1], t.Bytes())
-		vX, vY = ec.Add(vX, vY, X, Y)
-		t = new(big.Int).Mul(t, share.ID)
-		t = new(big.Int).Mod(t, ec.N)
+	vX, vY := polyGs[0].X(), polyGs[0].Y()
+	t := (*big.Int)(nil)
+	for j := 1; j < threshold; j++ {
+		// t = ki^j
+		t = new(big.Int).Exp(share.ID, big.NewInt(int64(j)), EC().N)
+		// v = v * vj^t
+		vtjX, vtjY := EC().ScalarMult(polyGs[j].X(), polyGs[j].Y(), t.Bytes())
+		vX, vY = EC().Add(vX, vY, vtjX, vtjY)
 	}
-
-	opX, opY := ec.ScalarBaseMult(share.Share.Bytes())
-
-	if vX.Cmp(opX) == 0 && vY.Cmp(opY) == 0 {
+	sigmaGiX, sigmaGiY := EC().ScalarBaseMult(share.Share.Bytes())
+	if vX.Cmp(sigmaGiX) == 0 && vY.Cmp(sigmaGiY) == 0 {
 		return true
 	} else {
 		return false
 	}
 }
 
-func (shares Shares) Combine() (*big.Int, error) {
+func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 	if shares != nil && shares[0].Threshold > len(shares) {
 		return nil, ErrNumSharesBelowThreshold
 	}
@@ -107,24 +104,21 @@ func (shares Shares) Combine() (*big.Int, error) {
 		xs = append(xs, share.ID)
 	}
 
-	secret := big.NewInt(0)
-
+	secret = zero
 	for i, share := range shares {
-		times := big.NewInt(1)
-
+		times := one
 		for j := 0; j < len(xs); j++ {
-			if j != i {
-				sub := new(big.Int).Sub(xs[j], share.ID)
-				subInv := new(big.Int).ModInverse(sub, ec.N)
-				div  := new(big.Int).Mul(xs[j], subInv)
-				times = new(big.Int).Mul(times, div)
-				times = new(big.Int).Mod(times, ec.N)
-			}
+			if j == i { continue }
+			sub := new(big.Int).Sub(xs[j], share.ID)
+			subInv := new(big.Int).ModInverse(sub, EC().N)
+			div := new(big.Int).Mul(xs[j], subInv)
+			times = new(big.Int).Mul(times, div)
+			times = new(big.Int).Mod(times, EC().N)
 		}
 
 		fTimes := new(big.Int).Mul(share.Share, times)
-		secret  = new(big.Int).Add(secret, fTimes)
-		secret  = new(big.Int).Mod(secret, ec.N)
+		secret = new(big.Int).Add(secret, fTimes)
+		secret = new(big.Int).Mod(secret, EC().N)
 	}
 
 	return secret, nil
@@ -136,10 +130,9 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 	poly[0] = secret
 
 	for i := 1; i < threshold; i++ {
-		ai := math.GetRandomPositiveInt(ec.N)
+		ai := random.GetRandomPositiveInt(EC().N)
 		poly[i] = ai
 	}
-
 	return poly
 }
 
@@ -147,15 +140,13 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 // evaluatePolynomial([a, b, c, d], x):
 // 		returns a + bx + cx^2 + dx^3
 //
-func evaluatePolynomial(poly []*big.Int, value *big.Int) *big.Int {
+func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
 	last := len(poly) - 1
 	result := big.NewInt(0).Set(poly[last])
 
 	for i := last - 1; i >= 0; i-- {
-		result = result.Mul(result, value)
+		result = result.Mul(result, id)
 		result = result.Add(result, poly[i])
-		result = result.Mod(result, ec.N)
 	}
-
-	return result
+	return result.Mod(result, ec.N)
 }

@@ -10,7 +10,6 @@ type (
 		partyID         *types.PartyID
 		partyCount      int
 		threshold       int
-		localShareCount int // partyCount - 1
 	}
 )
 
@@ -21,7 +20,6 @@ func NewKGParameters(ctx *types.PeerContext, partyID *types.PartyID, partyCount,
 		partyID:         partyID,
 		partyCount:      partyCount,
 		threshold:       threshold,
-		localShareCount: partyCount - 1,
 	}
 }
 
@@ -39,8 +37,4 @@ func (params *KGParameters) PartyCount() int {
 
 func (params *KGParameters) Threshold() int {
 	return params.threshold
-}
-
-func (params *KGParameters) LocalShareCount() int {
-	return params.localShareCount
 }

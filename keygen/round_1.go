@@ -9,32 +9,34 @@ import (
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/random"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/types"
 )
 
+// round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- types.Message) round {
-	return &round1{params, save, temp, out, make([]bool, params.partyCount), false}
+	return &round1{
+		&base{params, save, temp, out, make([]bool, params.partyCount), false, 1}}
 }
 
-func (round *round1) roundNumber() int {
-	return 1
-}
-
-func (round *round1) start() error {
+func (round *round1) start() *keygenError {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.wrapError(errors.New("round already started"), nil)
 	}
+	round.number = 1
 	round.started = true
 	round.resetOk()
+
+	pIdx := round.partyID.Index
 
 	// prepare for concurrent Paillier, RSA key generation
 	paiCh := make(chan *paillier.PrivateKey)
 	rsaCh := make(chan *rsa.PrivateKey)
 
-	// generate Paillier public key "Ei", private key and proof
+	// 4. generate Paillier public key "Ei", private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
 		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk
@@ -42,7 +44,7 @@ func (round *round1) start() error {
 		ch <- PiPaillierSk
 	}(paiCh)
 
-	// generate auxilliary RSA primes for ZKPs later on
+	// 5-7. generate auxiliary RSA primes for ZKPs later on
 	go func(ch chan<- *rsa.PrivateKey) {
 		start := time.Now()
 		pk, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, RSAModulusLen)
@@ -54,35 +56,61 @@ func (round *round1) start() error {
 		ch <- pk
 	}(rsaCh)
 
-	// calculate "partial" key share ui, make commitment -> (C, D)
-	ui := math.GetRandomPositiveInt(EC().N)
-	uiGx, uiGy := EC().ScalarBaseMult(ui.Bytes()) // pubkey
-	cmt, err := cmt.NewHashCommitment(uiGx, uiGy)
-	if err != nil {
-		return err
-	}
-
-	pai, rsa := <-paiCh, <-rsaCh
-	if rsa == nil {
-		return errors.New("RSA generation failed!")
-	}
-
-	// collect and BROADCAST commitments, paillier pk + proof; round 1 message
-	p1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, pai.Proof(), &rsa.PublicKey)
-
-	// save uiGx, uiGy for this Pi for round 3
-	round.save.BigXj = make([][]*big.Int, round.partyCount)
-	round.save.BigXj[round.partyID.Index] = []*big.Int{uiGx, uiGy}
-
-	// for this P: SAVE generated secrets, commitments, paillier vars; for round 2
+	// 1. calculate "partial" key share ui, make commitment -> (C, D)
+	ui := random.GetRandomPositiveInt(EC().N)
 	round.temp.ui = ui
-	round.temp.deCommitUiG = cmt.D
-	round.save.PaillierSk = pai
-	round.save.PaillierPk = &pai.PublicKey
-	round.save.RSAKey = rsa
 
-	round.temp.kgRound1CommitMessages[round.partyID.Index] = &p1msg
-	round.out <- p1msg
+	// errors can be thrown in the following code; consume chans to end goroutines here
+	rsa, pai := <-rsaCh, <-paiCh
+
+	// 2. compute the vss shares
+	ids := round.p2pCtx.Parties().Keys()
+	polyGs, shares, err := vss.Create(round.params().Threshold(), ui, ids)
+	if err != nil {
+		return round.wrapError(err, nil)
+	}
+
+	// security: the original ui may be discarded
+	ui = big.NewInt(0)
+
+	pGFlat, err := types.FlattenECPoints(polyGs.PolyG)
+	if err != nil {
+		return round.wrapError(err, nil)
+	}
+	cmt, err := cmt.NewHashCommitment(pGFlat...)
+	if err != nil {
+		return round.wrapError(err, nil)
+	}
+
+	// 9-11. compute h1, h2 (uses RSA primes)
+	if rsa == nil {
+		return round.wrapError(errors.New("RSA generation failed"), nil)
+	}
+
+	NTildei, h1i, h2i, err := generateNTildei(rsa.Primes[:2])
+	if err != nil {
+		return round.wrapError(err, nil)
+	}
+	round.save.NTildej[pIdx] = NTildei
+	round.save.H1j[pIdx], round.save.H2j[pIdx] = h1i, h2i
+
+	// for this P: SAVE
+	// - shareID
+	// - Shamir PolyGs
+	// - our set of Shamir shares
+	round.save.ShareID = ids[pIdx]
+	round.temp.polyGs = polyGs
+	round.temp.shares = shares
+
+	// for this P: SAVE de-commitments, paillier keys for round 2
+	round.save.PaillierSk = pai
+	round.save.PaillierPks[pIdx] = &pai.PublicKey
+	round.temp.deCommitPolyG = cmt.D
+
+	// BROADCAST commitments, paillier pk + proof; round 1 message
+	r1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, NTildei, h1i, h2i)
+	round.temp.kgRound1CommitMessages[pIdx] = &r1msg
+	round.out <- r1msg
 	return nil
 }
 
@@ -93,27 +121,18 @@ func (round *round1) canAccept(msg types.Message) bool {
 	return true
 }
 
-func (round *round1) update() (bool, error) {
-	// guard - VERIFY received paillier pk/proofs for all Pj
+func (round *round1) update() (bool, *keygenError) {
 	for j, msg := range round.temp.kgRound1CommitMessages {
-		if round.ok[j] { continue }
+		if round.ok[j] {
+			continue
+		}
 		if !round.canAccept(msg) {
 			return false, nil
 		}
-		if ok := msg.PaillierPf.Verify(&msg.PaillierPk); !ok {
-			return false, round.wrapError(fmt.Errorf("verify paillier proof failed (from party %s)", msg.From))
-		}
+		// vss check is in round 2
 		round.ok[j] = true
 	}
 	return true, nil
-}
-
-func (round *round1) canProceed() bool {
-	if !round.started { return false }
-	for _, ok := range round.ok {
-		if !ok { return false }
-	}
-	return true
 }
 
 func (round *round1) nextRound() round {
@@ -121,9 +140,14 @@ func (round *round1) nextRound() round {
 	return &round2{round}
 }
 
-// `ok` tracks parties which have been verified by update()
-func (round *round1) resetOk() {
-	for j := range round.ok {
-		round.ok[j] = false
+// ----- //
+
+func generateNTildei(rsaPrimes []*big.Int) (NTildei, h1i, h2i *big.Int, err error) {
+	if len(rsaPrimes) < 2 {
+		return nil, nil, nil, fmt.Errorf("generateNTildei: needs two primes, got %d", len(rsaPrimes))
 	}
+	NTildei = new(big.Int).Mul(rsaPrimes[0], rsaPrimes[1])
+	h1 := random.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
+	h2 := random.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
+	return NTildei, h1, h2, nil
 }

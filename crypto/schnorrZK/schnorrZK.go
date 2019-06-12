@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/random"
 )
 
 const (
@@ -18,7 +18,7 @@ type ZKProof struct {
 }
 
 func NewZKProof(x *big.Int) *ZKProof {
-	r := math.GetRandomPositiveInt(EC().N)
+	r := random.GetRandomPositiveInt(EC().N)
 	rGx, rGy := EC().ScalarBaseMult(r.Bytes())
 
 	plain   := SAMPLE

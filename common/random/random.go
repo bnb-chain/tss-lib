@@ -1,4 +1,4 @@
-package math
+package random
 
 import (
 	"crypto/rand"
@@ -75,8 +75,7 @@ func IsNumberInMultiplicativeGroup(n, v *big.Int) bool {
 }
 
 //  Return a random generator of RQn with high probability.  THIS METHOD
-//  ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES! This heuristic is used
-//  threshold signature paper in the Victor Shoup
+//  ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES!
 // https://github.com/didiercrunch/paillier/blob/d03e8850a8e4c53d04e8016a2ce8762af3278b71/utils.go#L39
 func GetRandomGeneratorOfTheQuadraticResidue(n *big.Int) *big.Int {
 	r := GetRandomPositiveRelativelyPrimeInt(n)

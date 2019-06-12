@@ -1,14 +1,15 @@
-// ported from:
+// partly ported from:
 // https://github.com/KZen-networks/curv/blob/78a70f43f5eda376e5888ce33aec18962f572bbe/src/cryptographic_primitives/commitments/hash_commitment.rs
 
 package commitments
 
 import (
+	"crypto"
 	"math/big"
 
-	"golang.org/x/crypto/sha3"
+	_ "golang.org/x/crypto/sha3"
 
-	"github.com/binance-chain/tss-lib/common/math"
+	"github.com/binance-chain/tss-lib/common/random"
 )
 
 const (
@@ -20,79 +21,41 @@ type (
 	HashDeCommitment = []*big.Int
 
 	HashCommitDecommit struct {
+		// TODO include 256-bit random component R in D, written to C digest
 		C  HashCommitment
 		D  HashDeCommitment
 	}
 )
 
-func NewHashCommitment(secrets ...*big.Int) (cmt *HashCommitDecommit, err error) {
-	cmt = &HashCommitDecommit{}
+func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
+	security := random.MustGetRandomInt(HashLength) // r
 
-	// Generate the random num
-	rnd := math.MustGetRandomInt(HashLength)
-
-	// TODO revise use of legacy keccak256 which uses non-standard padding
-	keccak256 := sha3.NewLegacyKeccak256()
-
-	_, err = keccak256.Write(rnd.Bytes())
+	parts := make([]*big.Int, len(secrets) + 1)
+	parts[0] = security
+	for i := 1; i < len(parts); i++ {
+		parts[i] = secrets[i - 1]
+	}
+	sha3256Sum, err := generateSHA3_256Digest(parts)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	for _, secret := range secrets {
-		_, err = keccak256.Write(secret.Bytes())
-		if err != nil {
-			return
-		}
-	}
-
-	digestKeccak256 := keccak256.Sum(nil)
-
-	// second, hash with the SHA3-256
-	sha3256 := sha3.New256()
-
-	_, err = sha3256.Write(digestKeccak256)
-	if err != nil {
-		return
-	}
-
-	digest := sha3256.Sum(nil)
-
-	// convert the hash ([]byte) to big.Int
-	digestBigInt := new(big.Int).SetBytes(digest)
-
-	D := []*big.Int{rnd}
-	D = append(D, secrets...)
-
-	cmt.C = digestBigInt
-	cmt.D = D
-
+	cmt := &HashCommitDecommit{}
+	cmt.C = new(big.Int).SetBytes(sha3256Sum)
+	cmt.D = parts
 	return cmt, nil
 }
 
 func (cmt *HashCommitDecommit) Verify() (bool, error) {
 	C, D := cmt.C, cmt.D
 
-	// TODO revise use of legacy keccak256 which uses non-standard padding
-	keccak256 := sha3.NewLegacyKeccak256()
-	for _, secret := range D {
-		_, err := keccak256.Write(secret.Bytes())
-		if err != nil {
-			return false, err
-		}
-	}
-	digestKeccak256 := keccak256.Sum(nil)
-
-	sha3256 := sha3.New256()
-	_, err := sha3256.Write(digestKeccak256)
+	sha3256Sum, err := generateSHA3_256Digest(D)
 	if err != nil {
 		return false, err
 	}
-	computeDigest := sha3256.Sum(nil)
+	sha3256SumInt := new(big.Int).SetBytes(sha3256Sum)
 
-	computeDigestBigInt := new(big.Int).SetBytes(computeDigest)
-
-	if computeDigestBigInt.Cmp(C) == 0 {
+	if sha3256SumInt.Cmp(C) == 0 {
 		return true, nil
 	} else {
 		return false, nil
@@ -105,8 +68,20 @@ func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment, error) {
 		return false, nil, err
 	}
 	if result {
+		// [1:] skips random element r in D
 		return true, cmt.D[1:], nil
 	} else {
 		return false, nil, nil
 	}
+}
+
+func generateSHA3_256Digest(in []*big.Int) ([]byte, error) {
+	sha3256 := crypto.SHA3_256.New()
+	for _, int := range in {
+		_, err := sha3256.Write(int.Bytes())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return sha3256.Sum(nil), nil
 }

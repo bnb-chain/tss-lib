@@ -2,10 +2,10 @@ package keygen
 
 import (
 	"crypto/rsa"
+	"math/big"
 
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/schnorrZK"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/types"
 )
@@ -17,8 +17,9 @@ type (
 		types.MessageMetadata
 		Commitment cmt.HashCommitment // cannot be pointers due to wire_test
 		PaillierPk paillier.PublicKey
-		PaillierPf paillier.Proof
 		RSAModulus rsa.PublicKey
+		NTildei,
+		H1i, H2i *big.Int
 	}
 
 	// KGRound2VssMessage represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol
@@ -32,25 +33,27 @@ type (
 	// len == (NodeCnt - 1)
 	KGRound2DeCommitMessage struct {
 		types.MessageMetadata
-		VssParams    *vss.Params
-		PolyGs       *vss.PolyGs
 		DeCommitment cmt.HashDeCommitment
 	}
 
-	// KGRound3ZKUProofMessage represents a BROADCAST message sent to each party during Round 3 of the ECDSA TSS keygen protocol
+	// KGRound3PaillierProveMessage represents a BROADCAST message sent to each party during Round 3 of the ECDSA TSS keygen protocol
 	// len == (NodeCnt - 1)
-	KGRound3ZKUProofMessage struct {
+	KGRound3PaillierProveMessage struct {
 		types.MessageMetadata
-		ZKUProof *schnorrZK.ZKProof
+		Proof paillier.Proof2
 	}
 )
+
+// ----- //
+
+var _ types.Message = (*KGRound1CommitMessage)(nil)
 
 func NewKGRound1CommitMessage(
 	from *types.PartyID,
 	ct cmt.HashCommitment,
 	paillierPk *paillier.PublicKey,
-	paillierPf *paillier.Proof,
-	rsaPk *rsa.PublicKey) KGRound1CommitMessage {
+	NTildei, h1i, h2i *big.Int,
+) KGRound1CommitMessage {
 	return KGRound1CommitMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      nil, // broadcast
@@ -59,14 +62,29 @@ func NewKGRound1CommitMessage(
 		},
 		Commitment: ct,
 		PaillierPk: *paillierPk,
-		PaillierPf: *paillierPf,
-		RSAModulus: *rsaPk,
+		NTildei:    NTildei,
+		H1i:        h1i,
+		H2i:        h2i,
 	}
 }
 
+func (msg KGRound1CommitMessage) ValidateBasic() bool {
+	return msg.Commitment.Cmp(big.NewInt(0)) != 0 &&
+		msg.PaillierPk.N.Cmp(big.NewInt(0)) != 0 &&
+		msg.PaillierPk.NSquare().Cmp(big.NewInt(0)) != 0 &&
+		msg.NTildei.Cmp(big.NewInt(0)) != 0 &&
+		msg.H1i.Cmp(big.NewInt(0)) != 0 &&
+		msg.H2i.Cmp(big.NewInt(0)) != 0
+}
+
+// ----- //
+
+var _ types.Message = (*KGRound2VssMessage)(nil)
+
 func NewKGRound2VssMessage(
 	to, from *types.PartyID,
-	share *vss.Share) KGRound2VssMessage {
+	share *vss.Share,
+) KGRound2VssMessage {
 	return KGRound2VssMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      to,
@@ -77,32 +95,52 @@ func NewKGRound2VssMessage(
 	}
 }
 
+func (msg KGRound2VssMessage) ValidateBasic() bool {
+	return true // TODO ValidateBasic
+}
+
+// ----- //
+
+var _ types.Message = (*KGRound2DeCommitMessage)(nil)
+
 func NewKGRound2DeCommitMessage(
 	from *types.PartyID,
-	vssParams *vss.Params,
-	polyGs *vss.PolyGs,
-	deCommitment cmt.HashDeCommitment) KGRound2DeCommitMessage {
+	deCommitment cmt.HashDeCommitment,
+) KGRound2DeCommitMessage {
 	return KGRound2DeCommitMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      nil, // broadcast
 			From:    from,
 			MsgType: "KGRound2DeCommitMessage",
 		},
-		VssParams:    vssParams,
-		PolyGs:       polyGs,
 		DeCommitment: deCommitment,
 	}
 }
 
-func NewKGRound3ZKUProofMessage(
+func (msg KGRound2DeCommitMessage) ValidateBasic() bool {
+	return true // TODO ValidateBasic
+}
+
+// ----- //
+
+var _ types.Message = (*KGRound3PaillierProveMessage)(nil)
+
+func NewKGRound3PaillierProveMessage(
 	from *types.PartyID,
-	ZKUProof *schnorrZK.ZKProof) KGRound3ZKUProofMessage {
-	return KGRound3ZKUProofMessage{
+	proof paillier.Proof2,
+) KGRound3PaillierProveMessage {
+	return KGRound3PaillierProveMessage{
 		MessageMetadata: types.MessageMetadata{
 			To:      nil, // broadcast
 			From:    from,
-			MsgType: "KGRound3ZKUProofMessage",
+			MsgType: "KGRound3PaillierProveMessage",
 		},
-		ZKUProof: ZKUProof,
+		Proof: proof,
 	}
 }
+
+func (msg KGRound3PaillierProveMessage) ValidateBasic() bool {
+	return true // TODO ValidateBasic
+}
+
+// ----- //
