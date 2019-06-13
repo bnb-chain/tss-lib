@@ -5,18 +5,18 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
-func (round *round4) start() *keygenError {
+func (round *round4) Start() *tss.Error {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.WrapError(errors.New("round already started"))
 	}
 	round.number = 4
 	round.started = true
 	round.resetOk()
 
-	Ps := round.p2pCtx.Parties()
+	Ps := round.Parties().Parties()
 	PIDs := Ps.Keys()
 	ecdsaPub := round.save.ECDSAPub
 
@@ -29,12 +29,12 @@ func (round *round4) start() *keygenError {
 		chs[i] = make(chan bool)
 	}
 	for j, msg := range r3msgs {
-		if j == round.partyID.Index { continue }
+		if j == round.PartyID().Index { continue }
 		go func(prf paillier.Proof2, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
 			ok, err := prf.Verify2(ppk.N, PIDs[j], ecdsaPub)
 			if err != nil {
-				common.Logger.Error(round.wrapError(err, Ps[j]).Error())
+				common.Logger.Error(round.WrapError(err, Ps[j]).Error())
 				ch <- false
 				return
 			}
@@ -44,13 +44,13 @@ func (round *round4) start() *keygenError {
 
 	// consume unbuffered channels (end the goroutines)
 	for j, ch := range chs {
-		if j == round.partyID.Index {
+		if j == round.PartyID().Index {
 			round.ok[j] = true
 			continue
 		}
 		round.ok[j] = <- ch
 	}
-	culprits := make([]*types.PartyID, 0, len(Ps)) // who caused the error(s)
+	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, ok := range round.ok {
 		if !ok {
 			culprits = append(culprits, Ps[j])
@@ -61,21 +61,21 @@ func (round *round4) start() *keygenError {
 
 	}
 	if len(culprits) > 0 {
-		return round.wrapError(errors.New("paillier verify failed"), culprits...)
+		return round.WrapError(errors.New("paillier verify failed"), culprits...)
 	}
 	return nil
 }
 
-func (round *round4) canAccept(msg types.Message) bool {
+func (round *round4) CanAccept(msg tss.Message) bool {
 	// not expecting any incoming messages in this round
 	return false
 }
 
-func (round *round4) update() (bool, *keygenError) {
+func (round *round4) Update() (bool, *tss.Error) {
 	// not expecting any incoming messages in this round
 	return false, nil
 }
 
-func (round *round4) nextRound() round {
+func (round *round4) NextRound() tss.Round {
 	return nil // finished!
 }

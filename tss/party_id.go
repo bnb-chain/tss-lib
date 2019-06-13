@@ -1,4 +1,4 @@
-package types
+package tss
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type (
 	}
 
 	UnSortedPartyIDs []*PartyID
-	SortedPartyIDs   []*PartyID
+	SortedPartyIDs []*PartyID
 )
 
 // ----- //
@@ -53,14 +53,16 @@ func SortPartyIDs(ids UnSortedPartyIDs) SortedPartyIDs {
 	return sorted
 }
 
-func GeneratePartyIDs(count int) SortedPartyIDs {
+func GenerateTestPartyIDs(count int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
+	key := random.MustGetRandomInt(256)
 	for i := 0; i < count; i++ {
 		ids = append(ids, &PartyID{
-			ID:      fmt.Sprintf("%d", i + 1),
-			Moniker: fmt.Sprintf("P[%d]", i + 1),
+			ID:      fmt.Sprintf("%d", i+1),
+			Moniker: fmt.Sprintf("P[%d]", i+1),
 			Index:   i,
-			Key:     random.MustGetRandomInt(256),
+			// this key makes tests more deterministic
+			Key: new(big.Int).Sub(key, big.NewInt(int64(count)-int64(i))),
 		})
 	}
 	return SortPartyIDs(ids)

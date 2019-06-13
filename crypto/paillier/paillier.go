@@ -18,7 +18,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common/primes"
 	"github.com/binance-chain/tss-lib/common/random"
-	"github.com/binance-chain/tss-lib/types"
+	crypto2 "github.com/binance-chain/tss-lib/crypto"
 )
 
 const (
@@ -158,7 +158,7 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 // An efficient non-interactive statistical zero-knowledge proof system for quasi-safe prime products.
 // In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
 
-func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *types.ECPoint) Proof2 {
+func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof2 {
 	iters := Proof2Iters
 	pi := make(Proof2, iters)
 	xs := GenerateXs(iters, k, privateKey.N, ecdsaPub)
@@ -169,7 +169,7 @@ func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *types.ECPoint) Proof2
 	return pi
 }
 
-func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *types.ECPoint) (bool, error) {
+func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
 	iters := Proof2Iters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	go func(ch chan<- bool) {
@@ -216,7 +216,7 @@ func L(u, N *big.Int) *big.Int {
 }
 
 // GenerateXs generates the challenges used in Paillier key Proof2
-func GenerateXs(m int, k, N *big.Int, ecdsaPub *types.ECPoint) []*big.Int {
+func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 	var i, n int
 	ret := make([]*big.Int, m)
 	sX, sY := ecdsaPub.X(), ecdsaPub.Y()

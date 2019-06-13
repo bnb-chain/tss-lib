@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/crypto"
 	. "github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/keygen"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -87,10 +87,10 @@ func TestHomoMul(t *testing.T) {
 
 func TestProof2(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
-	ki := random.MustGetRandomInt(256)               // index
-	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
-	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, types.NewECPoint(yX, yY))
+	ki := random.MustGetRandomInt(256)                  // index
+	ui := random.GetRandomPositiveInt(secp256k1.EC().N) // ECDSA private
+	yX, yY := secp256k1.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
 		// TODO add a better assertion
@@ -100,24 +100,24 @@ func TestProof2(t *testing.T) {
 
 func TestProof2Verify2(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	ki := random.MustGetRandomInt(256)               // index
-	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
-	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, types.NewECPoint(yX, yY))
-	res, err := proof.Verify2(publicKey.N, ki, types.NewECPoint(yX, yY))
+	ki := random.MustGetRandomInt(256)                  // index
+	ui := random.GetRandomPositiveInt(secp256k1.EC().N) // ECDSA private
+	yX, yY := secp256k1.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
+	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(yX, yY))
 	assert.NoError(t, err)
 	assert.True(t, res, "proof verify2 result must be true")
 }
 
 func TestProof2Verify2Fail(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	ki := random.MustGetRandomInt(256)               // index
-	ui := random.GetRandomPositiveInt(keygen.EC().N) // ECDSA private
-	yX, yY := keygen.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, types.NewECPoint(yX, yY))
+	ki := random.MustGetRandomInt(256)                  // index
+	ui := random.GetRandomPositiveInt(secp256k1.EC().N) // ECDSA private
+	yX, yY := secp256k1.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
 	last := proof[len(proof) - 1]
 	last.Sub(last, big.NewInt(1))
-	res, err := proof.Verify2(publicKey.N, ki, types.NewECPoint(yX, yY))
+	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(yX, yY))
 	assert.NoError(t, err)
 	assert.False(t, res, "proof verify2 result must be true")
 }
@@ -138,7 +138,7 @@ func TestGenerateXs(t *testing.T) {
 	sY := random.MustGetRandomInt(256)
 	N := random.GetRandomPrimeInt(2048)
 
-	xs := GenerateXs(13, k, N, types.NewECPoint(sX, sY))
+	xs := GenerateXs(13, k, N, crypto.NewECPoint(sX, sY))
 	assert.Equal(t, 13, len(xs))
 	for _, xi := range xs {
 		assert.True(t, random.IsNumberInMultiplicativeGroup(N, xi))

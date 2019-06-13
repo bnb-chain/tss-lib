@@ -1,7 +1,6 @@
 package keygen_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -10,15 +9,10 @@ import (
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 	. "github.com/binance-chain/tss-lib/keygen"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/tss"
 )
-
-func newRandomPartyID() *types.PartyID {
-	id := fmt.Sprintf("%d", random.MustGetRandomInt(64))
-	moniker := fmt.Sprintf("%d", random.MustGetRandomInt(64))
-	return types.NewPartyID(id, moniker)
-}
 
 func TestEncodeDecodeMsg(t *testing.T) {
 	// TODO fix broken wire test
@@ -28,18 +22,18 @@ func TestEncodeDecodeMsg(t *testing.T) {
 		data []byte
 	}
 
-	from := newRandomPartyID()
+	from := tss.GenerateTestPartyIDs(1)[0]
 	cmt := new(commitments.HashCommitment)
 	pk := new(paillier.PublicKey)
-	N := random.GetRandomPositiveInt(EC().N)
-	msg1 := types.Message(NewKGRound1CommitMessage(from, *cmt, pk, N, N, N))
+	N := random.GetRandomPositiveInt(secp256k1.EC().N)
+	msg1 := tss.Message(NewKGRound1CommitMessage(from, *cmt, pk, N, N, N))
 	emsg1, err := EncodeMsg(msg1)
 	assert.NoError(t, err, "encode should not fail")
 
 	tests := []struct {
 		name    string
 		args    args
-		want    types.Message
+		want    tss.Message
 		wantErr bool
 	}{
 		{

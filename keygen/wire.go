@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func init() {
@@ -17,7 +17,7 @@ func init() {
 // ----- //
 
 // Encode encodes the Message in `gob` format
-func EncodeMsg(msg types.Message) ([]byte, error) {
+func EncodeMsg(msg tss.Message) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := gob.NewEncoder(buf).Encode(&msg); err != nil {
 		return nil, err
@@ -26,9 +26,9 @@ func EncodeMsg(msg types.Message) ([]byte, error) {
 }
 
 // Decode decodes the Message from `gob` format
-func DecodeMsg(data []byte) (types.Message, error) {
+func DecodeMsg(data []byte) (tss.Message, error) {
 	buf := bytes.NewBuffer(data)
-	var msg types.Message
+	var msg tss.Message
 	if err := gob.NewDecoder(buf).Decode(&msg); err != nil {
 		return nil, err
 	}

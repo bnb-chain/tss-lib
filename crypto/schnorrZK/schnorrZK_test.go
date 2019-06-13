@@ -8,6 +8,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common/random"
 	. "github.com/binance-chain/tss-lib/crypto/schnorrZK"
+	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
 )
 
 func TestZKProve(t *testing.T) {

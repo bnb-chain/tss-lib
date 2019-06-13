@@ -5,28 +5,22 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/crypto/secp256k1"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
-type (
-	// convenience structure returned through the channel below
-	r3ChOut struct {
-		unWrappedErr error
-		pjPolyGs     []*types.ECPoint
-	}
-)
-
-func (round *round3) start() *keygenError {
+func (round *round3) Start() *tss.Error {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.WrapError(errors.New("round already started"))
 	}
 	round.number = 3
 	round.started = true
 	round.resetOk()
 
-	Ps := round.p2pCtx.Parties()
-	PIdx := round.partyID.Index
+	Ps := round.Parties().Parties()
+	PIdx := round.PartyID().Index
 
 	// 1,9. calculate xi
 	xi := round.temp.shares[PIdx].Share
@@ -38,21 +32,25 @@ func (round *round3) start() *keygenError {
 	round.save.Xi = xi
 
 	// 2-3.
-	Vc := make([]*types.ECPoint, round.params().threshold)
+	Vc := make([]*crypto.ECPoint, round.Params().Threshold())
 	for c := range Vc {
 		Vc[c] = round.temp.polyGs.PolyG[c] // ours
 	}
 
 	// 4-11.
-	chs := make([]chan r3ChOut, len(Ps))
+	type vssOut struct {
+		unWrappedErr error
+		pjPolyGs     []*crypto.ECPoint
+	}
+	chs := make([]chan vssOut, len(Ps))
 	for i := range chs {
 		if i == PIdx { continue }
-		chs[i] = make(chan r3ChOut)
+		chs[i] = make(chan vssOut)
 	}
 	for j := range Ps {
 		if j == PIdx { continue }
 		// 6-8.
-		go func(j int, ch chan<- r3ChOut) {
+		go func(j int, ch chan<- vssOut) {
 			// 4-9.
 			KGCj := round.temp.KGCs[j]
 			r2msg2 := round.temp.kgRound2DeCommitMessages[j]
@@ -60,49 +58,49 @@ func (round *round3) start() *keygenError {
 			cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
 			ok, flatPolyGs, err := cmtDeCmt.DeCommit()
 			if err != nil {
-				ch <- r3ChOut{err, nil}
+				ch <- vssOut{err, nil}
 				return
 			}
 			if !ok || flatPolyGs == nil {
-				ch <- r3ChOut{errors.New("de-commitment verify failed"), nil}
+				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return
 			}
-			PjPolyGs, err := types.UnFlattenECPoints(flatPolyGs)
+			PjPolyGs, err := crypto.UnFlattenECPoints(flatPolyGs)
 			if err != nil {
-				ch <- r3ChOut{err, nil}
+				ch <- vssOut{err, nil}
 				return
 			}
 			PjShare := round.temp.kgRound2VssMessages[j].PiShare
-			if ok = PjShare.Verify(round.params().threshold, PjPolyGs); !ok {
-				ch <- r3ChOut{errors.New("vss verify failed"), nil}
+			if ok = PjShare.Verify(round.Params().Threshold(), PjPolyGs); !ok {
+				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
 			}
 			// (9) handled above
-			ch <- r3ChOut{nil, PjPolyGs}
+			ch <- vssOut{nil, PjPolyGs}
 		}(j, chs[j])
 	}
 
 	// consume unbuffered channels (end the goroutines)
-	r3ChOuts := make([]r3ChOut, len(Ps))
-	culprits := make([]*types.PartyID, 0, len(Ps)) // who caused the error(s)
+	vssResults := make([]vssOut, len(Ps))
+	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, Pj := range Ps {
 		if j == PIdx { continue }
-		r3ChOuts[j] = <- chs[j]
+		vssResults[j] = <- chs[j]
 		// collect culprits to error out with
-		if err := r3ChOuts[j].unWrappedErr; err != nil {
+		if err := vssResults[j].unWrappedErr; err != nil {
 			culprits = append(culprits, Pj)
 		}
 	}
 	if len(culprits) > 0 {
-		return round.wrapError(r3ChOuts[0].unWrappedErr, culprits...)
+		return round.WrapError(vssResults[0].unWrappedErr, culprits...)
 	}
 	for j := range Ps {
 		if j == PIdx { continue }
 		// 10-11.
-		PjPolyGs := r3ChOuts[j].pjPolyGs
-		for c := 0; c < round.params().threshold; c++ {
-			VcX, VcY := EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
-			Vc[c] = types.NewECPoint(VcX, VcY)
+		PjPolyGs := vssResults[j].pjPolyGs
+		for c := 0; c < round.Params().Threshold(); c++ {
+			VcX, VcY := secp256k1.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
+			Vc[c] = crypto.NewECPoint(VcX, VcY)
 		}
 	}
 
@@ -111,48 +109,47 @@ func (round *round3) start() *keygenError {
 	for j, Pj := range Ps {
 		XjX, XjY := Vc[0].X(), Vc[0].Y()
 		z := (*big.Int)(nil)
-		for c := 1; c < round.params().threshold; c++ {
+		for c := 1; c < round.Params().Threshold(); c++ {
 			// z = kj^c
-			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), ec.N)
+			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), secp256k1.EC().N)
 			// Xj = Xj * Vcz^z
-			VczX, VczY := EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
-			XjX, XjY = EC().Add(XjX, XjY, VczX, VczY)
+			VczX, VczY := secp256k1.EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
+			XjX, XjY = secp256k1.EC().Add(XjX, XjY, VczX, VczY)
 		}
-		bigXj[j] = types.NewECPoint(XjX, XjY)
+		bigXj[j] = crypto.NewECPoint(XjX, XjY)
 	}
 	round.save.BigXj = bigXj
 
 	// 17. compute and SAVE the ECDSA public key `y`
-	ecdsaPubKey := types.NewECPoint(Vc[0].X(), Vc[0].Y())
-	if !ecdsaPubKey.IsOnCurve(ec) {
-		return round.wrapError(errors.New("public key is not on the curve"))
+	ecdsaPubKey := crypto.NewECPoint(Vc[0].X(), Vc[0].Y())
+	if !ecdsaPubKey.IsOnCurve(secp256k1.EC()) {
+		return round.WrapError(errors.New("public key is not on the curve"))
 	}
 	round.save.ECDSAPub = ecdsaPubKey
 
 	// PRINT public key & private share
-	common.Logger.Debugf("%s public key: %x", round.partyID, ecdsaPubKey)
-	common.Logger.Debugf("%s private share xi: %x", round.partyID, xi)
+	common.Logger.Debugf("%s public key: %x", round.PartyID(), ecdsaPubKey)
 
 	// BROADCAST paillier proof for Pi
-	ki := round.partyID.Key
+	ki := round.PartyID().Key
 	proof := round.save.PaillierSk.Proof2(ki, ecdsaPubKey)
-	r3msg := NewKGRound3PaillierProveMessage(round.partyID, proof)
+	r3msg := NewKGRound3PaillierProveMessage(round.PartyID(), proof)
 	round.temp.kgRound3PaillierProveMessage[PIdx] = &r3msg
 	round.out <- r3msg
 	return nil
 }
 
-func (round *round3) canAccept(msg types.Message) bool {
+func (round *round3) CanAccept(msg tss.Message) bool {
 	if msg, ok := msg.(*KGRound3PaillierProveMessage); !ok || msg == nil {
 		return false
 	}
 	return true
 }
 
-func (round *round3) update() (bool, *keygenError) {
+func (round *round3) Update() (bool, *tss.Error) {
 	for j, msg := range round.temp.kgRound3PaillierProveMessage {
 		if round.ok[j] { continue }
-		if !round.canAccept(msg) {
+		if !round.CanAccept(msg) {
 			return false, nil
 		}
 		// proof check is in round 4
@@ -161,7 +158,7 @@ func (round *round3) update() (bool, *keygenError) {
 	return true, nil
 }
 
-func (round *round3) nextRound() round {
+func (round *round3) NextRound() tss.Round {
 	round.started = false
 	return &round4{round}
 }

@@ -1,28 +1,16 @@
 package keygen
 
 import (
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
-	round interface {
-		params() *KGParameters
-		start() *keygenError
-		update() (bool, *keygenError)
-		canAccept(msg types.Message) bool
-		canProceed() bool
-		nextRound() round
-		roundNumber() int
-		wrapError(err error, culprits ...*types.PartyID) *keygenError
-	}
-
-	// round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 	base struct {
-		*KGParameters
+		*tss.Parameters
 		save    *LocalPartySaveData
 		temp    *LocalPartyTempData
-		out     chan<- types.Message
-		ok      []bool // `ok` tracks parties which have been verified by update()
+		out     chan<- tss.Message
+		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool
 		number  int
 	}
@@ -40,23 +28,29 @@ type (
 	}
 )
 
-var _ round = (*round1)(nil)
-var _ round = (*round2)(nil)
-var _ round = (*round3)(nil)
-var _ round = (*round4)(nil)
+const (
+	TaskName = "keygen"
+)
+
+var (
+	_ tss.Round = (*round1)(nil)
+	_ tss.Round = (*round2)(nil)
+	_ tss.Round = (*round3)(nil)
+	_ tss.Round = (*round4)(nil)
+)
 
 // ----- //
 
-func (round *base) params() *KGParameters {
-	return round.KGParameters
+func (round *base) Params() *tss.Parameters {
+	return round.Parameters
 }
 
-func (round *base) roundNumber() int {
+func (round *base) RoundNumber() int {
 	return round.number
 }
 
-// canProceed is inherited by other rounds
-func (round *base) canProceed() bool {
+// CanProceed is inherited by other rounds
+func (round *base) CanProceed() bool {
 	if !round.started {
 		return false
 	}
@@ -68,13 +62,24 @@ func (round *base) canProceed() bool {
 	return true
 }
 
-// `ok` tracks parties which have been verified by update()
+// WaitingFor is called by a Party for reporting back to the caller
+func (round *base) WaitingFor() []*tss.PartyID {
+	Ps := round.Parties().Parties()
+	ids := make([]*tss.PartyID, 0, len(round.ok))
+	for j, ok := range round.ok {
+		if ok { continue }
+		ids = append(ids, Ps[j])
+	}
+	return ids
+}
+
+func (round *base) WrapError(err error, culprits ...*tss.PartyID) *tss.Error {
+	return tss.NewError(err, TaskName, round.number, round.PartyID(), culprits...)
+}
+
+// `ok` tracks parties which have been verified by Update()
 func (round *base) resetOk() {
 	for j := range round.ok {
 		round.ok[j] = false
 	}
-}
-
-func (round *base) wrapError(err error, culprits ...*types.PartyID) *keygenError {
-	return newError(err, round.number, round.partyID, culprits...)
 }
