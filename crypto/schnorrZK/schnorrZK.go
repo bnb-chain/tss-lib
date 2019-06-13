@@ -6,6 +6,7 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/binance-chain/tss-lib/common/random"
+	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
 )
 
 const (

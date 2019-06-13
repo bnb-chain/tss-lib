@@ -1,4 +1,4 @@
-package types
+package tss
 
 type (
 	PeerContext struct {

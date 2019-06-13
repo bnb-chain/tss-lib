@@ -1,11 +1,11 @@
-package types_test
+package crypto_test
 
 import (
 	"math/big"
 	"reflect"
 	"testing"
 
-	. "github.com/binance-chain/tss-lib/types"
+	. "github.com/binance-chain/tss-lib/crypto"
 )
 
 func TestFlattenECPoints(t *testing.T) {

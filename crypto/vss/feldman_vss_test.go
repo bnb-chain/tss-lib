@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common/random"
+	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
 	. "github.com/binance-chain/tss-lib/crypto/vss"
 )
 

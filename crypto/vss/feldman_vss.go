@@ -10,7 +10,8 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common/random"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/crypto"
+	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
 )
 
 type (
@@ -28,7 +29,7 @@ type (
 
 	PolyGs struct {
 		Params
-		PolyG []*types.ECPoint // v0..vt
+		PolyG []*crypto.ECPoint // v0..vt
 	}
 
 	Shares []*Share
@@ -55,10 +56,10 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 
 	poly := samplePolynomial(threshold, secret)
 	poly[0] = secret // becomes sigma*G in polyG
-	polyGs := make([]*types.ECPoint, len(poly))
+	polyGs := make([]*crypto.ECPoint, len(poly))
 	for i, ai := range poly {
 		X, Y := EC().ScalarBaseMult(ai.Bytes())
-		polyGs[i] = types.NewECPoint(X, Y)
+		polyGs[i] = crypto.NewECPoint(X, Y)
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
@@ -72,7 +73,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	return &pGs, shares, nil
 }
 
-func (share *Share) Verify(threshold int, polyGs []*types.ECPoint) bool {
+func (share *Share) Verify(threshold int, polyGs []*crypto.ECPoint) bool {
 	if share.Threshold != threshold {
 		return false
 	}
@@ -148,5 +149,5 @@ func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
 		result = result.Mul(result, id)
 		result = result.Add(result, poly[i])
 	}
-	return result.Mod(result, ec.N)
+	return result.Mod(result, EC().N)
 }

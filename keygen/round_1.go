@@ -10,27 +10,29 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *KGParameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- types.Message) round {
+func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, make([]bool, params.partyCount), false, 1}}
+		&base{params, save, temp, out, make([]bool, params.PartyCount()), false, 1}}
 }
 
-func (round *round1) start() *keygenError {
+func (round *round1) Start() *tss.Error {
 	if round.started {
-		return round.wrapError(errors.New("round already started"))
+		return round.WrapError(errors.New("round already started"))
 	}
 	round.number = 1
 	round.started = true
 	round.resetOk()
 
-	pIdx := round.partyID.Index
+	pIdx := round.PartyID().Index
 
 	// prepare for concurrent Paillier, RSA key generation
 	paiCh := make(chan *paillier.PrivateKey)
@@ -57,39 +59,39 @@ func (round *round1) start() *keygenError {
 	}(rsaCh)
 
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
-	ui := random.GetRandomPositiveInt(EC().N)
+	ui := random.GetRandomPositiveInt(secp256k1.EC().N)
 	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	rsa, pai := <-rsaCh, <-paiCh
 
 	// 2. compute the vss shares
-	ids := round.p2pCtx.Parties().Keys()
-	polyGs, shares, err := vss.Create(round.params().Threshold(), ui, ids)
+	ids := round.Parties().Parties().Keys()
+	polyGs, shares, err := vss.Create(round.Params().Threshold(), ui, ids)
 	if err != nil {
-		return round.wrapError(err)
+		return round.WrapError(err)
 	}
 
 	// security: the original ui may be discarded
 	ui = big.NewInt(0)
 
-	pGFlat, err := types.FlattenECPoints(polyGs.PolyG)
+	pGFlat, err := crypto.FlattenECPoints(polyGs.PolyG)
 	if err != nil {
-		return round.wrapError(err)
+		return round.WrapError(err)
 	}
 	cmt, err := cmt.NewHashCommitment(pGFlat...)
 	if err != nil {
-		return round.wrapError(err)
+		return round.WrapError(err)
 	}
 
 	// 9-11. compute h1, h2 (uses RSA primes)
 	if rsa == nil {
-		return round.wrapError(errors.New("RSA generation failed"))
+		return round.WrapError(errors.New("RSA generation failed"))
 	}
 
 	NTildei, h1i, h2i, err := generateNTildei(rsa.Primes[:2])
 	if err != nil {
-		return round.wrapError(err)
+		return round.WrapError(err)
 	}
 	round.save.NTildej[pIdx] = NTildei
 	round.save.H1j[pIdx], round.save.H2j[pIdx] = h1i, h2i
@@ -108,25 +110,25 @@ func (round *round1) start() *keygenError {
 	round.temp.deCommitPolyG = cmt.D
 
 	// BROADCAST commitments, paillier pk + proof; round 1 message
-	r1msg := NewKGRound1CommitMessage(round.partyID, cmt.C, &pai.PublicKey, NTildei, h1i, h2i)
+	r1msg := NewKGRound1CommitMessage(round.PartyID(), cmt.C, &pai.PublicKey, NTildei, h1i, h2i)
 	round.temp.kgRound1CommitMessages[pIdx] = &r1msg
 	round.out <- r1msg
 	return nil
 }
 
-func (round *round1) canAccept(msg types.Message) bool {
+func (round *round1) CanAccept(msg tss.Message) bool {
 	if msg, ok := msg.(*KGRound1CommitMessage); !ok || msg == nil {
 		return false
 	}
 	return true
 }
 
-func (round *round1) update() (bool, *keygenError) {
+func (round *round1) Update() (bool, *tss.Error) {
 	for j, msg := range round.temp.kgRound1CommitMessages {
 		if round.ok[j] {
 			continue
 		}
-		if !round.canAccept(msg) {
+		if !round.CanAccept(msg) {
 			return false, nil
 		}
 		// vss check is in round 2
@@ -135,7 +137,7 @@ func (round *round1) update() (bool, *keygenError) {
 	return true, nil
 }
 
-func (round *round1) nextRound() round {
+func (round *round1) NextRound() tss.Round {
 	round.started = false
 	return &round2{round}
 }

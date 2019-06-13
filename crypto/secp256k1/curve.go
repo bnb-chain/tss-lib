@@ -1,4 +1,4 @@
-package keygen
+package secp256k1
 
 import (
 	s256k1 "github.com/btcsuite/btcd/btcec"

@@ -8,10 +8,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/types"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -21,17 +22,19 @@ const (
 	RSAModulusLen = 2048
 )
 
+var _ tss.Party = (*LocalParty)(nil)
+
 type (
 	LocalParty struct {
-		*KGParameters
-		round round
+		*tss.Parameters
+		round tss.Round
 
-		mtx  *sync.Mutex
+		mtx  sync.Mutex
 		data LocalPartySaveData
 		temp LocalPartyTempData
 
 		// messaging
-		out chan<- types.Message
+		out chan<- tss.Message
 		end chan<- LocalPartySaveData
 	}
 
@@ -42,8 +45,8 @@ type (
 		PaillierSk  *paillier.PrivateKey // ski
 
 		// public keys (Xj = uj*G for each Pj)
-		BigXj       []*types.ECPoint      // Xj
-		ECDSAPub    *types.ECPoint        // y
+		BigXj       []*crypto.ECPoint     // Xj
+		ECDSAPub    *crypto.ECPoint       // y
 		PaillierPks []*paillier.PublicKey // pkj
 
 		// h1, h2 for range proofs
@@ -72,21 +75,20 @@ type (
 
 // Exported, used in `tss` client
 func NewLocalParty(
-	params *KGParameters,
-	out chan<- types.Message,
+	params *tss.Parameters,
+	out chan<- tss.Message,
 	end chan<- LocalPartySaveData,
 ) *LocalParty {
-	partyCount := params.partyCount
+	partyCount := params.PartyCount()
 	p := &LocalParty{
-		KGParameters: params,
-		mtx:          &sync.Mutex{},
-		data:         LocalPartySaveData{},
-		temp:         LocalPartyTempData{},
-		out:          out,
-		end:          end,
+		Parameters: params,
+		data:       LocalPartySaveData{},
+		temp:       LocalPartyTempData{},
+		out:        out,
+		end:        end,
 	}
 	// data init
-	p.data.BigXj = make([]*types.ECPoint, partyCount)
+	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
 	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
 	p.data.NTildej = make([]*big.Int, partyCount)
 	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
@@ -96,7 +98,7 @@ func NewLocalParty(
 	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
 	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
 	p.temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
-	//
+	// round init
 	round := newRound1(params, &p.data, &p.temp, out)
 	p.round = round
 	return p
@@ -104,43 +106,47 @@ func NewLocalParty(
 
 // Implements Stringer
 func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.partyID.String(), p.round)
+	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.round)
 }
 
-func (p *LocalParty) StartKeygenRound1() *keygenError {
-	if _, ok := p.round.(*round1); !ok {
-		return p.wrapError(errors.New("Could not start keygen. This party is in an unexpected round."))
+// Implements Party
+func (p *LocalParty) Start() *tss.Error {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	if round, ok := p.round.(*round1); !ok || round == nil {
+		return p.wrapError(errors.New("Could not start. This party is in an unexpected state. Use the constructor and Start()."))
 	}
-	common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, 1)
-	return p.round.start()
+	common.Logger.Infof("party %s: keygen round %d starting", p.round.Params().PartyID(), 1)
+	return p.round.Start()
 }
 
-func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
+// Implements Party
+func (p *LocalParty) Update(msg tss.Message) (ok bool, err *tss.Error) {
 	if _, err := p.validateMessage(msg); err != nil {
 		return false, err
 	}
 	// need this mtx unlock hook, L137 is recursive so cannot use defer
-	r := func(ok bool, err *keygenError) (bool, *keygenError) {
+	r := func(ok bool, err *tss.Error) (bool, *tss.Error) {
 		p.mtx.Unlock()
 		return ok, err
 	}
 	p.mtx.Lock() // data is written to P state below
-	common.Logger.Debugf("party %s received message: %s", p.partyID, msg.String())
+	common.Logger.Debugf("party %s received message: %s", p.PartyID(), msg.String())
 	if p.round != nil {
-		common.Logger.Debugf("party %s round %d Update: %s", p.partyID, p.round.roundNumber(), msg.String())
+		common.Logger.Debugf("party %s round %d update: %s", p.PartyID(), p.round.RoundNumber(), msg.String())
 	}
 	if _, err := p.storeMessage(msg); err != nil {
 		return r(false, err)
 	}
 	if p.round != nil {
-		common.Logger.Debugf("party %s: keygen round %d update()", p.round.params().partyID, p.round.roundNumber())
-		if _, err := p.round.update(); err != nil {
+		common.Logger.Debugf("party %s: keygen round %d update", p.round.Params().PartyID(), p.round.RoundNumber())
+		if _, err := p.round.Update(); err != nil {
 			return r(false, err)
 		}
-		if p.round.canProceed() {
-			if p.round = p.round.nextRound(); p.round != nil {
-				common.Logger.Infof("party %s: keygen round %d start()", p.round.params().partyID, p.round.roundNumber())
-				if err := p.round.start(); err != nil {
+		if p.round.CanProceed() {
+			if p.round = p.round.NextRound(); p.round != nil {
+				common.Logger.Infof("party %s: keygen round %d starting", p.round.Params().PartyID(), p.round.RoundNumber())
+				if err := p.round.Start(); err != nil {
 					return r(false, err)
 				}
 			}
@@ -150,17 +156,29 @@ func (p *LocalParty) Update(msg types.Message) (ok bool, err *keygenError) {
 		return r(true, nil)
 	}
 	// finished!
-	common.Logger.Infof("party %s: finished!", p.partyID)
+	common.Logger.Infof("party %s: keygen finished!", p.PartyID())
 	p.end <- p.data
 	return r(true, nil)
 }
 
-func (p *LocalParty) validateMessage(msg types.Message) (bool, *keygenError) {
-	if msg.GetFrom() == nil {
-		return false, p.wrapError(fmt.Errorf("update received nil msg: %s", msg))
-	}
+// Implements Party
+func (p *LocalParty) WaitingFor() []*tss.PartyID {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.round.WaitingFor()
+}
+
+// Legacy keygen.LocalParty method, called by Start() on the Party interface
+func (p *LocalParty) StartKeygenRound1() *tss.Error {
+	return p.Start()
+}
+
+func (p *LocalParty) validateMessage(msg tss.Message) (bool, *tss.Error) {
 	if msg == nil {
-		return false, p.wrapError(fmt.Errorf("nil message received: %s", msg), msg.GetFrom())
+		return false, p.wrapError(fmt.Errorf("received nil msg: %s", msg))
+	}
+	if msg.GetFrom() == nil {
+		return false, p.wrapError(fmt.Errorf("received msg with nil sender: %s", msg))
 	}
 	if !msg.ValidateBasic() {
 		return false, p.wrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
@@ -168,7 +186,7 @@ func (p *LocalParty) validateMessage(msg types.Message) (bool, *keygenError) {
 	return true, nil
 }
 
-func (p *LocalParty) storeMessage(msg types.Message) (bool, *keygenError) {
+func (p *LocalParty) storeMessage(msg tss.Message) (bool, *tss.Error) {
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -197,7 +215,7 @@ func (p *LocalParty) storeMessage(msg types.Message) (bool, *keygenError) {
 }
 
 func (p *LocalParty) finishAndSaveKeygen() error {
-	common.Logger.Infof("party %s: finished keygen. sending local data.", p.partyID)
+	common.Logger.Infof("party %s: finished keygen. sending local data.", p.PartyID())
 
 	close(p.out)
 
@@ -212,6 +230,6 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 	return nil
 }
 
-func (p *LocalParty) wrapError(err error, culprits ...*types.PartyID) *keygenError {
-	return p.round.wrapError(err, culprits...)
+func (p *LocalParty) wrapError(err error, culprits ...*tss.PartyID) *tss.Error {
+	return p.round.WrapError(err, culprits...)
 }
