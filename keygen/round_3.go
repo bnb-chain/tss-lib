@@ -11,14 +11,6 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-type (
-	// convenience structure returned through the channel below
-	r3ChOut struct {
-		unWrappedErr error
-		pjPolyGs     []*crypto.ECPoint
-	}
-)
-
 func (round *round3) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -46,15 +38,19 @@ func (round *round3) Start() *tss.Error {
 	}
 
 	// 4-11.
-	chs := make([]chan r3ChOut, len(Ps))
+	type vssOut struct {
+		unWrappedErr error
+		pjPolyGs     []*crypto.ECPoint
+	}
+	chs := make([]chan vssOut, len(Ps))
 	for i := range chs {
 		if i == PIdx { continue }
-		chs[i] = make(chan r3ChOut)
+		chs[i] = make(chan vssOut)
 	}
 	for j := range Ps {
 		if j == PIdx { continue }
 		// 6-8.
-		go func(j int, ch chan<- r3ChOut) {
+		go func(j int, ch chan<- vssOut) {
 			// 4-9.
 			KGCj := round.temp.KGCs[j]
 			r2msg2 := round.temp.kgRound2DeCommitMessages[j]
@@ -62,46 +58,46 @@ func (round *round3) Start() *tss.Error {
 			cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
 			ok, flatPolyGs, err := cmtDeCmt.DeCommit()
 			if err != nil {
-				ch <- r3ChOut{err, nil}
+				ch <- vssOut{err, nil}
 				return
 			}
 			if !ok || flatPolyGs == nil {
-				ch <- r3ChOut{errors.New("de-commitment verify failed"), nil}
+				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return
 			}
 			PjPolyGs, err := crypto.UnFlattenECPoints(flatPolyGs)
 			if err != nil {
-				ch <- r3ChOut{err, nil}
+				ch <- vssOut{err, nil}
 				return
 			}
 			PjShare := round.temp.kgRound2VssMessages[j].PiShare
 			if ok = PjShare.Verify(round.Params().Threshold(), PjPolyGs); !ok {
-				ch <- r3ChOut{errors.New("vss verify failed"), nil}
+				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
 			}
 			// (9) handled above
-			ch <- r3ChOut{nil, PjPolyGs}
+			ch <- vssOut{nil, PjPolyGs}
 		}(j, chs[j])
 	}
 
 	// consume unbuffered channels (end the goroutines)
-	r3ChOuts := make([]r3ChOut, len(Ps))
+	vssResults := make([]vssOut, len(Ps))
 	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, Pj := range Ps {
 		if j == PIdx { continue }
-		r3ChOuts[j] = <- chs[j]
+		vssResults[j] = <- chs[j]
 		// collect culprits to error out with
-		if err := r3ChOuts[j].unWrappedErr; err != nil {
+		if err := vssResults[j].unWrappedErr; err != nil {
 			culprits = append(culprits, Pj)
 		}
 	}
 	if len(culprits) > 0 {
-		return round.WrapError(r3ChOuts[0].unWrappedErr, culprits...)
+		return round.WrapError(vssResults[0].unWrappedErr, culprits...)
 	}
 	for j := range Ps {
 		if j == PIdx { continue }
 		// 10-11.
-		PjPolyGs := r3ChOuts[j].pjPolyGs
+		PjPolyGs := vssResults[j].pjPolyGs
 		for c := 0; c < round.Params().Threshold(); c++ {
 			VcX, VcY := secp256k1.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
 			Vc[c] = crypto.NewECPoint(VcX, VcY)
@@ -133,7 +129,6 @@ func (round *round3) Start() *tss.Error {
 
 	// PRINT public key & private share
 	common.Logger.Debugf("%s public key: %x", round.PartyID(), ecdsaPubKey)
-	common.Logger.Debugf("%s private share xi: %x", round.PartyID(), xi)
 
 	// BROADCAST paillier proof for Pi
 	ki := round.PartyID().Key
