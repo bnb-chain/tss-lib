@@ -21,22 +21,22 @@ type (
 	}
 )
 
-func (kgMM MessageMetadata) GetTo() *PartyID {
-	return kgMM.To
+func (mm MessageMetadata) GetTo() *PartyID {
+	return mm.To
 }
 
-func (kgMM MessageMetadata) GetFrom() *PartyID {
-	return kgMM.From
+func (mm MessageMetadata) GetFrom() *PartyID {
+	return mm.From
 }
 
-func (kgMM MessageMetadata) GetType() string {
-	return kgMM.MsgType
+func (mm MessageMetadata) GetType() string {
+	return mm.MsgType
 }
 
-func (kgMM MessageMetadata) String() string {
+func (mm MessageMetadata) String() string {
 	toStr := "all"
-	if kgMM.To != nil {
-		toStr = kgMM.To.String()
+	if mm.To != nil {
+		toStr = mm.To.String()
 	}
-	return fmt.Sprintf("From: %s, To: %s, MsgType: %s", kgMM.From.String(), toStr, kgMM.MsgType)
+	return fmt.Sprintf("From: %s, To: %s, MsgType: %s", mm.From.String(), toStr, mm.MsgType)
 }

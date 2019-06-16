@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -120,6 +119,8 @@ func TestUpdateBadMessageCulprits(t *testing.T) {
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 
+	// tss.SetCurve(elliptic.P256())
+
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 	threshold := testThreshold
 
@@ -197,13 +198,13 @@ func TestE2EConcurrent(t *testing.T) {
 
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
-					uGX, uGY := secp256k1.EC().ScalarBaseMult(uj.Bytes())
+					uGX, uGY := tss.EC().ScalarBaseMult(uj.Bytes())
 					assert.Equal(t, uGX, Pj.temp.polyGs.PolyG[0].X())
 					assert.Equal(t, uGY, Pj.temp.polyGs.PolyG[0].Y())
 
 					// xj test: BigXj == xj*G
 					xj := Pj.data.Xi
-					gXjX, gXjY := secp256k1.EC().ScalarBaseMult(xj.Bytes())
+					gXjX, gXjY := tss.EC().ScalarBaseMult(xj.Bytes())
 					BigXjX, BigXjY := Pj.data.BigXj[j].X(), Pj.data.BigXj[j].Y()
 					assert.Equal(t, BigXjX, gXjX)
 					assert.Equal(t, BigXjY, gXjY)
@@ -214,7 +215,7 @@ func TestE2EConcurrent(t *testing.T) {
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
 						uj, _ := pShares[:threshold].ReConstruct()
 						assert.NotEqual(t, parties[j].temp.ui, uj)
-						BigXjX, BigXjY := secp256k1.EC().ScalarBaseMult(uj.Bytes())
+						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
 						assert.NotEqual(t, BigXjX, Pj.temp.polyGs.PolyG[0].X())
 						assert.NotEqual(t, BigXjY, Pj.temp.polyGs.PolyG[0].Y())
 					}
@@ -225,7 +226,7 @@ func TestE2EConcurrent(t *testing.T) {
 				// build ecdsa key pair
 				pkX, pkY := save.ECDSAPub.X(), save.ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
-					Curve: secp256k1.EC(),
+					Curve: tss.EC(),
 					X:     pkX,
 					Y:     pkY,
 				}
@@ -236,9 +237,9 @@ func TestE2EConcurrent(t *testing.T) {
 				// test pub key, should be on curve and match pkX, pkY
 				assert.True(t, sk.IsOnCurve(pkX, pkY), "public key must be on curve")
 
-				// Public key tests
+				// public key tests
 				assert.NotZero(t, u, "u should not be zero")
-				ourPkX, ourPkY := secp256k1.EC().ScalarBaseMult(u.Bytes())
+				ourPkX, ourPkY := tss.EC().ScalarBaseMult(u.Bytes())
 				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from u")
 				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from u")
 				t.Log("Public key tests done.")

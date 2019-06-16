@@ -9,7 +9,7 @@ import (
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	. "github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/secp256k1"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -87,9 +87,9 @@ func TestHomoMul(t *testing.T) {
 
 func TestProof2(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
-	ki := random.MustGetRandomInt(256)                  // index
-	ui := random.GetRandomPositiveInt(secp256k1.EC().N) // ECDSA private
-	yX, yY := secp256k1.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	ki := random.MustGetRandomInt(256)            // index
+	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
+	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
 	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
@@ -100,9 +100,9 @@ func TestProof2(t *testing.T) {
 
 func TestProof2Verify2(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	ki := random.MustGetRandomInt(256)                  // index
-	ui := random.GetRandomPositiveInt(secp256k1.EC().N) // ECDSA private
-	yX, yY := secp256k1.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	ki := random.MustGetRandomInt(256)            // index
+	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
+	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
 	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
 	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(yX, yY))
 	assert.NoError(t, err)
@@ -111,9 +111,9 @@ func TestProof2Verify2(t *testing.T) {
 
 func TestProof2Verify2Fail(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
-	ki := random.MustGetRandomInt(256)                  // index
-	ui := random.GetRandomPositiveInt(secp256k1.EC().N) // ECDSA private
-	yX, yY := secp256k1.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	ki := random.MustGetRandomInt(256)            // index
+	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
+	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
 	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
 	last := proof[len(proof) - 1]
 	last.Sub(last, big.NewInt(1))

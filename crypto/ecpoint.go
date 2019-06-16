@@ -57,4 +57,3 @@ func UnFlattenECPoints(in []*big.Int) ([]*ECPoint, error) {
 	}
 	return unFlat, nil
 }
-

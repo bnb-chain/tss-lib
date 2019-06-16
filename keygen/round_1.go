@@ -13,9 +13,15 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
+)
+
+const (
+	// Using a modulus length of 2048 is recommended in the GG18 spec
+	PaillierModulusLen = 2048
+	// RSA also 2048-bit modulus; two 1024-bit primes
+	RSAModulusLen = 2048
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
@@ -59,7 +65,7 @@ func (round *round1) Start() *tss.Error {
 	}(rsaCh)
 
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
-	ui := random.GetRandomPositiveInt(secp256k1.EC().N)
+	ui := random.GetRandomPositiveInt(tss.EC().Params().N)
 	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here

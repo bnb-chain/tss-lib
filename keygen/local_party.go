@@ -15,13 +15,6 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-const (
-	// Using a modulus length of 2048 is recommended in the GG18 spec
-	PaillierModulusLen = 2048
-	// RSA also 2048-bit modulus; two 1024-bit primes
-	RSAModulusLen = 2048
-)
-
 var _ tss.Party = (*LocalParty)(nil)
 
 type (
@@ -135,7 +128,7 @@ func (p *LocalParty) Update(msg tss.Message) (ok bool, err *tss.Error) {
 	if p.round != nil {
 		common.Logger.Debugf("party %s round %d update: %s", p.PartyID(), p.round.RoundNumber(), msg.String())
 	}
-	if _, err := p.storeMessage(msg); err != nil {
+	if ok, err := p.storeMessage(msg); err != nil || !ok {
 		return r(false, err)
 	}
 	if p.round != nil {
@@ -190,6 +183,7 @@ func (p *LocalParty) storeMessage(msg tss.Message) (bool, *tss.Error) {
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
+	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.(type) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
@@ -208,8 +202,9 @@ func (p *LocalParty) storeMessage(msg tss.Message) (bool, *tss.Error) {
 		r3msg := msg.(KGRound3PaillierProveMessage)
 		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
 
-	default: // unrecognised message!
-		return false, p.wrapError(fmt.Errorf("unrecognised message: %v", msg), msg.GetFrom())
+	default: // unrecognised message, just ignore!
+		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		return false, nil
 	}
 	return true, nil
 }
