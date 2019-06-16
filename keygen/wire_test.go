@@ -9,7 +9,6 @@ import (
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 	. "github.com/binance-chain/tss-lib/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -25,7 +24,7 @@ func TestEncodeDecodeMsg(t *testing.T) {
 	from := tss.GenerateTestPartyIDs(1)[0]
 	cmt := new(commitments.HashCommitment)
 	pk := new(paillier.PublicKey)
-	N := random.GetRandomPositiveInt(secp256k1.EC().N)
+	N := random.GetRandomPositiveInt(tss.EC().Params().N)
 	msg1 := tss.Message(NewKGRound1CommitMessage(from, *cmt, pk, N, N, N))
 	emsg1, err := EncodeMsg(msg1)
 	assert.NoError(t, err, "encode should not fail")

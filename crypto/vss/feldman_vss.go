@@ -11,7 +11,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
-	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
@@ -58,7 +58,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	poly[0] = secret // becomes sigma*G in polyG
 	polyGs := make([]*crypto.ECPoint, len(poly))
 	for i, ai := range poly {
-		X, Y := EC().ScalarBaseMult(ai.Bytes())
+		X, Y := tss.EC().ScalarBaseMult(ai.Bytes())
 		polyGs[i] = crypto.NewECPoint(X, Y)
 	}
 
@@ -81,12 +81,12 @@ func (share *Share) Verify(threshold int, polyGs []*crypto.ECPoint) bool {
 	t := (*big.Int)(nil)
 	for j := 1; j < threshold; j++ {
 		// t = ki^j
-		t = new(big.Int).Exp(share.ID, big.NewInt(int64(j)), EC().N)
+		t = new(big.Int).Exp(share.ID, big.NewInt(int64(j)), tss.EC().Params().N)
 		// v = v * vj^t
-		vtjX, vtjY := EC().ScalarMult(polyGs[j].X(), polyGs[j].Y(), t.Bytes())
-		vX, vY = EC().Add(vX, vY, vtjX, vtjY)
+		vtjX, vtjY := tss.EC().ScalarMult(polyGs[j].X(), polyGs[j].Y(), t.Bytes())
+		vX, vY = tss.EC().Add(vX, vY, vtjX, vtjY)
 	}
-	sigmaGiX, sigmaGiY := EC().ScalarBaseMult(share.Share.Bytes())
+	sigmaGiX, sigmaGiY := tss.EC().ScalarBaseMult(share.Share.Bytes())
 	if vX.Cmp(sigmaGiX) == 0 && vY.Cmp(sigmaGiY) == 0 {
 		return true
 	} else {
@@ -111,15 +111,15 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 		for j := 0; j < len(xs); j++ {
 			if j == i { continue }
 			sub := new(big.Int).Sub(xs[j], share.ID)
-			subInv := new(big.Int).ModInverse(sub, EC().N)
+			subInv := new(big.Int).ModInverse(sub, tss.EC().Params().N)
 			div := new(big.Int).Mul(xs[j], subInv)
 			times = new(big.Int).Mul(times, div)
-			times = new(big.Int).Mod(times, EC().N)
+			times = new(big.Int).Mod(times, tss.EC().Params().N)
 		}
 
 		fTimes := new(big.Int).Mul(share.Share, times)
 		secret = new(big.Int).Add(secret, fTimes)
-		secret = new(big.Int).Mod(secret, EC().N)
+		secret = new(big.Int).Mod(secret, tss.EC().Params().N)
 	}
 
 	return secret, nil
@@ -131,7 +131,7 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 	poly[0] = secret
 
 	for i := 1; i < threshold; i++ {
-		ai := random.GetRandomPositiveInt(EC().N)
+		ai := random.GetRandomPositiveInt(tss.EC().Params().N)
 		poly[i] = ai
 	}
 	return poly
@@ -149,5 +149,5 @@ func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
 		result = result.Mul(result, id)
 		result = result.Add(result, poly[i])
 	}
-	return result.Mod(result, EC().N)
+	return result.Mod(result, tss.EC().Params().N)
 }

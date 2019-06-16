@@ -28,13 +28,13 @@ func (err *Error) Victim() *PartyID { return err.victim }
 func (err *Error) Culprits() []*PartyID { return err.culprits }
 
 func (err *Error) Error() string {
-	if err == nil {
+	if err == nil || err.cause == nil {
 		return "Error is nil"
 	}
 	if err.culprits != nil && len(err.culprits) > 0 {
-		return fmt.Sprintf("task %s, party %s, round %d, culprits %s: %s",
+		return fmt.Sprintf("task %s, party %v, round %d, culprits %s: %s",
 			err.task, err.victim, err.round, err.culprits, err.cause.Error())
 	}
-	return fmt.Sprintf("task %s, party %s, round %d: %s",
+	return fmt.Sprintf("task %s, party %v, round %d: %s",
 		err.task, err.victim, err.round, err.cause.Error())
 }

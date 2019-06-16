@@ -8,11 +8,11 @@ import (
 
 	"github.com/binance-chain/tss-lib/common/random"
 	. "github.com/binance-chain/tss-lib/crypto/schnorrZK"
-	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func TestZKProve(t *testing.T) {
-	u := random.GetRandomPositiveInt(EC().N)
+	u := random.GetRandomPositiveInt(tss.EC().Params().N)
 	proof := NewZKProof(u)
 
 	assert.NotZero(t, proof.E)
@@ -20,9 +20,9 @@ func TestZKProve(t *testing.T) {
 }
 
 func TestZKVerify(t *testing.T) {
-	u := random.GetRandomPositiveInt(EC().N)
+	u := random.GetRandomPositiveInt(tss.EC().Params().N)
 
-	uGx, uGy := EC().ScalarBaseMult(u.Bytes())
+	uGx, uGy := tss.EC().ScalarBaseMult(u.Bytes())
 	uG := []*big.Int{uGx, uGy}
 
 	proof := NewZKProof(u)
@@ -32,10 +32,10 @@ func TestZKVerify(t *testing.T) {
 }
 
 func TestZKVerifyBad(t *testing.T) {
-	u  := random.GetRandomPositiveInt(EC().N)
-	u2 := random.GetRandomPositiveInt(EC().N)
+	u  := random.GetRandomPositiveInt(tss.EC().Params().N)
+	u2 := random.GetRandomPositiveInt(tss.EC().Params().N)
 
-	uGx, uGy := EC().ScalarBaseMult(u.Bytes())
+	uGx, uGy := tss.EC().ScalarBaseMult(u.Bytes())
 	uG := []*big.Int{uGx, uGy}
 
 	proof := NewZKProof(u2)

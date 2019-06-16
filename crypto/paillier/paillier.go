@@ -48,6 +48,10 @@ type (
 	Proof2 []*big.Int
 )
 
+const (
+	verify2PrimesUntil = 1000 // Verify2 uses primes <1000
+)
+
 var (
 	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
 
@@ -57,7 +61,7 @@ var (
 
 func init() {
 	// init primes cache
-	_ = primes.Globally.Until(1000)
+	_ = primes.Globally.Until(verify2PrimesUntil)
 }
 
 // len is the length of the modulus (each prime = len / 2)
@@ -173,7 +177,7 @@ func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, e
 	iters := Proof2Iters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	go func(ch chan<- bool) {
-		prms := primes.Until(1000).List() // uses cache primed in init()
+		prms := primes.Until(verify2PrimesUntil).List() // uses cache primed in init()
 		for _, prm := range prms {
 			// If prm divides N then Return 0
 			if new(big.Int).Mod(pkN, big.NewInt(prm)).Cmp(zero) == 0 {

@@ -6,7 +6,7 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/binance-chain/tss-lib/common/random"
-	. "github.com/binance-chain/tss-lib/crypto/secp256k1"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -19,8 +19,8 @@ type ZKProof struct {
 }
 
 func NewZKProof(x *big.Int) *ZKProof {
-	r := random.GetRandomPositiveInt(EC().N)
-	rGx, rGy := EC().ScalarBaseMult(r.Bytes())
+	r := random.GetRandomPositiveInt(tss.EC().Params().N)
+	rGx, rGy := tss.EC().ScalarBaseMult(r.Bytes())
 
 	plain   := SAMPLE
 	sha3256 := sha3.New256()
@@ -33,19 +33,19 @@ func NewZKProof(x *big.Int) *ZKProof {
 
 	s := new(big.Int).Mul(e, x)
 	s  = new(big.Int).Add(r, s)
-	s  = new(big.Int).Mod(s, EC().N)
+	s  = new(big.Int).Mod(s, tss.EC().Params().N)
 
 	return &ZKProof{E: e, S: s}
 }
 
 func (pf *ZKProof) Verify(uG []*big.Int) bool {
-	sGx, sGy := EC().ScalarBaseMult(pf.S.Bytes())
+	sGx, sGy := tss.EC().ScalarBaseMult(pf.S.Bytes())
 
 	minusE := new(big.Int).Mul(big.NewInt(-1), pf.E)
-	minusE  = new(big.Int).Mod(minusE, EC().N)
+	minusE  = new(big.Int).Mod(minusE, tss.EC().Params().N)
 
-	eUx, eUy := EC().ScalarMult(uG[0], uG[1], minusE.Bytes())
-	rGx, rGy := EC().Add(sGx, sGy, eUx, eUy)
+	eUx, eUy := tss.EC().ScalarMult(uG[0], uG[1], minusE.Bytes())
+	rGx, rGy := tss.EC().Add(sGx, sGy, eUx, eUy)
 
 	plain := SAMPLE
 	sha3256 := sha3.New256()

@@ -7,7 +7,6 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/secp256k1"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -99,7 +98,7 @@ func (round *round3) Start() *tss.Error {
 		// 10-11.
 		PjPolyGs := vssResults[j].pjPolyGs
 		for c := 0; c < round.Params().Threshold(); c++ {
-			VcX, VcY := secp256k1.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
+			VcX, VcY := tss.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
 			Vc[c] = crypto.NewECPoint(VcX, VcY)
 		}
 	}
@@ -111,10 +110,10 @@ func (round *round3) Start() *tss.Error {
 		z := (*big.Int)(nil)
 		for c := 1; c < round.Params().Threshold(); c++ {
 			// z = kj^c
-			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), secp256k1.EC().N)
+			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), tss.EC().Params().N)
 			// Xj = Xj * Vcz^z
-			VczX, VczY := secp256k1.EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
-			XjX, XjY = secp256k1.EC().Add(XjX, XjY, VczX, VczY)
+			VczX, VczY := tss.EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
+			XjX, XjY = tss.EC().Add(XjX, XjY, VczX, VczY)
 		}
 		bigXj[j] = crypto.NewECPoint(XjX, XjY)
 	}
@@ -122,7 +121,7 @@ func (round *round3) Start() *tss.Error {
 
 	// 17. compute and SAVE the ECDSA public key `y`
 	ecdsaPubKey := crypto.NewECPoint(Vc[0].X(), Vc[0].Y())
-	if !ecdsaPubKey.IsOnCurve(secp256k1.EC()) {
+	if !ecdsaPubKey.IsOnCurve(tss.EC()) {
 		return round.WrapError(errors.New("public key is not on the curve"))
 	}
 	round.save.ECDSAPub = ecdsaPubKey
