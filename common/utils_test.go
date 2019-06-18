@@ -6,11 +6,10 @@ import (
 	"testing"
 
 	"github.com/binance-chain/tss-lib/common/random"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 func TestRejectionSample(t *testing.T) {
-	curveQ  := tss.EC().Params().N
+	curveQ  := random.GetRandomPrimeInt(256)
 	randomQ := random.MustGetRandomInt(64)
 	hash, _ := SHA512_256i(big.NewInt(123))
 	rs1, _ := RejectionSample(curveQ, hash)
