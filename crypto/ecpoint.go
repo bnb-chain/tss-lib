@@ -21,8 +21,20 @@ func (p *ECPoint) Y() *big.Int {
 	return new(big.Int).Set(p[1])
 }
 
+func (p *ECPoint) Add(curve elliptic.Curve, p2 *ECPoint) *ECPoint {
+	return NewECPoint(curve.Add(p.X(), p.Y(), p2.X(), p2.Y()))
+}
+
+func (p *ECPoint) ScalarMult(curve elliptic.Curve, k *big.Int) *ECPoint {
+	return NewECPoint(curve.ScalarMult(p.X(), p.Y(), k.Bytes()))
+}
+
 func (p *ECPoint) IsOnCurve(curve elliptic.Curve) bool {
 	return curve.IsOnCurve(p[0], p[1])
+}
+
+func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
+	return NewECPoint(curve.ScalarBaseMult(k.Bytes()))
 }
 
 // ----- //
