@@ -12,7 +12,7 @@ import (
 func TestRejectionSample(t *testing.T) {
 	curveQ  := tss.EC().Params().N
 	randomQ := random.MustGetRandomInt(64)
-	hash, _ := SHA3_256i(big.NewInt(123))
+	hash, _ := SHA512_256i(big.NewInt(123))
 	rs1, _ := RejectionSample(curveQ, hash)
 	rs2, _ := RejectionSample(randomQ, hash)
 	rs3, _ := RejectionSample(random.MustGetRandomInt(64), hash)

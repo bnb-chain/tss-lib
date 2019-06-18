@@ -232,7 +232,7 @@ func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 		for j := 0; j < blocks; j++ {
 			go func(j int) {
 				jBz := []byte(strconv.Itoa(j))
-				hash, err := common.SHA3_256(ib, jBz, nb, kb, sXb, sYb, Nb)
+				hash, err := common.SHA512_256(ib, jBz, nb, kb, sXb, sYb, Nb)
 				if err != nil {
 					chs[j] <- nil
 				}

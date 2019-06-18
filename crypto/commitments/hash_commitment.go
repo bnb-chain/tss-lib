@@ -6,8 +6,6 @@ package commitments
 import (
 	"math/big"
 
-	_ "golang.org/x/crypto/sha3"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 )
@@ -35,7 +33,7 @@ func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 	for i := 1; i < len(parts); i++ {
 		parts[i] = secrets[i - 1]
 	}
-	hash, err := common.SHA3_256i(parts...)
+	hash, err := common.SHA512_256i(parts...)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +47,7 @@ func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 func (cmt *HashCommitDecommit) Verify() (bool, error) {
 	C, D := cmt.C, cmt.D
 
-	hash, err := common.SHA3_256i(D...)
+	hash, err := common.SHA512_256i(D...)
 	if err != nil {
 		return false, err
 	}

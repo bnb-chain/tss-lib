@@ -25,7 +25,7 @@ type (
 
 // Exported, used in `tss` client
 func NewPartyID(id string, moniker string) *PartyID {
-	kj, _ := common.SHA3_256([]byte(id))
+	kj, _ := common.SHA512_256([]byte(id))
 	return &PartyID{
 		Index:   -1, // not known until sorted
 		ID:      id,

@@ -22,7 +22,7 @@ func NewSchnorrProof(x *big.Int, X *crypto.ECPoint) (*SchnorrProof, error) {
 	a := random.GetRandomPositiveInt(q)
 	alpha := crypto.ScalarBaseMult(tss.EC(), a)
 
-	cHash, err := common.SHA3_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+	cHash, err := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (pf *SchnorrProof) Verify(X *crypto.ECPoint) (bool, error) {
 	q := ecParams.N
 	g := crypto.NewECPoint(ecParams.Gx, ecParams.Gy)
 
-	cHash, err := common.SHA3_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+	cHash, err := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 	if err != nil {
 		return false, err
 	}
