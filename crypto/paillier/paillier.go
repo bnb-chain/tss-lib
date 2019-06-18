@@ -10,12 +10,14 @@
 package paillier
 
 import (
-	"crypto"
 	"fmt"
 	gmath "math"
 	"math/big"
 	"strconv"
 
+	"github.com/pkg/errors"
+
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/primes"
 	"github.com/binance-chain/tss-lib/common/random"
 	crypto2 "github.com/binance-chain/tss-lib/crypto"
@@ -34,14 +36,6 @@ type (
 	PrivateKey struct {
 		PublicKey
 		LambdaN *big.Int // lcm(p-1, q-1)
-	}
-
-	Proof struct {
-		H1 *big.Int
-		H2 *big.Int
-		Y  *big.Int
-		E  *big.Int
-		N  *big.Int
 	}
 
 	// Proof2 uses the new GenerateXs method in GG18Spec (6)
@@ -237,19 +231,20 @@ func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 		nb := []byte(strconv.Itoa(n))
 		for j := 0; j < blocks; j++ {
 			go func(j int) {
-				xij := crypto.SHA256.New() // TODO BLAKE2b_256 is faster than SHA256!
-				xij.Write(kb)              // TODO unhandled errors, probably never thrown on a hash update!
-				xij.Write(sXb)
-				xij.Write(sYb)
-				xij.Write(Nb)
-				xij.Write(ib)
-				xij.Write([]byte(strconv.Itoa(j)))
-				xij.Write(nb) // nonce
-				chs[j] <- xij.Sum(nil)
+				jBz := []byte(strconv.Itoa(j))
+				hash, err := common.SHA3_256(ib, jBz, nb, kb, sXb, sYb, Nb)
+				if err != nil {
+					chs[j] <- nil
+				}
+				chs[j] <- hash
 			}(j)
 		}
 		for _, ch := range chs { // must be in order
-			xi = append(xi, <-ch...) // xi1||···||xib
+			rx := <-ch
+			if rx == nil { // unlikely
+				panic(errors.New("GenerateXs hash write error!"))
+			}
+			xi = append(xi, rx...) // xi1||···||xib
 		}
 		ret[i] = new(big.Int).SetBytes(xi)
 		if random.IsNumberInMultiplicativeGroup(N, ret[i]) {

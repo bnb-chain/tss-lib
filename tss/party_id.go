@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
-	"github.com/binance-chain/tss-lib/crypto/hash"
 )
 
 type (
@@ -25,11 +25,12 @@ type (
 
 // Exported, used in `tss` client
 func NewPartyID(id string, moniker string) *PartyID {
+	kj, _ := common.SHA3_256([]byte(id))
 	return &PartyID{
 		Index:   -1, // not known until sorted
 		ID:      id,
 		Moniker: moniker,
-		Key:     hash.StrHash(id),
+		Key:     new(big.Int).SetBytes(kj),
 	}
 }
 

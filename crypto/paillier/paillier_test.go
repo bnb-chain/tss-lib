@@ -14,11 +14,11 @@ import (
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
 const (
-	PaillierKeyLength = 2048
+	testPaillierKeyLength = 2048
 )
 
 func TestGenerateKeyPair(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
+	publicKey, privateKey := GenerateKeyPair(testPaillierKeyLength)
 
 	assert.NotZero(t, publicKey)
 	assert.NotZero(t, privateKey)
@@ -26,7 +26,7 @@ func TestGenerateKeyPair(t *testing.T) {
 }
 
 func TestEncrypt(t *testing.T) {
-	publicKey, _ := GenerateKeyPair(PaillierKeyLength)
+	publicKey, _ := GenerateKeyPair(testPaillierKeyLength)
 	cipher, err := publicKey.Encrypt(big.NewInt(1))
 
 	assert.NoError(t, err, "must not error")
@@ -36,7 +36,7 @@ func TestEncrypt(t *testing.T) {
 
 func TestEncryptDecrypt(t *testing.T) {
 	for i := 1; i < 10; i++ {
-		privateKey, _ := GenerateKeyPair(PaillierKeyLength)
+		privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
 
 		exp := big.NewInt(100)
 		cypher, err := privateKey.Encrypt(exp)
@@ -51,7 +51,7 @@ func TestEncryptDecrypt(t *testing.T) {
 }
 
 func TestHomoAdd(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 
 	num1 := big.NewInt(10)
 	num2 := big.NewInt(32)
@@ -70,7 +70,7 @@ func TestHomoAdd(t *testing.T) {
 }
 
 func TestHomoMul(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
+	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
 
 	three, err := privateKey.Encrypt(big.NewInt(3))
 	assert.NoError(t, err)
@@ -86,7 +86,7 @@ func TestHomoMul(t *testing.T) {
 }
 
 func TestProof2(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
+	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
@@ -99,7 +99,7 @@ func TestProof2(t *testing.T) {
 }
 
 func TestProof2Verify2(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
@@ -110,7 +110,7 @@ func TestProof2Verify2(t *testing.T) {
 }
 
 func TestProof2Verify2Fail(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public

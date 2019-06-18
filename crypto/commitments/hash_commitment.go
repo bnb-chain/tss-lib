@@ -4,11 +4,11 @@
 package commitments
 
 import (
-	"crypto"
 	"math/big"
 
 	_ "golang.org/x/crypto/sha3"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 )
 
@@ -35,13 +35,13 @@ func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 	for i := 1; i < len(parts); i++ {
 		parts[i] = secrets[i - 1]
 	}
-	sha3256Sum, err := generateSHA3_256Digest(parts)
+	hash, err := common.SHA3_256i(parts...)
 	if err != nil {
 		return nil, err
 	}
 
 	cmt := &HashCommitDecommit{}
-	cmt.C = new(big.Int).SetBytes(sha3256Sum)
+	cmt.C = hash
 	cmt.D = parts
 	return cmt, nil
 }
@@ -49,13 +49,11 @@ func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 func (cmt *HashCommitDecommit) Verify() (bool, error) {
 	C, D := cmt.C, cmt.D
 
-	sha3256Sum, err := generateSHA3_256Digest(D)
+	hash, err := common.SHA3_256i(D...)
 	if err != nil {
 		return false, err
 	}
-	sha3256SumInt := new(big.Int).SetBytes(sha3256Sum)
-
-	if sha3256SumInt.Cmp(C) == 0 {
+	if hash.Cmp(C) == 0 {
 		return true, nil
 	} else {
 		return false, nil
@@ -73,15 +71,4 @@ func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment, error) {
 	} else {
 		return false, nil, nil
 	}
-}
-
-func generateSHA3_256Digest(in []*big.Int) ([]byte, error) {
-	sha3256 := crypto.SHA3_256.New()
-	for _, int := range in {
-		_, err := sha3256.Write(int.Bytes())
-		if err != nil {
-			return nil, err
-		}
-	}
-	return sha3256.Sum(nil), nil
 }
