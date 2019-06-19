@@ -14,51 +14,39 @@ type SchnorrProof struct {
 	T     *big.Int
 }
 
-// NewSchnorrProof can throw an error if writing the SHA3 hash fails
-func NewSchnorrProof(x *big.Int, X *crypto.ECPoint) (*SchnorrProof, error) {
+// NewSchnorrProof can throw an error if writing the SHA512/256 hash fails
+func NewSchnorrProof(x *big.Int, X *crypto.ECPoint) *SchnorrProof {
 	ecParams := tss.EC().Params()
 	q := ecParams.N
 	g := crypto.NewECPoint(ecParams.Gx, ecParams.Gy)
 	a := random.GetRandomPositiveInt(q)
 	alpha := crypto.ScalarBaseMult(tss.EC(), a)
 
-	cHash, err := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
-	if err != nil {
-		return nil, err
-	}
-	c, err := common.RejectionSample(q, cHash)
-	if err != nil {
-		return nil, err
-	}
+	cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+	c := common.RejectionSample(q, cHash)
 
 	t := new(big.Int).Mul(c, x)
 	t = new(big.Int).Add(a, t)
 	t = new(big.Int).Mod(t, q)
 
-	return &SchnorrProof{Alpha: alpha, T: t}, nil
+	return &SchnorrProof{Alpha: alpha, T: t}
 }
 
-// Verify can throw an error if writing the SHA3 hash fails
-func (pf *SchnorrProof) Verify(X *crypto.ECPoint) (bool, error) {
+// Verify can throw an error if writing the SHA512/256 hash fails
+func (pf *SchnorrProof) Verify(X *crypto.ECPoint) bool {
 	ecParams := tss.EC().Params()
 	q := ecParams.N
 	g := crypto.NewECPoint(ecParams.Gx, ecParams.Gy)
 
-	cHash, err := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
-	if err != nil {
-		return false, err
-	}
-	c, err := common.RejectionSample(q, cHash)
-	if err != nil {
-		return false, err
-	}
+	cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+	c := common.RejectionSample(q, cHash)
 
 	tG := crypto.ScalarBaseMult(tss.EC(), pf.T)
 	Xc := X.ScalarMult(tss.EC(), c)
 	aXc := pf.Alpha.Add(tss.EC(), Xc)
 
 	if aXc.X().Cmp(tG.X()) != 0 || aXc.Y().Cmp(tG.Y()) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }

@@ -11,10 +11,10 @@ import (
 func TestRejectionSample(t *testing.T) {
 	curveQ  := random.GetRandomPrimeInt(256)
 	randomQ := random.MustGetRandomInt(64)
-	hash, _ := SHA512_256i(big.NewInt(123))
-	rs1, _ := RejectionSample(curveQ, hash)
-	rs2, _ := RejectionSample(randomQ, hash)
-	rs3, _ := RejectionSample(random.MustGetRandomInt(64), hash)
+	hash := SHA512_256i(big.NewInt(123))
+	rs1 := RejectionSample(curveQ, hash)
+	rs2 := RejectionSample(randomQ, hash)
+	rs3 := RejectionSample(random.MustGetRandomInt(64), hash)
 	type args struct {
 		q     *big.Int
 		eHash *big.Int
@@ -23,7 +23,6 @@ func TestRejectionSample(t *testing.T) {
 		name       string
 		args       args
 		want       *big.Int
-		wantErr    bool
 		wantBitLen int
 		notEqual   bool
 	}{{
@@ -45,11 +44,7 @@ func TestRejectionSample(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := RejectionSample(tt.args.q, tt.args.eHash)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("RejectionSample() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := RejectionSample(tt.args.q, tt.args.eHash)
 			if !tt.notEqual && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RejectionSample() = %v, want %v", got, tt.want)
 			}

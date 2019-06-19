@@ -69,7 +69,7 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	assert.Equal(t, 2048/8, len(lp.data.H2j[pIDs[0].Index].Bytes()))
 }
 
-func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
+func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)

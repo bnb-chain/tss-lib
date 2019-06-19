@@ -9,20 +9,17 @@ var (
 )
 
 // RejectionSample implements the rejection sample logic in GG18Spec (6) Fig. 12.
-// An error may be thrown if writing to the SHA3 hash fails.
-func RejectionSample(q *big.Int, eHash *big.Int) (*big.Int, error) { // e' = eHash
+// An error may be thrown if writing to the SHA512/256 hash fails.
+func RejectionSample(q *big.Int, eHash *big.Int) *big.Int { // e' = eHash
 	qBits := q.BitLen()
 	// e = the first |q| bits of e'
 	e := firstBitsOf(qBits, eHash)
 	// while e is not between 0-q
 	for !(e.Cmp(q) == -1 && zero.Cmp(q) == -1) {
-		eHash, err := SHA512_256i(eHash)
-		if err != nil {
-			return nil, err
-		}
+		eHash := SHA512_256i(eHash)
 		e = firstBitsOf(qBits, eHash)
 	}
-	return e, nil
+	return e
 }
 
 func firstBitsOf(bits int, v *big.Int) *big.Int {

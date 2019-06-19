@@ -232,16 +232,13 @@ func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 		for j := 0; j < blocks; j++ {
 			go func(j int) {
 				jBz := []byte(strconv.Itoa(j))
-				hash, err := common.SHA512_256(ib, jBz, nb, kb, sXb, sYb, Nb)
-				if err != nil {
-					chs[j] <- nil
-				}
+				hash := common.SHA512_256(ib, jBz, nb, kb, sXb, sYb, Nb)
 				chs[j] <- hash
 			}(j)
 		}
 		for _, ch := range chs { // must be in order
 			rx := <-ch
-			if rx == nil { // unlikely
+			if rx == nil { // this should never happen. see: https://golang.org/pkg/hash/#Hash
 				panic(errors.New("GenerateXs hash write error!"))
 			}
 			xi = append(xi, rx...) // xi1||···||xib

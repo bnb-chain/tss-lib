@@ -25,7 +25,7 @@ type (
 	}
 )
 
-func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
+func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
 	security := random.MustGetRandomInt(HashLength) // r
 
 	parts := make([]*big.Int, len(secrets) + 1)
@@ -33,40 +33,30 @@ func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 	for i := 1; i < len(parts); i++ {
 		parts[i] = secrets[i - 1]
 	}
-	hash, err := common.SHA512_256i(parts...)
-	if err != nil {
-		return nil, err
-	}
+	hash := common.SHA512_256i(parts...)
 
 	cmt := &HashCommitDecommit{}
 	cmt.C = hash
 	cmt.D = parts
-	return cmt, nil
+	return cmt
 }
 
-func (cmt *HashCommitDecommit) Verify() (bool, error) {
+func (cmt *HashCommitDecommit) Verify() bool {
 	C, D := cmt.C, cmt.D
 
-	hash, err := common.SHA512_256i(D...)
-	if err != nil {
-		return false, err
-	}
+	hash := common.SHA512_256i(D...)
 	if hash.Cmp(C) == 0 {
-		return true, nil
+		return true
 	} else {
-		return false, nil
+		return false
 	}
 }
 
-func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment, error) {
-	result, err := cmt.Verify()
-	if err != nil {
-		return false, nil, err
-	}
-	if result {
+func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment) {
+	if cmt.Verify() {
 		// [1:] skips random element r in D
-		return true, cmt.D[1:], nil
+		return true, cmt.D[1:]
 	} else {
-		return false, nil, nil
+		return false, nil
 	}
 }

@@ -13,8 +13,7 @@ func TestCommit(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
-	commitment, err := NewHashCommitment(zero, one)
-	assert.NoError(t, err)
+	commitment := NewHashCommitment(zero, one)
 
 	t.Log(commitment.C)
 	t.Log(commitment.D)
@@ -24,11 +23,8 @@ func TestVerify(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
-	commitment, err := NewHashCommitment(zero, one)
-	assert.NoError(t, err)
-
-	pass, err := commitment.Verify()
-	assert.NoError(t, err)
+	commitment := NewHashCommitment(zero, one)
+	pass := commitment.Verify()
 
 	t.Log(commitment.C)
 	t.Log(commitment.D)
@@ -40,11 +36,8 @@ func TestDeCommit(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
-	commitment, err := NewHashCommitment(zero, one)
-	assert.NoError(t, err)
-
-	pass, secrets, err := commitment.DeCommit()
-	assert.NoError(t, err)
+	commitment := NewHashCommitment(zero, one)
+	pass, secrets := commitment.DeCommit()
 
 	t.Log(commitment.D)
 	t.Log(commitment.C)

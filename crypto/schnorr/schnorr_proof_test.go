@@ -14,8 +14,7 @@ import (
 func TestSchnorrProof(t *testing.T) {
 	u := random.GetRandomPositiveInt(tss.EC().Params().N)
 	uG := crypto.ScalarBaseMult(tss.EC(), u)
-	proof, err := NewSchnorrProof(u, uG)
-	assert.NoError(t, err)
+	proof := NewSchnorrProof(u, uG)
 
 	assert.True(t, proof.Alpha.IsOnCurve(tss.EC()))
 	assert.NotZero(t, proof.Alpha.X())
@@ -27,10 +26,8 @@ func TestSchnorrProofVerify(t *testing.T) {
 	u := random.GetRandomPositiveInt(tss.EC().Params().N)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 
-	proof, err := NewSchnorrProof(u, X)
-	assert.NoError(t, err)
-	res, err := proof.Verify(X)
-	assert.NoError(t, err)
+	proof := NewSchnorrProof(u, X)
+	res := proof.Verify(X)
 
 	assert.True(t, res, "verify result must be true")
 }
@@ -41,10 +38,8 @@ func TestSchnorrProofVerifyBad(t *testing.T) {
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 	X2 := crypto.ScalarBaseMult(tss.EC(), u2)
 
-	proof, err := NewSchnorrProof(u2, X2)
-	assert.NoError(t, err)
-	res, err := proof.Verify(X)
-	assert.NoError(t, err)
+	proof := NewSchnorrProof(u2, X2)
+	res := proof.Verify(X)
 
 	assert.False(t, res, "verify result must be false")
 }

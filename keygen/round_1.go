@@ -85,7 +85,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err)
 	}
-	cmt, err := cmt.NewHashCommitment(pGFlat...)
+	cmt := cmt.NewHashCommitment(pGFlat...)
 	if err != nil {
 		return round.WrapError(err)
 	}

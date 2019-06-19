@@ -55,11 +55,7 @@ func (round *round3) Start() *tss.Error {
 			r2msg2 := round.temp.kgRound2DeCommitMessages[j]
 			KGDj := r2msg2.DeCommitment
 			cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
-			ok, flatPolyGs, err := cmtDeCmt.DeCommit()
-			if err != nil {
-				ch <- vssOut{err, nil}
-				return
-			}
+			ok, flatPolyGs := cmtDeCmt.DeCommit()
 			if !ok || flatPolyGs == nil {
 				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return

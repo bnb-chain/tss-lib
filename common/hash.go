@@ -6,38 +6,64 @@ import (
 	"math/big"
 )
 
-// SHA-512/256 is protected against length extension attacks and is more performant than SHA-256 on 64-bit.
+const (
+	hashInputDelimiter = byte('$')
+)
+
+// SHA-512/256 is protected against length extension attacks and is more performant than SHA-256 on 64-bit architectures.
 // https://en.wikipedia.org/wiki/Template:Comparison_of_SHA_functions
-func SHA512_256(in... []byte) ([]byte, error) {
+func SHA512_256(in ...[]byte) []byte {
 	state := crypto.SHA512_256.New()
-	size := 0
-	for _, bz := range in {
-		size += len(bz)
+	data := ([]byte)(nil)
+	inLen := len(in)
+	if inLen == 0 {
+		return nil
 	}
-	data := make([]byte, 0, size)
-	for _, bz := range in {
-		data = append(data, bz...)
+	if bzSize := 0; inLen > 1 {
+		for _, bz := range in {
+			bzSize += len(bz)
+		}
+		data = make([]byte, 0, bzSize + inLen)
+		for _, bz := range in {
+			data = append(data, bz...)
+			data = append(data, hashInputDelimiter) // safety delimiter
+		}
+	} else {
+		data = in[0][:]
 	}
 	if _, err := state.Write(data); err != nil {
-		return nil, err
+		// this should never happen. see: https://golang.org/pkg/hash/#Hash
+		Logger.Errorf("SHA512_256 Write() failed unexpectedly: %v", err)
+		return nil
 	}
-	return state.Sum(nil), nil
+	return state.Sum(nil)
 }
 
-func SHA512_256i(in... *big.Int) (*big.Int, error) {
+func SHA512_256i(in ...*big.Int) *big.Int {
 	state := crypto.SHA512_256.New()
-	size := 0
-	ptrs := make([][]byte, len(in))
-	for i, int := range in {
-		ptrs[i] = int.Bytes()
-		size += len(ptrs[i])
+	data := ([]byte)(nil)
+	inLen := len(in)
+	if inLen == 0 {
+		return nil
 	}
-	data := make([]byte, 0, size)
-	for i := range in {
-		data = append(data, ptrs[i]...)
+	if bzSize := 0; inLen > 1 {
+		ptrs := make([][]byte, inLen)
+		for i, int := range in {
+			ptrs[i] = int.Bytes()
+			bzSize += len(ptrs[i])
+		}
+		data = make([]byte, 0, bzSize + inLen)
+		for i := range in {
+			data = append(data, ptrs[i]...)
+			data = append(data, hashInputDelimiter) // safety delimiter
+		}
+	} else {
+		data = in[0].Bytes()
 	}
 	if _, err := state.Write(data); err != nil {
-		return nil, err
+		// this should never happen. see: https://golang.org/pkg/hash/#Hash
+		Logger.Errorf("SHA512_256i Write() failed unexpectedly: %v", err)
+		return nil
 	}
-	return new(big.Int).SetBytes(state.Sum(nil)), nil
+	return new(big.Int).SetBytes(state.Sum(nil))
 }
