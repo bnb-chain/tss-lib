@@ -19,7 +19,7 @@ func MustGetRandomInt(bits int) *big.Int {
 	max := new(big.Int)
 	max = max.Exp(two, big.NewInt(int64(bits)), nil).Sub(max, one)
 
-	// Generate cryptographically strong pseudo-random between 0 - max
+	// Generate cryptographically strong pseudo-random int between 0 - max
 	n, err := rand.Int(rand.Reader, max)
 	if err != nil {
 		// TODO bubble err up
@@ -28,31 +28,31 @@ func MustGetRandomInt(bits int) *big.Int {
 	return n
 }
 
-func GetRandomPositiveInt(n *big.Int) *big.Int {
-	var rnd *big.Int
+func GetRandomPositiveInt(lessThan *big.Int) *big.Int {
+	var try *big.Int
 	for {
-		rnd = MustGetRandomInt(n.BitLen())
-		if rnd.Cmp(n) < 0 && rnd.Cmp(zero) >= 0 {
+		try = MustGetRandomInt(lessThan.BitLen())
+		if try.Cmp(lessThan) < 0 && try.Cmp(zero) >= 0 {
 			break
 		}
 	}
-	return rnd
+	return try
 }
 
 func GetRandomPrimeInt(bits int) *big.Int {
-	rnd, err := rand.Prime(rand.Reader, bits)
+	try, err := rand.Prime(rand.Reader, bits)
 	if err != nil ||
-			rnd == nil ||
-			rnd.Cmp(zero) == 0 {
+			try == nil ||
+			try.Cmp(zero) == 0 {
 		// fallback to older method
 		for {
-			rnd = MustGetRandomInt(bits)
-			if rnd.ProbablyPrime(50) {
+			try = MustGetRandomInt(bits)
+			if try.ProbablyPrime(50) {
 				break
 			}
 		}
 	}
-	return rnd
+	return try
 }
 
 // Generate a random element in the group of all the elements in Z/nZ that

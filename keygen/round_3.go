@@ -102,8 +102,8 @@ func (round *round3) Start() *tss.Error {
 	// 12-16. compute Xj for each Pj
 	bigXj := round.save.BigXj
 	for j, Pj := range Ps {
+		var z *big.Int
 		XjX, XjY := Vc[0].X(), Vc[0].Y()
-		z := (*big.Int)(nil)
 		for c := 1; c < round.Params().Threshold(); c++ {
 			// z = kj^c
 			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), tss.EC().Params().N)
