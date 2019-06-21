@@ -59,7 +59,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	polyGs := make([]*crypto.ECPoint, len(poly))
 	for i, ai := range poly {
 		X, Y := tss.EC().ScalarBaseMult(ai.Bytes())
-		polyGs[i] = crypto.NewECPoint(X, Y)
+		polyGs[i] = crypto.NewECPoint(tss.EC(), X, Y)
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}

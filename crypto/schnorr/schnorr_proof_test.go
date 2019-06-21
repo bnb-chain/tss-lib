@@ -17,7 +17,7 @@ func TestSchnorrProof(t *testing.T) {
 	uG := crypto.ScalarBaseMult(tss.EC(), u)
 	proof := NewZKProof(u, uG)
 
-	assert.True(t, proof.Alpha.IsOnCurve(tss.EC()))
+	assert.True(t, proof.Alpha.IsOnCurve())
 	assert.NotZero(t, proof.Alpha.X())
 	assert.NotZero(t, proof.Alpha.Y())
 	assert.NotZero(t, proof.T)
@@ -36,7 +36,7 @@ func TestSchnorrProofVerify(t *testing.T) {
 
 func TestSchnorrProofVerifyBadX(t *testing.T) {
 	q := tss.EC().Params().N
-	u  := random.GetRandomPositiveInt(q)
+	u := random.GetRandomPositiveInt(q)
 	u2 := random.GetRandomPositiveInt(q)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 	X2 := crypto.ScalarBaseMult(tss.EC(), u2)
@@ -53,9 +53,9 @@ func TestSchnorrVProofVerify(t *testing.T) {
 	s := random.GetRandomPositiveInt(q)
 	l := random.GetRandomPositiveInt(q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
-	Rs := R.ScalarMult(tss.EC(), s)
+	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
-	V := Rs.Add(tss.EC(), lG)
+	V := Rs.Add(lG)
 
 	proof := NewZKVProof(V, R, s, l)
 	res := proof.Verify(V, R)
@@ -69,7 +69,7 @@ func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 	s := random.GetRandomPositiveInt(q)
 	l := random.GetRandomPositiveInt(q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
-	Rs := R.ScalarMult(tss.EC(), s)
+	Rs := R.ScalarMult(s)
 	V := Rs
 
 	proof := NewZKVProof(V, R, s, l)
@@ -85,9 +85,9 @@ func TestSchnorrVProofVerifyBadS(t *testing.T) {
 	s2 := random.GetRandomPositiveInt(q)
 	l := random.GetRandomPositiveInt(q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
-	Rs := R.ScalarMult(tss.EC(), s)
+	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
-	V := Rs.Add(tss.EC(), lG)
+	V := Rs.Add(lG)
 
 	proof := NewZKVProof(V, R, s2, l)
 	res := proof.Verify(V, R)

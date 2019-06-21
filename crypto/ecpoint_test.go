@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func TestFlattenECPoints(t *testing.T) {
@@ -20,24 +21,24 @@ func TestFlattenECPoints(t *testing.T) {
 	}{{
 		name: "flatten with 2 points (happy)",
 		args: args{[]*ECPoint{
-			{big.NewInt(1), big.NewInt(2)},
-			{big.NewInt(3), big.NewInt(4)}},
-		},
+			NewECPoint(tss.EC(), big.NewInt(1), big.NewInt(2)),
+			NewECPoint(tss.EC(), big.NewInt(3), big.NewInt(4)),
+		}},
 		want: []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3), big.NewInt(4)},
 	}, {
 		name: "flatten with nil point (expects err)",
 		args: args{[]*ECPoint{
-			{big.NewInt(1), big.NewInt(2)},
+			NewECPoint(tss.EC(), big.NewInt(1), big.NewInt(2)),
 			nil,
-			{big.NewInt(3), big.NewInt(4)}},
+			NewECPoint(tss.EC(), big.NewInt(3), big.NewInt(4))},
 		},
 		want: nil,
 		wantErr: true,
 	}, {
 		name: "flatten with nil coordinate (expects err)",
 		args: args{[]*ECPoint{
-			{big.NewInt(1), big.NewInt(2)},
-			{nil, big.NewInt(4)}},
+			NewECPoint(tss.EC(), big.NewInt(1), big.NewInt(2)),
+			NewECPoint(tss.EC(), nil, big.NewInt(4))},
 		},
 		want: nil,
 		wantErr: true,
@@ -74,8 +75,9 @@ func TestUnFlattenECPoints(t *testing.T) {
 		name: "un-flatten 2 points (happy)",
 		args: args{[]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3), big.NewInt(4)}},
 		want: []*ECPoint{
-			{big.NewInt(1), big.NewInt(2)},
-			{big.NewInt(3), big.NewInt(4)}},
+			NewECPoint(tss.EC(), big.NewInt(1), big.NewInt(2)),
+			NewECPoint(tss.EC(), big.NewInt(3), big.NewInt(4)),
+		},
 	}, {
 		name: "un-flatten uneven len(points) (expects err)",
 		args: args{[]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}},
@@ -94,7 +96,7 @@ func TestUnFlattenECPoints(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := UnFlattenECPoints(tt.args.in)
+			got, err := UnFlattenECPoints(tss.EC(), tt.args.in)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnFlattenECPoints() error = %v, wantErr %v", err, tt.wantErr)
 				return

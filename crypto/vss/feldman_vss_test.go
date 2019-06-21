@@ -29,9 +29,11 @@ func TestCreate(t *testing.T) {
 
 	assert.Equal(t, threshold, len(polyGs.PolyG))
 
-	// ensure that each polyGs len() == 2 and non-zero
-	for i := range polyGs.PolyG {
-		assert.Equal(t, threshold, len(polyGs.PolyG[i]))
+	// ensure that each polyGs has two points on the curve
+	for i, pg := range polyGs.PolyG {
+		assert.NotZero(t, pg.X())
+		assert.NotZero(t, pg.Y())
+		assert.True(t, pg.IsOnCurve())
 		assert.NotZero(t, polyGs.PolyG[i].X())
 		assert.NotZero(t, polyGs.PolyG[i].Y())
 	}

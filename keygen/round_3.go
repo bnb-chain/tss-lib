@@ -60,7 +60,7 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return
 			}
-			PjPolyGs, err := crypto.UnFlattenECPoints(flatPolyGs)
+			PjPolyGs, err := crypto.UnFlattenECPoints(nil, flatPolyGs)
 			if err != nil {
 				ch <- vssOut{err, nil}
 				return
@@ -95,7 +95,7 @@ func (round *round3) Start() *tss.Error {
 		PjPolyGs := vssResults[j].pjPolyGs
 		for c := 0; c < round.Params().Threshold(); c++ {
 			VcX, VcY := tss.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
-			Vc[c] = crypto.NewECPoint(VcX, VcY)
+			Vc[c] = crypto.NewECPoint(tss.EC(), VcX, VcY)
 		}
 	}
 
@@ -111,13 +111,13 @@ func (round *round3) Start() *tss.Error {
 			VczX, VczY := tss.EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
 			XjX, XjY = tss.EC().Add(XjX, XjY, VczX, VczY)
 		}
-		bigXj[j] = crypto.NewECPoint(XjX, XjY)
+		bigXj[j] = crypto.NewECPoint(tss.EC(), XjX, XjY)
 	}
 	round.save.BigXj = bigXj
 
 	// 17. compute and SAVE the ECDSA public key `y`
-	ecdsaPubKey := crypto.NewECPoint(Vc[0].X(), Vc[0].Y())
-	if !ecdsaPubKey.IsOnCurve(tss.EC()) {
+	ecdsaPubKey := crypto.NewECPoint(tss.EC(), Vc[0].X(), Vc[0].Y())
+	if !ecdsaPubKey.IsOnCurve() {
 		return round.WrapError(errors.New("public key is not on the curve"))
 	}
 	round.save.ECDSAPub = ecdsaPubKey
