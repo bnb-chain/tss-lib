@@ -77,7 +77,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) *ZKVProof {
 
 	var c *big.Int
 	{ // must use RejectionSample
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), V.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	t := new(big.Int).Mod(new(big.Int).Add(a, new(big.Int).Mul(c, s)), q)
