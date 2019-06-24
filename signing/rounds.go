@@ -5,21 +5,24 @@ import (
 )
 
 const (
-	TaskName = "keygen"
+	TaskName = "signing"
 )
 
 type (
 	base struct {
 		*tss.Parameters
-		save    *LocalPartySaveData
-		temp    *LocalPartyTempData
+		// save    *LocalPartySaveData
+		// temp    *LocalPartyTempData
 		out     chan<- tss.Message
 		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool
 		number  int
 	}
-	round1 struct {
+	preparation struct {
 		*base
+	}
+	round1 struct {
+		*preparation
 	}
 	round2 struct {
 		*round1
@@ -30,13 +33,38 @@ type (
 	round4 struct {
 		*round3
 	}
+	round5 struct {
+		*round4
+	}
+	round6 struct {
+		*round5
+	}
+	round7 struct {
+		*round6
+	}
+	round8 struct {
+		*round7
+	}
+	round9 struct {
+		*round8
+	}
+	finalization struct {
+		*round9
+	}
 )
 
 var (
+	_ tss.Round = (*preparation)(nil)
 	_ tss.Round = (*round1)(nil)
 	_ tss.Round = (*round2)(nil)
 	_ tss.Round = (*round3)(nil)
 	_ tss.Round = (*round4)(nil)
+	_ tss.Round = (*round5)(nil)
+	_ tss.Round = (*round6)(nil)
+	_ tss.Round = (*round7)(nil)
+	_ tss.Round = (*round8)(nil)
+	_ tss.Round = (*round9)(nil)
+	_ tss.Round = (*finalization{})(nil)
 )
 
 // ----- //
