@@ -25,6 +25,7 @@ import (
 
 const (
 	Proof2Iters = 13
+	verify2PrimesUntil = 1000 // Verify2 uses primes <1000
 )
 
 type (
@@ -40,10 +41,6 @@ type (
 
 	// Proof2 uses the new GenerateXs method in GG18Spec (6)
 	Proof2 []*big.Int
-)
-
-const (
-	verify2PrimesUntil = 1000 // Verify2 uses primes <1000
 )
 
 var (
