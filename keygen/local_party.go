@@ -23,8 +23,8 @@ type (
 		round tss.Round
 
 		mtx  sync.Mutex
-		temp LocalPartyTempData
-		data LocalPartySaveData
+		Temp LocalPartyTempData
+		Data LocalPartySaveData
 
 		// messaging
 		out chan<- tss.Message
@@ -44,12 +44,15 @@ type (
 
 		// h1, h2 for range proofs
 		NTildej, H1j, H2j []*big.Int
+
+		// original index (added for local testing)
+		Index int
 	}
 
 	LocalPartyMessageStore struct {
 		// messages
 		kgRound1CommitMessages       []*KGRound1CommitMessage
-		kgRound2VssMessages          []*KGRound2VssMessage
+		KgRound2VssMessages          []*KGRound2VssMessage
 		kgRound2DeCommitMessages     []*KGRound2DeCommitMessage
 		kgRound3PaillierProveMessage []*KGRound3PaillierProveMessage
 	}
@@ -58,9 +61,9 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after keygen)
-		ui            *big.Int // used for tests
+		Ui            *big.Int // used for tests
 		KGCs          []*cmt.HashCommitment
-		polyGs        *vss.PolyGs
+		PolyGs        *vss.PolyGs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}
@@ -75,24 +78,24 @@ func NewLocalParty(
 	partyCount := params.PartyCount()
 	p := &LocalParty{
 		Parameters: params,
-		temp:       LocalPartyTempData{},
-		data:       LocalPartySaveData{},
+		Temp:       LocalPartyTempData{},
+		Data:       LocalPartySaveData{Index: params.PartyID().Index},
 		out:        out,
 		end:        end,
 	}
 	// msgs init
-	p.temp.KGCs = make([]*cmt.HashCommitment, partyCount)
-	p.temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
-	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
-	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
-	p.temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
+	p.Temp.KGCs = make([]*cmt.HashCommitment, partyCount)
+	p.Temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
+	p.Temp.KgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
+	p.Temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
+	p.Temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
 	// data init
-	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
-	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
-	p.data.NTildej = make([]*big.Int, partyCount)
-	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
+	p.Data.BigXj = make([]*crypto.ECPoint, partyCount)
+	p.Data.PaillierPks = make([]*paillier.PublicKey, partyCount)
+	p.Data.NTildej = make([]*big.Int, partyCount)
+	p.Data.H1j, p.Data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	// round init
-	round := newRound1(params, &p.data, &p.temp, out)
+	round := newRound1(params, &p.Data, &p.Temp, out)
 	p.round = round
 	return p
 }
@@ -115,7 +118,7 @@ func (p *LocalParty) Start() *tss.Error {
 
 // Implements Party
 func (p *LocalParty) Update(msg tss.Message) (ok bool, err *tss.Error) {
-	if _, err := p.validateMessage(msg); err != nil {
+	if _, err := p.ValidateMessage(msg); err != nil {
 		return false, err
 	}
 	// need this mtx unlock hook, L137 is recursive so cannot use defer
@@ -128,7 +131,7 @@ func (p *LocalParty) Update(msg tss.Message) (ok bool, err *tss.Error) {
 	if p.round != nil {
 		common.Logger.Debugf("party %s round %d update: %s", p.PartyID(), p.round.RoundNumber(), msg.String())
 	}
-	if ok, err := p.storeMessage(msg); err != nil || !ok {
+	if ok, err := p.StoreMessage(msg); err != nil || !ok {
 		return r(false, err)
 	}
 	if p.round != nil {
@@ -150,7 +153,7 @@ func (p *LocalParty) Update(msg tss.Message) (ok bool, err *tss.Error) {
 	}
 	// finished!
 	common.Logger.Infof("party %s: keygen finished!", p.PartyID())
-	p.end <- p.data
+	p.end <- p.Data
 	return r(true, nil)
 }
 
@@ -171,7 +174,7 @@ func (p *LocalParty) StartKeygenRound1() *tss.Error {
 	return p.Start()
 }
 
-func (p *LocalParty) validateMessage(msg tss.Message) (bool, *tss.Error) {
+func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {
 	if msg == nil {
 		return false, p.wrapError(fmt.Errorf("received nil msg: %s", msg))
 	}
@@ -184,7 +187,7 @@ func (p *LocalParty) validateMessage(msg tss.Message) (bool, *tss.Error) {
 	return true, nil
 }
 
-func (p *LocalParty) storeMessage(msg tss.Message) (bool, *tss.Error) {
+func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -193,19 +196,19 @@ func (p *LocalParty) storeMessage(msg tss.Message) (bool, *tss.Error) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
 		r1msg := msg.(KGRound1CommitMessage)
-		p.temp.kgRound1CommitMessages[fromPIdx] = &r1msg
+		p.Temp.kgRound1CommitMessages[fromPIdx] = &r1msg
 
 	case KGRound2VssMessage: // Round 2 P2P messages
 		r2msg1 := msg.(KGRound2VssMessage)
-		p.temp.kgRound2VssMessages[fromPIdx] = &r2msg1 // just collect
+		p.Temp.KgRound2VssMessages[fromPIdx] = &r2msg1 // just collect
 
 	case KGRound2DeCommitMessage:
 		r2msg2 := msg.(KGRound2DeCommitMessage)
-		p.temp.kgRound2DeCommitMessages[fromPIdx] = &r2msg2
+		p.Temp.kgRound2DeCommitMessages[fromPIdx] = &r2msg2
 
 	case KGRound3PaillierProveMessage:
 		r3msg := msg.(KGRound3PaillierProveMessage)
-		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
+		p.Temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
@@ -214,8 +217,8 @@ func (p *LocalParty) storeMessage(msg tss.Message) (bool, *tss.Error) {
 	return true, nil
 }
 
-func (p *LocalParty) finish() {
-	p.end <- p.data
+func (p *LocalParty) Finish() {
+	p.end <- p.Data
 }
 
 func (p *LocalParty) finishAndSaveKeygen() error {
@@ -225,7 +228,7 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 
 	// output local save data (inc. secrets)
 	if p.end != nil {
-		p.end <- p.data
+		p.end <- p.Data
 		close(p.end)
 	} else {
 		common.Logger.Warningf("party %s: end chan is nil, you missed this event", p)
@@ -234,15 +237,15 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 	return nil
 }
 
-func (p *LocalParty) rnd() tss.Round {
+func (p *LocalParty) Rnd() tss.Round {
 	return p.round
 }
 
-func (p *LocalParty) lock() {
+func (p *LocalParty) Lock() {
 	p.mtx.Lock()
 }
 
-func (p *LocalParty) unlock() {
+func (p *LocalParty) Unlock() {
 	p.mtx.Unlock()
 }
 

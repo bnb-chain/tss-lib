@@ -28,10 +28,10 @@ func (round *round2) Start() *tss.Error {
 		r2msg1 := NewKGRound2VssMessage(Pj, round.PartyID(), shares[j])
 		// do not send to this Pj, but store for round 3
 		if j == round.PartyID().Index {
-			round.temp.kgRound2VssMessages[j] = &r2msg1
+			round.temp.KgRound2VssMessages[j] = &r2msg1
 			continue
 		}
-		round.temp.kgRound2VssMessages[round.PartyID().Index] = &r2msg1
+		round.temp.KgRound2VssMessages[round.PartyID().Index] = &r2msg1
 		round.out <- r2msg1
 	}
 
@@ -54,8 +54,10 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 
 func (round *round2) Update() (bool, *tss.Error) {
 	// guard - VERIFY de-commit for all Pj
-	for j, msg := range round.temp.kgRound2VssMessages {
-		if round.ok[j] { continue }
+	for j, msg := range round.temp.KgRound2VssMessages {
+		if round.ok[j] {
+			continue
+		}
 		if !round.CanAccept(msg) {
 			return false, nil
 		}

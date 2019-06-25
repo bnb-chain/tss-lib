@@ -24,8 +24,10 @@ func (round *round3) Start() *tss.Error {
 	// 1,9. calculate xi
 	xi := round.temp.shares[PIdx].Share
 	for j := range Ps {
-		if j == PIdx { continue }
-		share := round.temp.kgRound2VssMessages[j].PiShare.Share
+		if j == PIdx {
+			continue
+		}
+		share := round.temp.KgRound2VssMessages[j].PiShare.Share
 		xi = new(big.Int).Add(xi, share)
 	}
 	round.save.Xi = xi
@@ -33,7 +35,7 @@ func (round *round3) Start() *tss.Error {
 	// 2-3.
 	Vc := make([]*crypto.ECPoint, round.Params().Threshold())
 	for c := range Vc {
-		Vc[c] = round.temp.polyGs.PolyG[c] // ours
+		Vc[c] = round.temp.PolyGs.PolyG[c] // ours
 	}
 
 	// 4-11.
@@ -43,11 +45,15 @@ func (round *round3) Start() *tss.Error {
 	}
 	chs := make([]chan vssOut, len(Ps))
 	for i := range chs {
-		if i == PIdx { continue }
+		if i == PIdx {
+			continue
+		}
 		chs[i] = make(chan vssOut)
 	}
 	for j := range Ps {
-		if j == PIdx { continue }
+		if j == PIdx {
+			continue
+		}
 		// 6-8.
 		go func(j int, ch chan<- vssOut) {
 			// 4-9.
@@ -65,7 +71,7 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{err, nil}
 				return
 			}
-			PjShare := round.temp.kgRound2VssMessages[j].PiShare
+			PjShare := round.temp.KgRound2VssMessages[j].PiShare
 			if ok = PjShare.Verify(round.Params().Threshold(), PjPolyGs); !ok {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
@@ -79,8 +85,10 @@ func (round *round3) Start() *tss.Error {
 	vssResults := make([]vssOut, len(Ps))
 	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, Pj := range Ps {
-		if j == PIdx { continue }
-		vssResults[j] = <- chs[j]
+		if j == PIdx {
+			continue
+		}
+		vssResults[j] = <-chs[j]
 		// collect culprits to error out with
 		if err := vssResults[j].unWrappedErr; err != nil {
 			culprits = append(culprits, Pj)
@@ -90,7 +98,9 @@ func (round *round3) Start() *tss.Error {
 		return round.WrapError(vssResults[0].unWrappedErr, culprits...)
 	}
 	for j := range Ps {
-		if j == PIdx { continue }
+		if j == PIdx {
+			continue
+		}
 		// 10-11.
 		PjPolyGs := vssResults[j].pjPolyGs
 		for c := 0; c < round.Params().Threshold(); c++ {
@@ -143,7 +153,9 @@ func (round *round3) CanAccept(msg tss.Message) bool {
 
 func (round *round3) Update() (bool, *tss.Error) {
 	for j, msg := range round.temp.kgRound3PaillierProveMessage {
-		if round.ok[j] { continue }
+		if round.ok[j] {
+			continue
+		}
 		if !round.CanAccept(msg) {
 			return false, nil
 		}

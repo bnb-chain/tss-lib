@@ -1,4 +1,4 @@
-package keygen
+package signing
 
 import (
 	"crypto/ecdsa"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
-	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -15,6 +14,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -29,95 +29,8 @@ func setUp(level string) {
 	}
 }
 
-func TestStartKeygenRound1Paillier(t *testing.T) {
-	setUp("debug")
-
-	pIDs := tss.GenerateTestPartyIDs(1)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
-
-	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
-	if err := lp.Start(); err != nil {
-		assert.FailNow(t, err.Error())
-	}
-	_ = <-out
-
-	// Paillier modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048/8, len(lp.Data.PaillierSk.LambdaN.Bytes()))
-	assert.Equal(t, 2048/8, len(lp.Data.PaillierSk.PublicKey.N.Bytes()))
-}
-
-func TestStartKeygenRound1RSA(t *testing.T) {
-	setUp("debug")
-
-	pIDs := tss.GenerateTestPartyIDs(1)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
-
-	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
-	if err := lp.Start(); err != nil {
-		assert.FailNow(t, err.Error())
-	}
-
-	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048/8, len(lp.Data.NTildej[pIDs[0].Index].Bytes()))
-	assert.Equal(t, 2048/8, len(lp.Data.H1j[pIDs[0].Index].Bytes()))
-	assert.Equal(t, 2048/8, len(lp.Data.H2j[pIDs[0].Index].Bytes()))
-}
-
-func TestFinishAndSaveKeygenH1H2(t *testing.T) {
-	setUp("debug")
-
-	pIDs := tss.GenerateTestPartyIDs(1)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
-
-	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
-	if err := lp.Start(); err != nil {
-		assert.FailNow(t, err.Error())
-	}
-
-	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 32*8, len(lp.Data.H1j[0].Bytes()), "h1 should be correct len")
-	assert.Equal(t, 32*8, len(lp.Data.H2j[0].Bytes()), "h2 should be correct len")
-	assert.NotZero(t, lp.Data.H1j, "h1 should be non-zero")
-	assert.NotZero(t, lp.Data.H2j, "h2 should be non-zero")
-}
-
-func TestUpdateBadMessageCulprits(t *testing.T) {
-	setUp("debug")
-
-	pIDs := tss.GenerateTestPartyIDs(2)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
-
-	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
-	if err := lp.Start(); err != nil {
-		assert.FailNow(t, err.Error())
-	}
-
-	badMsg := NewKGRound1CommitMessage(pIDs[1], nil, nil, nil, nil, nil)
-	ok, err := lp.Update(badMsg)
-	t.Log(err)
-	assert.False(t, ok)
-	assert.Error(t, err)
-	assert.Equal(t, 1, len(err.Culprits()))
-	assert.Equal(t, pIDs[1], err.Culprits()[0])
-	assert.Equal(t,
-		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: From: {1,P[2]}, To: all, MsgType: KGRound1CommitMessage",
-		err.Error())
-}
-
 func TestE2EConcurrent(t *testing.T) {
-	setUp("info")
+	setUp("debug")
 
 	// tss.SetCurve(elliptic.P256())
 
@@ -125,18 +38,18 @@ func TestE2EConcurrent(t *testing.T) {
 	threshold := testThreshold
 
 	p2pCtx := tss.NewPeerContext(pIDs)
-	parties := make([]*LocalParty, 0, len(pIDs))
+	parties := make([]*keygen.LocalParty, 0, len(pIDs))
 
 	out := make(chan tss.Message, len(pIDs))
-	end := make(chan LocalPartySaveData, len(pIDs))
+	end := make(chan keygen.LocalPartySaveData, len(pIDs))
 
 	startGR := runtime.NumGoroutine()
 
 	for i := 0; i < len(pIDs); i++ {
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
-		P := NewLocalParty(params, out, end)
+		P := keygen.NewLocalParty(params, out, end)
 		parties = append(parties, P)
-		go func(P *LocalParty) {
+		go func(P *keygen.LocalParty) {
 			if err := P.Start(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
 				assert.FailNow(t, err.Error())
@@ -145,8 +58,8 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 	var ended int32
-	datas := make([]LocalPartyTempData, 0, len(pIDs))
-	dmtx := sync.Mutex{}
+	datas := make([]keygen.LocalPartyTempData, 0, len(pIDs))
+	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -155,7 +68,7 @@ func TestE2EConcurrent(t *testing.T) {
 			if dest == nil {
 				for _, P := range parties {
 					if P.PartyID().Index != msg.GetFrom().Index {
-						go func(P *LocalParty, msg tss.Message) {
+						go func(P *keygen.LocalParty, msg tss.Message) {
 							if _, err := P.Update(msg); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
@@ -167,7 +80,7 @@ func TestE2EConcurrent(t *testing.T) {
 				if dest.Index == msg.GetFrom().Index {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
 				}
-				go func(P *LocalParty) {
+				go func(P *keygen.LocalParty) {
 					if _, err := P.Update(msg); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
@@ -175,13 +88,13 @@ func TestE2EConcurrent(t *testing.T) {
 				}(parties[dest.Index])
 			}
 		case save := <-end:
-			dmtx.Lock()
-			for _, P := range parties {
-				datas = append(datas, P.Temp)
-			}
-			dmtx.Unlock()
 			atomic.AddInt32(&ended, 1)
+			keys[save.Index] = save
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
+				for _, P := range parties {
+					datas = append(datas, P.Temp)
+				}
+
 				t.Logf("Done. Received save data from %d participants", ended)
 
 				// combine shares for each Pj to get u
@@ -265,6 +178,87 @@ func TestE2EConcurrent(t *testing.T) {
 				t.Log("ECDSA signing test done.")
 
 				t.Logf("Start goroutines: %d, End goroutines: %d", startGR, runtime.NumGoroutine())
+				goto signing
+			}
+		}
+	}
+
+signing:
+	signPIDs := pIDs[:testThreshold+1]
+
+	signP2pCtx := tss.NewPeerContext(signPIDs)
+	signParties := make([]*LocalParty, 0, len(signPIDs))
+
+	signOut := make(chan tss.Message, len(signPIDs))
+	signEnd := make(chan LocalPartySignData, len(signPIDs))
+
+	for i := 0; i < len(signPIDs); i++ {
+		params := tss.NewParameters(signP2pCtx, signPIDs[i], len(signPIDs), threshold)
+		P := NewLocalParty(big.NewInt(0), params, keys[i], signOut, signEnd)
+		signParties = append(signParties, P)
+		go func(P *LocalParty) {
+			if err := P.Start(); err != nil {
+				common.Logger.Errorf("Error: %s", err)
+				assert.FailNow(t, err.Error())
+			}
+		}(P)
+	}
+
+	var signEnded int32
+
+	for {
+		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
+		select {
+		case msg := <-signOut:
+			dest := msg.GetTo()
+			if dest == nil {
+				for _, P := range signParties {
+					if P.PartyID().Index != msg.GetFrom().Index {
+						go func(P *LocalParty, msg tss.Message) {
+							if _, err := P.Update(msg); err != nil {
+								common.Logger.Errorf("Error: %s", err)
+								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+							}
+						}(P, msg)
+					}
+				}
+			} else {
+				if dest.Index == msg.GetFrom().Index {
+					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
+				}
+				go func(P *LocalParty) {
+					if _, err := P.Update(msg); err != nil {
+						common.Logger.Errorf("Error: %s", err)
+						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+					}
+				}(signParties[dest.Index])
+			}
+		case save := <-signEnd:
+			atomic.AddInt32(&signEnded, 1)
+			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
+				t.Logf("Done. Received save data from %d participants", signEnded)
+				r := new(big.Int).Mod(save.R.X(), tss.EC().Params().N)
+				fmt.Printf("sign result: R(%s, %s), r=%s\n", save.R.X().String(), save.R.Y().String(), r.String())
+
+				// BEGIN check R correctness
+				sumK := big.NewInt(0)
+				for _, p := range signParties {
+					sumK = new(big.Int).Mod(sumK.Add(sumK, p.temp.k), tss.EC().Params().N)
+				}
+				sumGamma := big.NewInt(0)
+				for _, p := range signParties {
+					sumGamma = new(big.Int).Mod(sumGamma.Add(sumGamma, p.temp.gamma), tss.EC().Params().N)
+				}
+				sumTheta := big.NewInt(0)
+				for _, p := range signParties {
+					sumTheta = new(big.Int).Mod(sumTheta.Add(sumTheta, p.temp.thelta), tss.EC().Params().N)
+				}
+				assert.Equal(t, sumTheta, new(big.Int).Mod(sumGamma.Mul(sumGamma, sumK), tss.EC().Params().N))
+				sumKInverse := new(big.Int).ModInverse(sumK, tss.EC().Params().N)
+				rx, ry := tss.EC().ScalarBaseMult(sumKInverse.Bytes())
+				assert.Equal(t, rx, save.R.X())
+				assert.Equal(t, ry, save.R.Y())
+				//END check R correctness
 
 				return
 			}
