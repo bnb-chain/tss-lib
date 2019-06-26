@@ -99,6 +99,18 @@ func (publicKey *PublicKey) Encrypt(m *big.Int) (c *big.Int, err error) {
 	return
 }
 
+func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
+	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
+		return nil, ErrMessageTooLong
+	}
+	N2 := publicKey.NSquare()
+	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
+		return nil, ErrMessageTooLong
+	}
+	// cipher^m mod N2
+	return new(big.Int).Exp(c1, m, N2), nil
+}
+
 func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
 	N2 := publicKey.NSquare()
 	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
@@ -111,18 +123,6 @@ func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
 	c1c2 := new(big.Int).Mul(c1, c2)
 	// c1 * c2 mod N2
 	return new(big.Int).Mod(c1c2, N2), nil
-}
-
-func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
-	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
-		return nil, ErrMessageTooLong
-	}
-	N2 := publicKey.NSquare()
-	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
-		return nil, ErrMessageTooLong
-	}
-	// cipher^m mod N2
-	return new(big.Int).Exp(c1, m, N2), nil
 }
 
 func (publicKey *PublicKey) NSquare() *big.Int {

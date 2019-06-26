@@ -18,7 +18,7 @@ const (
 )
 
 func TestGenerateKeyPair(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(testPaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 
 	assert.NotZero(t, publicKey)
 	assert.NotZero(t, privateKey)
@@ -26,7 +26,7 @@ func TestGenerateKeyPair(t *testing.T) {
 }
 
 func TestEncrypt(t *testing.T) {
-	publicKey, _ := GenerateKeyPair(testPaillierKeyLength)
+	_, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	cipher, err := publicKey.Encrypt(big.NewInt(1))
 
 	assert.NoError(t, err, "must not error")
@@ -50,6 +50,25 @@ func TestEncryptDecrypt(t *testing.T) {
 	}
 }
 
+func TestHomoMul(t *testing.T) {
+	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
+
+	three, err := privateKey.Encrypt(big.NewInt(3))
+	assert.NoError(t, err)
+
+	// for HomoMul, the first argument `m` is not ciphered
+	six := big.NewInt(6)
+
+	cm, err := privateKey.HomoMult(six, three)
+	assert.NoError(t, err)
+	multiple, err := privateKey.Decrypt(cm)
+	assert.NoError(t, err)
+
+	// 3 * 6 = 18
+	exp := int64(18)
+	assert.Equal(t, 0, multiple.Cmp(big.NewInt(exp)))
+}
+
 func TestHomoAdd(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 
@@ -67,22 +86,6 @@ func TestHomoAdd(t *testing.T) {
 	plain, _ := privateKey.Decrypt(ciphered)
 
 	assert.Equal(t, new(big.Int).Add(num1, num2), plain)
-}
-
-func TestHomoMul(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
-
-	three, err := privateKey.Encrypt(big.NewInt(3))
-	assert.NoError(t, err)
-
-	cm, err := privateKey.HomoMult(big.NewInt(6), three)
-	assert.NoError(t, err)
-	multiple, err := privateKey.Decrypt(cm)
-	assert.NoError(t, err)
-
-	// 3 * 6 = 18
-	exp := int64(18)
-	assert.Equal(t, 0, multiple.Cmp(big.NewInt(exp)))
 }
 
 func TestProof2(t *testing.T) {
