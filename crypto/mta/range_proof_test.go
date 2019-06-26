@@ -18,10 +18,10 @@ const (
 )
 
 func TestProveRangeAlice(t *testing.T) {
-	t.Skip("WIP: broken")
+	q := tss.EC().Params().N
 
 	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
-	m := random.GetRandomPositiveInt(tss.EC().Params().N)
+	m := random.GetRandomPositiveInt(q)
 
 	c, r, err := sk.EncryptAndReturnRandomness(m)
 	assert.NoError(t, err)
