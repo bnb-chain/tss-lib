@@ -15,7 +15,6 @@ import (
 // Using a modulus length of 2048 is recommended in the GG18 spec
 const (
 	testRSAPrimeBits = 1024
-	testPaillierKeyLength = 2048
 )
 
 func TestProveRangeAlice(t *testing.T) {
