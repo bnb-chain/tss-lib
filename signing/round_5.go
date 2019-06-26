@@ -23,18 +23,19 @@ func (round *round5) Start() *tss.Error {
 	RX, RY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
 	R := crypto.NewECPoint(tss.EC(), RX, RY)
 	for j, Pj := range round.Parties().Parties() {
-		if j != round.PartyID().Index {
-			SCj := round.temp.signRound1CommitMessages[j].Commitment
-			SDj := round.temp.signRound4DecommitMessage[j].Decommitment
-			cmtDeCmt := commitments.HashCommitDecommit{C: SCj, D: SDj}
-			ok, BigGammaJ := cmtDeCmt.DeCommit()
-			if !ok {
-				return round.WrapError(errors.New("commitment verify failed"), Pj)
-			}
-			// TODO: line 5 SchnorrVerify
-			RXNew, RYNew := tss.EC().Add(R.X(), R.Y(), BigGammaJ[0], BigGammaJ[1])
-			R = crypto.NewECPoint(tss.EC(), RXNew, RYNew)
+		if j == round.PartyID().Index {
+			continue
 		}
+		SCj := round.temp.signRound1CommitMessages[j].Commitment
+		SDj := round.temp.signRound4DecommitMessage[j].Decommitment
+		cmtDeCmt := commitments.HashCommitDecommit{C: SCj, D: SDj}
+		ok, BigGammaJ := cmtDeCmt.DeCommit()
+		if !ok {
+			return round.WrapError(errors.New("commitment verify failed"), Pj)
+		}
+		// TODO: line 5 SchnorrVerify
+		RXNew, RYNew := tss.EC().Add(R.X(), R.Y(), BigGammaJ[0], BigGammaJ[1])
+		R = crypto.NewECPoint(tss.EC(), RXNew, RYNew)
 	}
 	finalRX, finalRY := tss.EC().ScalarMult(R.X(), R.Y(), round.temp.thelta_inverse.Bytes())
 	round.data.R = crypto.NewECPoint(tss.EC(), finalRX, finalRY)

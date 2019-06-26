@@ -21,10 +21,11 @@ func (round *round4) Start() *tss.Error {
 	thelta := *round.temp.thelta
 	theltaInverse := &thelta
 	for j, _ := range round.Parties().Parties() {
-		if round.PartyID().Index != j {
-			theltaJ := round.temp.signRound3Messages[j].Thelta
-			theltaInverse = new(big.Int).Mod(new(big.Int).Add(theltaInverse, theltaJ), tss.EC().Params().N)
+		if j == round.PartyID().Index {
+			continue
 		}
+		theltaJ := round.temp.signRound3Messages[j].Thelta
+		theltaInverse = new(big.Int).Mod(new(big.Int).Add(theltaInverse, theltaJ), tss.EC().Params().N)
 	}
 
 	// compute the multiplicative inverse thelta mod q

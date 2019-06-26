@@ -27,7 +27,7 @@ func (round *round3) Start() *tss.Error {
 		if j == PIdx {
 			continue
 		}
-		share := round.temp.KgRound2VssMessages[j].PiShare.Share
+		share := round.temp.kgRound2VssMessages[j].PiShare.Share
 		xi = new(big.Int).Add(xi, share)
 	}
 	round.save.Xi = xi
@@ -35,7 +35,7 @@ func (round *round3) Start() *tss.Error {
 	// 2-3.
 	Vc := make([]*crypto.ECPoint, round.Params().Threshold())
 	for c := range Vc {
-		Vc[c] = round.temp.PolyGs.PolyG[c] // ours
+		Vc[c] = round.temp.polyGs.PolyG[c] // ours
 	}
 
 	// 4-11.
@@ -71,7 +71,7 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{err, nil}
 				return
 			}
-			PjShare := round.temp.KgRound2VssMessages[j].PiShare
+			PjShare := round.temp.kgRound2VssMessages[j].PiShare
 			if ok = PjShare.Verify(round.Params().Threshold(), PjPolyGs); !ok {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return

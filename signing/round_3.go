@@ -19,14 +19,15 @@ func (round *round3) Start() *tss.Error {
 	round.resetOk()
 
 	var alphas = make([]*big.Int, len(round.Parties().Parties()))
-	for j, _ := range round.Parties().Parties() {
-		if j != round.PartyID().Index {
-			alphaIj, err := mta.AliceEnd(round.key.PaillierPks[round.PartyID().Index], nil, nil, nil, nil, round.temp.signRound2MtAMidMessages[j].C1_ji, nil, round.key.PaillierSk)
-			if err != nil {
-				return round.WrapError(fmt.Errorf("failed to compute Alice_end: %v", err))
-			}
-			alphas[j] = alphaIj
+	for j := range round.Parties().Parties() {
+		if j == round.PartyID().Index {
+			continue
 		}
+		alphaIj, err := mta.AliceEnd(round.key.PaillierPks[round.PartyID().Index], nil, nil, nil, nil, round.temp.signRound2MtAMidMessages[j].C1_ji, nil, round.key.PaillierSk)
+		if err != nil {
+			return round.WrapError(fmt.Errorf("failed to compute Alice_end: %v", err))
+		}
+		alphas[j] = alphaIj
 	}
 
 	thelta := &big.Int{}
@@ -38,11 +39,12 @@ func (round *round3) Start() *tss.Error {
 	//sigma = sigma.Mul(round.temp.k, round.temp.w)
 	//sigma = sigma.Mod(sigma, tss.EC().Params().N)
 
-	for j, _ := range round.Parties().Parties() {
-		if j != round.PartyID().Index {
-			thelta = thelta.Add(thelta, alphas[j].Add(alphas[j], round.temp.betas[j]))
-			thelta = thelta.Mod(thelta, tss.EC().Params().N)
+	for j := range round.Parties().Parties() {
+		if j == round.PartyID().Index {
+			continue
 		}
+		thelta = thelta.Add(thelta, alphas[j].Add(alphas[j], round.temp.betas[j]))
+		thelta = thelta.Mod(thelta, tss.EC().Params().N)
 	}
 
 	round.temp.thelta = thelta

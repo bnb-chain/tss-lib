@@ -66,7 +66,7 @@ func (round *round1) Start() *tss.Error {
 
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N)
-	round.temp.Ui = ui
+	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	rsa, pai := <-rsaCh, <-paiCh
@@ -107,7 +107,7 @@ func (round *round1) Start() *tss.Error {
 	// - Shamir PolyGs
 	// - our set of Shamir shares
 	round.save.ShareID = ids[pIdx]
-	round.temp.PolyGs = polyGs
+	round.temp.polyGs = polyGs
 	round.temp.shares = shares
 
 	// for this P: SAVE de-commitments, paillier keys for round 2

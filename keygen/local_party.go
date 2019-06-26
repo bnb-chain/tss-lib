@@ -23,8 +23,8 @@ type (
 		round tss.Round
 
 		mtx  sync.Mutex
-		Temp LocalPartyTempData
-		Data LocalPartySaveData
+		temp LocalPartyTempData
+		data LocalPartySaveData
 
 		// messaging
 		out chan<- tss.Message
@@ -52,7 +52,7 @@ type (
 	LocalPartyMessageStore struct {
 		// messages
 		kgRound1CommitMessages       []*KGRound1CommitMessage
-		KgRound2VssMessages          []*KGRound2VssMessage
+		kgRound2VssMessages          []*KGRound2VssMessage
 		kgRound2DeCommitMessages     []*KGRound2DeCommitMessage
 		kgRound3PaillierProveMessage []*KGRound3PaillierProveMessage
 	}
@@ -61,9 +61,9 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after keygen)
-		Ui            *big.Int // used for tests
+		ui            *big.Int // used for tests
 		KGCs          []*cmt.HashCommitment
-		PolyGs        *vss.PolyGs
+		polyGs        *vss.PolyGs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}
@@ -78,24 +78,24 @@ func NewLocalParty(
 	partyCount := params.PartyCount()
 	p := &LocalParty{
 		Parameters: params,
-		Temp:       LocalPartyTempData{},
-		Data:       LocalPartySaveData{Index: params.PartyID().Index},
+		temp:       LocalPartyTempData{},
+		data:       LocalPartySaveData{Index: params.PartyID().Index},
 		out:        out,
 		end:        end,
 	}
 	// msgs init
-	p.Temp.KGCs = make([]*cmt.HashCommitment, partyCount)
-	p.Temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
-	p.Temp.KgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
-	p.Temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
-	p.Temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
+	p.temp.KGCs = make([]*cmt.HashCommitment, partyCount)
+	p.temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
+	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
+	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
+	p.temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
 	// data init
-	p.Data.BigXj = make([]*crypto.ECPoint, partyCount)
-	p.Data.PaillierPks = make([]*paillier.PublicKey, partyCount)
-	p.Data.NTildej = make([]*big.Int, partyCount)
-	p.Data.H1j, p.Data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
+	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
+	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
+	p.data.NTildej = make([]*big.Int, partyCount)
+	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	// round init
-	round := newRound1(params, &p.Data, &p.Temp, out)
+	round := newRound1(params, &p.data, &p.temp, out)
 	p.round = round
 	return p
 }
@@ -153,7 +153,7 @@ func (p *LocalParty) Update(msg tss.Message) (ok bool, err *tss.Error) {
 	}
 	// finished!
 	common.Logger.Infof("party %s: keygen finished!", p.PartyID())
-	p.end <- p.Data
+	p.end <- p.data
 	return r(true, nil)
 }
 
@@ -196,19 +196,19 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
 		r1msg := msg.(KGRound1CommitMessage)
-		p.Temp.kgRound1CommitMessages[fromPIdx] = &r1msg
+		p.temp.kgRound1CommitMessages[fromPIdx] = &r1msg
 
 	case KGRound2VssMessage: // Round 2 P2P messages
 		r2msg1 := msg.(KGRound2VssMessage)
-		p.Temp.KgRound2VssMessages[fromPIdx] = &r2msg1 // just collect
+		p.temp.kgRound2VssMessages[fromPIdx] = &r2msg1 // just collect
 
 	case KGRound2DeCommitMessage:
 		r2msg2 := msg.(KGRound2DeCommitMessage)
-		p.Temp.kgRound2DeCommitMessages[fromPIdx] = &r2msg2
+		p.temp.kgRound2DeCommitMessages[fromPIdx] = &r2msg2
 
 	case KGRound3PaillierProveMessage:
 		r3msg := msg.(KGRound3PaillierProveMessage)
-		p.Temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
+		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
@@ -218,7 +218,7 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 }
 
 func (p *LocalParty) Finish() {
-	p.end <- p.Data
+	p.end <- p.data
 }
 
 func (p *LocalParty) finishAndSaveKeygen() error {
@@ -228,7 +228,7 @@ func (p *LocalParty) finishAndSaveKeygen() error {
 
 	// output local save data (inc. secrets)
 	if p.end != nil {
-		p.end <- p.Data
+		p.end <- p.data
 		close(p.end)
 	} else {
 		common.Logger.Warningf("party %s: end chan is nil, you missed this event", p)

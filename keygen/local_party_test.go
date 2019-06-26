@@ -45,8 +45,8 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	_ = <-out
 
 	// Paillier modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048/8, len(lp.Data.PaillierSk.LambdaN.Bytes()))
-	assert.Equal(t, 2048/8, len(lp.Data.PaillierSk.PublicKey.N.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.LambdaN.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
 
 func TestStartKeygenRound1RSA(t *testing.T) {
@@ -64,9 +64,9 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	}
 
 	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048/8, len(lp.Data.NTildej[pIDs[0].Index].Bytes()))
-	assert.Equal(t, 2048/8, len(lp.Data.H1j[pIDs[0].Index].Bytes()))
-	assert.Equal(t, 2048/8, len(lp.Data.H2j[pIDs[0].Index].Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.NTildej[pIDs[0].Index].Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.H1j[pIDs[0].Index].Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.H2j[pIDs[0].Index].Bytes()))
 }
 
 func TestFinishAndSaveKeygenH1H2(t *testing.T) {
@@ -84,10 +84,10 @@ func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	}
 
 	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 32*8, len(lp.Data.H1j[0].Bytes()), "h1 should be correct len")
-	assert.Equal(t, 32*8, len(lp.Data.H2j[0].Bytes()), "h2 should be correct len")
-	assert.NotZero(t, lp.Data.H1j, "h1 should be non-zero")
-	assert.NotZero(t, lp.Data.H2j, "h2 should be non-zero")
+	assert.Equal(t, 32*8, len(lp.data.H1j[0].Bytes()), "h1 should be correct len")
+	assert.Equal(t, 32*8, len(lp.data.H2j[0].Bytes()), "h2 should be correct len")
+	assert.NotZero(t, lp.data.H1j, "h1 should be non-zero")
+	assert.NotZero(t, lp.data.H2j, "h2 should be non-zero")
 }
 
 func TestUpdateBadMessageCulprits(t *testing.T) {
@@ -177,7 +177,7 @@ func TestE2EConcurrent(t *testing.T) {
 		case save := <-end:
 			dmtx.Lock()
 			for _, P := range parties {
-				datas = append(datas, P.Temp)
+				datas = append(datas, P.temp)
 			}
 			dmtx.Unlock()
 			atomic.AddInt32(&ended, 1)
@@ -192,22 +192,22 @@ func TestE2EConcurrent(t *testing.T) {
 						if j2 == j {
 							continue
 						}
-						vssMsgs := P.Temp.KgRound2VssMessages
+						vssMsgs := P.temp.kgRound2VssMessages
 						pShares = append(pShares, vssMsgs[j].PiShare)
 					}
 					uj, err := pShares[:threshold].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
-					assert.Equal(t, uj, Pj.Temp.Ui)
+					assert.Equal(t, uj, Pj.temp.ui)
 					uGX, uGY := tss.EC().ScalarBaseMult(uj.Bytes())
-					assert.Equal(t, uGX, Pj.Temp.PolyGs.PolyG[0].X())
-					assert.Equal(t, uGY, Pj.Temp.PolyGs.PolyG[0].Y())
+					assert.Equal(t, uGX, Pj.temp.polyGs.PolyG[0].X())
+					assert.Equal(t, uGY, Pj.temp.polyGs.PolyG[0].Y())
 
 					// xj test: BigXj == xj*G
-					xj := Pj.Data.Xi
+					xj := Pj.data.Xi
 					gXjX, gXjY := tss.EC().ScalarBaseMult(xj.Bytes())
-					BigXjX, BigXjY := Pj.Data.BigXj[j].X(), Pj.Data.BigXj[j].Y()
+					BigXjX, BigXjY := Pj.data.BigXj[j].X(), Pj.data.BigXj[j].Y()
 					assert.Equal(t, BigXjX, gXjX)
 					assert.Equal(t, BigXjY, gXjY)
 
@@ -216,10 +216,10 @@ func TestE2EConcurrent(t *testing.T) {
 						badShares := pShares[:threshold]
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
 						uj, _ := pShares[:threshold].ReConstruct()
-						assert.NotEqual(t, parties[j].Temp.Ui, uj)
+						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
-						assert.NotEqual(t, BigXjX, Pj.Temp.PolyGs.PolyG[0].X())
-						assert.NotEqual(t, BigXjY, Pj.Temp.PolyGs.PolyG[0].Y())
+						assert.NotEqual(t, BigXjX, Pj.temp.polyGs.PolyG[0].X())
+						assert.NotEqual(t, BigXjY, Pj.temp.polyGs.PolyG[0].Y())
 					}
 
 					u = new(big.Int).Add(u, uj)
@@ -248,8 +248,8 @@ func TestE2EConcurrent(t *testing.T) {
 
 				// make sure everyone has the same ECDSA public key
 				for _, Pj := range parties {
-					assert.Equal(t, pkX, Pj.Data.ECDSAPub.X())
-					assert.Equal(t, pkY, Pj.Data.ECDSAPub.Y())
+					assert.Equal(t, pkX, Pj.data.ECDSAPub.X())
+					assert.Equal(t, pkY, Pj.data.ECDSAPub.Y())
 				}
 				t.Log("Public key distribution test done.")
 
