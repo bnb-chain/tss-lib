@@ -1,6 +1,8 @@
 package mta
 
 import(
+	"crypto/rand"
+	"crypto/rsa"
 	"math/big"
 	"testing"
 
@@ -8,12 +10,14 @@ import(
 
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
 const (
 	testPaillierKeyLength = 2048
+	testRSAModulusLen = 2048
 )
 
 func TestShareProtocol(t *testing.T) {
@@ -24,10 +28,14 @@ func TestShareProtocol(t *testing.T) {
 	a := random.GetRandomPositiveInt(q)
 	b := random.GetRandomPositiveInt(q)
 
-	cA, err := AliceInit(pk, a, nil, nil, nil)
+	rsaPK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
+	NTildei, h1i, h2i, err := keygen.GenerateNTildei(rsaPK.Primes)
 	assert.NoError(t, err)
 
-	_, cB, _, beta1, err := BobMid(pk, b, cA, nil, nil, nil, nil, nil, nil)
+	cA, pf, err := AliceInit(pk, a, NTildei, h1i, h2i)
+	assert.NoError(t, err)
+
+	_, cB, _, beta1, err := BobMid(pk, pf, b, cA, nil, nil, nil, nil, nil, nil, NTildei, h1i, h2i)
 	assert.NoError(t, err)
 
 	alpha, err := AliceEnd(pk, nil, nil, nil, nil, cB, nil, sk)
