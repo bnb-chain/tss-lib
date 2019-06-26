@@ -70,6 +70,10 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) *
 }
 
 func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
+	if pf == nil || pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil {
+		return false
+	}
+
 	N2 := new(big.Int).Mul(pk.N, pk.N)
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
