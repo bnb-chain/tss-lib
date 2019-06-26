@@ -21,17 +21,16 @@ func (round *round2) Start() *tss.Error {
 	round.resetOk()
 
 	for j, Pj := range round.Parties().Parties() {
-		beta, c1ji, _, _, err := mta.BobMid(round.key.PaillierPks[j], round.temp.gamma, round.temp.signRound1MtAInitMessages[j].C, nil, nil, nil, nil, nil, nil)
+		if j == round.PartyID().Index {
+			continue
+		}
+		beta, c1ji, _, _, err := mta.BobMid(round.key.PaillierPks[j], round.temp.signRound1MtAInitMessages[j].Pi, round.temp.gamma, round.temp.signRound1MtAInitMessages[j].C, nil, nil, nil, nil, nil, nil, round.key.NTildej[round.PartyID().Index], round.key.H1j[round.PartyID().Index], round.key.H2j[round.PartyID().Index])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to calculate bob_mid: %v", err))
 		}
 
 		round.temp.betas[j] = beta
 		r2msg := NewSignRound2MtAMidMessage(Pj, round.PartyID(), c1ji, nil, nil, nil)
-		if j == round.PartyID().Index {
-			round.temp.signRound2MtAMidMessages[j] = &r2msg
-			continue
-		}
 		round.temp.signRound2MtAMidMessages[round.PartyID().Index] = &r2msg
 		round.out <- r2msg
 	}

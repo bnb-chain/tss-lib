@@ -21,7 +21,6 @@ func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *Loc
 
 // missing:
 // line1: m = H(M) belongs to Zq
-// line6: Alice_init should return a pi (range proof)
 func (round *round1) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -44,14 +43,11 @@ func (round *round1) Start() *tss.Error {
 	round.temp.deCommit = cmt.D
 
 	for j, Pj := range round.Parties().Parties() {
-		// TODO: get pi - range proof
-		// TODO: make sure PartyID.Index should not remapped
-		c, err := mta.AliceInit(round.key.PaillierPks[round.PartyID().Index], k, nil, nil, nil)
+		c, pi, err := mta.AliceInit(round.key.PaillierPks[round.PartyID().Index], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
-		// TODO: pass pi - range proof
-		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), c, nil)
+		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), c, pi)
 		if j == round.PartyID().Index {
 			round.temp.signRound1MtAInitMessages[j] = &r1msg1
 			continue
