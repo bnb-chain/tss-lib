@@ -10,12 +10,14 @@
 package paillier
 
 import (
-	"crypto"
 	"fmt"
 	gmath "math"
 	"math/big"
 	"strconv"
 
+	"github.com/pkg/errors"
+
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/primes"
 	"github.com/binance-chain/tss-lib/common/random"
 	crypto2 "github.com/binance-chain/tss-lib/crypto"
@@ -23,6 +25,7 @@ import (
 
 const (
 	Proof2Iters = 13
+	verify2PrimesUntil = 1000 // Verify2 uses primes <1000
 )
 
 type (
@@ -36,20 +39,8 @@ type (
 		LambdaN *big.Int // lcm(p-1, q-1)
 	}
 
-	Proof struct {
-		H1 *big.Int
-		H2 *big.Int
-		Y  *big.Int
-		E  *big.Int
-		N  *big.Int
-	}
-
 	// Proof2 uses the new GenerateXs method in GG18Spec (6)
 	Proof2 []*big.Int
-)
-
-const (
-	verify2PrimesUntil = 1000 // Verify2 uses primes <1000
 )
 
 var (
@@ -108,6 +99,18 @@ func (publicKey *PublicKey) Encrypt(m *big.Int) (c *big.Int, err error) {
 	return
 }
 
+func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
+	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
+		return nil, ErrMessageTooLong
+	}
+	N2 := publicKey.NSquare()
+	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
+		return nil, ErrMessageTooLong
+	}
+	// cipher^m mod N2
+	return new(big.Int).Exp(c1, m, N2), nil
+}
+
 func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
 	N2 := publicKey.NSquare()
 	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
@@ -120,18 +123,6 @@ func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
 	c1c2 := new(big.Int).Mul(c1, c2)
 	// c1 * c2 mod N2
 	return new(big.Int).Mod(c1c2, N2), nil
-}
-
-func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
-	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
-		return nil, ErrMessageTooLong
-	}
-	N2 := publicKey.NSquare()
-	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
-		return nil, ErrMessageTooLong
-	}
-	// cipher^m mod N2
-	return new(big.Int).Exp(c1, m, N2), nil
 }
 
 func (publicKey *PublicKey) NSquare() *big.Int {
@@ -237,19 +228,17 @@ func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 		nb := []byte(strconv.Itoa(n))
 		for j := 0; j < blocks; j++ {
 			go func(j int) {
-				xij := crypto.SHA256.New() // TODO BLAKE2b_256 is faster than SHA256!
-				xij.Write(kb)              // TODO unhandled errors, probably never thrown on a hash update!
-				xij.Write(sXb)
-				xij.Write(sYb)
-				xij.Write(Nb)
-				xij.Write(ib)
-				xij.Write([]byte(strconv.Itoa(j)))
-				xij.Write(nb) // nonce
-				chs[j] <- xij.Sum(nil)
+				jBz := []byte(strconv.Itoa(j))
+				hash := common.SHA512_256(ib, jBz, nb, kb, sXb, sYb, Nb)
+				chs[j] <- hash
 			}(j)
 		}
 		for _, ch := range chs { // must be in order
-			xi = append(xi, <-ch...) // xi1||···||xib
+			rx := <-ch
+			if rx == nil { // this should never happen. see: https://golang.org/pkg/hash/#Hash
+				panic(errors.New("GenerateXs hash write error!"))
+			}
+			xi = append(xi, rx...) // xi1||···||xib
 		}
 		ret[i] = new(big.Int).SetBytes(xi)
 		if random.IsNumberInMultiplicativeGroup(N, ret[i]) {

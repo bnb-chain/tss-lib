@@ -14,11 +14,11 @@ import (
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
 const (
-	PaillierKeyLength = 2048
+	testPaillierKeyLength = 2048
 )
 
 func TestGenerateKeyPair(t *testing.T) {
-	publicKey, privateKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 
 	assert.NotZero(t, publicKey)
 	assert.NotZero(t, privateKey)
@@ -26,7 +26,7 @@ func TestGenerateKeyPair(t *testing.T) {
 }
 
 func TestEncrypt(t *testing.T) {
-	publicKey, _ := GenerateKeyPair(PaillierKeyLength)
+	_, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	cipher, err := publicKey.Encrypt(big.NewInt(1))
 
 	assert.NoError(t, err, "must not error")
@@ -36,7 +36,7 @@ func TestEncrypt(t *testing.T) {
 
 func TestEncryptDecrypt(t *testing.T) {
 	for i := 1; i < 10; i++ {
-		privateKey, _ := GenerateKeyPair(PaillierKeyLength)
+		privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
 
 		exp := big.NewInt(100)
 		cypher, err := privateKey.Encrypt(exp)
@@ -50,8 +50,27 @@ func TestEncryptDecrypt(t *testing.T) {
 	}
 }
 
+func TestHomoMul(t *testing.T) {
+	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
+
+	three, err := privateKey.Encrypt(big.NewInt(3))
+	assert.NoError(t, err)
+
+	// for HomoMul, the first argument `m` is not ciphered
+	six := big.NewInt(6)
+
+	cm, err := privateKey.HomoMult(six, three)
+	assert.NoError(t, err)
+	multiple, err := privateKey.Decrypt(cm)
+	assert.NoError(t, err)
+
+	// 3 * 6 = 18
+	exp := int64(18)
+	assert.Equal(t, 0, multiple.Cmp(big.NewInt(exp)))
+}
+
 func TestHomoAdd(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 
 	num1 := big.NewInt(10)
 	num2 := big.NewInt(32)
@@ -69,28 +88,12 @@ func TestHomoAdd(t *testing.T) {
 	assert.Equal(t, new(big.Int).Add(num1, num2), plain)
 }
 
-func TestHomoMul(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
-
-	three, err := privateKey.Encrypt(big.NewInt(3))
-	assert.NoError(t, err)
-
-	cm, err := privateKey.HomoMult(big.NewInt(6), three)
-	assert.NoError(t, err)
-	multiple, err := privateKey.Decrypt(cm)
-	assert.NoError(t, err)
-
-	// 3 * 6 = 18
-	exp := int64(18)
-	assert.Equal(t, 0, multiple.Cmp(big.NewInt(exp)))
-}
-
 func TestProof2(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(PaillierKeyLength)
+	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
+	proof := privateKey.Proof2(ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
 		// TODO add a better assertion
@@ -99,25 +102,25 @@ func TestProof2(t *testing.T) {
 }
 
 func TestProof2Verify2(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
-	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(yX, yY))
+	proof := privateKey.Proof2(ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	assert.NoError(t, err)
 	assert.True(t, res, "proof verify2 result must be true")
 }
 
 func TestProof2Verify2Fail(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(PaillierKeyLength)
+	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, crypto.NewECPoint(yX, yY))
+	proof := privateKey.Proof2(ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	last := proof[len(proof) - 1]
 	last.Sub(last, big.NewInt(1))
-	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(yX, yY))
+	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	assert.NoError(t, err)
 	assert.False(t, res, "proof verify2 result must be true")
 }
@@ -138,7 +141,7 @@ func TestGenerateXs(t *testing.T) {
 	sY := random.MustGetRandomInt(256)
 	N := random.GetRandomPrimeInt(2048)
 
-	xs := GenerateXs(13, k, N, crypto.NewECPoint(sX, sY))
+	xs := GenerateXs(13, k, N, crypto.NewECPoint(tss.EC(), sX, sY))
 	assert.Equal(t, 13, len(xs))
 	for _, xi := range xs {
 		assert.True(t, random.IsNumberInMultiplicativeGroup(N, xi))

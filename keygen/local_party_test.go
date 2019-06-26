@@ -69,7 +69,7 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	assert.Equal(t, 2048/8, len(lp.data.H2j[pIDs[0].Index].Bytes()))
 }
 
-func TestFinishAndSaveKeygenSHA3_256(t *testing.T) {
+func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
@@ -105,7 +105,7 @@ func TestUpdateBadMessageCulprits(t *testing.T) {
 	}
 
 	badMsg := NewKGRound1CommitMessage(pIDs[1], nil, nil, nil, nil, nil)
-	ok, err := lp.Update(badMsg)
+	ok, err := tss.BaseUpdate(lp, badMsg, "keygen")
 	t.Log(err)
 	assert.False(t, ok)
 	assert.Error(t, err)
@@ -156,7 +156,7 @@ func TestE2EConcurrent(t *testing.T) {
 				for _, P := range parties {
 					if P.PartyID().Index != msg.GetFrom().Index {
 						go func(P *LocalParty, msg tss.Message) {
-							if _, err := P.Update(msg); err != nil {
+							if _, err := tss.BaseUpdate(P, msg, "keygen"); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 							}
@@ -168,9 +168,9 @@ func TestE2EConcurrent(t *testing.T) {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
 				}
 				go func(P *LocalParty) {
-					if _, err := P.Update(msg); err != nil {
+					if _, err := tss.BaseUpdate(P, msg, "keygen"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error())// TODO fail outside goroutine
+						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
 				}(parties[dest.Index])
 			}
@@ -189,9 +189,11 @@ func TestE2EConcurrent(t *testing.T) {
 				for j, Pj := range parties {
 					pShares := make(vss.Shares, 0)
 					for j2, P := range parties {
-						if j2 == j { continue }
+						if j2 == j {
+							continue
+						}
 						vssMsgs := P.temp.kgRound2VssMessages
-						pShares  = append(pShares, vssMsgs[j].PiShare)
+						pShares = append(pShares, vssMsgs[j].PiShare)
 					}
 					uj, err := pShares[:threshold].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")

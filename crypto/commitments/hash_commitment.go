@@ -4,11 +4,9 @@
 package commitments
 
 import (
-	"crypto"
 	"math/big"
 
-	_ "golang.org/x/crypto/sha3"
-
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 )
 
@@ -27,7 +25,7 @@ type (
 	}
 )
 
-func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
+func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
 	security := random.MustGetRandomInt(HashLength) // r
 
 	parts := make([]*big.Int, len(secrets) + 1)
@@ -35,53 +33,30 @@ func NewHashCommitment(secrets ...*big.Int) (*HashCommitDecommit, error) {
 	for i := 1; i < len(parts); i++ {
 		parts[i] = secrets[i - 1]
 	}
-	sha3256Sum, err := generateSHA3_256Digest(parts)
-	if err != nil {
-		return nil, err
-	}
+	hash := common.SHA512_256i(parts...)
 
 	cmt := &HashCommitDecommit{}
-	cmt.C = new(big.Int).SetBytes(sha3256Sum)
+	cmt.C = hash
 	cmt.D = parts
-	return cmt, nil
+	return cmt
 }
 
-func (cmt *HashCommitDecommit) Verify() (bool, error) {
+func (cmt *HashCommitDecommit) Verify() bool {
 	C, D := cmt.C, cmt.D
 
-	sha3256Sum, err := generateSHA3_256Digest(D)
-	if err != nil {
-		return false, err
+	hash := common.SHA512_256i(D...)
+	if hash.Cmp(C) == 0 {
+		return true
+	} else {
+		return false
 	}
-	sha3256SumInt := new(big.Int).SetBytes(sha3256Sum)
+}
 
-	if sha3256SumInt.Cmp(C) == 0 {
-		return true, nil
+func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment) {
+	if cmt.Verify() {
+		// [1:] skips random element r in D
+		return true, cmt.D[1:]
 	} else {
 		return false, nil
 	}
-}
-
-func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment, error) {
-	result, err := cmt.Verify()
-	if err != nil {
-		return false, nil, err
-	}
-	if result {
-		// [1:] skips random element r in D
-		return true, cmt.D[1:], nil
-	} else {
-		return false, nil, nil
-	}
-}
-
-func generateSHA3_256Digest(in []*big.Int) ([]byte, error) {
-	sha3256 := crypto.SHA3_256.New()
-	for _, int := range in {
-		_, err := sha3256.Write(int.Bytes())
-		if err != nil {
-			return nil, err
-		}
-	}
-	return sha3256.Sum(nil), nil
 }

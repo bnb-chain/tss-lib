@@ -55,7 +55,9 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 func (round *round2) Update() (bool, *tss.Error) {
 	// guard - VERIFY de-commit for all Pj
 	for j, msg := range round.temp.kgRound2VssMessages {
-		if round.ok[j] { continue }
+		if round.ok[j] {
+			continue
+		}
 		if !round.CanAccept(msg) {
 			return false, nil
 		}

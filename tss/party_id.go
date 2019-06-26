@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/binance-chain/tss-lib/common/random"
-	"github.com/binance-chain/tss-lib/crypto/hash"
 )
 
 type (
@@ -23,13 +22,13 @@ type (
 
 // ----- //
 
-// Exported, used in `tss` client
-func NewPartyID(id string, moniker string) *PartyID {
+// Exported, used in `tss` client. `key` should remain consistent between runs for each party.
+func NewPartyID(id string, moniker string, key *big.Int) *PartyID {
 	return &PartyID{
 		Index:   -1, // not known until sorted
 		ID:      id,
 		Moniker: moniker,
-		Key:     hash.StrHash(id),
+		Key:     key,
 	}
 }
 

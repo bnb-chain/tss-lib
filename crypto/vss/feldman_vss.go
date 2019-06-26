@@ -59,7 +59,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	polyGs := make([]*crypto.ECPoint, len(poly))
 	for i, ai := range poly {
 		X, Y := tss.EC().ScalarBaseMult(ai.Bytes())
-		polyGs[i] = crypto.NewECPoint(X, Y)
+		polyGs[i] = crypto.NewECPoint(tss.EC(), X, Y)
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
@@ -77,8 +77,8 @@ func (share *Share) Verify(threshold int, polyGs []*crypto.ECPoint) bool {
 	if share.Threshold != threshold {
 		return false
 	}
+	var t *big.Int
 	vX, vY := polyGs[0].X(), polyGs[0].Y()
-	t := (*big.Int)(nil)
 	for j := 1; j < threshold; j++ {
 		// t = ki^j
 		t = new(big.Int).Exp(share.ID, big.NewInt(int64(j)), tss.EC().Params().N)

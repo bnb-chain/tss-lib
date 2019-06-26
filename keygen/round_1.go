@@ -85,7 +85,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err)
 	}
-	cmt, err := cmt.NewHashCommitment(pGFlat...)
+	cmt := cmt.NewHashCommitment(pGFlat...)
 	if err != nil {
 		return round.WrapError(err)
 	}
@@ -95,7 +95,7 @@ func (round *round1) Start() *tss.Error {
 		return round.WrapError(errors.New("RSA generation failed"))
 	}
 
-	NTildei, h1i, h2i, err := generateNTildei(rsa.Primes[:2])
+	NTildei, h1i, h2i, err := GenerateNTildei(rsa.Primes[:2])
 	if err != nil {
 		return round.WrapError(err)
 	}
@@ -150,9 +150,9 @@ func (round *round1) NextRound() tss.Round {
 
 // ----- //
 
-func generateNTildei(rsaPrimes []*big.Int) (NTildei, h1i, h2i *big.Int, err error) {
+func GenerateNTildei(rsaPrimes []*big.Int) (NTildei, h1i, h2i *big.Int, err error) {
 	if len(rsaPrimes) < 2 {
-		return nil, nil, nil, fmt.Errorf("generateNTildei: needs two primes, got %d", len(rsaPrimes))
+		return nil, nil, nil, fmt.Errorf("GenerateNTildei: needs two primes, got %d", len(rsaPrimes))
 	}
 	NTildei = new(big.Int).Mul(rsaPrimes[0], rsaPrimes[1])
 	h1 := random.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
