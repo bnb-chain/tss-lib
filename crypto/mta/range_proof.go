@@ -98,6 +98,7 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	// u != (4)
 	products := new(big.Int).Mul(gammaExpS1, sExpN)
 	products = new(big.Int).Mul(products, cExpMinusE)
+	products = new(big.Int).Mod(products, N2)
 	if pf.U.Cmp(products) != 0 {
 		return false
 	}
@@ -109,6 +110,7 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	// w != (5)
 	products = new(big.Int).Mul(h1ExpS1, h2ExpS2)
 	products = new(big.Int).Mul(products, zExpMinusE)
+	products = new(big.Int).Mod(products, NTilde)
 	if pf.W.Cmp(products) != 0 {
 		return false
 	}

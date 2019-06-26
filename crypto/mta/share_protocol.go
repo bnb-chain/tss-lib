@@ -17,7 +17,7 @@ func AliceInit(pkA *paillier.PublicKey, a, _, _, _ *big.Int) (*big.Int, error) {
 	return cA, nil
 }
 
-func BobMid(pkA *paillier.PublicKey, b, cA, _, _, _, _, _, _ *big.Int) (beta2 *big.Int, cB *big.Int, piB *big.Int, beta1 *big.Int, err error) {
+func BobMid(pkA *paillier.PublicKey, b, cA, _, _, _, _, _, _ *big.Int) (beta *big.Int, cB *big.Int, piB *big.Int, beta1 *big.Int, err error) {
 	q := tss.EC().Params().N
 	beta1 = random.GetRandomPositiveInt(pkA.N)
 	// TODO: add call to ProveMta_Bob, return proof `piB`
@@ -30,8 +30,8 @@ func BobMid(pkA *paillier.PublicKey, b, cA, _, _, _, _, _, _ *big.Int) (beta2 *b
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	beta2 = new(big.Int).Mod(new(big.Int).Sub(zero, beta1), q)
-	return beta2, cB2, nil, beta1, nil
+	beta = new(big.Int).Mod(new(big.Int).Sub(zero, beta1), q)
+	return beta, cB2, nil, beta1, nil
 }
 
 func AliceEnd(pkA *paillier.PublicKey, _, _, _, _, cB, _ *big.Int, sk *paillier.PrivateKey) (*big.Int, error) {
