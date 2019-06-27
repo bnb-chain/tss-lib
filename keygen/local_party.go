@@ -40,8 +40,12 @@ type (
 		// h1, h2 for range proofs
 		NTildej, H1j, H2j []*big.Int
 
-		// original index (added for local testing)
-		Index int
+		// original indexes (ki in signing preparation phase)
+		Index int // added for unit test
+		Ks    []*big.Int
+
+		// TODO: delete, only for testing!!
+		Ui *big.Int
 	}
 
 	LocalPartyMessageStore struct {
@@ -116,11 +120,6 @@ func (p *LocalParty) Start() *tss.Error {
 // Implements Party
 func (p *LocalParty) PartyID() *tss.PartyID {
 	return p.Parameters.PartyID()
-}
-
-// Legacy keygen.LocalParty method, called by Start() on the Party interface
-func (p *LocalParty) StartKeygenRound1() *tss.Error {
-	return p.Start()
 }
 
 func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {

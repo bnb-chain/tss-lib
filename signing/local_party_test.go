@@ -17,7 +17,7 @@ import (
 
 const (
 	testParticipants = 20
-	testThreshold    = testParticipants / 2
+	testThreshold    = 10
 )
 
 func setUp(level string) {
@@ -32,6 +32,9 @@ func TestE2EConcurrent(t *testing.T) {
 	// tss.SetCurve(elliptic.P256())
 
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
+	for _, pid := range pIDs {
+		fmt.Println(pid.Key.String())
+	}
 	threshold := testThreshold
 
 	p2pCtx := tss.NewPeerContext(pIDs)
@@ -150,6 +153,18 @@ signing:
 				r := new(big.Int).Mod(save.R.X(), tss.EC().Params().N)
 				fmt.Printf("sign result: R(%s, %s), r=%s\n", save.R.X().String(), save.R.Y().String(), r.String())
 
+				// BEGIN check w correctness for preparation phase
+				sumW := big.NewInt(0)
+				for _, p := range signParties {
+					sumW = new(big.Int).Mod(new(big.Int).Add(sumW, p.temp.w), tss.EC().Params().N)
+				}
+				sumU := big.NewInt(0)
+				for i := 0; i < testParticipants; i++ {
+					sumU = new(big.Int).Mod(new(big.Int).Add(sumU, keys[i].Ui), tss.EC().Params().N)
+				}
+				assert.Equal(t, sumW, sumU)
+				// END check w correctness for preparation phase
+
 				// BEGIN check R correctness
 				sumK := big.NewInt(0)
 				for _, p := range signParties {
@@ -169,6 +184,14 @@ signing:
 				assert.Equal(t, rx, save.R.X())
 				assert.Equal(t, ry, save.R.Y())
 				//END check R correctness
+
+				// BEGIN check s correctness
+				sumS := big.NewInt(0)
+				for _, p := range signParties {
+					sumS = new(big.Int).Mod(sumS.Add(sumS, p.data.Si), tss.EC().Params().N)
+				}
+				fmt.Printf("S: %s\n", sumS.String())
+				// END check s correctness
 
 				return
 			}

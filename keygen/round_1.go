@@ -67,6 +67,7 @@ func (round *round1) Start() *tss.Error {
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N)
 	round.temp.ui = ui
+	round.save.Ui = ui // TODO: !!!delete!!! just for testing
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	rsa, pai := <-rsaCh, <-paiCh
@@ -77,6 +78,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err)
 	}
+	round.save.Ks = ids
 
 	// security: the original ui may be discarded
 	ui = big.NewInt(0)

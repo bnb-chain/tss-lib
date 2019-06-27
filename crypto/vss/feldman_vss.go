@@ -17,14 +17,14 @@ import (
 type (
 	// Params represents the parameters used in Shamir secret sharing
 	Params struct {
-		Threshold,    // threshold
+		Threshold, // threshold
 		NumShares int // total num
 	}
 
 	Share struct {
 		Threshold int
-		ID,                // xi
-		Share     *big.Int // Sigma i
+		ID,       // xi
+		Share *big.Int // Sigma i
 	}
 
 	PolyGs struct {
@@ -39,7 +39,7 @@ var (
 	ErrNumSharesBelowThreshold = fmt.Errorf("not enough shares to satisfy the threshold")
 
 	zero = big.NewInt(0)
-	one = big.NewInt(1)
+	one  = big.NewInt(1)
 )
 
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
@@ -67,6 +67,9 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 
 	shares := make(Shares, num)
 	for i := 0; i < num; i++ {
+		if indexes[i].Cmp(big.NewInt(0)) == 0 {
+			panic(fmt.Errorf("party index should not be 0"))
+		}
 		share := evaluatePolynomial(poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
@@ -109,7 +112,9 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 	for i, share := range shares {
 		times := one
 		for j := 0; j < len(xs); j++ {
-			if j == i { continue }
+			if j == i {
+				continue
+			}
 			sub := new(big.Int).Sub(xs[j], share.ID)
 			subInv := new(big.Int).ModInverse(sub, tss.EC().Params().N)
 			div := new(big.Int).Mul(xs[j], subInv)

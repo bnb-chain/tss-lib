@@ -25,12 +25,15 @@ func (round *round2) Start() *tss.Error {
 			continue
 		}
 		beta, c1ji, _, _, err := mta.BobMid(round.key.PaillierPks[j], round.temp.signRound1MtAInitMessages[j].Pi, round.temp.gamma, round.temp.signRound1MtAInitMessages[j].C, nil, nil, nil, nil, nil, nil, round.key.NTildej[round.PartyID().Index], round.key.H1j[round.PartyID().Index], round.key.H2j[round.PartyID().Index])
+		// TODO: replace with BobMid_wc
+		v, c2ji, _, _, err := mta.BobMid(round.key.PaillierPks[j], round.temp.signRound1MtAInitMessages[j].Pi, round.temp.w, round.temp.signRound1MtAInitMessages[j].C, nil, nil, nil, nil, nil, nil, round.key.NTildej[round.PartyID().Index], round.key.H1j[round.PartyID().Index], round.key.H2j[round.PartyID().Index])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to calculate bob_mid: %v", err))
 		}
 
 		round.temp.betas[j] = beta
-		r2msg := NewSignRound2MtAMidMessage(Pj, round.PartyID(), c1ji, nil, nil, nil)
+		round.temp.vs[j] = v
+		r2msg := NewSignRound2MtAMidMessage(Pj, round.PartyID(), c1ji, nil, c2ji, nil)
 		round.temp.signRound2MtAMidMessages[round.PartyID().Index] = &r2msg
 		round.out <- r2msg
 	}
