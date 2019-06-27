@@ -128,6 +128,11 @@ func (publicKey *PublicKey) NSquare() *big.Int {
 	return new(big.Int).Mul(publicKey.N, publicKey.N)
 }
 
+// AsInts returns the PublicKey serialised to a slice of *big.Int for hashing
+func (publicKey *PublicKey) AsInts() []*big.Int {
+	return []*big.Int{publicKey.N, publicKey.Gamma, publicKey.PhiN}
+}
+
 // ----- //
 
 func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {

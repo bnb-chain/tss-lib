@@ -24,9 +24,9 @@ type (
 	SignRound2MtAMidMessage struct {
 		tss.MessageMetadata
 		C1_ji  *big.Int
-		Pi1_ji *mta.ProveMtaBob
+		Pi1_ji *mta.ProofBob
 		C2_ji  *big.Int
-		Pi2_ji *mta.ProveMtaBob
+		Pi2_ji *mta.ProofBob
 	}
 
 	SignRound3Message struct {
@@ -82,9 +82,9 @@ func (msg SignRound1CommitMessage) ValidateBasic() bool {
 func NewSignRound2MtAMidMessage(
 	to, from *tss.PartyID,
 	c1_ji *big.Int,
-	pi1_ji *mta.ProveMtaBob,
+	pi1_ji *mta.ProofBob,
 	c2_ji *big.Int,
-	pi2_ji *mta.ProveMtaBob,
+	pi2_ji *mta.ProofBob,
 ) SignRound2MtAMidMessage {
 	return SignRound2MtAMidMessage{
 		MessageMetadata: tss.MessageMetadata{
