@@ -10,12 +10,11 @@
 package paillier
 
 import (
+	"errors"
 	"fmt"
 	gmath "math"
 	"math/big"
 	"strconv"
-
-	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/primes"

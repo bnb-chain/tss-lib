@@ -2,9 +2,9 @@ package tss
 
 import (
 	"crypto/elliptic"
+	"errors"
 
 	s256k1 "github.com/btcsuite/btcd/btcec"
-	"github.com/pkg/errors"
 )
 
 var (

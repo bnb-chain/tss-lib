@@ -1,10 +1,9 @@
 package keygen
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
-
-	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
