@@ -35,7 +35,17 @@ func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
 }
 
 func (p *ECPoint) IsOnCurve() bool {
+	if p.coords[0] == nil || p.coords[1] == nil {
+		return false
+	}
 	return p.curve.IsOnCurve(p.coords[0], p.coords[1])
+}
+
+func (p *ECPoint) Equals(p2 *ECPoint) bool {
+	if p == nil || p2 == nil {
+		return false
+	}
+	return p.X().Cmp(p2.X()) == 0 && p.Y().Cmp(p2.Y()) == 0
 }
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
