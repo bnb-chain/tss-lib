@@ -39,6 +39,33 @@ type (
 		Decommitment cmt.HashDeCommitment
 		Proof        *schnorr.ZKProof
 	}
+
+	SignRound5CommitMessage struct {
+		tss.MessageMetadata
+		Commitment cmt.HashCommitment
+	}
+
+	SignRound6DecommitMessage struct {
+		tss.MessageMetadata
+		Decommitment cmt.HashDeCommitment
+		Proof        *schnorr.ZKProof
+		VProof       *schnorr.ZKVProof
+	}
+
+	SignRound7CommitMessage struct {
+		tss.MessageMetadata
+		Commitment cmt.HashCommitment
+	}
+
+	SignRound8DecommitMessage struct {
+		tss.MessageMetadata
+		Decommitment cmt.HashDeCommitment
+	}
+
+	SignRound9SignatureMessage struct {
+		tss.MessageMetadata
+		Si *big.Int
+	}
 )
 
 func NewSignRound1MtAInitMessage(
@@ -138,5 +165,99 @@ func NewSignRound4DecommitMessage(
 }
 
 func (round SignRound4DecommitMessage) ValidateBasic() bool {
+	return true
+}
+
+func NewSignRound5CommitmentMessage(
+	from *tss.PartyID,
+	C cmt.HashCommitment,
+) SignRound5CommitMessage {
+	return SignRound5CommitMessage{
+		MessageMetadata: tss.MessageMetadata{
+			To:      nil,
+			From:    from,
+			MsgType: "SignRound5CommitmentMessage",
+		},
+		Commitment: C,
+	}
+}
+
+func (round SignRound5CommitMessage) ValidateBasic() bool {
+	return true
+}
+
+func NewSignRound6DecommitMessage(
+	from *tss.PartyID,
+	D cmt.HashDeCommitment,
+	Proof *schnorr.ZKProof,
+	VProof *schnorr.ZKVProof,
+) SignRound6DecommitMessage {
+	return SignRound6DecommitMessage{
+		MessageMetadata: tss.MessageMetadata{
+			To:      nil,
+			From:    from,
+			MsgType: "SignRound6DecommitmentMessage",
+		},
+		Decommitment: D,
+		Proof:        Proof,
+		VProof:       VProof,
+	}
+}
+
+func (round SignRound6DecommitMessage) ValidateBasic() bool {
+	return true
+}
+
+func NewSignRound7CommitMessage(
+	from *tss.PartyID,
+	C cmt.HashCommitment,
+) SignRound7CommitMessage {
+	return SignRound7CommitMessage{
+		MessageMetadata: tss.MessageMetadata{
+			To:      nil,
+			From:    from,
+			MsgType: "SignRound7CommitMessage",
+		},
+		Commitment: C,
+	}
+}
+
+func (round SignRound7CommitMessage) ValidateBasic() bool {
+	return true
+}
+
+func NewSignRound8DecommitMessage(
+	from *tss.PartyID,
+	D cmt.HashDeCommitment,
+) SignRound8DecommitMessage {
+	return SignRound8DecommitMessage{
+		MessageMetadata: tss.MessageMetadata{
+			To:      nil,
+			From:    from,
+			MsgType: "SignRound8DecommitMessage",
+		},
+		Decommitment: D,
+	}
+}
+
+func (round SignRound8DecommitMessage) ValidateBasic() bool {
+	return true
+}
+
+func NewSignRound9SignatureMessage(
+	from *tss.PartyID,
+	si *big.Int,
+) SignRound9SignatureMessage {
+	return SignRound9SignatureMessage{
+		MessageMetadata: tss.MessageMetadata{
+			To:      nil,
+			From:    from,
+			MsgType: "SignRound9SignatureMessage",
+		},
+		Si: si,
+	}
+}
+
+func (round SignRound9SignatureMessage) ValidateBasic() bool {
 	return true
 }

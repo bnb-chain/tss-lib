@@ -189,12 +189,12 @@ signing:
 				// BEGIN check s correctness
 				sumS := big.NewInt(0)
 				for _, p := range signParties {
-					sumS = new(big.Int).Mod(sumS.Add(sumS, p.data.Si), tss.EC().Params().N)
+					sumS = new(big.Int).Mod(sumS.Add(sumS, p.temp.si), tss.EC().Params().N)
 				}
 				fmt.Printf("S: %s\n", sumS.String())
 				// END check s correctness
 
-				// ECDSA verify
+				// BEGIN ECDSA verify
 				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
 					Curve: tss.EC(),
@@ -203,6 +203,17 @@ signing:
 				}
 				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), save.R.X(), sumS)
 				assert.True(t, ok)
+				// END ECDSA verify
+
+				// BEGIN VVV verify
+				sumL := big.NewInt(0)
+				for _, p := range signParties {
+					sumL = new(big.Int).Mod(sumL.Add(sumL, p.temp.li), tss.EC().Params().N)
+				}
+				VVVX, VVVY := tss.EC().ScalarBaseMult(sumL.Bytes())
+				assert.Equal(t, VVVX, signParties[0].temp.VVV.X())
+				assert.Equal(t, VVVY, signParties[0].temp.VVV.Y())
+				// END VVV verify
 				return
 			}
 		}
