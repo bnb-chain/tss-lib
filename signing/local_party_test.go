@@ -1,6 +1,7 @@
 package signing
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"runtime"
@@ -17,7 +18,7 @@ import (
 
 const (
 	testParticipants = 20
-	testThreshold    = 10
+	testThreshold    = testParticipants / 2
 )
 
 func setUp(level string) {
@@ -193,6 +194,15 @@ signing:
 				fmt.Printf("S: %s\n", sumS.String())
 				// END check s correctness
 
+				// ECDSA verify
+				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
+				pk := ecdsa.PublicKey{
+					Curve: tss.EC(),
+					X:     pkX,
+					Y:     pkY,
+				}
+				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), save.R.X(), sumS)
+				assert.True(t, ok)
 				return
 			}
 		}
