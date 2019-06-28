@@ -95,10 +95,10 @@ func AliceEndWC(
 	pkA *paillier.PublicKey,
 	pf *ProofBobWC,
 	B *crypto.ECPoint,
-	cA, cB, NTildeA, h1, h2 *big.Int,
+	cA, cB, NTildeA, h1A, h2A *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	if !pf.Verify(pkA, NTildeA, h1, h2, cA, cB, B) {
+	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB, B) {
 		return nil, errors.New("ProofBobWC.Verify() returned false")
 	}
 	alphaPrm, err := sk.Decrypt(cB)
