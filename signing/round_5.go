@@ -2,6 +2,7 @@ package signing
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -39,12 +40,14 @@ func (round *round5) Start() *tss.Error {
 	}
 	finalRX, finalRY := tss.EC().ScalarMult(R.X(), R.Y(), round.temp.thelta_inverse.Bytes())
 	round.data.R = crypto.NewECPoint(tss.EC(), finalRX, finalRY)
+	s := new(big.Int).Mod(new(big.Int).Add(new(big.Int).Mul(round.temp.m, round.temp.k), new(big.Int).Mul(finalRX, round.temp.sigma)), tss.EC().Params().N)
+	round.data.Si = s
 	return nil
 }
 
 func (round *round5) Update() (bool, *tss.Error) {
 	// TODO: this update logic should be changed
-	for j, _ := range round.ok {
+	for j := range round.ok {
 		round.ok[j] = true
 	}
 

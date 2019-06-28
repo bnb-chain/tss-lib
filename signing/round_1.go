@@ -3,6 +3,7 @@ package signing
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -15,8 +16,7 @@ import (
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *LocalPartySignData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&preparation{
-			&base{params, key, data, temp, out, make([]bool, params.PartyCount()), false, 1}}}
+		&base{params, key, data, temp, out, make([]bool, params.PartyCount()), false, 1}}
 }
 
 // missing:
@@ -92,4 +92,33 @@ func (round *round1) CanAccept(msg tss.Message) bool {
 func (round *round1) NextRound() tss.Round {
 	round.started = false
 	return &round2{round}
+}
+
+func (round *round1) prepare() {
+	// big.Int Div is calculated as: a/b = a * modInv(b,q)
+	wi := big.NewInt(0).Set(round.key.Xi)
+	for j := range round.Parties().Parties() {
+		if j == round.PartyID().Index {
+			continue
+		}
+		kj := round.key.Ks[j]
+		ki := round.key.Ks[round.PartyID().Index]
+		coefficient := new(big.Int).Mul(kj, new(big.Int).ModInverse(new(big.Int).Sub(kj, ki), tss.EC().Params().N))
+		wi = wi.Mul(wi, coefficient)
+	}
+	round.temp.w = new(big.Int).Mod(wi, tss.EC().Params().N)
+
+	for j := range round.Parties().Parties() {
+		bigXjCopy := *round.key.BigXj[j]
+		bigWj := &bigXjCopy
+		for c := range round.Parties().Parties() {
+			if j == c {
+				continue
+			}
+			iota := new(big.Int).Mod(new(big.Int).Mul(round.key.Ks[c], new(big.Int).ModInverse(new(big.Int).Sub(round.key.Ks[c], round.key.Ks[j]), tss.EC().Params().N)), tss.EC().Params().N)
+			newX, newY := tss.EC().ScalarMult(bigWj.X(), bigWj.Y(), iota.Bytes())
+			bigWj = crypto.NewECPoint(tss.EC(), newX, newY)
+		}
+		round.temp.bigWs[j] = bigWj
+	}
 }

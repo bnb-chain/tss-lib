@@ -31,7 +31,8 @@ type (
 		Signature   []byte
 
 		// TODO: this field is used for verifying first 5 rounds, will delete later on
-		R *crypto.ECPoint
+		R  *crypto.ECPoint
+		Si *big.Int
 	}
 
 	LocalPartyMessageStore struct {
@@ -48,19 +49,25 @@ type (
 
 		// temp data (thrown away after sign)
 		w              *big.Int
+		bigWs          []*crypto.ECPoint
 		m              *big.Int
 		k              *big.Int
 		gamma          *big.Int
 		point          *crypto.ECPoint
 		deCommit       cmt.HashDeCommitment
 		betas          []*big.Int // return value of Bob_mid
+		vs             []*big.Int // return value of Bob_mid_wc
 		thelta         *big.Int
 		thelta_inverse *big.Int
+		sigma          *big.Int
 	}
 )
 
 func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {
 	if msg == nil {
+		if _, ok := p.Round.(*round1); ok {
+			return true, nil
+		}
 		return false, p.wrapError(fmt.Errorf("received nil msg: %s", msg))
 	}
 	if msg.GetFrom() == nil {
@@ -124,7 +131,9 @@ func NewLocalParty(
 	p.temp.signRound4DecommitMessage = make([]*SignRound4DecommitMessage, partyCount)
 	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
 	p.temp.m = m
+	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
+	p.temp.vs = make([]*big.Int, partyCount)
 
 	// TODO data init
 
@@ -143,10 +152,13 @@ func (p *LocalParty) String() string {
 func (p *LocalParty) Start() *tss.Error {
 	p.Lock()
 	defer p.Unlock()
-	// TODO: make the start round be preparation
 	if round, ok := p.Round.(*round1); !ok || round == nil {
 		return p.wrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
+	} else {
+		common.Logger.Infof("party %s: signing round preparing", p.Round.Params().PartyID())
+		round.prepare()
 	}
+
 	common.Logger.Infof("party %s: signing round %d starting", p.Round.Params().PartyID(), 1)
 	return p.Round.Start()
 }

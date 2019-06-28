@@ -17,7 +17,7 @@ type (
 	}
 
 	UnSortedPartyIDs []*PartyID
-	SortedPartyIDs []*PartyID
+	SortedPartyIDs   []*PartyID
 )
 
 // ----- //

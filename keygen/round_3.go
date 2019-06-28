@@ -22,7 +22,7 @@ func (round *round3) Start() *tss.Error {
 	PIdx := round.PartyID().Index
 
 	// 1,9. calculate xi
-	xi := round.temp.shares[PIdx].Share
+	xi := big.NewInt(0).Set(round.temp.shares[PIdx].Share)
 	for j := range Ps {
 		if j == PIdx {
 			continue
@@ -30,7 +30,7 @@ func (round *round3) Start() *tss.Error {
 		share := round.temp.kgRound2VssMessages[j].PiShare.Share
 		xi = new(big.Int).Add(xi, share)
 	}
-	round.save.Xi = xi
+	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
 
 	// 2-3.
 	Vc := make([]*crypto.ECPoint, round.Params().Threshold())

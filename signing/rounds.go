@@ -20,11 +20,8 @@ type (
 		started bool
 		number  int
 	}
-	preparation struct {
-		*base
-	}
 	round1 struct {
-		*preparation
+		*base
 	}
 	round2 struct {
 		*round1

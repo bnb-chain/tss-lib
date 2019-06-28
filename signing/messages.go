@@ -81,10 +81,10 @@ func (msg SignRound1CommitMessage) ValidateBasic() bool {
 
 func NewSignRound2MtAMidMessage(
 	to, from *tss.PartyID,
-	c1_ji *big.Int,
-	pi1_ji *mta.ProofBob,
-	c2_ji *big.Int,
-	pi2_ji *mta.ProofBob,
+	c1Ji *big.Int,
+	pi1Ji *mta.ProofBob,
+	c2Ji *big.Int,
+	pi2Ji *mta.ProofBob,
 ) SignRound2MtAMidMessage {
 	return SignRound2MtAMidMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -92,10 +92,10 @@ func NewSignRound2MtAMidMessage(
 			From:    from,
 			MsgType: "SignRound2MtAMidMessage",
 		},
-		C1_ji:  c1_ji,
-		Pi1_ji: pi1_ji,
-		C2_ji:  c2_ji,
-		Pi2_ji: pi2_ji,
+		C1_ji:  c1Ji,
+		Pi1_ji: pi1Ji,
+		C2_ji:  c2Ji,
+		Pi2_ji: pi2Ji,
 	}
 }
 
