@@ -25,37 +25,41 @@ func AliceInit(
 func BobMid(
 	pkA *paillier.PublicKey,
 	pf *RangeProofAlice,
-	b, cA, _, _, _, _, _, _, NTildeB, h1B, h2B *big.Int,
-) (beta, cB, piB, beta1 *big.Int, err error) {
+	b, cA, NTildeA, h1A, h2A, NTildeB, h1B, h2B *big.Int,
+) (beta, cB, betaPrm *big.Int, piB *ProofBob, err error) {
 	if !pf.Verify(pkA, NTildeB, h1B, h2B, cA) {
 		err = errors.New("RangeProofAlice.Verify() returned false")
 		return
 	}
 	q := tss.EC().Params().N
-	beta1 = random.GetRandomPositiveInt(pkA.N)
-	// TODO: add call to ProveMta_Bob, return proof `piB`
-	cBeta1, _, err := pkA.EncryptAndReturnRandomness(beta1)
-	cB1, err := pkA.HomoMult(b, cA)
+	betaPrm = random.GetRandomPositiveInt(pkA.N)
+	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
+	cB, err = pkA.HomoMult(b, cA)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return
 	}
-	cB2, err := pkA.HomoAdd(cB1, cBeta1)
+	cB, err = pkA.HomoAdd(cB, cBetaPrm)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return
 	}
-	beta = new(big.Int).Mod(new(big.Int).Sub(zero, beta1), q)
-	return beta, cB2, nil, beta1, nil
+	beta = new(big.Int).Mod(new(big.Int).Sub(zero, betaPrm), q)
+	piB, err = ProveBob(pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand)
+	return
 }
 
 func AliceEnd(
 	pkA *paillier.PublicKey,
-	_, _, _, _, cB, _ *big.Int,
+	pf *ProofBob,
+	h1A, h2A, cA, cB, NTildeA *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	alpha, err := sk.Decrypt(cB)
+	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB) {
+		return nil, errors.New("ProofBob.Verify() returned false")
+	}
+	alphaPrm, err := sk.Decrypt(cB)
 	if err != nil {
 		return nil, err
 	}
 	q := tss.EC().Params().N
-	return new(big.Int).Mod(alpha, q), nil
+	return new(big.Int).Mod(alphaPrm, q), nil
 }

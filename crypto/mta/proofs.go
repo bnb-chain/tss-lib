@@ -1,6 +1,7 @@
 package mta
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -14,7 +15,11 @@ type ProofBob struct {
 }
 
 // ProveBob implements Bob's proof used in the MtA protocol from GG18Spec (9) Fig. 11.
-func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) *ProofBob {
+func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) (*ProofBob, error) {
+	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c1 == nil || c2 == nil || x == nil || y == nil || r == nil {
+		return nil, errors.New("ProveBob() received a nil argument")
+	}
+
 	NSquared := pk.NSquare()
 
 	q := tss.EC().Params().N
@@ -92,10 +97,14 @@ func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) 
 	t2 := new(big.Int).Mul(e, sigma)
 	t2 = new(big.Int).Add(t2, tau)
 
-	return &ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
+	return &ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}, nil
 }
 
 func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.Int) bool {
+	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c1 == nil || c2 == nil {
+		return false
+	}
+
 	NSquared := pk.NSquare()
 
 	q := tss.EC().Params().N
