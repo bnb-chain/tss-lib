@@ -24,9 +24,29 @@ func (round *round2) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		beta, c1ji, _, _, err := mta.BobMid(round.key.PaillierPks[j], round.temp.signRound1MtAInitMessages[j].Pi, round.temp.gamma, round.temp.signRound1MtAInitMessages[j].C, nil, nil, nil, nil, nil, nil, round.key.NTildej[round.PartyID().Index], round.key.H1j[round.PartyID().Index], round.key.H2j[round.PartyID().Index])
+		beta, c1ji, _, _, err := mta.BobMid(
+			round.key.PaillierPks[j],
+			round.temp.signRound1MtAInitMessages[j].Pi,
+			round.temp.gamma,
+			round.temp.signRound1MtAInitMessages[j].C,
+			nil,
+			nil,
+			nil,
+			round.key.NTildej[round.PartyID().Index],
+			round.key.H1j[round.PartyID().Index],
+			round.key.H2j[round.PartyID().Index])
 		// TODO: replace with BobMid_wc
-		v, c2ji, _, _, err := mta.BobMid(round.key.PaillierPks[j], round.temp.signRound1MtAInitMessages[j].Pi, round.temp.w, round.temp.signRound1MtAInitMessages[j].C, nil, nil, nil, nil, nil, nil, round.key.NTildej[round.PartyID().Index], round.key.H1j[round.PartyID().Index], round.key.H2j[round.PartyID().Index])
+		v, c2ji, _, _, err := mta.BobMid(
+			round.key.PaillierPks[j],
+			round.temp.signRound1MtAInitMessages[j].Pi,
+			round.temp.w,
+			round.temp.signRound1MtAInitMessages[j].C,
+			nil,
+			nil,
+			nil,
+			round.key.NTildej[round.PartyID().Index],
+			round.key.H1j[round.PartyID().Index],
+			round.key.H2j[round.PartyID().Index])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to calculate bob_mid: %v", err))
 		}

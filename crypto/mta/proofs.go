@@ -1,20 +1,34 @@
 package mta
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-type ProofBob struct {
-	Z, ZPrm, T, V, W, S, S1, S2, T1, T2 *big.Int
-}
+type (
+	ProofBob struct {
+		Z, ZPrm, T, V, W, S, S1, S2, T1, T2 *big.Int
+	}
 
-// ProveBob implements Bob's proof used in the MtA protocol from GG18Spec (9) Fig. 11.
-func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) *ProofBob {
+	ProofBobWC struct {
+		ProofBob
+		U *crypto.ECPoint
+	}
+)
+
+// ProveBobWC implements Bob's proof both with or without check "ProveMtawc_Bob" and "ProveMta_Bob" used in the MtA protocol from GG18Spec (9) Figs. 10 & 11.
+// an absent `X` generates the proof without the X consistency check X = g^x
+func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int, X *crypto.ECPoint) (*ProofBobWC, error) {
+	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c1 == nil || c2 == nil || x == nil || y == nil || r == nil {
+		return nil, errors.New("ProveBob() received a nil argument")
+	}
+
 	NSquared := pk.NSquare()
 
 	q := tss.EC().Params().N
@@ -23,6 +37,7 @@ func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) 
 	qNTilde := new(big.Int).Mul(q, NTilde)
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
+	// steps are numbered as shown in Fig. 10, but diverge slightly for Fig. 11
 	// 1.
 	alpha := random.GetRandomPositiveInt(q3)
 
@@ -39,63 +54,96 @@ func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) 
 	gamma := random.GetRandomPositiveRelativelyPrimeInt(pk.N)
 
 	// 5.
+	var u *crypto.ECPoint
+	if X != nil {
+		u = crypto.ScalarBaseMult(tss.EC(), alpha)
+	}
+
+	// 6.
 	z := new(big.Int).Exp(h1, x, NTilde)
 	z = new(big.Int).Mul(z, new(big.Int).Exp(h2, rho, NTilde))
 	z = new(big.Int).Mod(z, NTilde)
 
-	// 6.
+	// 7.
 	zPrm := new(big.Int).Exp(h1, alpha, NTilde)
 	zPrm = new(big.Int).Mul(zPrm, new(big.Int).Exp(h2, rhoPrm, NTilde))
 	zPrm = new(big.Int).Mod(zPrm, NTilde)
 
-	// 7.
+	// 8.
 	t := new(big.Int).Exp(h1, y, NTilde)
 	t = new(big.Int).Mul(t, new(big.Int).Exp(h2, sigma, NTilde))
 	t = new(big.Int).Mod(t, NTilde)
 
-	// 8.
+	// 9.
 	v := new(big.Int).Exp(c1, alpha, NSquared)
 	v = new(big.Int).Mul(v, new(big.Int).Exp(pk.Gamma, gamma, NSquared))
 	v = new(big.Int).Mul(v, new(big.Int).Exp(beta, pk.N, NSquared))
 	v = new(big.Int).Mod(v, NSquared)
 
-	// 9.
+	// 10.
 	w := new(big.Int).Exp(h1, gamma, NTilde)
 	w = new(big.Int).Mul(w, new(big.Int).Exp(h2, tau, NTilde))
 	w = new(big.Int).Mod(w, NTilde)
 
-	// 10-11. e'
+	// 11-12. e'
 	var e *big.Int
 	{ // must use RejectionSample
-		eHash := common.SHA512_256i(append(pk.AsInts(), c1, c2, z, zPrm, t, v, w)...)
+		var eHash *big.Int
+		// X is nil if called by ProveBob (Bob's proof "without check")
+		if X == nil {
+			eHash = common.SHA512_256i(append(pk.AsInts(), c1, c2, z, zPrm, t, v, w)...)
+		} else {
+			eHash = common.SHA512_256i(append(pk.AsInts(), X.X(), X.Y(), c1, c2, z, zPrm, t, v, w)...)
+		}
 		e = common.RejectionSample(q, eHash)
 	}
 
-	// 12.
+	// 13.
 	s := new(big.Int).Exp(r, e, pk.N)
 	s = new(big.Int).Mul(s, beta)
 	s = new(big.Int).Mod(s, pk.N)
 
-	// 13.
+	// 14.
 	s1 := new(big.Int).Mul(e, x)
 	s1 = new(big.Int).Add(s1, alpha)
 
-	// 14.
+	// 15.
 	s2 := new(big.Int).Mul(e, rho)
 	s2 = new(big.Int).Add(s2, rhoPrm)
 
-	// 15.
+	// 16.
 	t1 := new(big.Int).Mul(e, y)
 	t1 = new(big.Int).Add(t1, gamma)
 
-	// 16.
+	// 17.
 	t2 := new(big.Int).Mul(e, sigma)
 	t2 = new(big.Int).Add(t2, tau)
 
-	return &ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
+	// the regular Bob proof ("without check") is extracted and returned by ProveBob
+	pf := ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
+
+	// or the WC ("with check") version is used in round 2 of the signing protocol
+	return &ProofBobWC{ProofBob: pf, U: u}, nil
 }
 
-func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.Int) bool {
+// ProveBob implements Bob's proof "ProveMta_Bob" used in the MtA protocol from GG18Spec (9) Fig. 11.
+func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) (*ProofBob, error) {
+	// the Bob proof ("with check") contains the ProofBob "without check"; this method extracts and returns it
+	// X is supplied as nil to exclude it from the proof hash
+	pf, err := ProveBobWC(pk, NTilde, h1, h2, c1, c2, x, y, r, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &pf.ProofBob, nil
+}
+
+// ProveBobWC.Verify implements verification of Bob's proof with check "VerifyMtawc_Bob" used in the MtA protocol from GG18Spec (9) Fig. 10.
+// an absent `X` verifies a proof generated without the X consistency check X = g^x
+func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.Int, X *crypto.ECPoint) bool {
+	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c1 == nil || c2 == nil {
+		return false
+	}
+
 	NSquared := pk.NSquare()
 
 	q := tss.EC().Params().N
@@ -116,7 +164,16 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 
 	var left, right *big.Int // for the following conditionals
 
-	{ // 4.
+	// 4. runs only in the "with check" mode from Fig. 10
+	if X != nil {
+		gS1 := crypto.ScalarBaseMult(tss.EC(), pf.S1)
+		xEU := X.ScalarMult(e).Add(pf.U)
+		if !gS1.IsOnCurve() || !xEU.IsOnCurve() || !gS1.Equals(xEU) {
+			return false
+		}
+	}
+
+	{ // 5.
 		h1ExpS1 := new(big.Int).Exp(h1, pf.S1, NTilde)
 		h2ExpS2 := new(big.Int).Exp(h2, pf.S2, NTilde)
 		left = new(big.Int).Mul(h1ExpS1, h2ExpS2)
@@ -129,7 +186,7 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 		}
 	}
 
-	{ // 5.
+	{ // 6.
 		h1ExpT1 := new(big.Int).Exp(h1, pf.T1, NTilde)
 		h2ExpT2 := new(big.Int).Exp(h2, pf.T2, NTilde)
 		left = new(big.Int).Mul(h1ExpT1, h2ExpT2)
@@ -142,7 +199,7 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 		}
 	}
 
-	{ // 6.
+	{ // 7.
 		c1ExpS1 := new(big.Int).Exp(c1, pf.S1, NSquared)
 		sExpN := new(big.Int).Exp(pf.S, pk.N, NSquared)
 		gammaExpT1 := new(big.Int).Exp(pk.Gamma, pf.T1, NSquared)
@@ -157,4 +214,13 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 		}
 	}
 	return true
+}
+
+// ProveBob.Verify implements verification of Bob's proof without check "VerifyMta_Bob" used in the MtA protocol from GG18Spec (9) Fig. 11.
+func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.Int) bool {
+	if pf == nil {
+		return false
+	}
+	pfWC := &ProofBobWC{*pf, nil}
+	return pfWC.Verify(pk, NTilde, h1, h2, c1, c2, nil)
 }
