@@ -48,18 +48,18 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after sign)
-		w              *big.Int
-		bigWs          []*crypto.ECPoint
-		m              *big.Int
-		k              *big.Int
-		gamma          *big.Int
-		point          *crypto.ECPoint
-		deCommit       cmt.HashDeCommitment
-		betas          []*big.Int // return value of Bob_mid
-		vs             []*big.Int // return value of Bob_mid_wc
-		thelta         *big.Int
-		thelta_inverse *big.Int
-		sigma          *big.Int
+		w     *big.Int
+		bigWs []*crypto.ECPoint
+		m,
+		k,
+		gamma *big.Int
+		point    *crypto.ECPoint
+		deCommit cmt.HashDeCommitment
+		betas, // return value of Bob_mid
+		vs []*big.Int // return value of Bob_mid_wc
+		thelta,
+		thelta_inverse,
+		sigma *big.Int
 	}
 )
 

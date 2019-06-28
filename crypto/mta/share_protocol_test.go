@@ -35,15 +35,15 @@ func TestShareProtocol(t *testing.T) {
 	cA, pf, err := AliceInit(pk, a, NTildei, h1i, h2i)
 	assert.NoError(t, err)
 
-	_, cB, _, beta1, err := BobMid(pk, pf, b, cA, nil, nil, nil, nil, nil, nil, NTildei, h1i, h2i)
+	_, cB, betaPrm, pfB, err := BobMid(pk, pf, b, cA, NTildei, h1i, h2i, NTildei, h1i, h2i)
 	assert.NoError(t, err)
 
-	alpha, err := AliceEnd(pk, nil, nil, nil, nil, cB, nil, sk)
+	alpha, err := AliceEnd(pk, pfB, h1i, h2i, cA, cB, NTildei, sk)
 	assert.NoError(t, err)
 
-	// expect: alpha = ab + beta1
+	// expect: alpha = ab + betaPrm
 	aTimesB := new(big.Int).Mul(a, b)
-	aTimesBPlusBeta := new(big.Int).Add(aTimesB, beta1)
+	aTimesBPlusBeta := new(big.Int).Add(aTimesB, betaPrm)
 	aTimesBPlusBetaModQ := new(big.Int).Mod(aTimesBPlusBeta, q)
 	assert.Equal(t, 0, alpha.Cmp(aTimesBPlusBetaModQ))
 }
