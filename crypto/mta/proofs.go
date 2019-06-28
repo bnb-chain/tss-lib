@@ -158,7 +158,13 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 	// 1-2. e'
 	var e *big.Int
 	{ // must use RejectionSample
-		eHash := common.SHA512_256i(append(pk.AsInts(), c1, c2, pf.Z, pf.ZPrm, pf.T, pf.V, pf.W)...)
+		var eHash *big.Int
+		// X is nil if called on a ProveBob (Bob's proof "without check")
+		if X == nil {
+			eHash = common.SHA512_256i(append(pk.AsInts(), c1, c2, pf.Z, pf.ZPrm, pf.T, pf.V, pf.W)...)
+		} else {
+			eHash = common.SHA512_256i(append(pk.AsInts(), X.X(), X.Y(), c1, c2, pf.Z, pf.ZPrm, pf.T, pf.V, pf.W)...)
+		}
 		e = common.RejectionSample(q, eHash)
 	}
 
