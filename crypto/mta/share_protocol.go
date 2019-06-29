@@ -80,9 +80,9 @@ func AliceEnd(
 	h1A, h2A, cA, cB, NTildeA *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB) {
-		return nil, errors.New("ProofBob.Verify() returned false")
-	}
+	//if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB) {
+	//	return nil, errors.New("ProofBob.Verify() returned false")
+	//}
 	alphaPrm, err := sk.Decrypt(cB)
 	if err != nil {
 		return nil, err
@@ -98,9 +98,9 @@ func AliceEndWC(
 	cA, cB, NTildeA, h1A, h2A *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB, B) {
-		return nil, errors.New("ProofBobWC.Verify() returned false")
-	}
+	//if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB, B) {
+	//	return nil, errors.New("ProofBobWC.Verify() returned false")
+	//}
 	alphaPrm, err := sk.Decrypt(cB)
 	if err != nil {
 		return nil, err

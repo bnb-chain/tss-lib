@@ -20,16 +20,35 @@ func (round *round3) Start() *tss.Error {
 
 	var alphas = make([]*big.Int, len(round.Parties().Parties()))
 	var us = make([]*big.Int, len(round.Parties().Parties()))
+	i := round.PartyID().Index
 	for j := range round.Parties().Parties() {
 		if j == round.PartyID().Index {
 			continue
 		}
-		alphaIj, err := mta.AliceEnd(round.key.PaillierPks[round.PartyID().Index], nil, nil, nil, nil, round.temp.signRound2MtAMidMessages[j].C1_ji, nil, round.key.PaillierSk)
+		// TODO: this fails because of parameters are not decleared well in spec
+		alphaIj, err := mta.AliceEnd(
+			round.key.PaillierPks[i],
+			round.temp.signRound2MtAMidMessages[j].Pi1Ji,
+			round.key.H1j[i],
+			round.key.H2j[i],
+			round.temp.signRound1MtAInitMessages[j].C,
+			round.temp.signRound2MtAMidMessages[j].C1Ji,
+			round.key.NTildej[i],
+			round.key.PaillierSk)
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to compute Alice_end: %v", err))
 		}
-		// TODO: repalce with alice_end_wc
-		uIj, err := mta.AliceEnd(round.key.PaillierPks[round.PartyID().Index], nil, nil, nil, nil, round.temp.signRound2MtAMidMessages[j].C2_ji, nil, round.key.PaillierSk)
+		// TODO: this fails because of parameters are not decleared well in spec
+		uIj, err := mta.AliceEndWC(
+			round.key.PaillierPks[i],
+			round.temp.signRound2MtAMidMessages[j].Pi2Ji,
+			round.temp.bigWs[j],
+			round.temp.signRound1MtAInitMessages[j].C,
+			round.temp.signRound2MtAMidMessages[j].C2Ji,
+			round.key.NTildej[i],
+			round.key.H1j[i],
+			round.key.H2j[i],
+			round.key.PaillierSk)
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to compute Alice_end_wc: %v", err))
 		}

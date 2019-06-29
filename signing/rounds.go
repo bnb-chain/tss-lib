@@ -53,8 +53,6 @@ type (
 )
 
 var (
-	// TODO: implement preparation phase
-	//_ tss.Round = (*preparation)(nil)
 	_ tss.Round = (*round1)(nil)
 	_ tss.Round = (*round2)(nil)
 	_ tss.Round = (*round3)(nil)
@@ -64,8 +62,7 @@ var (
 	_ tss.Round = (*round7)(nil)
 	_ tss.Round = (*round8)(nil)
 	_ tss.Round = (*round9)(nil)
-	// TODO: implement finalization phase
-	//_ tss.Round = (*finalization{})(nil)
+	_ tss.Round = (*finalization)(nil)
 )
 
 // ----- //

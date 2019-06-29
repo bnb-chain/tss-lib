@@ -2,7 +2,6 @@ package signing
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/crypto"
@@ -37,7 +36,6 @@ func (round *round7) Start() *tss.Error {
 		bigVjs[j] = bigVj
 		bigAj := crypto.NewECPoint(tss.EC(), bigAjX, bigAjY)
 		bigAjs[j] = bigAj
-		fmt.Printf("[CONG] idx: %d, received idx: %d, V: (%s, %s), A: (%s, %s)\n", round.PartyID().Index, j, bigVjX.String(), bigVjY.String(), bigAjX.String(), bigAjY.String())
 		pijA := round.temp.signRound6DecommitMessage[j].Proof
 		pijV := round.temp.signRound6DecommitMessage[j].VProof
 		if !pijA.Verify(bigAj) {
@@ -47,8 +45,6 @@ func (round *round7) Start() *tss.Error {
 			return round.WrapError(errors.New("vverify for Vj failed"), Pj)
 		}
 	}
-
-	fmt.Printf("[cong] idx: %d, verify bigAi: (%s, %s), bigVi: (%s, %s)\n", round.PartyID().Index, round.temp.bigAi.X(), round.temp.bigAi.Y(), round.temp.bigVi.X(), round.temp.bigVi.Y())
 
 	AX, AY := round.temp.bigAi.X(), round.temp.bigAi.Y()
 	minusM := new(big.Int).Mod(new(big.Int).Sub(big.NewInt(0), round.temp.m), tss.EC().Params().N)
@@ -71,7 +67,6 @@ func (round *round7) Start() *tss.Error {
 	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
 	round.temp.Ui = crypto.NewECPoint(tss.EC(), UiX, UiY)
 	round.temp.Ti = crypto.NewECPoint(tss.EC(), TiX, TiY)
-	fmt.Printf("[CONG] idx: %d, generated: U: (%s, %s), T: (%s, %s)\n", round.PartyID().Index, UiX.String(), UiY.String(), TiX.String(), TiY.String())
 	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
 	r7msg := NewSignRound7CommitMessage(round.PartyID(), cmt.C)
 	round.temp.signRound7CommitMessage[round.PartyID().Index] = &r7msg

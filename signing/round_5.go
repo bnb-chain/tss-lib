@@ -2,7 +2,6 @@ package signing
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common/random"
@@ -11,8 +10,6 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-// missing:
-// line5: SchnorrVerify
 func (round *round5) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -31,12 +28,15 @@ func (round *round5) Start() *tss.Error {
 		SCj := round.temp.signRound1CommitMessages[j].Commitment
 		SDj := round.temp.signRound4DecommitMessage[j].Decommitment
 		cmtDeCmt := commitments.HashCommitDecommit{C: SCj, D: SDj}
-		ok, BigGammaJ := cmtDeCmt.DeCommit()
-		if !ok {
+		ok, bigGammaJ := cmtDeCmt.DeCommit()
+		if !ok || len(bigGammaJ) != 2 {
 			return round.WrapError(errors.New("commitment verify failed"), Pj)
 		}
-		// TODO: line 5 SchnorrVerify
-		RXNew, RYNew := tss.EC().Add(R.X(), R.Y(), BigGammaJ[0], BigGammaJ[1])
+		ok = round.temp.signRound4DecommitMessage[j].Proof.Verify(crypto.NewECPoint(tss.EC(), bigGammaJ[0], bigGammaJ[1]))
+		if !ok {
+			return round.WrapError(errors.New("failed to proof bigGamma"), Pj)
+		}
+		RXNew, RYNew := tss.EC().Add(R.X(), R.Y(), bigGammaJ[0], bigGammaJ[1])
 		R = crypto.NewECPoint(tss.EC(), RXNew, RYNew)
 	}
 	finalRX, finalRY := tss.EC().ScalarMult(R.X(), R.Y(), round.temp.thelta_inverse.Bytes())
@@ -50,7 +50,6 @@ func (round *round5) Start() *tss.Error {
 	liX, liY := tss.EC().ScalarBaseMult(li.Bytes())
 	bigViX, bigViY := tss.EC().Add(rToSiX, rToSiY, liX, liY)
 	bigAiX, bigAiY := tss.EC().ScalarBaseMult(roI.Bytes())
-	fmt.Printf("[CONG] idx: %d, generated: V: (%s, %s), A: (%s, %s)\n", round.PartyID().Index, bigViX.String(), bigViY.String(), bigAiX.String(), bigAiY.String())
 
 	cmt := commitments.NewHashCommitment(bigViX, bigViY, bigAiX, bigAiY)
 	r5msg := NewSignRound5CommitmentMessage(round.PartyID(), cmt.C)
@@ -65,10 +64,6 @@ func (round *round5) Start() *tss.Error {
 	round.temp.si = si
 	round.temp.r = r
 	round.temp.bigR = R
-
-	// TODO: delete, for testing here
-	round.data.R = R
-	round.data.Si = si
 
 	return nil
 }

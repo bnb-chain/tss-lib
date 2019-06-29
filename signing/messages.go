@@ -23,10 +23,10 @@ type (
 
 	SignRound2MtAMidMessage struct {
 		tss.MessageMetadata
-		C1_ji  *big.Int
-		Pi1_ji *mta.ProofBob
-		C2_ji  *big.Int
-		Pi2_ji *mta.ProofBob
+		C1Ji  *big.Int
+		Pi1Ji *mta.ProofBob
+		C2Ji  *big.Int
+		Pi2Ji *mta.ProofBobWC
 	}
 
 	SignRound3Message struct {
@@ -111,7 +111,7 @@ func NewSignRound2MtAMidMessage(
 	c1Ji *big.Int,
 	pi1Ji *mta.ProofBob,
 	c2Ji *big.Int,
-	pi2Ji *mta.ProofBob,
+	pi2Ji *mta.ProofBobWC,
 ) SignRound2MtAMidMessage {
 	return SignRound2MtAMidMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -119,10 +119,10 @@ func NewSignRound2MtAMidMessage(
 			From:    from,
 			MsgType: "SignRound2MtAMidMessage",
 		},
-		C1_ji:  c1Ji,
-		Pi1_ji: pi1Ji,
-		C2_ji:  c2Ji,
-		Pi2_ji: pi2Ji,
+		C1Ji:  c1Ji,
+		Pi1Ji: pi1Ji,
+		C2Ji:  c2Ji,
+		Pi2Ji: pi2Ji,
 	}
 }
 

@@ -29,10 +29,6 @@ type (
 	LocalPartySignData struct {
 		Transaction []byte
 		Signature   []byte
-
-		// TODO: this field is used for verifying first 5 rounds, will delete later on
-		R  *crypto.ECPoint
-		Si *big.Int
 	}
 
 	LocalPartyMessageStore struct {
@@ -53,18 +49,18 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after sign)
-		w              *big.Int
-		bigWs          []*crypto.ECPoint
+		w     *big.Int
+		bigWs []*crypto.ECPoint
 		m,
 		k,
-		gamma          *big.Int
-		point          *crypto.ECPoint
-		deCommit       cmt.HashDeCommitment
-		betas,          // return value of Bob_mid
-		vs             []*big.Int // return value of Bob_mid_wc
+		gamma *big.Int
+		point    *crypto.ECPoint
+		deCommit cmt.HashDeCommitment
+		betas,   // return value of Bob_mid
+		vs []*big.Int // return value of Bob_mid_wc
 		thelta,
 		thelta_inverse,
-		sigma          *big.Int
+		sigma *big.Int
 
 		// round5
 		li     *big.Int
