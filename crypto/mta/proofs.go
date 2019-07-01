@@ -228,6 +228,6 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 	if pf == nil {
 		return false
 	}
-	pfWC := &ProofBobWC{*pf, nil}
+	pfWC := &ProofBobWC{*pf, nil, nil, nil}
 	return pfWC.Verify(pk, NTilde, h1, h2, c1, c2, nil)
 }
