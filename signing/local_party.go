@@ -173,7 +173,6 @@ func NewLocalParty(
 
 	// TODO data init
 
-	// round init, TODO: change to start with preparation round
 	round := newRound1(params, &key, &p.data, &p.temp, out)
 	p.Round = round
 	return p

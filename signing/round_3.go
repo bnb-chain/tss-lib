@@ -25,7 +25,6 @@ func (round *round3) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		// TODO: this fails because of parameters are not decleared well in spec
 		alphaIj, err := mta.AliceEnd(
 			round.key.PaillierPks[i],
 			round.temp.signRound2MtAMidMessages[j].Pi1Ji,
@@ -38,7 +37,6 @@ func (round *round3) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to compute Alice_end: %v", err))
 		}
-		// TODO: this fails because of parameters are not decleared well in spec
 		uIj, err := mta.AliceEndWC(
 			round.key.PaillierPks[i],
 			round.temp.signRound2MtAMidMessages[j].Pi2Ji,

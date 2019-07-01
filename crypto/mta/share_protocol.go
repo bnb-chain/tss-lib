@@ -2,7 +2,6 @@ package mta
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common/random"
