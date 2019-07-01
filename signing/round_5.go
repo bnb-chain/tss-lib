@@ -43,6 +43,7 @@ func (round *round5) Start() *tss.Error {
 	R = crypto.NewECPoint(tss.EC(), finalRX, finalRY)
 	r := new(big.Int).Mod(finalRX, tss.EC().Params().N)
 	si := new(big.Int).Mod(new(big.Int).Add(new(big.Int).Mul(round.temp.m, round.temp.k), new(big.Int).Mul(r, round.temp.sigma)), tss.EC().Params().N)
+	// TODO: clear temp.k, temp.w
 
 	li := random.GetRandomPositiveInt(tss.EC().Params().N)  // li
 	roI := random.GetRandomPositiveInt(tss.EC().Params().N) // pi

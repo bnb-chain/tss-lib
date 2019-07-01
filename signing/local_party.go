@@ -143,7 +143,7 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- LocalPartySignData,
 ) *LocalParty {
-	partyCount := params.PartyCount()
+	partyCount := len(params.Parties().Parties())
 	p := &LocalParty{
 		BaseParty: &tss.BaseParty{
 			Parameters: params,

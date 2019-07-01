@@ -16,7 +16,7 @@ import (
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *LocalPartySignData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&base{params, key, data, temp, out, make([]bool, params.PartyCount()), false, 1}}
+		&base{params, key, data, temp, out, make([]bool, len(params.Parties().Parties())), false, 1}}
 }
 
 // missing:
