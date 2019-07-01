@@ -33,16 +33,17 @@ type (
 
 	LocalPartyMessageStore struct {
 		// messages
-		signRound1CommitMessages   []*SignRound1CommitMessage
-		signRound1MtAInitMessages  []*SignRound1MtAInitMessage
-		signRound2MtAMidMessages   []*SignRound2MtAMidMessage
-		signRound3Messages         []*SignRound3Message
-		signRound4DecommitMessage  []*SignRound4DecommitMessage
-		signRound5CommitMessage    []*SignRound5CommitMessage
-		signRound6DecommitMessage  []*SignRound6DecommitMessage
-		signRound7CommitMessage    []*SignRound7CommitMessage
-		signRound8DecommitMessage  []*SignRound8DecommitMessage
-		signRound9SignatureMessage []*SignRound9SignatureMessage
+		signRound1CommitMessages      []*SignRound1CommitMessage
+		signRound1MtAInitMessages     []*SignRound1MtAInitMessage // messages others sent to me
+		signRound1SentMtaInitMessages []*SignRound1MtAInitMessage // messages I sent to others, for range_proof
+		signRound2MtAMidMessages      []*SignRound2MtAMidMessage
+		signRound3Messages            []*SignRound3Message
+		signRound4DecommitMessage     []*SignRound4DecommitMessage
+		signRound5CommitMessage       []*SignRound5CommitMessage
+		signRound6DecommitMessage     []*SignRound6DecommitMessage
+		signRound7CommitMessage       []*SignRound7CommitMessage
+		signRound8DecommitMessage     []*SignRound8DecommitMessage
+		signRound9SignatureMessage    []*SignRound9SignatureMessage
 	}
 
 	LocalPartyTempData struct {
@@ -154,6 +155,7 @@ func NewLocalParty(
 	}
 	// msgs init
 	p.temp.signRound1MtAInitMessages = make([]*SignRound1MtAInitMessage, partyCount)
+	p.temp.signRound1SentMtaInitMessages = make([]*SignRound1MtAInitMessage, partyCount)
 	p.temp.signRound1CommitMessages = make([]*SignRound1CommitMessage, partyCount)
 	p.temp.signRound2MtAMidMessages = make([]*SignRound2MtAMidMessage, partyCount)
 	p.temp.signRound3Messages = make([]*SignRound3Message, partyCount)

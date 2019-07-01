@@ -19,6 +19,9 @@ type (
 	ProofBobWC struct {
 		ProofBob
 		U *crypto.ECPoint
+		// TODO: delete, for testing
+		x     *big.Int
+		alpha *big.Int
 	}
 )
 
@@ -123,7 +126,7 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	pf := ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
 
 	// or the WC ("with check") version is used in round 2 of the signing protocol
-	return &ProofBobWC{ProofBob: pf, U: u}, nil
+	return &ProofBobWC{ProofBob: pf, U: u, x: x, alpha: alpha}, nil
 }
 
 // ProveBob implements Bob's proof "ProveMta_Bob" used in the MtA protocol from GG18Spec (9) Fig. 11.
@@ -172,9 +175,13 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 
 	// 4. runs only in the "with check" mode from Fig. 10
 	if X != nil {
-		gS1 := crypto.ScalarBaseMult(tss.EC(), pf.S1)
+		s1ModQ := new(big.Int).Mod(pf.S1, tss.EC().Params().N)
+		gS1 := crypto.ScalarBaseMult(tss.EC(), s1ModQ)
 		xEU := X.ScalarMult(e).Add(pf.U)
-		if !gS1.IsOnCurve() || !xEU.IsOnCurve() || !gS1.Equals(xEU) {
+		on1 := gS1.IsOnCurve()
+		on2 := xEU.IsOnCurve()
+
+		if !on1 || !on2 || !gS1.Equals(xEU) {
 			return false
 		}
 	}
@@ -227,6 +234,6 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 	if pf == nil {
 		return false
 	}
-	pfWC := &ProofBobWC{*pf, nil}
+	pfWC := &ProofBobWC{*pf, nil, nil, nil}
 	return pfWC.Verify(pk, NTilde, h1, h2, c1, c2, nil)
 }

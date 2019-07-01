@@ -52,7 +52,7 @@ func (round *round1) Start() *tss.Error {
 			round.temp.signRound1MtAInitMessages[j] = &r1msg1
 			continue
 		}
-		round.temp.signRound1MtAInitMessages[i] = &r1msg1
+		round.temp.signRound1SentMtaInitMessages[j] = &r1msg1
 		round.out <- r1msg1
 	}
 

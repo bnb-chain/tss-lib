@@ -2,6 +2,7 @@ package mta
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common/random"
@@ -71,6 +72,10 @@ func BobMidWC(
 	}
 	beta = new(big.Int).Mod(new(big.Int).Sub(zero, betaPrm), q)
 	piB, err = ProveBobWC(pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B)
+	modX := new(big.Int).Mod(b, tss.EC().Params().N)
+	gXX, gXY := tss.EC().ScalarBaseMult(modX.Bytes())
+	e1 := B.Equals(crypto.NewECPoint(tss.EC(), gXX, gXY))
+	fmt.Println(e1)
 	return
 }
 
@@ -80,9 +85,9 @@ func AliceEnd(
 	h1A, h2A, cA, cB, NTildeA *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	//if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB) {
-	//	return nil, errors.New("ProofBob.Verify() returned false")
-	//}
+	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB) {
+		return nil, errors.New("ProofBob.Verify() returned false")
+	}
 	alphaPrm, err := sk.Decrypt(cB)
 	if err != nil {
 		return nil, err
@@ -98,9 +103,9 @@ func AliceEndWC(
 	cA, cB, NTildeA, h1A, h2A *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	//if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB, B) {
-	//	return nil, errors.New("ProofBobWC.Verify() returned false")
-	//}
+	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB, B) {
+		return nil, errors.New("ProofBobWC.Verify() returned false")
+	}
 	alphaPrm, err := sk.Decrypt(cB)
 	if err != nil {
 		return nil, err

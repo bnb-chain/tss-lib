@@ -31,7 +31,7 @@ func (round *round3) Start() *tss.Error {
 			round.temp.signRound2MtAMidMessages[j].Pi1Ji,
 			round.key.H1j[i],
 			round.key.H2j[i],
-			round.temp.signRound1MtAInitMessages[j].C,
+			round.temp.signRound1SentMtaInitMessages[j].C,
 			round.temp.signRound2MtAMidMessages[j].C1Ji,
 			round.key.NTildej[i],
 			round.key.PaillierSk)
@@ -43,7 +43,7 @@ func (round *round3) Start() *tss.Error {
 			round.key.PaillierPks[i],
 			round.temp.signRound2MtAMidMessages[j].Pi2Ji,
 			round.temp.bigWs[j],
-			round.temp.signRound1MtAInitMessages[j].C,
+			round.temp.signRound1SentMtaInitMessages[j].C,
 			round.temp.signRound2MtAMidMessages[j].C2Ji,
 			round.key.NTildej[i],
 			round.key.H1j[i],
