@@ -13,19 +13,27 @@ func ModInt(mod *big.Int) *modInt {
 
 func (mi *modInt) Add(x, y *big.Int) *big.Int {
 	i := new(big.Int).Add(x, y)
-	return new(big.Int).Mod(i, (*big.Int)(mi))
+	return new(big.Int).Mod(i, mi.i())
 }
 
 func (mi *modInt) Sub(x, y *big.Int) *big.Int {
 	i := new(big.Int).Sub(x, y)
-	return new(big.Int).Mod(i, (*big.Int)(mi))
+	return new(big.Int).Mod(i, mi.i())
 }
 
 func (mi *modInt) Mul(x, y *big.Int) *big.Int {
 	i := new(big.Int).Mul(x, y)
-	return new(big.Int).Mod(i, (*big.Int)(mi))
+	return new(big.Int).Mod(i, mi.i())
 }
 
 func (mi *modInt) Exp(x, y *big.Int) *big.Int {
-	return new(big.Int).Exp(x, y, (*big.Int)(mi))
+	return new(big.Int).Exp(x, y, mi.i())
+}
+
+func (mi *modInt) ModInverse(g *big.Int) *big.Int {
+	return new(big.Int).ModInverse(g, mi.i())
+}
+
+func (mi *modInt) i() *big.Int {
+	return (*big.Int)(mi)
 }
