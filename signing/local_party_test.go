@@ -147,12 +147,13 @@ signing:
 					}
 				}(signParties[dest.Index])
 			}
-		case save := <-signEnd:
+		case <-signEnd:
 			atomic.AddInt32(&signEnded, 1)
 			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
 				t.Logf("Done. Received save data from %d participants", signEnded)
-				r := new(big.Int).Mod(save.R.X(), tss.EC().Params().N)
-				fmt.Printf("sign result: R(%s, %s), r=%s\n", save.R.X().String(), save.R.Y().String(), r.String())
+				R := signParties[0].temp.bigR
+				r := signParties[0].temp.r
+				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
 
 				// BEGIN check w correctness for preparation phase
 				sumW := big.NewInt(0)
@@ -182,27 +183,38 @@ signing:
 				assert.Equal(t, sumTheta, new(big.Int).Mod(sumGamma.Mul(sumGamma, sumK), tss.EC().Params().N))
 				sumKInverse := new(big.Int).ModInverse(sumK, tss.EC().Params().N)
 				rx, ry := tss.EC().ScalarBaseMult(sumKInverse.Bytes())
-				assert.Equal(t, rx, save.R.X())
-				assert.Equal(t, ry, save.R.Y())
+				assert.Equal(t, rx, R.X())
+				assert.Equal(t, ry, R.Y())
 				//END check R correctness
 
 				// BEGIN check s correctness
 				sumS := big.NewInt(0)
 				for _, p := range signParties {
-					sumS = new(big.Int).Mod(sumS.Add(sumS, p.data.Si), tss.EC().Params().N)
+					sumS = new(big.Int).Mod(sumS.Add(sumS, p.temp.si), tss.EC().Params().N)
 				}
 				fmt.Printf("S: %s\n", sumS.String())
 				// END check s correctness
 
-				// ECDSA verify
+				// BEGIN ECDSA verify
 				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
 					Curve: tss.EC(),
 					X:     pkX,
 					Y:     pkY,
 				}
-				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), save.R.X(), sumS)
+				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), R.X(), sumS)
 				assert.True(t, ok)
+				// END ECDSA verify
+
+				// BEGIN VVV verify
+				sumL := big.NewInt(0)
+				for _, p := range signParties {
+					sumL = new(big.Int).Mod(sumL.Add(sumL, p.temp.li), tss.EC().Params().N)
+				}
+				VVVX, VVVY := tss.EC().ScalarBaseMult(sumL.Bytes())
+				assert.Equal(t, VVVX, signParties[0].temp.VVV.X())
+				assert.Equal(t, VVVY, signParties[0].temp.VVV.Y())
+				// END VVV verify
 				return
 			}
 		}

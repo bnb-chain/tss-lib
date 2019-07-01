@@ -4,11 +4,11 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/schnorr"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-// missing:
-// line5: SchnorrProve of Gamma
 func (round *round4) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -20,7 +20,7 @@ func (round *round4) Start() *tss.Error {
 
 	thelta := *round.temp.thelta
 	theltaInverse := &thelta
-	for j, _ := range round.Parties().Parties() {
+	for j := range round.Parties().Parties() {
 		if j == round.PartyID().Index {
 			continue
 		}
@@ -30,9 +30,11 @@ func (round *round4) Start() *tss.Error {
 
 	// compute the multiplicative inverse thelta mod q
 	theltaInverse = new(big.Int).ModInverse(theltaInverse, tss.EC().Params().N)
-	//schnorr.NewZKProof(round.temp.gamma, )
+	bigGammaX, bigGammaY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
+	bigGamma := crypto.NewECPoint(tss.EC(), bigGammaX, bigGammaY)
+	piGamma := schnorr.NewZKProof(round.temp.gamma, bigGamma)
 	round.temp.thelta_inverse = theltaInverse
-	r4msg := NewSignRound4DecommitMessage(round.PartyID(), round.temp.deCommit, nil)
+	r4msg := NewSignRound4DecommitMessage(round.PartyID(), round.temp.deCommit, piGamma)
 	round.temp.signRound4DecommitMessage[round.PartyID().Index] = &r4msg
 	round.out <- r4msg
 

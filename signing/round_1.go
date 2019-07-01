@@ -36,28 +36,28 @@ func (round *round1) Start() *tss.Error {
 	X, Y := tss.EC().ScalarBaseMult(gamma.Bytes())
 	pointGamma := crypto.NewECPoint(tss.EC(), X, Y)
 	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
-	//round.temp.m =
 	round.temp.k = k
 	round.temp.gamma = gamma
 	round.temp.point = pointGamma
 	round.temp.deCommit = cmt.D
 
+	i := round.PartyID().Index
 	for j, Pj := range round.Parties().Parties() {
-		c, pi, err := mta.AliceInit(round.key.PaillierPks[round.PartyID().Index], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		c, pi, err := mta.AliceInit(round.key.PaillierPks[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
 		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), c, pi)
-		if j == round.PartyID().Index {
+		if j == i {
 			round.temp.signRound1MtAInitMessages[j] = &r1msg1
 			continue
 		}
-		round.temp.signRound1MtAInitMessages[round.PartyID().Index] = &r1msg1
+		round.temp.signRound1SentMtaInitMessages[j] = &r1msg1
 		round.out <- r1msg1
 	}
 
 	r1msg2 := NewSignRound1CommitMessage(round.PartyID(), cmt.C)
-	round.temp.signRound1CommitMessages[round.PartyID().Index] = &r1msg2
+	round.temp.signRound1CommitMessages[i] = &r1msg2
 	round.out <- r1msg2
 
 	return nil

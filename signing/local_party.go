@@ -29,19 +29,21 @@ type (
 	LocalPartySignData struct {
 		Transaction []byte
 		Signature   []byte
-
-		// TODO: this field is used for verifying first 5 rounds, will delete later on
-		R  *crypto.ECPoint
-		Si *big.Int
 	}
 
 	LocalPartyMessageStore struct {
 		// messages
-		signRound1CommitMessages  []*SignRound1CommitMessage
-		signRound1MtAInitMessages []*SignRound1MtAInitMessage
-		signRound2MtAMidMessages  []*SignRound2MtAMidMessage
-		signRound3Messages        []*SignRound3Message
-		signRound4DecommitMessage []*SignRound4DecommitMessage
+		signRound1CommitMessages      []*SignRound1CommitMessage
+		signRound1MtAInitMessages     []*SignRound1MtAInitMessage // messages others sent to me
+		signRound1SentMtaInitMessages []*SignRound1MtAInitMessage // messages I sent to others, for range_proof
+		signRound2MtAMidMessages      []*SignRound2MtAMidMessage
+		signRound3Messages            []*SignRound3Message
+		signRound4DecommitMessage     []*SignRound4DecommitMessage
+		signRound5CommitMessage       []*SignRound5CommitMessage
+		signRound6DecommitMessage     []*SignRound6DecommitMessage
+		signRound7CommitMessage       []*SignRound7CommitMessage
+		signRound8DecommitMessage     []*SignRound8DecommitMessage
+		signRound9SignatureMessage    []*SignRound9SignatureMessage
 	}
 
 	LocalPartyTempData struct {
@@ -55,11 +57,29 @@ type (
 		gamma *big.Int
 		point    *crypto.ECPoint
 		deCommit cmt.HashDeCommitment
-		betas, // return value of Bob_mid
+		betas,   // return value of Bob_mid
 		vs []*big.Int // return value of Bob_mid_wc
 		thelta,
 		thelta_inverse,
 		sigma *big.Int
+
+		// round5
+		li     *big.Int
+		bigAi  *crypto.ECPoint
+		bigVi  *crypto.ECPoint
+		roi    *big.Int
+		DPower cmt.HashDeCommitment // TODO: bad name :(
+		si     *big.Int
+		r      *big.Int
+		bigR   *crypto.ECPoint
+
+		// round7
+		Ui     *crypto.ECPoint
+		Ti     *crypto.ECPoint
+		DTelda cmt.HashDeCommitment // TODO: bad name :(
+
+		// TODO: delete, for testing
+		VVV *crypto.ECPoint
 	}
 )
 
@@ -95,6 +115,16 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 		p.temp.signRound3Messages[fromPIdx] = &m
 	case SignRound4DecommitMessage:
 		p.temp.signRound4DecommitMessage[fromPIdx] = &m
+	case SignRound5CommitMessage:
+		p.temp.signRound5CommitMessage[fromPIdx] = &m
+	case SignRound6DecommitMessage:
+		p.temp.signRound6DecommitMessage[fromPIdx] = &m
+	case SignRound7CommitMessage:
+		p.temp.signRound7CommitMessage[fromPIdx] = &m
+	case SignRound8DecommitMessage:
+		p.temp.signRound8DecommitMessage[fromPIdx] = &m
+	case SignRound9SignatureMessage:
+		p.temp.signRound9SignatureMessage[fromPIdx] = &m
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil
@@ -125,10 +155,16 @@ func NewLocalParty(
 	}
 	// msgs init
 	p.temp.signRound1MtAInitMessages = make([]*SignRound1MtAInitMessage, partyCount)
+	p.temp.signRound1SentMtaInitMessages = make([]*SignRound1MtAInitMessage, partyCount)
 	p.temp.signRound1CommitMessages = make([]*SignRound1CommitMessage, partyCount)
 	p.temp.signRound2MtAMidMessages = make([]*SignRound2MtAMidMessage, partyCount)
 	p.temp.signRound3Messages = make([]*SignRound3Message, partyCount)
 	p.temp.signRound4DecommitMessage = make([]*SignRound4DecommitMessage, partyCount)
+	p.temp.signRound5CommitMessage = make([]*SignRound5CommitMessage, partyCount)
+	p.temp.signRound6DecommitMessage = make([]*SignRound6DecommitMessage, partyCount)
+	p.temp.signRound7CommitMessage = make([]*SignRound7CommitMessage, partyCount)
+	p.temp.signRound8DecommitMessage = make([]*SignRound8DecommitMessage, partyCount)
+	p.temp.signRound9SignatureMessage = make([]*SignRound9SignatureMessage, partyCount)
 	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
 	p.temp.m = m
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
@@ -137,7 +173,6 @@ func NewLocalParty(
 
 	// TODO data init
 
-	// round init, TODO: change to start with preparation round
 	round := newRound1(params, &key, &p.data, &p.temp, out)
 	p.Round = round
 	return p
