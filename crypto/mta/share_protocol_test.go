@@ -38,7 +38,7 @@ func TestShareProtocol(t *testing.T) {
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
-	_, cB, betaPrm, pfB, err := BobMid(pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
+	_, cB, betaPrm, pfB, err := BobMid(pk, pf, b, cA, NTildei, h1i, h2i, NTildei, h1i, h2i)
 	assert.NoError(t, err)
 
 	alpha, err := AliceEnd(pk, pfB, h1i, h2i, cA, cB, NTildei, sk)

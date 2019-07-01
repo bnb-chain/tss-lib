@@ -72,10 +72,6 @@ func BobMidWC(
 	}
 	beta = new(big.Int).Mod(new(big.Int).Sub(zero, betaPrm), q)
 	piB, err = ProveBobWC(pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B)
-	modX := new(big.Int).Mod(b, tss.EC().Params().N)
-	gXX, gXY := tss.EC().ScalarBaseMult(modX.Bytes())
-	e1 := B.Equals(crypto.NewECPoint(tss.EC(), gXX, gXY))
-	fmt.Println(e1)
 	return
 }
 
