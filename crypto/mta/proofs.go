@@ -13,11 +13,12 @@ import (
 
 type (
 	ProofBob struct {
-		Z, ZPrm, T, V, W, S, S1, S2, T1, T2 *big.Int
+		Z, ZPrm, T, V, W, S, S1, S2 *big.Int
 	}
 
 	ProofBobWC struct {
 		ProofBob
+		T1, T2 *big.Int
 		U *crypto.ECPoint
 	}
 )
@@ -120,10 +121,10 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	t2 = new(big.Int).Add(t2, tau)
 
 	// the regular Bob proof ("without check") is extracted and returned by ProveBob
-	pf := ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
+	pf := ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2}
 
 	// or the WC ("with check") version is used in round 2 of the signing protocol
-	return &ProofBobWC{ProofBob: pf, U: u}, nil
+	return &ProofBobWC{ProofBob: pf, T1: t1, T2: t2, U: u}, nil
 }
 
 // ProveBob implements Bob's proof "ProveMta_Bob" used in the MtA protocol from GG18Spec (9) Fig. 11.
