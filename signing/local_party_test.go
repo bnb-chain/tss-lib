@@ -155,14 +155,16 @@ signing:
 				r := signParties[0].temp.r
 				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
 
+				modN := common.ModInt(tss.EC().Params().N)
+
 				// BEGIN check w correctness for preparation phase
 				sumW := big.NewInt(0)
 				for _, p := range signParties {
-					sumW = new(big.Int).Mod(new(big.Int).Add(sumW, p.temp.w), tss.EC().Params().N)
+					sumW = modN.Add(sumW, p.temp.w)
 				}
 				sumU := big.NewInt(0)
 				for i := 0; i < testParticipants; i++ {
-					sumU = new(big.Int).Mod(new(big.Int).Add(sumU, keys[i].Ui), tss.EC().Params().N)
+					sumU = modN.Add(sumU, keys[i].Ui)
 				}
 				assert.Equal(t, sumW, sumU)
 				// END check w correctness for preparation phase
@@ -170,18 +172,18 @@ signing:
 				// BEGIN check R correctness
 				sumK := big.NewInt(0)
 				for _, p := range signParties {
-					sumK = new(big.Int).Mod(sumK.Add(sumK, p.temp.k), tss.EC().Params().N)
+					sumK = modN.Add(sumK, p.temp.k)
 				}
 				sumGamma := big.NewInt(0)
 				for _, p := range signParties {
-					sumGamma = new(big.Int).Mod(sumGamma.Add(sumGamma, p.temp.gamma), tss.EC().Params().N)
+					sumGamma = modN.Add(sumGamma, p.temp.gamma)
 				}
 				sumTheta := big.NewInt(0)
 				for _, p := range signParties {
-					sumTheta = new(big.Int).Mod(sumTheta.Add(sumTheta, p.temp.thelta), tss.EC().Params().N)
+					sumTheta = modN.Add(sumTheta, p.temp.thelta)
 				}
-				assert.Equal(t, sumTheta, new(big.Int).Mod(sumGamma.Mul(sumGamma, sumK), tss.EC().Params().N))
-				sumKInverse := new(big.Int).ModInverse(sumK, tss.EC().Params().N)
+				assert.Equal(t, sumTheta, modN.Mul(sumGamma, sumK))
+				sumKInverse := modN.ModInverse(sumK)
 				rx, ry := tss.EC().ScalarBaseMult(sumKInverse.Bytes())
 				assert.Equal(t, rx, R.X())
 				assert.Equal(t, ry, R.Y())
@@ -190,7 +192,7 @@ signing:
 				// BEGIN check s correctness
 				sumS := big.NewInt(0)
 				for _, p := range signParties {
-					sumS = new(big.Int).Mod(sumS.Add(sumS, p.temp.si), tss.EC().Params().N)
+					sumS = modN.Add(sumS, p.temp.si)
 				}
 				fmt.Printf("S: %s\n", sumS.String())
 				// END check s correctness
@@ -209,7 +211,7 @@ signing:
 				// BEGIN VVV verify
 				sumL := big.NewInt(0)
 				for _, p := range signParties {
-					sumL = new(big.Int).Mod(sumL.Add(sumL, p.temp.li), tss.EC().Params().N)
+					sumL = modN.Add(sumL, p.temp.li)
 				}
 				VVVX, VVVY := tss.EC().ScalarBaseMult(sumL.Bytes())
 				assert.Equal(t, VVVX, signParties[0].temp.VVV.X())

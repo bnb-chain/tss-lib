@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/tss"
@@ -46,10 +47,11 @@ func (round *round7) Start() *tss.Error {
 		}
 	}
 
+	modN := common.ModInt(tss.EC().Params().N)
 	AX, AY := round.temp.bigAi.X(), round.temp.bigAi.Y()
-	minusM := new(big.Int).Mod(new(big.Int).Sub(big.NewInt(0), round.temp.m), tss.EC().Params().N)
+	minusM := modN.Sub(big.NewInt(0), round.temp.m)
 	gToMInvX, gToMInvY := tss.EC().ScalarBaseMult(minusM.Bytes())
-	minusR := new(big.Int).Mod(new(big.Int).Sub(big.NewInt(0), round.temp.r), tss.EC().Params().N)
+	minusR := modN.Sub(big.NewInt(0), round.temp.r)
 	yToRInvX, yToRInvY := tss.EC().ScalarMult(round.key.ECDSAPub.X(), round.key.ECDSAPub.Y(), minusR.Bytes())
 	VX, VY := tss.EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
 	VX, VY = tss.EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())
