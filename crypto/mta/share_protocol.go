@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
@@ -43,7 +44,7 @@ func BobMid(
 	if err != nil {
 		return
 	}
-	beta = new(big.Int).Mod(new(big.Int).Sub(zero, betaPrm), q)
+	beta = common.ModInt(q).Sub(zero, betaPrm)
 	piB, err = ProveBob(pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand)
 	return
 }
@@ -69,7 +70,7 @@ func BobMidWC(
 	if err != nil {
 		return
 	}
-	beta = new(big.Int).Mod(new(big.Int).Sub(zero, betaPrm), q)
+	beta = common.ModInt(q).Sub(zero, betaPrm)
 	piB, err = ProveBobWC(pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B)
 	return
 }
