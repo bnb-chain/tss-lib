@@ -1,7 +1,6 @@
 package keygen
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -172,52 +171,4 @@ func (p *LocalParty) Finish() {
 
 func (p *LocalParty) wrapError(err error, culprits ...*tss.PartyID) *tss.Error {
 	return p.Round.WrapError(err, culprits...)
-}
-
-// crypto.ECPoint is not json marshallable
-func (data *LocalPartySaveData) MarshalJSON() ([]byte, error) {
-	bigXj, err := crypto.FlattenECPoints(data.BigXj)
-	if err != nil {
-		return nil, errors.New("failed to flatten bigXjs")
-	}
-	ecdsaPub, err := crypto.FlattenECPoints([]*crypto.ECPoint{data.ECDSAPub})
-	if err != nil {
-		return nil, errors.New("failed to flatten  ecdsa public key")
-	}
-
-	type Alias LocalPartySaveData
-	return json.Marshal(&struct {
-		BigXj    []*big.Int
-		ECDSAPub []*big.Int
-		*Alias
-	}{
-		BigXj:    bigXj,
-		ECDSAPub: ecdsaPub,
-		Alias:    (*Alias)(data),
-	})
-}
-
-func (data *LocalPartySaveData) UnmarshalJSON(payload []byte) error {
-	type Alias LocalPartySaveData
-	aux := &struct {
-		BigXj    []*big.Int
-		ECDSAPub []*big.Int
-		*Alias
-	}{
-		Alias: (*Alias)(data),
-	}
-	if err := json.Unmarshal(payload, &aux); err != nil {
-		return err
-	}
-	if bigXj, err := crypto.UnFlattenECPoints(tss.EC(), aux.BigXj); err == nil {
-		data.BigXj = bigXj
-	} else {
-		return err
-	}
-	if pub, err := crypto.UnFlattenECPoints(tss.EC(), aux.ECDSAPub); err == nil && len(pub) == 1 {
-		data.ECDSAPub = pub[0]
-	} else {
-		return err
-	}
-	return nil
 }
