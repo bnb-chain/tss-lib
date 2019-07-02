@@ -16,7 +16,7 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOk()
 
-	Ps := round.Parties().Parties()
+	Ps := round.Parties().IDs()
 	PIDs := Ps.Keys()
 	ecdsaPub := round.save.ECDSAPub
 

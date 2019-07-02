@@ -18,7 +18,7 @@ func (round *round3) Start() *tss.Error {
 	round.started = true
 	round.resetOk()
 
-	Ps := round.Parties().Parties()
+	Ps := round.Parties().IDs()
 	PIdx := round.PartyID().Index
 
 	// 1,9. calculate xi

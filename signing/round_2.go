@@ -17,7 +17,7 @@ func (round *round2) Start() *tss.Error {
 	round.resetOk()
 
 	// it's concurrency time...
-	errChs1 := make([]chan *tss.Error, len(round.Parties().Parties()))
+	errChs1 := make([]chan *tss.Error, len(round.Parties().IDs()))
 	for j := range errChs1 {
 		if j == round.PartyID().Index {
 			errChs1[j] = nil
@@ -25,7 +25,7 @@ func (round *round2) Start() *tss.Error {
 		}
 		errChs1[j] = make(chan *tss.Error)
 	}
-	errChs2 := make([]chan *tss.Error, len(round.Parties().Parties()))
+	errChs2 := make([]chan *tss.Error, len(round.Parties().IDs()))
 	for j := range errChs2 {
 		if j == round.PartyID().Index {
 			errChs2[j] = nil
@@ -35,7 +35,7 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	i := round.PartyID().Index
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
@@ -85,7 +85,7 @@ func (round *round2) Start() *tss.Error {
 		}(j, Pj)
 	}
 	// consume error channels; wait for goroutines
-	culprits := make([]*tss.PartyID, 0, len(round.Parties().Parties()))
+	culprits := make([]*tss.PartyID, 0, len(round.Parties().IDs()))
 	for _, errCh := range append(errChs1, errChs2...) {
 		if errCh == nil { continue }
 		if err := <-errCh; err != nil {
@@ -96,7 +96,7 @@ func (round *round2) Start() *tss.Error {
 		return round.WrapError(errors.New("failed to calculate bob_mid or bob_mid_wc"), culprits...)
 	}
 	// create and send messages
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}

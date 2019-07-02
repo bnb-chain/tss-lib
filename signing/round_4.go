@@ -20,7 +20,7 @@ func (round *round4) Start() *tss.Error {
 
 	thelta := *round.temp.thelta
 	theltaInverse := &thelta
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}

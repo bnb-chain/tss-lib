@@ -16,7 +16,7 @@ import (
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *LocalPartySignData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&base{params, key, data, temp, out, make([]bool, len(params.Parties().Parties())), false, 1}}
+		&base{params, key, data, temp, out, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
 // missing:
@@ -42,7 +42,7 @@ func (round *round1) Start() *tss.Error {
 	round.temp.deCommit = cmt.D
 
 	i := round.PartyID().Index
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		c, pi, err := mta.AliceInit(round.key.PaillierPks[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
@@ -97,7 +97,7 @@ func (round *round1) NextRound() tss.Round {
 func (round *round1) prepare() {
 	// big.Int Div is calculated as: a/b = a * modInv(b,q)
 	wi := big.NewInt(0).Set(round.key.Xi)
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
@@ -108,10 +108,10 @@ func (round *round1) prepare() {
 	}
 	round.temp.w = new(big.Int).Mod(wi, tss.EC().Params().N)
 
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		bigXjCopy := *round.key.BigXj[j]
 		bigWj := &bigXjCopy
-		for c := range round.Parties().Parties() {
+		for c := range round.Parties().IDs() {
 			if j == c {
 				continue
 			}

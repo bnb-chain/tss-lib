@@ -18,10 +18,10 @@ func (round *round3) Start() *tss.Error {
 	round.started = true
 	round.resetOk()
 
-	var alphas = make([]*big.Int, len(round.Parties().Parties()))
-	var us = make([]*big.Int, len(round.Parties().Parties()))
+	var alphas = make([]*big.Int, len(round.Parties().IDs()))
+	var us = make([]*big.Int, len(round.Parties().IDs()))
 	i := round.PartyID().Index
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
@@ -62,7 +62,7 @@ func (round *round3) Start() *tss.Error {
 	sigma = sigma.Mul(round.temp.k, round.temp.w)
 	sigma = sigma.Mod(sigma, tss.EC().Params().N)
 
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}

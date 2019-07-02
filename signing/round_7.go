@@ -18,9 +18,9 @@ func (round *round7) Start() *tss.Error {
 	round.started = true
 	round.resetOk()
 
-	bigVjs := make([]*crypto.ECPoint, len(round.Parties().Parties()))
-	bigAjs := make([]*crypto.ECPoint, len(round.Parties().Parties()))
-	for j, Pj := range round.Parties().Parties() {
+	bigVjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
+	bigAjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
@@ -54,7 +54,7 @@ func (round *round7) Start() *tss.Error {
 	VX, VY := tss.EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
 	VX, VY = tss.EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())
 
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}

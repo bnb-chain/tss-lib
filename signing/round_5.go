@@ -21,7 +21,7 @@ func (round *round5) Start() *tss.Error {
 
 	RX, RY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
 	R := crypto.NewECPoint(tss.EC(), RX, RY)
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}

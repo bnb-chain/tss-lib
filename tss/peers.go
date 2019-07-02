@@ -2,14 +2,14 @@ package tss
 
 type (
 	PeerContext struct {
-		parties SortedPartyIDs
+		partyIDs SortedPartyIDs
 	}
 )
 
 func NewPeerContext(parties SortedPartyIDs) *PeerContext {
-	return &PeerContext{parties: parties}
+	return &PeerContext{partyIDs: parties}
 }
 
-func (p2pCtx *PeerContext) Parties() SortedPartyIDs {
-	return p2pCtx.parties
+func (p2pCtx *PeerContext) IDs() SortedPartyIDs {
+	return p2pCtx.partyIDs
 }

@@ -18,7 +18,7 @@ func (round *round9) Start() *tss.Error {
 
 	UX, UY := round.temp.Ui.X(), round.temp.Ui.Y()
 	TX, TY := round.temp.Ti.X(), round.temp.Ti.Y()
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}

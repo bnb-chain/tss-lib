@@ -90,7 +90,7 @@ func (round *base) CanProceed() bool {
 
 // WaitingFor is called by a Party for reporting back to the caller
 func (round *base) WaitingFor() []*tss.PartyID {
-	Ps := round.Parties().Parties()
+	Ps := round.Parties().IDs()
 	ids := make([]*tss.PartyID, 0, len(round.ok))
 	for j, ok := range round.ok {
 		if ok {

@@ -16,7 +16,7 @@ func (round *finalization) Start() *tss.Error {
 	round.resetOk()
 
 	sumS := round.temp.si
-	for j := range round.Parties().Parties() {
+	for j := range round.Parties().IDs() {
 		round.ok[j] = true
 		if j == round.PartyID().Index {
 			continue
