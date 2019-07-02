@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -54,22 +55,16 @@ func (round *round3) Start() *tss.Error {
 		us[j] = uIj
 	}
 
-	thelta := &big.Int{}
-	thelta = thelta.Mul(round.temp.k, round.temp.gamma)
-	thelta = thelta.Mod(thelta, tss.EC().Params().N)
-
-	sigma := &big.Int{}
-	sigma = sigma.Mul(round.temp.k, round.temp.w)
-	sigma = sigma.Mod(sigma, tss.EC().Params().N)
+	modN := common.ModInt(tss.EC().Params().N)
+	thelta := modN.Mul(round.temp.k, round.temp.gamma)
+	sigma := modN.Mul(round.temp.k, round.temp.w)
 
 	for j := range round.Parties().Parties() {
 		if j == round.PartyID().Index {
 			continue
 		}
-		thelta = thelta.Add(thelta, alphas[j].Add(alphas[j], round.temp.betas[j]))
-		thelta = thelta.Mod(thelta, tss.EC().Params().N)
-		sigma = sigma.Add(sigma, us[j].Add(us[j], round.temp.vs[j]))
-		sigma = sigma.Mod(sigma, tss.EC().Params().N)
+		thelta = modN.Add(thelta, alphas[j].Add(alphas[j], round.temp.betas[j]))
+		sigma = modN.Add(sigma, us[j].Add(us[j], round.temp.vs[j]))
 	}
 
 	round.temp.thelta = thelta

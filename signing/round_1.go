@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -95,6 +96,8 @@ func (round *round1) NextRound() tss.Round {
 }
 
 func (round *round1) prepare() {
+	modN := common.ModInt(tss.EC().Params().N)
+
 	// big.Int Div is calculated as: a/b = a * modInv(b,q)
 	wi := big.NewInt(0).Set(round.key.Xi)
 	for j := range round.Parties().Parties() {
@@ -103,8 +106,8 @@ func (round *round1) prepare() {
 		}
 		kj := round.key.Ks[j]
 		ki := round.key.Ks[round.PartyID().Index]
-		coefficient := new(big.Int).Mul(kj, new(big.Int).ModInverse(new(big.Int).Sub(kj, ki), tss.EC().Params().N))
-		wi = wi.Mul(wi, coefficient)
+		coef := modN.Mul(kj, modN.ModInverse(new(big.Int).Sub(kj, ki)))
+		wi = wi.Mul(wi, coef)
 	}
 	round.temp.w = new(big.Int).Mod(wi, tss.EC().Params().N)
 
@@ -115,7 +118,7 @@ func (round *round1) prepare() {
 			if j == c {
 				continue
 			}
-			iota := new(big.Int).Mod(new(big.Int).Mul(round.key.Ks[c], new(big.Int).ModInverse(new(big.Int).Sub(round.key.Ks[c], round.key.Ks[j]), tss.EC().Params().N)), tss.EC().Params().N)
+			iota := modN.Mul(round.key.Ks[c], modN.ModInverse(new(big.Int).Sub(round.key.Ks[c], round.key.Ks[j])))
 			newX, newY := tss.EC().ScalarMult(bigWj.X(), bigWj.Y(), iota.Bytes())
 			bigWj = crypto.NewECPoint(tss.EC(), newX, newY)
 		}
