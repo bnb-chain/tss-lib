@@ -1,6 +1,7 @@
 package tss
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -19,6 +20,7 @@ type Party interface {
 	Advance()
 	Lock()
 	Unlock()
+	WrapError(err error, culprits ...*PartyID) *Error
 }
 
 type BaseParty struct {
@@ -52,9 +54,27 @@ func (p *BaseParty) WaitingFor() []*PartyID {
 	return p.Round.WaitingFor()
 }
 
+func (p *BaseParty) WrapError(err error, culprits ...*PartyID) *Error {
+	return p.Round.WrapError(err, culprits...)
+}
+
+// an implementation of ValidateMessage that is shared across the different types of parties (keygen, signing, dynamic groups)
+func (p *BaseParty) ValidateMessage(msg Message) (bool, *Error) {
+	if msg == nil {
+		return false, p.WrapError(fmt.Errorf("received nil msg: %s", msg))
+	}
+	if msg.GetFrom() == nil {
+		return false, p.WrapError(fmt.Errorf("received msg with nil sender: %s", msg))
+	}
+	if !msg.ValidateBasic() {
+		return false, p.WrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
+	}
+	return true, nil
+}
+
 // ----- //
 
-// BaseUpdate is an implementation of Update that is shared across the different types of parties (keygen, signing, dynamic groups)
+// an implementation of Update that is shared across the different types of parties (keygen, signing, dynamic groups)
 func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
 	if _, err := p.ValidateMessage(msg); err != nil {
 		return false, err
