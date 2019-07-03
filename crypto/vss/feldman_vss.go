@@ -22,7 +22,7 @@ type (
 		Share *big.Int // Sigma i
 	}
 
-	PolyGs []*crypto.ECPoint // v0..vt
+	Vs []*crypto.ECPoint // v0..vt
 
 	Shares []*Share
 )
@@ -37,7 +37,7 @@ var (
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
 //
-func Create(threshold int, secret *big.Int, indexes []*big.Int) (PolyGs, Shares, error) {
+func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, error) {
 	if secret == nil || indexes == nil {
 		return nil, nil, errors.New("vss secret or indexes == nil")
 	}
@@ -46,11 +46,11 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (PolyGs, Shares,
 		return nil, nil, ErrNumSharesBelowThreshold
 	}
 
-	v := samplePolynomial(threshold, secret)
-	v[0] = secret // becomes sigma*G in polyG
-	polyGs := make([]*crypto.ECPoint, len(v))
-	for i, ai := range v {
-		polyGs[i] = crypto.ScalarBaseMult(tss.EC(), ai)
+	poly := samplePolynomial(threshold, secret)
+	poly[0] = secret // becomes sigma*G in v
+	v := make([]*crypto.ECPoint, len(poly))
+	for i, ai := range poly {
+		v[i] = crypto.ScalarBaseMult(tss.EC(), ai)
 	}
 
 	shares := make(Shares, num)
@@ -58,10 +58,10 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (PolyGs, Shares,
 		if indexes[i].Cmp(big.NewInt(0)) == 0 {
 			return nil, nil, fmt.Errorf("party index should not be 0")
 		}
-		share := evaluatePolynomial(threshold, v, indexes[i])
+		share := evaluatePolynomial(threshold, poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
-	return polyGs, shares, nil
+	return v, shares, nil
 }
 
 func (share *Share) Verify(threshold int, polyGs []*crypto.ECPoint) bool {

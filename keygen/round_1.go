@@ -105,7 +105,7 @@ func (round *round1) Start() *tss.Error {
 
 	// for this P: SAVE
 	// - shareID
-	// - Shamir PolyGs
+	// - VSS Vs
 	// - our set of Shamir shares
 	round.save.ShareID = ids[pIdx]
 	round.temp.polyGs = polyGs
