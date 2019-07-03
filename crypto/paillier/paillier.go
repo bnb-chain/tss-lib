@@ -16,8 +16,9 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/otiai10/primes"
+
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/primes"
 	"github.com/binance-chain/tss-lib/common/random"
 	crypto2 "github.com/binance-chain/tss-lib/crypto"
 )
