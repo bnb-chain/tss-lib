@@ -84,8 +84,17 @@ func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	}
 
 	// RSA modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 32*8, len(lp.data.H1j[0].Bytes()), "h1 should be correct len")
-	assert.Equal(t, 32*8, len(lp.data.H2j[0].Bytes()), "h2 should be correct len")
+	// round up to 256
+	len1 := len(lp.data.H1j[0].Bytes())
+	len2 := len(lp.data.H2j[0].Bytes())
+	if len1 % 2 != 0 {
+		len1 = len1 + (256 - (len1 % 256))
+	}
+	if len2 % 2 != 0 {
+		len2 = len2 + (256 - (len2 % 256))
+	}
+	assert.Equal(t, 256, len1, "h1 should be correct len")
+	assert.Equal(t, 256, len2, "h2 should be correct len")
 	assert.NotZero(t, lp.data.H1j, "h1 should be non-zero")
 	assert.NotZero(t, lp.data.H2j, "h2 should be non-zero")
 }
