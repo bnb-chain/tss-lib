@@ -82,7 +82,7 @@ func (round *round1) Start() *tss.Error {
 	// security: the original ui may be discarded
 	ui = big.NewInt(0)
 
-	pGFlat, err := crypto.FlattenECPoints(polyGs.PolyG)
+	pGFlat, err := crypto.FlattenECPoints(polyGs)
 	if err != nil {
 		return round.WrapError(err)
 	}
