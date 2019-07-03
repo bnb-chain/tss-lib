@@ -106,9 +106,9 @@ func (round *round1) prepare() {
 		kj := round.key.Ks[j]
 		ki := round.key.Ks[round.PartyID().Index]
 		coef := modN.Mul(kj, modN.ModInverse(new(big.Int).Sub(kj, ki)))
-		wi = wi.Mul(wi, coef)
+		wi = modN.Mul(wi, coef)
 	}
-	round.temp.w = new(big.Int).Mod(wi, tss.EC().Params().N)
+	round.temp.w = wi
 
 	for j := range round.Parties().IDs() {
 		bigXjCopy := *round.key.BigXj[j]

@@ -92,6 +92,8 @@ func UnFlattenECPoints(curve elliptic.Curve, in []*big.Int) ([]*ECPoint, error) 
 	return unFlat, nil
 }
 
+// ----- //
+
 func (p *ECPoint) GobEncode() ([]byte, error) {
 	buf := &bytes.Buffer{}
 	x, err := p.coords[0].GobEncode()
