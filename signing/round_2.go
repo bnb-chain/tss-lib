@@ -11,15 +11,16 @@ func (round *round2) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
-
 	round.number = 2
 	round.started = true
 	round.resetOk()
 
+	i := round.PartyID().Index
+
 	// it's concurrency time...
 	errChs1 := make([]chan *tss.Error, len(round.Parties().IDs()))
 	for j := range errChs1 {
-		if j == round.PartyID().Index {
+		if j == i {
 			errChs1[j] = nil
 			continue
 		}
@@ -27,18 +28,18 @@ func (round *round2) Start() *tss.Error {
 	}
 	errChs2 := make([]chan *tss.Error, len(round.Parties().IDs()))
 	for j := range errChs2 {
-		if j == round.PartyID().Index {
+		if j == i {
 			errChs2[j] = nil
 			continue
 		}
 		errChs2[j] = make(chan *tss.Error)
 	}
 
-	i := round.PartyID().Index
 	for j, Pj := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
+		if j == i {
 			continue
 		}
+		// Bob_mid
 		go func(j int, Pj *tss.PartyID) {
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
 				round.key.PaillierPks[j],
@@ -61,6 +62,7 @@ func (round *round2) Start() *tss.Error {
 			}
 			errChs1[j] <- round.WrapError(err, Pj)
 		}(j, Pj)
+		// Bob_mid_wc
 		go func(j int, Pj *tss.PartyID) {
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
 				round.key.PaillierPks[j],
@@ -93,7 +95,7 @@ func (round *round2) Start() *tss.Error {
 		}
 	}
 	if len(culprits) > 0 {
-		return round.WrapError(errors.New("failed to calculate bob_mid or bob_mid_wc"), culprits...)
+		return round.WrapError(errors.New("failed to calculate Bob_mid or Bob_mid_wc"), culprits...)
 	}
 	// create and send messages
 	for j, Pj := range round.Parties().IDs() {

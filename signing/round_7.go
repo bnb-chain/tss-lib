@@ -14,7 +14,6 @@ func (round *round7) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
-
 	round.number = 7
 	round.started = true
 	round.resetOk()

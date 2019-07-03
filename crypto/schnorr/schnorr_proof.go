@@ -17,8 +17,7 @@ type (
 
 	ZKVProof struct {
 		Alpha *crypto.ECPoint
-		T,
-		U *big.Int
+		T, U *big.Int
 	}
 )
 
