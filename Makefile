@@ -6,11 +6,10 @@ all: test
 ### Testing
 
 test:
-	@echo "--> Running unit tests"
 	make test_unit
 
 test_unit:
-	@go test $(PACKAGES)
+	go test -race $(PACKAGES)
 
 ########################################
 ### Pre Commit
