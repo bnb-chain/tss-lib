@@ -8,6 +8,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -57,13 +58,19 @@ type (
 		gamma *big.Int
 		point    *crypto.ECPoint
 		deCommit cmt.HashDeCommitment
-		betas,   // return value of Bob_mid
-		vs []*big.Int // return value of Bob_mid_wc
 		thelta,
 		thelta_inverse,
 		sigma *big.Int
 
-		// round5
+		// round 2
+		betas,   // return value of Bob_mid
+		c1jis,
+		c2jis,
+		vs []*big.Int // return value of Bob_mid_wc
+		pi1jis []*mta.ProofBob
+		pi2jis []*mta.ProofBobWC
+
+		// round 5
 		li     *big.Int
 		bigAi  *crypto.ECPoint
 		bigVi  *crypto.ECPoint
@@ -73,7 +80,7 @@ type (
 		r      *big.Int
 		bigR   *crypto.ECPoint
 
-		// round7
+		// round 7
 		Ui     *crypto.ECPoint
 		Ti     *crypto.ECPoint
 		DTelda cmt.HashDeCommitment // TODO: bad name :(
@@ -143,7 +150,7 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- LocalPartySignData,
 ) *LocalParty {
-	partyCount := params.PartyCount()
+	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
 		BaseParty: &tss.BaseParty{
 			Parameters: params,
@@ -169,6 +176,10 @@ func NewLocalParty(
 	p.temp.m = m
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
+	p.temp.c1jis = make([]*big.Int, partyCount)
+	p.temp.c2jis = make([]*big.Int, partyCount)
+	p.temp.pi1jis = make([]*mta.ProofBob, partyCount)
+	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
 	p.temp.vs = make([]*big.Int, partyCount)
 
 	// TODO data init

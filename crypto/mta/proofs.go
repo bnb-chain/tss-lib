@@ -17,7 +17,7 @@ type (
 	}
 
 	ProofBobWC struct {
-		ProofBob
+		*ProofBob
 		U *crypto.ECPoint
 	}
 )
@@ -60,30 +60,27 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	}
 
 	// 6.
-	z := new(big.Int).Exp(h1, x, NTilde)
-	z = new(big.Int).Mul(z, new(big.Int).Exp(h2, rho, NTilde))
-	z = new(big.Int).Mod(z, NTilde)
+	modNTilde := common.ModInt(NTilde)
+	z := modNTilde.Exp(h1, x)
+	z = modNTilde.Mul(z, modNTilde.Exp(h2, rho))
 
 	// 7.
-	zPrm := new(big.Int).Exp(h1, alpha, NTilde)
-	zPrm = new(big.Int).Mul(zPrm, new(big.Int).Exp(h2, rhoPrm, NTilde))
-	zPrm = new(big.Int).Mod(zPrm, NTilde)
+	zPrm := modNTilde.Exp(h1, alpha)
+	zPrm = modNTilde.Mul(zPrm, modNTilde.Exp(h2, rhoPrm))
 
 	// 8.
-	t := new(big.Int).Exp(h1, y, NTilde)
-	t = new(big.Int).Mul(t, new(big.Int).Exp(h2, sigma, NTilde))
-	t = new(big.Int).Mod(t, NTilde)
+	t := modNTilde.Exp(h1, y)
+	t = modNTilde.Mul(t, modNTilde.Exp(h2, sigma))
 
 	// 9.
-	v := new(big.Int).Exp(c1, alpha, NSquared)
-	v = new(big.Int).Mul(v, new(big.Int).Exp(pk.Gamma, gamma, NSquared))
-	v = new(big.Int).Mul(v, new(big.Int).Exp(beta, pk.N, NSquared))
-	v = new(big.Int).Mod(v, NSquared)
+	modNSquared := common.ModInt(NSquared)
+	v := modNSquared.Exp(c1, alpha)
+	v = modNSquared.Mul(v, modNSquared.Exp(pk.Gamma, gamma))
+	v = modNSquared.Mul(v, modNSquared.Exp(beta, pk.N))
 
 	// 10.
-	w := new(big.Int).Exp(h1, gamma, NTilde)
-	w = new(big.Int).Mul(w, new(big.Int).Exp(h2, tau, NTilde))
-	w = new(big.Int).Mod(w, NTilde)
+	w := modNTilde.Exp(h1, gamma)
+	w = modNTilde.Mul(w, modNTilde.Exp(h2, tau))
 
 	// 11-12. e'
 	var e *big.Int
@@ -99,9 +96,9 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	}
 
 	// 13.
-	s := new(big.Int).Exp(r, e, pk.N)
-	s = new(big.Int).Mul(s, beta)
-	s = new(big.Int).Mod(s, pk.N)
+	modN := common.ModInt(pk.N)
+	s := modN.Exp(r, e)
+	s = modN.Mul(s, beta)
 
 	// 14.
 	s1 := new(big.Int).Mul(e, x)
@@ -120,7 +117,7 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	t2 = new(big.Int).Add(t2, tau)
 
 	// the regular Bob proof ("without check") is extracted and returned by ProveBob
-	pf := ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
+	pf := &ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
 
 	// or the WC ("with check") version is used in round 2 of the signing protocol
 	return &ProofBobWC{ProofBob: pf, U: u}, nil
@@ -134,7 +131,7 @@ func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) 
 	if err != nil {
 		return nil, err
 	}
-	return &pf.ProofBob, nil
+	return pf.ProofBob, nil
 }
 
 // ProveBobWC.Verify implements verification of Bob's proof with check "VerifyMtawc_Bob" used in the MtA protocol from GG18Spec (9) Fig. 10.
@@ -143,8 +140,6 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c1 == nil || c2 == nil {
 		return false
 	}
-
-	NSquared := pk.NSquare()
 
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
@@ -180,42 +175,42 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 		}
 	}
 
-	{ // 5.
-		h1ExpS1 := new(big.Int).Exp(h1, pf.S1, NTilde)
-		h2ExpS2 := new(big.Int).Exp(h2, pf.S2, NTilde)
-		left = new(big.Int).Mul(h1ExpS1, h2ExpS2)
-		left = new(big.Int).Mod(left, NTilde)
-		zExpE := new(big.Int).Exp(pf.Z, e, NTilde)
-		right = new(big.Int).Mul(zExpE, pf.ZPrm)
-		right = new(big.Int).Mod(right, NTilde)
-		if left.Cmp(right) != 0 {
-			return false
-		}
-	}
+	{ // 5-6.
+		modNTilde := common.ModInt(NTilde)
 
-	{ // 6.
-		h1ExpT1 := new(big.Int).Exp(h1, pf.T1, NTilde)
-		h2ExpT2 := new(big.Int).Exp(h2, pf.T2, NTilde)
-		left = new(big.Int).Mul(h1ExpT1, h2ExpT2)
-		left = new(big.Int).Mod(left, NTilde)
-		tExpE := new(big.Int).Exp(pf.T, e, NTilde)
-		right = new(big.Int).Mul(tExpE, pf.W)
-		right = new(big.Int).Mod(right, NTilde)
-		if left.Cmp(right) != 0 {
-			return false
+		{ // 5.
+			h1ExpS1 := modNTilde.Exp(h1, pf.S1)
+			h2ExpS2 := modNTilde.Exp(h2, pf.S2)
+			left = modNTilde.Mul(h1ExpS1, h2ExpS2)
+			zExpE := modNTilde.Exp(pf.Z, e)
+			right = modNTilde.Mul(zExpE, pf.ZPrm)
+			if left.Cmp(right) != 0 {
+				return false
+			}
+		}
+
+		{ // 6.
+			h1ExpT1 := modNTilde.Exp(h1, pf.T1)
+			h2ExpT2 := modNTilde.Exp(h2, pf.T2)
+			left = modNTilde.Mul(h1ExpT1, h2ExpT2)
+			tExpE := modNTilde.Exp(pf.T, e)
+			right = modNTilde.Mul(tExpE, pf.W)
+			if left.Cmp(right) != 0 {
+				return false
+			}
 		}
 	}
 
 	{ // 7.
-		c1ExpS1 := new(big.Int).Exp(c1, pf.S1, NSquared)
-		sExpN := new(big.Int).Exp(pf.S, pk.N, NSquared)
-		gammaExpT1 := new(big.Int).Exp(pk.Gamma, pf.T1, NSquared)
-		left = new(big.Int).Mul(c1ExpS1, sExpN)
-		left = new(big.Int).Mul(left, gammaExpT1)
-		left = new(big.Int).Mod(left, NSquared)
-		c2ExpE := new(big.Int).Exp(c2, e, NSquared)
-		right = new(big.Int).Mul(c2ExpE, pf.V)
-		right = new(big.Int).Mod(right, NSquared)
+		modNSquared := common.ModInt(pk.NSquare())
+
+		c1ExpS1 := modNSquared.Exp(c1, pf.S1)
+		sExpN := modNSquared.Exp(pf.S, pk.N)
+		gammaExpT1 := modNSquared.Exp(pk.Gamma, pf.T1)
+		left = modNSquared.Mul(c1ExpS1, sExpN)
+		left = modNSquared.Mul(left, gammaExpT1)
+		c2ExpE := modNSquared.Exp(c2, e)
+		right = modNSquared.Mul(c2ExpE, pf.V)
 		if left.Cmp(right) != 0 {
 			return false
 		}
@@ -228,6 +223,6 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 	if pf == nil {
 		return false
 	}
-	pfWC := &ProofBobWC{ProofBob: *pf, U: nil}
+	pfWC := &ProofBobWC{ProofBob: pf, U: nil}
 	return pfWC.Verify(pk, NTilde, h1, h2, c1, c2, nil)
 }

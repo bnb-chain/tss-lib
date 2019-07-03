@@ -24,7 +24,7 @@ func (round *round2) Start() *tss.Error {
 
 	// 3. p2p send share ij to Pj
 	shares := round.temp.shares
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		r2msg1 := NewKGRound2VssMessage(Pj, round.PartyID(), shares[j])
 		// do not send to this Pj, but store for round 3
 		if j == round.PartyID().Index {

@@ -85,7 +85,7 @@ func NewSignRound1MtAInitMessage(
 }
 
 func (msg SignRound1MtAInitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound1CommitMessage(
@@ -103,7 +103,7 @@ func NewSignRound1CommitMessage(
 }
 
 func (msg SignRound1CommitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound2MtAMidMessage(
@@ -127,7 +127,7 @@ func NewSignRound2MtAMidMessage(
 }
 
 func (round SignRound2MtAMidMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound3Message(
@@ -145,7 +145,7 @@ func NewSignRound3Message(
 }
 
 func (round SignRound3Message) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound4DecommitMessage(
@@ -165,7 +165,7 @@ func NewSignRound4DecommitMessage(
 }
 
 func (round SignRound4DecommitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound5CommitmentMessage(
@@ -183,7 +183,7 @@ func NewSignRound5CommitmentMessage(
 }
 
 func (round SignRound5CommitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound6DecommitMessage(
@@ -205,7 +205,7 @@ func NewSignRound6DecommitMessage(
 }
 
 func (round SignRound6DecommitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound7CommitMessage(
@@ -223,7 +223,7 @@ func NewSignRound7CommitMessage(
 }
 
 func (round SignRound7CommitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound8DecommitMessage(
@@ -241,7 +241,7 @@ func NewSignRound8DecommitMessage(
 }
 
 func (round SignRound8DecommitMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }
 
 func NewSignRound9SignatureMessage(
@@ -259,5 +259,5 @@ func NewSignRound9SignatureMessage(
 }
 
 func (round SignRound9SignatureMessage) ValidateBasic() bool {
-	return true
+	return true // TODO ValidateBasic
 }

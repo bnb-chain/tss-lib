@@ -2,8 +2,8 @@ package signing
 
 import (
 	"errors"
-	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -21,7 +21,7 @@ func (round *round5) Start() *tss.Error {
 
 	RX, RY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
 	R := crypto.NewECPoint(tss.EC(), RX, RY)
-	for j, Pj := range round.Parties().Parties() {
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
@@ -41,11 +41,14 @@ func (round *round5) Start() *tss.Error {
 	}
 	finalRX, finalRY := tss.EC().ScalarMult(R.X(), R.Y(), round.temp.thelta_inverse.Bytes())
 	R = crypto.NewECPoint(tss.EC(), finalRX, finalRY)
-	r := new(big.Int).Mod(finalRX, tss.EC().Params().N)
-	si := new(big.Int).Mod(new(big.Int).Add(new(big.Int).Mul(round.temp.m, round.temp.k), new(big.Int).Mul(r, round.temp.sigma)), tss.EC().Params().N)
+	N := tss.EC().Params().N
+	modN := common.ModInt(N)
+	r := finalRX
+	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(r, round.temp.sigma))
+	// TODO: clear temp.k, temp.w
 
-	li := random.GetRandomPositiveInt(tss.EC().Params().N)  // li
-	roI := random.GetRandomPositiveInt(tss.EC().Params().N) // pi
+	li := random.GetRandomPositiveInt(N)  // li
+	roI := random.GetRandomPositiveInt(N) // pi
 	rToSiX, rToSiY := tss.EC().ScalarMult(R.X(), R.Y(), si.Bytes())
 	liX, liY := tss.EC().ScalarBaseMult(li.Bytes())
 	bigViX, bigViY := tss.EC().Add(rToSiX, rToSiY, liX, liY)

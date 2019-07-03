@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/tss"
@@ -101,6 +102,7 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 	if shares != nil && shares[0].Threshold > len(shares) {
 		return nil, ErrNumSharesBelowThreshold
 	}
+	modN := common.ModInt(tss.EC().Params().N)
 
 	// x coords
 	xs := make([]*big.Int, 0)
@@ -115,16 +117,14 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 			if j == i {
 				continue
 			}
-			sub := new(big.Int).Sub(xs[j], share.ID)
-			subInv := new(big.Int).ModInverse(sub, tss.EC().Params().N)
-			div := new(big.Int).Mul(xs[j], subInv)
-			times = new(big.Int).Mul(times, div)
-			times = new(big.Int).Mod(times, tss.EC().Params().N)
+			sub := modN.Sub(xs[j], share.ID)
+			subInv := modN.ModInverse(sub)
+			div := modN.Mul(xs[j], subInv)
+			times = modN.Mul(times, div)
 		}
 
-		fTimes := new(big.Int).Mul(share.Share, times)
-		secret = new(big.Int).Add(secret, fTimes)
-		secret = new(big.Int).Mod(secret, tss.EC().Params().N)
+		fTimes := modN.Mul(share.Share, times)
+		secret = modN.Add(secret, fTimes)
 	}
 
 	return secret, nil
@@ -147,6 +147,8 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 // 		returns a + bx + cx^2 + dx^3
 //
 func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
+	N := tss.EC().Params().N
+
 	last := len(poly) - 1
 	result := big.NewInt(0).Set(poly[last])
 
@@ -154,5 +156,5 @@ func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
 		result = result.Mul(result, id)
 		result = result.Add(result, poly[i])
 	}
-	return result.Mod(result, tss.EC().Params().N)
+	return result.Mod(result, N)
 }

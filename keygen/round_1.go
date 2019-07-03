@@ -27,7 +27,7 @@ const (
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, make([]bool, params.PartyCount()), false, 1}}
+		&base{params, save, temp, out, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -73,7 +73,7 @@ func (round *round1) Start() *tss.Error {
 	rsa, pai := <-rsaCh, <-paiCh
 
 	// 2. compute the vss shares
-	ids := round.Parties().Parties().Keys()
+	ids := round.Parties().IDs().Keys()
 	polyGs, shares, err := vss.Create(round.Params().Threshold(), ui, ids)
 	if err != nil {
 		return round.WrapError(err)

@@ -2,8 +2,8 @@ package signing
 
 import (
 	"errors"
-	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/schnorr"
 	"github.com/binance-chain/tss-lib/tss"
@@ -20,16 +20,19 @@ func (round *round4) Start() *tss.Error {
 
 	thelta := *round.temp.thelta
 	theltaInverse := &thelta
-	for j := range round.Parties().Parties() {
+
+	modN := common.ModInt(tss.EC().Params().N)
+
+	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
 		theltaJ := round.temp.signRound3Messages[j].Thelta
-		theltaInverse = new(big.Int).Mod(new(big.Int).Add(theltaInverse, theltaJ), tss.EC().Params().N)
+		theltaInverse = modN.Add(theltaInverse, theltaJ)
 	}
 
 	// compute the multiplicative inverse thelta mod q
-	theltaInverse = new(big.Int).ModInverse(theltaInverse, tss.EC().Params().N)
+	theltaInverse = modN.ModInverse(theltaInverse)
 	bigGammaX, bigGammaY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
 	bigGamma := crypto.NewECPoint(tss.EC(), bigGammaX, bigGammaY)
 	piGamma := schnorr.NewZKProof(round.temp.gamma, bigGamma)

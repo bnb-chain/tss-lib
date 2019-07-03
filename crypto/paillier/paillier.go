@@ -86,10 +86,8 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 	Gm := new(big.Int).Exp(publicKey.Gamma, m, N2)
 	// 2. x^N mod N2
 	xN := new(big.Int).Exp(x, publicKey.N, N2)
-	// 3. (1) * (2)
-	GmxN := new(big.Int).Mul(Gm, xN)
-	// 4. (3) mod N2
-	c = new(big.Int).Mod(GmxN, N2)
+	// 3. (1) * (2) mod N2
+	c = common.ModInt(N2).Mul(Gm, xN)
 	return
 }
 
@@ -107,7 +105,7 @@ func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
 		return nil, ErrMessageTooLong
 	}
 	// cipher^m mod N2
-	return new(big.Int).Exp(c1, m, N2), nil
+	return common.ModInt(N2).Exp(c1, m), nil
 }
 
 func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
@@ -118,10 +116,8 @@ func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
 	if c2.Cmp(zero) == -1 || c2.Cmp(N2) != -1 { // c2 < 0 || c2 >= N2 ?
 		return nil, ErrMessageTooLong
 	}
-	// c1 * c2
-	c1c2 := new(big.Int).Mul(c1, c2)
 	// c1 * c2 mod N2
-	return new(big.Int).Mod(c1c2, N2), nil
+	return common.ModInt(N2).Mul(c1, c2), nil
 }
 
 func (publicKey *PublicKey) NSquare() *big.Int {
@@ -135,7 +131,7 @@ func (publicKey *PublicKey) AsInts() []*big.Int {
 
 // ----- //
 
-func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
+func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 	N2 := privateKey.NSquare()
 	if c.Cmp(zero) == -1 || c.Cmp(N2) != -1 { // c < 0 || c >= N2 ?
 		return nil, ErrMessageTooLong
@@ -146,9 +142,8 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (*big.Int, error) {
 	Lg := L(new(big.Int).Exp(privateKey.Gamma, privateKey.LambdaN, N2), privateKey.N)
 	// 3. (1) * modInv(2) mod N
 	inv := new(big.Int).ModInverse(Lg, privateKey.N)
-	LcDivLg := new(big.Int).Mul(Lc, inv)
-	LcDivLgMod := new(big.Int).Mod(LcDivLg, privateKey.N)
-	return LcDivLgMod, nil
+	m = common.ModInt(privateKey.N).Mul(Lc, inv)
+	return
 }
 
 // ----- //

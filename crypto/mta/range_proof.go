@@ -37,19 +37,18 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) *
 	rho := random.GetRandomPositiveInt(qNTilde)
 
 	// 5.
-	z := new(big.Int).Exp(h1, m, NTilde)
-	z = new(big.Int).Mul(z, new(big.Int).Exp(h2, rho, NTilde))
-	z = new(big.Int).Mod(z, NTilde)
+	modNTilde := common.ModInt(NTilde)
+	z := modNTilde.Exp(h1, m)
+	z = modNTilde.Mul(z, modNTilde.Exp(h2, rho))
 
 	// 6.
-	u := new(big.Int).Exp(pk.Gamma, alpha, pk.NSquare())
-	u = new(big.Int).Mul(u, new(big.Int).Exp(beta, pk.N, pk.NSquare()))
-	u = new(big.Int).Mod(u, pk.NSquare())
+	modNSquared := common.ModInt(pk.NSquare())
+	u := modNSquared.Exp(pk.Gamma, alpha)
+	u = modNSquared.Mul(u, modNSquared.Exp(beta, pk.N))
 
 	// 7.
-	w := new(big.Int).Exp(h1, alpha, NTilde)
-	w = new(big.Int).Mul(w, new(big.Int).Exp(h2, gamma, NTilde))
-	w = new(big.Int).Mod(w, NTilde)
+	w := modNTilde.Exp(h1, alpha)
+	w = modNTilde.Mul(w, modNTilde.Exp(h2, gamma))
 
 	// 8-9. e'
 	var e *big.Int
@@ -58,9 +57,9 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) *
 		e = common.RejectionSample(q, eHash)
 	}
 
-	s := new(big.Int).Exp(r, e, pk.N)
-	s = new(big.Int).Mul(s, beta)
-	s = new(big.Int).Mod(s, pk.N)
+	modN := common.ModInt(pk.N)
+	s := modN.Exp(r, e)
+	s = modN.Mul(s, beta)
 
 	// s1 = e * m + alpha
 	s1 := new(big.Int).Mul(e, m)
@@ -99,26 +98,28 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	minusE := new(big.Int).Sub(zero, e)
 
 	{ // 4. gamma^s_1 * s^N * c^-e
-		cExpMinusE := new(big.Int).Exp(c, minusE, N2)
-		sExpN := new(big.Int).Exp(pf.S, pk.N, N2)
-		gammaExpS1 := new(big.Int).Exp(pk.Gamma, pf.S1, N2)
+		modN2 := common.ModInt(N2)
+
+		cExpMinusE := modN2.Exp(c, minusE)
+		sExpN := modN2.Exp(pf.S, pk.N)
+		gammaExpS1 := modN2.Exp(pk.Gamma, pf.S1)
 		// u != (4)
-		products = new(big.Int).Mul(gammaExpS1, sExpN)
-		products = new(big.Int).Mul(products, cExpMinusE)
-		products = new(big.Int).Mod(products, N2)
+		products = modN2.Mul(gammaExpS1, sExpN)
+		products = modN2.Mul(products, cExpMinusE)
 		if pf.U.Cmp(products) != 0 {
 			return false
 		}
 	}
 
 	{ // 5. h_1^s_1 * h_2^s_2 * z^-e
-		h1ExpS1 := new(big.Int).Exp(h1, pf.S1, NTilde)
-		h2ExpS2 := new(big.Int).Exp(h2, pf.S2, NTilde)
-		zExpMinusE := new(big.Int).Exp(pf.Z, minusE, NTilde)
+		modNTilde := common.ModInt(NTilde)
+
+		h1ExpS1 := modNTilde.Exp(h1, pf.S1)
+		h2ExpS2 := modNTilde.Exp(h2, pf.S2)
+		zExpMinusE := modNTilde.Exp(pf.Z, minusE)
 		// w != (5)
-		products = new(big.Int).Mul(h1ExpS1, h2ExpS2)
-		products = new(big.Int).Mul(products, zExpMinusE)
-		products = new(big.Int).Mod(products, NTilde)
+		products = modNTilde.Mul(h1ExpS1, h2ExpS2)
+		products = modNTilde.Mul(products, zExpMinusE)
 		if pf.W.Cmp(products) != 0 {
 			return false
 		}
