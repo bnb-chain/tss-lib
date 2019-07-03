@@ -12,7 +12,7 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	num, threshold := 3, 2
+	num, threshold := 5, 3
 
 	secret := random.GetRandomPositiveInt(tss.EC().Params().N)
 
@@ -24,10 +24,10 @@ func TestCreate(t *testing.T) {
 	polyGs, _, err := Create(threshold, secret, ids)
 	assert.Nil(t, err)
 
-	assert.Equal(t, threshold, len(polyGs.PolyG))
+	assert.Equal(t, threshold + 1, len(polyGs.PolyG))
 	// assert.Equal(t, num, params.NumShares)
 
-	assert.Equal(t, threshold, len(polyGs.PolyG))
+	assert.Equal(t, threshold + 1, len(polyGs.PolyG))
 
 	// ensure that each polyGs has two points on the curve
 	for i, pg := range polyGs.PolyG {
@@ -40,7 +40,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestVerify(t *testing.T) {
-	num, threshold := 3, 2
+	num, threshold := 5, 3
 
 	secret := random.GetRandomPositiveInt(tss.EC().Params().N)
 
@@ -58,7 +58,7 @@ func TestVerify(t *testing.T) {
 }
 
 func TestReconstruct(t *testing.T) {
-	num, threshold := 3, 2
+	num, threshold := 5, 3
 
 	secret := random.GetRandomPositiveInt(tss.EC().Params().N)
 

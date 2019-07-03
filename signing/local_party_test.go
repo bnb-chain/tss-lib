@@ -98,7 +98,7 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 signing:
-	signPIDs := pIDs[:testThreshold]
+	signPIDs := pIDs[:testThreshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*LocalParty, 0, len(signPIDs))

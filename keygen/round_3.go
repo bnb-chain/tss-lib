@@ -33,7 +33,7 @@ func (round *round3) Start() *tss.Error {
 	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
 
 	// 2-3.
-	Vc := make([]*crypto.ECPoint, round.Params().Threshold())
+	Vc := make([]*crypto.ECPoint, round.Params().Threshold() + 1)
 	for c := range Vc {
 		Vc[c] = round.temp.polyGs.PolyG[c] // ours
 	}
@@ -103,7 +103,7 @@ func (round *round3) Start() *tss.Error {
 		}
 		// 10-11.
 		PjPolyGs := vssResults[j].pjPolyGs
-		for c := 0; c < round.Params().Threshold(); c++ {
+		for c := 0; c <= round.Params().Threshold(); c++ {
 			VcX, VcY := tss.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
 			Vc[c] = crypto.NewECPoint(tss.EC(), VcX, VcY)
 		}
@@ -114,7 +114,7 @@ func (round *round3) Start() *tss.Error {
 	for j, Pj := range Ps {
 		var z *big.Int
 		XjX, XjY := Vc[0].X(), Vc[0].Y()
-		for c := 1; c < round.Params().Threshold(); c++ {
+		for c := 1; c <= round.Params().Threshold(); c++ {
 			// z = kj^c
 			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), tss.EC().Params().N)
 			// Xj = Xj * Vcz^z

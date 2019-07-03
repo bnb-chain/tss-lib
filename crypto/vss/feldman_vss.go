@@ -59,8 +59,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	poly[0] = secret // becomes sigma*G in polyG
 	polyGs := make([]*crypto.ECPoint, len(poly))
 	for i, ai := range poly {
-		X, Y := tss.EC().ScalarBaseMult(ai.Bytes())
-		polyGs[i] = crypto.NewECPoint(tss.EC(), X, Y)
+		polyGs[i] = crypto.ScalarBaseMult(tss.EC(), ai)
 	}
 
 	params := Params{Threshold: threshold, NumShares: num}
@@ -69,9 +68,9 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (*PolyGs, Shares
 	shares := make(Shares, num)
 	for i := 0; i < num; i++ {
 		if indexes[i].Cmp(big.NewInt(0)) == 0 {
-			panic(fmt.Errorf("party index should not be 0"))
+			return nil, nil, fmt.Errorf("party index should not be 0")
 		}
-		share := evaluatePolynomial(poly, indexes[i])
+		share := evaluatePolynomial(threshold, poly, indexes[i])
 		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
 	}
 	return &pGs, shares, nil
@@ -81,21 +80,20 @@ func (share *Share) Verify(threshold int, polyGs []*crypto.ECPoint) bool {
 	if share.Threshold != threshold {
 		return false
 	}
-	var t *big.Int
-	vX, vY := polyGs[0].X(), polyGs[0].Y()
-	for j := 1; j < threshold; j++ {
+	modN := common.ModInt(tss.EC().Params().N)
+	v := polyGs[0]
+	for j := 1; j <= threshold; j++ {
 		// t = ki^j
-		t = new(big.Int).Exp(share.ID, big.NewInt(int64(j)), tss.EC().Params().N)
+		t := modN.Exp(share.ID, big.NewInt(int64(j)))
 		// v = v * vj^t
-		vtjX, vtjY := tss.EC().ScalarMult(polyGs[j].X(), polyGs[j].Y(), t.Bytes())
-		vX, vY = tss.EC().Add(vX, vY, vtjX, vtjY)
+		vjt := polyGs[j].SetCurve(tss.EC()).ScalarMult(t)
+		v = v.SetCurve(tss.EC()).Add(vjt)
 	}
-	sigmaGiX, sigmaGiY := tss.EC().ScalarBaseMult(share.Share.Bytes())
-	if vX.Cmp(sigmaGiX) == 0 && vY.Cmp(sigmaGiY) == 0 {
+	sigmaGi := crypto.ScalarBaseMult(tss.EC(), share.Share)
+	if sigmaGi.Equals(v) {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 func (shares Shares) ReConstruct() (secret *big.Int, err error) {
@@ -131,12 +129,11 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 }
 
 func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
-	// secret coef is at [0]
-	poly := make([]*big.Int, threshold)
+	q := tss.EC().Params().N
+	poly := make([]*big.Int, threshold+1)
 	poly[0] = secret
-
-	for i := 1; i < threshold; i++ {
-		ai := random.GetRandomPositiveInt(tss.EC().Params().N)
+	for i := 1; i <= threshold; i++ {
+		ai := random.GetRandomPositiveInt(q)
 		poly[i] = ai
 	}
 	return poly
@@ -146,15 +143,14 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 // evaluatePolynomial([a, b, c, d], x):
 // 		returns a + bx + cx^2 + dx^3
 //
-func evaluatePolynomial(poly []*big.Int, id *big.Int) *big.Int {
-	N := tss.EC().Params().N
-
-	last := len(poly) - 1
-	result := big.NewInt(0).Set(poly[last])
-
-	for i := last - 1; i >= 0; i-- {
-		result = result.Mul(result, id)
-		result = result.Add(result, poly[i])
+func evaluatePolynomial(threshold int, poly []*big.Int, id *big.Int) *big.Int {
+	q := tss.EC().Params().N
+	modQ := common.ModInt(q)
+	result := big.NewInt(0).Set(poly[0])
+	for i := 1; i <= threshold; i++ {
+		ai := poly[i]
+		aiXi := new(big.Int).Mul(ai, modQ.Exp(id, big.NewInt(int64(i))))
+		result = new(big.Int).Add(result, aiXi)
 	}
-	return result.Mod(result, N)
+	return result.Mod(result, q)
 }
