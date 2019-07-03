@@ -43,9 +43,6 @@ type (
 		// original indexes (ki in signing preparation phase)
 		Index int // added for unit test
 		Ks    []*big.Int
-
-		// TODO: delete, only for testing!!
-		Ui *big.Int
 	}
 
 	LocalPartyMessageStore struct {

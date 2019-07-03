@@ -157,18 +157,6 @@ signing:
 
 				modN := common.ModInt(tss.EC().Params().N)
 
-				// BEGIN check w correctness for preparation phase
-				sumW := big.NewInt(0)
-				for _, p := range signParties {
-					sumW = modN.Add(sumW, p.temp.w)
-				}
-				sumU := big.NewInt(0)
-				for i := 0; i < testParticipants; i++ {
-					sumU = modN.Add(sumU, keys[i].Ui)
-				}
-				assert.Equal(t, sumW, sumU)
-				// END check w correctness for preparation phase
-
 				// BEGIN check R correctness
 				sumK := big.NewInt(0)
 				for _, p := range signParties {
