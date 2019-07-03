@@ -54,6 +54,11 @@ func (p *ECPoint) Equals(p2 *ECPoint) bool {
 	return p.X().Cmp(p2.X()) == 0 && p.Y().Cmp(p2.Y()) == 0
 }
 
+func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
+	p.curve = curve
+	return p
+}
+
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
 	x, y := curve.ScalarBaseMult(k.Bytes())
 	return NewECPoint(curve, x, y)
