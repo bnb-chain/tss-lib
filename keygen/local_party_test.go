@@ -204,7 +204,7 @@ func TestE2EConcurrent(t *testing.T) {
 						vssMsgs := P.temp.kgRound2VssMessages
 						pShares = append(pShares, vssMsgs[j].PiShare)
 					}
-					uj, err := pShares[:threshold].ReConstruct()
+					uj, err := pShares[:threshold+1].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
