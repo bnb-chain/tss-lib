@@ -52,6 +52,9 @@ func (p *BaseParty) WaitingFor() []*PartyID {
 	return p.Round.WaitingFor()
 }
 
+// ----- //
+
+// BaseUpdate is an implementation of Update that is shared across the different types of parties (keygen, signing, dynamic groups)
 func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
 	if _, err := p.ValidateMessage(msg); err != nil {
 		return false, err

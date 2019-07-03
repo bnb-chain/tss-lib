@@ -34,7 +34,7 @@ func (round *round9) Start() *tss.Error {
 		TX, TY = tss.EC().Add(TX, TY, TjX, TjY)
 	}
 	if UX.Cmp(TX) != 0 || UY.Cmp(TY) != 0 {
-		return round.WrapError(errors.New("U doesn't equals to T"), round.PartyID())
+		return round.WrapError(errors.New("U doesn't equal T"), round.PartyID())
 	}
 
 	r9msg := NewSignRound9SignatureMessage(round.PartyID(), round.temp.si)

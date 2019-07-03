@@ -67,7 +67,7 @@ func TestE2EConcurrent(t *testing.T) {
 				for _, P := range parties {
 					if P.PartyID().Index != msg.GetFrom().Index {
 						go func(P *keygen.LocalParty, msg tss.Message) {
-							if _, err := tss.BaseUpdate(P, msg, "keygen"); err != nil {
+							if _, err := P.Update(msg, "keygen"); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 							}
@@ -79,7 +79,7 @@ func TestE2EConcurrent(t *testing.T) {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
 				}
 				go func(P *keygen.LocalParty) {
-					if _, err := tss.BaseUpdate(P, msg, "keygen"); err != nil {
+					if _, err := P.Update(msg, "keygen"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
@@ -98,7 +98,7 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 signing:
-	signPIDs := pIDs[:testThreshold+1]
+	signPIDs := pIDs[:testThreshold]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*LocalParty, 0, len(signPIDs))
@@ -119,7 +119,6 @@ signing:
 	}
 
 	var signEnded int32
-
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -129,7 +128,7 @@ signing:
 				for _, P := range signParties {
 					if P.PartyID().Index != msg.GetFrom().Index {
 						go func(P *LocalParty, msg tss.Message) {
-							if _, err := tss.BaseUpdate(P, msg, "sign"); err != nil {
+							if _, err := P.Update(msg, "sign"); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 							}
@@ -141,7 +140,7 @@ signing:
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
 				}
 				go func(P *LocalParty) {
-					if _, err := tss.BaseUpdate(P, msg, "sign"); err != nil {
+					if _, err := P.Update(msg, "sign"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
