@@ -107,6 +107,11 @@ func (p *LocalParty) String() string {
 }
 
 // Implements Party
+func (p *LocalParty) PartyID() *tss.PartyID {
+	return p.Parameters.PartyID()
+}
+
+// Implements Party
 func (p *LocalParty) Start() *tss.Error {
 	p.Lock()
 	defer p.Unlock()
@@ -118,10 +123,11 @@ func (p *LocalParty) Start() *tss.Error {
 }
 
 // Implements Party
-func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.Parameters.PartyID()
+func (p *LocalParty) Update(msg tss.Message, phase string) (ok bool, err *tss.Error) {
+	return tss.BaseUpdate(p, msg, phase)
 }
 
+// Implements Party
 func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {
 	if msg == nil {
 		return false, p.wrapError(fmt.Errorf("received nil msg: %s", msg))
@@ -135,6 +141,7 @@ func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {
 	return true, nil
 }
 
+// Implements Party
 func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	fromPIdx := msg.GetFrom().Index
 
@@ -165,6 +172,7 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	return true, nil
 }
 
+// Implements Party
 func (p *LocalParty) Finish() {
 	p.end <- p.data
 }

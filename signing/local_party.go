@@ -90,59 +90,6 @@ type (
 	}
 )
 
-func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {
-	if msg == nil {
-		if _, ok := p.Round.(*round1); ok {
-			return true, nil
-		}
-		return false, p.wrapError(fmt.Errorf("received nil msg: %s", msg))
-	}
-	if msg.GetFrom() == nil {
-		return false, p.wrapError(fmt.Errorf("received msg with nil sender: %s", msg))
-	}
-	if !msg.ValidateBasic() {
-		return false, p.wrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
-	}
-	return true, nil
-}
-
-func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
-	fromPIdx := msg.GetFrom().Index
-
-	// switch/case is necessary to store any messages beyond current round
-	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
-	switch m := msg.(type) {
-	case SignRound1MtAInitMessage:
-		p.temp.signRound1MtAInitMessages[fromPIdx] = &m
-	case SignRound1CommitMessage:
-		p.temp.signRound1CommitMessages[fromPIdx] = &m
-	case SignRound2MtAMidMessage:
-		p.temp.signRound2MtAMidMessages[fromPIdx] = &m
-	case SignRound3Message:
-		p.temp.signRound3Messages[fromPIdx] = &m
-	case SignRound4DecommitMessage:
-		p.temp.signRound4DecommitMessage[fromPIdx] = &m
-	case SignRound5CommitMessage:
-		p.temp.signRound5CommitMessage[fromPIdx] = &m
-	case SignRound6DecommitMessage:
-		p.temp.signRound6DecommitMessage[fromPIdx] = &m
-	case SignRound7CommitMessage:
-		p.temp.signRound7CommitMessage[fromPIdx] = &m
-	case SignRound8DecommitMessage:
-		p.temp.signRound8DecommitMessage[fromPIdx] = &m
-	case SignRound9SignatureMessage:
-		p.temp.signRound9SignatureMessage[fromPIdx] = &m
-	default: // unrecognised message, just ignore!
-		common.Logger.Warningf("unrecognised message ignored: %v", msg)
-		return false, nil
-	}
-	return true, nil
-}
-
-func (p *LocalParty) Finish() {
-	p.end <- p.data
-}
-
 func NewLocalParty(
 	m *big.Int,
 	params *tss.Parameters,
@@ -195,6 +142,11 @@ func (p *LocalParty) String() string {
 }
 
 // Implements Party
+func (p *LocalParty) PartyID() *tss.PartyID {
+	return p.Parameters.PartyID()
+}
+
+// Implements Party
 func (p *LocalParty) Start() *tss.Error {
 	p.Lock()
 	defer p.Unlock()
@@ -210,8 +162,64 @@ func (p *LocalParty) Start() *tss.Error {
 }
 
 // Implements Party
-func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.Parameters.PartyID()
+func (p *LocalParty) Update(msg tss.Message, phase string) (ok bool, err *tss.Error) {
+	return tss.BaseUpdate(p, msg, phase)
+}
+
+// Implements Party
+func (p *LocalParty) ValidateMessage(msg tss.Message) (bool, *tss.Error) {
+	if msg == nil {
+		if _, ok := p.Round.(*round1); ok {
+			return true, nil
+		}
+		return false, p.wrapError(fmt.Errorf("received nil msg: %s", msg))
+	}
+	if msg.GetFrom() == nil {
+		return false, p.wrapError(fmt.Errorf("received msg with nil sender: %s", msg))
+	}
+	if !msg.ValidateBasic() {
+		return false, p.wrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
+	}
+	return true, nil
+}
+
+// Implements Party
+func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
+	fromPIdx := msg.GetFrom().Index
+
+	// switch/case is necessary to store any messages beyond current round
+	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
+	switch m := msg.(type) {
+	case SignRound1MtAInitMessage:
+		p.temp.signRound1MtAInitMessages[fromPIdx] = &m
+	case SignRound1CommitMessage:
+		p.temp.signRound1CommitMessages[fromPIdx] = &m
+	case SignRound2MtAMidMessage:
+		p.temp.signRound2MtAMidMessages[fromPIdx] = &m
+	case SignRound3Message:
+		p.temp.signRound3Messages[fromPIdx] = &m
+	case SignRound4DecommitMessage:
+		p.temp.signRound4DecommitMessage[fromPIdx] = &m
+	case SignRound5CommitMessage:
+		p.temp.signRound5CommitMessage[fromPIdx] = &m
+	case SignRound6DecommitMessage:
+		p.temp.signRound6DecommitMessage[fromPIdx] = &m
+	case SignRound7CommitMessage:
+		p.temp.signRound7CommitMessage[fromPIdx] = &m
+	case SignRound8DecommitMessage:
+		p.temp.signRound8DecommitMessage[fromPIdx] = &m
+	case SignRound9SignatureMessage:
+		p.temp.signRound9SignatureMessage[fromPIdx] = &m
+	default: // unrecognised message, just ignore!
+		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		return false, nil
+	}
+	return true, nil
+}
+
+// Implements Party
+func (p *LocalParty) Finish() {
+	p.end <- p.data
 }
 
 func (p *LocalParty) wrapError(err error, culprits ...*tss.PartyID) *tss.Error {

@@ -7,14 +7,15 @@ import (
 )
 
 type Party interface {
-	Start() *Error
-	PartyID() *PartyID
-	WaitingFor() []*PartyID
 	String() string
+	PartyID() *PartyID
+	Start() *Error
+	Update(msg Message, phase string) (ok bool, err *Error)
 	ValidateMessage(msg Message) (bool, *Error)
 	StoreMessage(msg Message) (bool, *Error)
 	Finish()
 	Rnd() Round
+	WaitingFor() []*PartyID
 	Advance()
 	Lock()
 	Unlock()
