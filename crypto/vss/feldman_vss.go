@@ -22,7 +22,7 @@ type (
 		Share *big.Int // Sigma i
 	}
 
-	PolyGs []*crypto.ECPoint // v0..vt
+	Vs []*crypto.ECPoint // v0..vt
 
 	Shares []*Share
 )
@@ -37,7 +37,7 @@ var (
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
 //
-func Create(threshold int, secret *big.Int, indexes []*big.Int) (PolyGs, Shares, error) {
+func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, error) {
 	if secret == nil || indexes == nil {
 		return nil, nil, errors.New("vss secret or indexes == nil")
 	}
