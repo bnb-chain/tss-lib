@@ -30,7 +30,6 @@ func TestProveRangeAlice(t *testing.T) {
 	NTildei, h1i, h2i, err := keygen.GenerateNTildei(primes)
 	proof := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)
 	assert.NoError(t, err)
-	t.Log(proof)
 
 	ok := proof.Verify(pk, NTildei, h1i, h2i, c)
 	assert.True(t, ok, "proof must verify")
