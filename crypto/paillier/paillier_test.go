@@ -88,12 +88,12 @@ func TestHomoAdd(t *testing.T) {
 	assert.Equal(t, new(big.Int).Add(num1, num2), plain)
 }
 
-func TestProof2(t *testing.T) {
+func TestProof(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	proof := privateKey.Proof(ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
 		// TODO add a better assertion
@@ -101,28 +101,28 @@ func TestProof2(t *testing.T) {
 	t.Log(proof)
 }
 
-func TestProof2Verify2(t *testing.T) {
+func TestProofVerify(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, crypto.NewECPoint(tss.EC(), yX, yY))
-	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	proof := privateKey.Proof(ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	assert.NoError(t, err)
-	assert.True(t, res, "proof verify2 result must be true")
+	assert.True(t, res, "proof verify result must be true")
 }
 
-func TestProof2Verify2Fail(t *testing.T) {
+func TestProofVerifyFail(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof2(ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	proof := privateKey.Proof(ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	last := proof[len(proof) - 1]
 	last.Sub(last, big.NewInt(1))
-	res, err := proof.Verify2(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
 	assert.NoError(t, err)
-	assert.False(t, res, "proof verify2 result must be true")
+	assert.False(t, res, "proof verify result must be true")
 }
 
 func TestComputeL(t *testing.T) {

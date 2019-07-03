@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	Proof2Iters = 13
-	verify2PrimesUntil = 1000 // Verify2 uses primes <1000
+	ProofIters        = 13
+	verifyPrimesUntil = 1000 // Verify uses primes <1000
 )
 
 type (
@@ -39,8 +39,8 @@ type (
 		LambdaN *big.Int // lcm(p-1, q-1)
 	}
 
-	// Proof2 uses the new GenerateXs method in GG18Spec (6)
-	Proof2 []*big.Int
+	// Proof uses the new GenerateXs method in GG18Spec (6)
+	Proof []*big.Int
 )
 
 var (
@@ -52,7 +52,7 @@ var (
 
 func init() {
 	// init primes cache
-	_ = primes.Globally.Until(verify2PrimesUntil)
+	_ = primes.Globally.Until(verifyPrimesUntil)
 }
 
 // len is the length of the modulus (each prime = len / 2)
@@ -149,13 +149,13 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 
 // ----- //
 
-// Proof2 is an implementation of Gennaro, R., Micciancio, D., Rabin, T.:
+// Proof is an implementation of Gennaro, R., Micciancio, D., Rabin, T.:
 // An efficient non-interactive statistical zero-knowledge proof system for quasi-safe prime products.
 // In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
 
-func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof2 {
-	iters := Proof2Iters
-	pi := make(Proof2, iters)
+func (privateKey *PrivateKey) Proof(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof {
+	iters := ProofIters
+	pi := make(Proof, iters)
 	xs := GenerateXs(iters, k, privateKey.N, ecdsaPub)
 	for i := 0; i < iters; i++ {
 		M := new(big.Int).ModInverse(privateKey.N, privateKey.PhiN)
@@ -164,11 +164,11 @@ func (privateKey *PrivateKey) Proof2(k *big.Int, ecdsaPub *crypto2.ECPoint) Proo
 	return pi
 }
 
-func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
-	iters := Proof2Iters
+func (proof Proof) Verify(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
+	iters := ProofIters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
+	prms := primes.Until(verifyPrimesUntil).List()           // uses cache primed in init()
 	go func(ch chan<- bool) {
-		prms := primes.Until(verify2PrimesUntil).List() // uses cache primed in init()
 		for _, prm := range prms {
 			// If prm divides N then Return 0
 			if new(big.Int).Mod(pkN, big.NewInt(prm)).Cmp(zero) == 0 {
@@ -189,7 +189,7 @@ func (proof Proof2) Verify2(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, e
 			}
 		case xs := <-xch:
 			if len(xs) != iters {
-				return false, fmt.Errorf("paillier verify2: expected %d xs but got %d", iters, len(xs))
+				return false, fmt.Errorf("paillier proof verify: expected %d xs but got %d", iters, len(xs))
 			}
 			for i, xi := range xs {
 				xiModN := new(big.Int).Mod(xi, pkN)
@@ -210,7 +210,7 @@ func L(u, N *big.Int) *big.Int {
 	return new(big.Int).Div(t, N)
 }
 
-// GenerateXs generates the challenges used in Paillier key Proof2
+// GenerateXs generates the challenges used in Paillier key Proof
 func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 	var i, n int
 	ret := make([]*big.Int, m)

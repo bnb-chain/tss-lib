@@ -49,7 +49,7 @@ type (
 	// len == (NodeCnt - 1)
 	KGRound3PaillierProveMessage struct {
 		tss.MessageMetadata
-		Proof paillier.Proof2
+		Proof paillier.Proof
 	}
 )
 
@@ -133,7 +133,7 @@ func (msg KGRound2DeCommitMessage) ValidateBasic() bool {
 
 func NewKGRound3PaillierProveMessage(
 	from *tss.PartyID,
-	proof paillier.Proof2,
+	proof paillier.Proof,
 ) KGRound3PaillierProveMessage {
 	return KGRound3PaillierProveMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -147,5 +147,5 @@ func NewKGRound3PaillierProveMessage(
 
 func (msg KGRound3PaillierProveMessage) ValidateBasic() bool {
 	return msg.Proof != nil &&
-		len(msg.Proof) == paillier.Proof2Iters
+		len(msg.Proof) == paillier.ProofIters
 }

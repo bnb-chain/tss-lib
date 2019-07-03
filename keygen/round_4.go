@@ -30,9 +30,9 @@ func (round *round4) Start() *tss.Error {
 	}
 	for j, msg := range r3msgs {
 		if j == round.PartyID().Index { continue }
-		go func(prf paillier.Proof2, j int, ch chan<- bool) {
+		go func(prf paillier.Proof, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
-			ok, err := prf.Verify2(ppk.N, PIDs[j], ecdsaPub)
+			ok, err := prf.Verify(ppk.N, PIDs[j], ecdsaPub)
 			if err != nil {
 				common.Logger.Error(round.WrapError(err, Ps[j]).Error())
 				ch <- false

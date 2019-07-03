@@ -137,7 +137,7 @@ func (round *round3) Start() *tss.Error {
 
 	// BROADCAST paillier proof for Pi
 	ki := round.PartyID().Key
-	proof := round.save.PaillierSk.Proof2(ki, ecdsaPubKey)
+	proof := round.save.PaillierSk.Proof(ki, ecdsaPubKey)
 	r3msg := NewKGRound3PaillierProveMessage(round.PartyID(), proof)
 	round.temp.kgRound3PaillierProveMessage[PIdx] = &r3msg
 	round.out <- r3msg
