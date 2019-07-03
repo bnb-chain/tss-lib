@@ -35,7 +35,7 @@ func (round *round3) Start() *tss.Error {
 	// 2-3.
 	Vc := make([]*crypto.ECPoint, round.Params().Threshold() + 1)
 	for c := range Vc {
-		Vc[c] = round.temp.polyGs.PolyG[c] // ours
+		Vc[c] = round.temp.polyGs[c] // ours
 	}
 
 	// 4-11.
