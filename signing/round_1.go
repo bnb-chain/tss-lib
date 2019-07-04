@@ -98,7 +98,7 @@ func (round *round1) prepare() {
 	modN := common.ModInt(tss.EC().Params().N)
 
 	// big.Int Div is calculated as: a/b = a * modInv(b,q)
-	wi := big.NewInt(0).Set(round.key.Xi)
+	wi := new(big.Int).Set(round.key.Xi)
 	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue

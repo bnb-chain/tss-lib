@@ -22,7 +22,7 @@ func (round *round3) Start() *tss.Error {
 	PIdx := round.PartyID().Index
 
 	// 1,9. calculate xi
-	xi := big.NewInt(0).Set(round.temp.shares[PIdx].Share)
+	xi := new(big.Int).Set(round.temp.shares[PIdx].Share)
 	for j := range Ps {
 		if j == PIdx {
 			continue

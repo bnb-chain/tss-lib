@@ -18,7 +18,7 @@ import (
 type (
 	Share struct {
 		Threshold int
-		ID,       // xi
+		ID, // xi
 		Share *big.Int // Sigma i
 	}
 
@@ -127,18 +127,18 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 	return v
 }
 
-// Evauluates a polynomial with coefficients specified in reverse order:
+// Evauluates a polynomial with coefficients such that:
 // evaluatePolynomial([a, b, c, d], x):
 // 		returns a + bx + cx^2 + dx^3
 //
-func evaluatePolynomial(threshold int, v []*big.Int, id *big.Int) *big.Int {
+func evaluatePolynomial(threshold int, v []*big.Int, id *big.Int) (result *big.Int) {
 	q := tss.EC().Params().N
 	modQ := common.ModInt(q)
-	result := big.NewInt(0).Set(v[0])
+	result = new(big.Int).Set(v[0])
 	for i := 1; i <= threshold; i++ {
 		ai := v[i]
 		aiXi := new(big.Int).Mul(ai, modQ.Exp(id, big.NewInt(int64(i))))
-		result = new(big.Int).Add(result, aiXi)
+		result = modQ.Add(result, aiXi)
 	}
-	return result.Mod(result, q)
+	return
 }

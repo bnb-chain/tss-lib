@@ -79,7 +79,7 @@ func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
 	if _, err := p.ValidateMessage(msg); err != nil {
 		return false, err
 	}
-	// need this mtx unlock hook, L137 is recursive so cannot use defer
+	// need this mtx unlock hook; L108 is recursive so cannot use defer
 	r := func(ok bool, err *Error) (bool, *Error) {
 		p.Unlock()
 		return ok, err
