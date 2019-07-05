@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -16,12 +17,14 @@ func (round *finalization) Start() *tss.Error {
 	round.resetOk()
 
 	sumS := round.temp.si
+	modN := common.ModInt(tss.EC().Params().N)
+
 	for j := range round.Parties().IDs() {
 		round.ok[j] = true
 		if j == round.PartyID().Index {
 			continue
 		}
-		sumS = new(big.Int).Add(sumS, round.temp.signRound9SignatureMessage[j].Si)
+		sumS = modN.Add(sumS, round.temp.signRound9SignatureMessage[j].Si)
 	}
 
 	// TODO: confirm with steven this is safe!!!
