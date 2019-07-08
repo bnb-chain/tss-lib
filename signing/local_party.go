@@ -66,7 +66,7 @@ type (
 		sigma *big.Int
 
 		// round 2
-		betas,   // return value of Bob_mid
+		betas, // return value of Bob_mid
 		c1jis,
 		c2jis,
 		vs []*big.Int // return value of Bob_mid_wc
@@ -140,7 +140,7 @@ func NewLocalParty(
 }
 
 func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round)
+	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
 }
 
 func (p *LocalParty) PartyID() *tss.PartyID {

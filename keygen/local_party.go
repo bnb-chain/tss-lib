@@ -102,7 +102,7 @@ func NewLocalParty(
 }
 
 func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round)
+	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
 }
 
 func (p *LocalParty) PartyID() *tss.PartyID {
