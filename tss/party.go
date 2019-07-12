@@ -24,7 +24,6 @@ type Party interface {
 }
 
 type BaseParty struct {
-	*Parameters
 	Round Round
 	mtx   sync.Mutex
 

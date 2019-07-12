@@ -103,8 +103,7 @@ func NewLocalParty(
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
 		BaseParty: &tss.BaseParty{
-			Parameters: params,
-			Out:        out,
+			Out: out,
 		},
 		temp: LocalPartyTempData{},
 		data: LocalPartySignData{},
@@ -142,7 +141,7 @@ func (p *LocalParty) String() string {
 }
 
 func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.Parameters.PartyID()
+	return p.Round.Params().PartyID()
 }
 
 func (p *LocalParty) Start() *tss.Error {
