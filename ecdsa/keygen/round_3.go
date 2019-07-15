@@ -7,6 +7,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -16,7 +17,7 @@ func (round *round3) Start() *tss.Error {
 	}
 	round.number = 3
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	Ps := round.Parties().IDs()
 	PIdx := round.PartyID().Index
@@ -33,15 +34,15 @@ func (round *round3) Start() *tss.Error {
 	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
 
 	// 2-3.
-	Vc := make([]*crypto.ECPoint, round.Params().Threshold() + 1)
+	Vc := make(vss.Vs, round.Params().Threshold() + 1)
 	for c := range Vc {
-		Vc[c] = round.temp.polyGs[c] // ours
+		Vc[c] = round.temp.vs[c] // ours
 	}
 
 	// 4-11.
 	type vssOut struct {
 		unWrappedErr error
-		pjPolyGs     []*crypto.ECPoint
+		pjVs         vss.Vs
 	}
 	chs := make([]chan vssOut, len(Ps))
 	for i := range chs {
@@ -102,7 +103,7 @@ func (round *round3) Start() *tss.Error {
 			continue
 		}
 		// 10-11.
-		PjPolyGs := vssResults[j].pjPolyGs
+		PjPolyGs := vssResults[j].pjVs
 		for c := 0; c <= round.Params().Threshold(); c++ {
 			VcX, VcY := tss.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
 			Vc[c] = crypto.NewECPoint(tss.EC(), VcX, VcY)

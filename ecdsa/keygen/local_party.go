@@ -62,7 +62,7 @@ type (
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
 		KGCs          []*cmt.HashCommitment
-		polyGs        vss.Vs
+		vs            vss.Vs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}

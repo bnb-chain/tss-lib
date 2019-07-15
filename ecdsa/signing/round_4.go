@@ -15,7 +15,7 @@ func (round *round4) Start() *tss.Error {
 	}
 	round.number = 4
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	thelta := *round.temp.thelta
 	theltaInverse := &thelta

@@ -13,7 +13,7 @@ func (round *round9) Start() *tss.Error {
 	}
 	round.number = 9
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	UX, UY := round.temp.Ui.X(), round.temp.Ui.Y()
 	TX, TY := round.temp.Ti.X(), round.temp.Ti.Y()

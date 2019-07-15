@@ -48,7 +48,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, err
 
 	poly := samplePolynomial(threshold, secret)
 	poly[0] = secret // becomes sigma*G in v
-	v := make([]*crypto.ECPoint, len(poly))
+	v := make(Vs, len(poly))
 	for i, ai := range poly {
 		v[i] = crypto.ScalarBaseMult(tss.EC(), ai)
 	}
@@ -64,17 +64,17 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, err
 	return v, shares, nil
 }
 
-func (share *Share) Verify(threshold int, polyGs []*crypto.ECPoint) bool {
+func (share *Share) Verify(threshold int, vs Vs) bool {
 	if share.Threshold != threshold {
 		return false
 	}
 	modN := common.ModInt(tss.EC().Params().N)
-	v := polyGs[0]
+	v := vs[0]
 	for j := 1; j <= threshold; j++ {
 		// t = ki^j
 		t := modN.Exp(share.ID, big.NewInt(int64(j)))
 		// v = v * vj^t
-		vjt := polyGs[j].SetCurve(tss.EC()).ScalarMult(t)
+		vjt := vs[j].SetCurve(tss.EC()).ScalarMult(t)
 		v = v.SetCurve(tss.EC()).Add(vjt)
 	}
 	sigmaGi := crypto.ScalarBaseMult(tss.EC(), share.Share)

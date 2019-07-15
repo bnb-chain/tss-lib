@@ -5,6 +5,10 @@ import (
 	"fmt"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -18,51 +22,51 @@ type (
 		*tss.BaseParty
 
 		temp LocalPartyTempData
-		data LocalPartySaveData
+		key  keygen.LocalPartySaveData
+		data keygen.LocalPartySaveData
 
 		// messaging
-		end chan<- LocalPartySaveData
+		end chan<- keygen.LocalPartySaveData
 	}
 
-	// TODO
-	LocalPartySaveData struct {
-		Index int // added for unit test
-	}
-
-	// TODO
 	LocalPartyMessageStore struct {
 		// messages
 		dgRound1OldCommitteeCommitMessages []*DGRound1OldCommitteeCommitMessage
+		dgRound2NewCommitteeACKMessage []*DGRound2NewCommitteeACKMessage
 	}
 
-	// TODO
 	LocalPartyTempData struct {
 		LocalPartyMessageStore
 
-		// TODO add temp data
+		// temp data (thrown away after rounds)
+		Di        cmt.HashDeCommitment
+		NewVs     vss.Vs
+		NewShares vss.Shares
+		BigXs     []*crypto.ECPoint
 	}
 )
 
 // Exported, used in `tss` client
 func NewLocalParty(
-	params *tss.Parameters,
+	params *tss.ReGroupParameters,
+	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- LocalPartySaveData,
+	end chan<- keygen.LocalPartySaveData,
 ) *LocalParty {
-	partyCount := params.PartyCount()
 	p := &LocalParty{
 		BaseParty: &tss.BaseParty{
 			Out: out,
 		},
 		temp: LocalPartyTempData{},
-		data: LocalPartySaveData{Index: params.PartyID().Index},
+		data: keygen.LocalPartySaveData{Index: params.PartyID().Index},
 		end:  end,
 	}
-	// TODO msgs init
-	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, partyCount)
-	// TODO data init
+	// msgs init
+	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.NewPartyCount())
+	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.PartyCount())
+	// data init
 	// round init
-	round := newRound1(params, &p.data, &p.temp, out)
+	round := newRound1(params, &p.key, &p.data, &p.temp, out)
 	p.Round = round
 	return p
 }
@@ -99,6 +103,10 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	case DGRound1OldCommitteeCommitMessage: // Round 1 broadcast messages
 		r1msg := msg.(DGRound1OldCommitteeCommitMessage)
 		p.temp.dgRound1OldCommitteeCommitMessages[fromPIdx] = &r1msg
+
+	case DGRound2NewCommitteeACKMessage:
+		r2msg := msg.(DGRound2NewCommitteeACKMessage)
+		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &r2msg
 
 	// TODO implement other messages
 

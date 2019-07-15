@@ -36,7 +36,7 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.number = 1
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	pIdx := round.PartyID().Index
 
@@ -73,7 +73,7 @@ func (round *round1) Start() *tss.Error {
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
-	polyGs, shares, err := vss.Create(round.Params().Threshold(), ui, ids)
+	vs, shares, err := vss.Create(round.Params().Threshold(), ui, ids)
 	if err != nil {
 		return round.WrapError(err)
 	}
@@ -82,14 +82,11 @@ func (round *round1) Start() *tss.Error {
 	// security: the original ui may be discarded
 	ui = big.NewInt(0)
 
-	pGFlat, err := crypto.FlattenECPoints(polyGs)
+	pGFlat, err := crypto.FlattenECPoints(vs)
 	if err != nil {
 		return round.WrapError(err)
 	}
 	cmt := cmt.NewHashCommitment(pGFlat...)
-	if err != nil {
-		return round.WrapError(err)
-	}
 
 	// 9-11. compute h1, h2 (uses RSA primes)
 	if rsa == nil {
@@ -108,7 +105,7 @@ func (round *round1) Start() *tss.Error {
 	// - VSS Vs
 	// - our set of Shamir shares
 	round.save.ShareID = ids[pIdx]
-	round.temp.polyGs = polyGs
+	round.temp.vs = vs
 	round.temp.shares = shares
 
 	// for this P: SAVE de-commitments, paillier keys for round 2

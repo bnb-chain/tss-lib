@@ -12,7 +12,9 @@ func (round *round2) Start() *tss.Error {
 	}
 	round.number = 2
 	round.started = true
-	round.resetOk()
+	round.resetOK()
+
+	i := round.PartyID().Index
 
 	// 4. store r1 message pieces
 	for j, r1msg := range round.temp.kgRound1CommitMessages {
@@ -27,17 +29,17 @@ func (round *round2) Start() *tss.Error {
 	for j, Pj := range round.Parties().IDs() {
 		r2msg1 := NewKGRound2VssMessage(Pj, round.PartyID(), shares[j])
 		// do not send to this Pj, but store for round 3
-		if j == round.PartyID().Index {
+		if j == i {
 			round.temp.kgRound2VssMessages[j] = &r2msg1
 			continue
 		}
-		round.temp.kgRound2VssMessages[round.PartyID().Index] = &r2msg1
+		round.temp.kgRound2VssMessages[i] = &r2msg1
 		round.out <- r2msg1
 	}
 
 	// 5. BROADCAST de-commitments of Shamir poly*G
 	r2msg2 := NewKGRound2DeCommitMessage(round.PartyID(), round.temp.deCommitPolyG)
-	round.temp.kgRound2DeCommitMessages[round.PartyID().Index] = &r2msg2
+	round.temp.kgRound2DeCommitMessages[i] = &r2msg2
 	round.out <- r2msg2
 
 	return nil

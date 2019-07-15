@@ -28,7 +28,7 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.number = 1
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	k := random.GetRandomPositiveInt(tss.EC().Params().N)
 	gamma := random.GetRandomPositiveInt(tss.EC().Params().N)

@@ -14,7 +14,7 @@ func (round *round4) Start() *tss.Error {
 	}
 	round.number = 4
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	Ps := round.Parties().IDs()
 	PIDs := Ps.Keys()

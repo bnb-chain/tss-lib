@@ -105,8 +105,10 @@ func (round *base) WrapError(err error, culprits ...*tss.PartyID) *tss.Error {
 	return tss.NewError(err, TaskName, round.number, round.PartyID(), culprits...)
 }
 
+// ----- //
+
 // `ok` tracks parties which have been verified by Update()
-func (round *base) resetOk() {
+func (round *base) resetOK() {
 	for j := range round.ok {
 		round.ok[j] = false
 	}

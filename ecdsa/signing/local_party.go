@@ -30,11 +30,6 @@ type (
 		end chan<- LocalPartySignData
 	}
 
-	LocalPartySignData struct {
-		Transaction []byte
-		Signature   []byte
-	}
-
 	LocalPartyMessageStore struct {
 		// messages
 		signRound1CommitMessages      []*SignRound1CommitMessage
@@ -54,16 +49,16 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after sign)
-		w     *big.Int
-		bigWs []*crypto.ECPoint
+		w,
 		m,
 		k,
-		gamma *big.Int
-		point    *crypto.ECPoint
-		deCommit cmt.HashDeCommitment
 		thelta,
 		thelta_inverse,
-		sigma *big.Int
+		sigma,
+		gamma *big.Int
+		bigWs    []*crypto.ECPoint
+		point    *crypto.ECPoint
+		deCommit cmt.HashDeCommitment
 
 		// round 2
 		betas, // return value of Bob_mid
@@ -74,29 +69,34 @@ type (
 		pi2jis []*mta.ProofBobWC
 
 		// round 5
-		li     *big.Int
-		bigAi  *crypto.ECPoint
-		bigVi  *crypto.ECPoint
-		roi    *big.Int
+		li,
+		si,
+		r,
+		roi *big.Int
+		bigR,
+		bigAi,
+		bigVi *crypto.ECPoint
 		DPower cmt.HashDeCommitment // TODO: bad name :(
-		si     *big.Int
-		r      *big.Int
-		bigR   *crypto.ECPoint
 
 		// round 7
-		Ui     *crypto.ECPoint
-		Ti     *crypto.ECPoint
+		Ui,
+		Ti *crypto.ECPoint
 		DTelda cmt.HashDeCommitment // TODO: bad name :(
 
 		// TODO: delete, for testing
 		VVV *crypto.ECPoint
 	}
+
+	LocalPartySignData struct {
+		Transaction []byte
+		Signature   []byte
+	}
 )
 
 func NewLocalParty(
-	m *big.Int,
+	msg *big.Int,
 	params *tss.Parameters,
-	key keygen.LocalPartySaveData,
+	keys keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- LocalPartySignData,
 ) *LocalParty {
@@ -121,8 +121,9 @@ func NewLocalParty(
 	p.temp.signRound7CommitMessage = make([]*SignRound7CommitMessage, partyCount)
 	p.temp.signRound8DecommitMessage = make([]*SignRound8DecommitMessage, partyCount)
 	p.temp.signRound9SignatureMessage = make([]*SignRound9SignatureMessage, partyCount)
-
-	p.temp.m = m
+	// data init
+	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
+	p.temp.m = msg
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
 	p.temp.c1jis = make([]*big.Int, partyCount)
@@ -130,8 +131,8 @@ func NewLocalParty(
 	p.temp.pi1jis = make([]*mta.ProofBob, partyCount)
 	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
 	p.temp.vs = make([]*big.Int, partyCount)
-
-	round := newRound1(params, &key, &p.data, &p.temp, out)
+	// round init
+	round := newRound1(params, &keys, &p.data, &p.temp, out)
 	p.Round = round
 	return p
 }

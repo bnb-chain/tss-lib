@@ -12,7 +12,7 @@ func (round *round8) Start() *tss.Error {
 	}
 	round.number = 8
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	r8msg := NewSignRound8DecommitMessage(round.PartyID(), round.temp.DTelda)
 	round.temp.signRound8DecommitMessage[round.PartyID().Index] = &r8msg

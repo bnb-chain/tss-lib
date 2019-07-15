@@ -16,7 +16,7 @@ func (round *round7) Start() *tss.Error {
 	}
 	round.number = 7
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	bigVjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
 	bigAjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))

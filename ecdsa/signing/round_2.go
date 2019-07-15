@@ -13,7 +13,7 @@ func (round *round2) Start() *tss.Error {
 	}
 	round.number = 2
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	i := round.PartyID().Index
 
