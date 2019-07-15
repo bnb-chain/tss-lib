@@ -13,7 +13,7 @@ func (round *round6) Start() *tss.Error {
 	}
 	round.number = 6
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	piAi := schnorr.NewZKProof(round.temp.roi, round.temp.bigAi)
 	piV := schnorr.NewZKVProof(round.temp.bigVi, round.temp.bigR, round.temp.si, round.temp.li)

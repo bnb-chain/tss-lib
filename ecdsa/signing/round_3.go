@@ -15,7 +15,7 @@ func (round *round3) Start() *tss.Error {
 	}
 	round.number = 3
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	var alphas = make([]*big.Int, len(round.Parties().IDs()))
 	var us = make([]*big.Int, len(round.Parties().IDs()))

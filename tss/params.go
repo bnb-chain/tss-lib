@@ -61,6 +61,10 @@ func NewReGroupParameters(ctx, newCtx *PeerContext, partyID *PartyID, partyCount
 	}
 }
 
+func (rgParams *ReGroupParameters) OldParties() *PeerContext {
+	return rgParams.Parties() // wr use the original method for old parties
+}
+
 func (rgParams *ReGroupParameters) NewParties() *PeerContext {
 	return rgParams.newParties
 }

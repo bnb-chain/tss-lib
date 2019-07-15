@@ -210,8 +210,8 @@ func TestE2EConcurrent(t *testing.T) {
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
 					uGX, uGY := tss.EC().ScalarBaseMult(uj.Bytes())
-					assert.Equal(t, uGX, Pj.temp.polyGs[0].X())
-					assert.Equal(t, uGY, Pj.temp.polyGs[0].Y())
+					assert.Equal(t, uGX, Pj.temp.vs[0].X())
+					assert.Equal(t, uGY, Pj.temp.vs[0].Y())
 
 					// xj test: BigXj == xj*G
 					xj := Pj.data.Xi
@@ -227,8 +227,8 @@ func TestE2EConcurrent(t *testing.T) {
 						uj, _ := pShares[:threshold].ReConstruct()
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
-						assert.NotEqual(t, BigXjX, Pj.temp.polyGs[0].X())
-						assert.NotEqual(t, BigXjY, Pj.temp.polyGs[0].Y())
+						assert.NotEqual(t, BigXjX, Pj.temp.vs[0].X())
+						assert.NotEqual(t, BigXjY, Pj.temp.vs[0].Y())
 					}
 
 					u = new(big.Int).Add(u, uj)

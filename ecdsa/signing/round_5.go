@@ -16,7 +16,7 @@ func (round *round5) Start() *tss.Error {
 	}
 	round.number = 5
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	RX, RY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
 	R := crypto.NewECPoint(tss.EC(), RX, RY)

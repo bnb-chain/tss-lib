@@ -75,7 +75,7 @@ func NewSignRound1MtAInitMessage(
 ) SignRound1MtAInitMessage {
 	return SignRound1MtAInitMessage{
 		MessageMetadata: tss.MessageMetadata{
-			To:      to,
+			To:      []*tss.PartyID{to},
 			From:    from,
 			MsgType: "SignRound1MtAInitMessage",
 		},
@@ -115,7 +115,7 @@ func NewSignRound2MtAMidMessage(
 ) SignRound2MtAMidMessage {
 	return SignRound2MtAMidMessage{
 		MessageMetadata: tss.MessageMetadata{
-			To:      to,
+			To:      []*tss.PartyID{to},
 			From:    from,
 			MsgType: "SignRound2MtAMidMessage",
 		},

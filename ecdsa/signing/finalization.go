@@ -14,7 +14,7 @@ func (round *finalization) Start() *tss.Error {
 	}
 	round.number = 10
 	round.started = true
-	round.resetOk()
+	round.resetOK()
 
 	sumS := round.temp.si
 	modN := common.ModInt(tss.EC().Params().N)

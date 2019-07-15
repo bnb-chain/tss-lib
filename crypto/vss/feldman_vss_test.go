@@ -21,21 +21,21 @@ func TestCreate(t *testing.T) {
 		ids = append(ids, random.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
-	polyGs, _, err := Create(threshold, secret, ids)
+	vs, _, err := Create(threshold, secret, ids)
 	assert.Nil(t, err)
 
-	assert.Equal(t, threshold + 1, len(polyGs))
+	assert.Equal(t, threshold + 1, len(vs))
 	// assert.Equal(t, num, params.NumShares)
 
-	assert.Equal(t, threshold + 1, len(polyGs))
+	assert.Equal(t, threshold + 1, len(vs))
 
-	// ensure that each polyGs has two points on the curve
-	for i, pg := range polyGs {
+	// ensure that each vs has two points on the curve
+	for i, pg := range vs {
 		assert.NotZero(t, pg.X())
 		assert.NotZero(t, pg.Y())
 		assert.True(t, pg.IsOnCurve())
-		assert.NotZero(t, polyGs[i].X())
-		assert.NotZero(t, polyGs[i].Y())
+		assert.NotZero(t, vs[i].X())
+		assert.NotZero(t, vs[i].Y())
 	}
 }
 
@@ -49,11 +49,11 @@ func TestVerify(t *testing.T) {
 		ids = append(ids, random.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
-	polyGs, shares, err := Create(threshold, secret, ids)
+	vs, shares, err := Create(threshold, secret, ids)
 	assert.NoError(t, err)
 
 	for i := 0; i < num; i++ {
-		assert.True(t, shares[i].Verify(threshold, polyGs))
+		assert.True(t, shares[i].Verify(threshold, vs))
 	}
 }
 

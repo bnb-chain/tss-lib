@@ -93,7 +93,7 @@ func NewKGRound2VssMessage(
 ) KGRound2VssMessage {
 	return KGRound2VssMessage{
 		MessageMetadata: tss.MessageMetadata{
-			To:      to,
+			To:      []*tss.PartyID{to},
 			From:    from,
 			MsgType: "KGRound2VssMessage",
 		},
