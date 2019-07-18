@@ -13,7 +13,7 @@ import (
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.ReGroupParameters, key, save *keygen.LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&base{params, key, save, temp, out, make([]bool, len(params.NewParties().IDs())), make([]bool, len(params.Parties().IDs())), false, 1}}
+		&base{params, key, save, temp, out, make([]bool, len(params.NewParties().IDs())), make([]bool, len(params.Parties().IDs())), false, false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -22,23 +22,23 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.number = 1
 	round.started = true
-	round.resetOK()  // resets both round.oldOK and round.newOK
-	round.allNewOK() // set `round.oldOK[0..n]` to true
+	round.resetOK() // resets both round.oldOK and round.newOK
 
 	if round.ReGroupParams().IsNewCommittee() {
-		round.allOldOK()
+		round.receiving = true
 		return nil
 	}
+	round.receiving = false
 
 	// 1.
 	newIds := round.NewParties().IDs().Keys()
-	vs, shares, err := vss.Create(round.NewThreshold(), round.key.Xi, newIds)
+	vi, shares, err := vss.Create(round.NewThreshold(), round.key.Xi, newIds)
 	if err != nil {
 		return round.WrapError(err)
 	}
 
 	// 2.
-	pGFlat, err := crypto.FlattenECPoints(vs)
+	pGFlat, err := crypto.FlattenECPoints(vi)
 	if err != nil {
 		return round.WrapError(err)
 	}
@@ -47,7 +47,7 @@ func (round *round1) Start() *tss.Error {
 	// 3. populate temp data
 	round.temp.Di = cmt.D
 	round.temp.NewShares = shares
-	round.temp.BigXs = round.BigXs()
+	round.temp.BigXs = round.key.BigXj
 
 	// 4. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1OldCommitteeCommitMessage(round.NewParties().IDs(), round.PartyID(), cmt.C)
@@ -65,6 +65,9 @@ func (round *round1) CanAccept(msg tss.Message) bool {
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
+	if !round.receiving {
+		return true, nil
+	}
 	for j, msg := range round.temp.dgRound1OldCommitteeCommitMessages {
 		if round.oldOK[j] {
 			continue

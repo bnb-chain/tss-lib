@@ -94,22 +94,27 @@ func (round *round1) NextRound() tss.Round {
 	return &round2{round}
 }
 
-func (round *round1) prepare() {
-	modN := common.ModInt(tss.EC().Params().N)
+// ----- //
 
-	// big.Int Div is calculated as: a/b = a * modInv(b,q)
-	wi := new(big.Int).Set(round.key.Xi)
+// PrepareForSigning(), Fig. 14
+func (round *round1) prepare() {
+	i := round.PartyID().Index
+	modQ := common.ModInt(tss.EC().Params().N)
+
+	// 2-4.
+	wi := round.key.Xi
 	for j := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
+		if j == i {
 			continue
 		}
-		kj := round.key.Ks[j]
-		ki := round.key.Ks[round.PartyID().Index]
-		coef := modN.Mul(kj, modN.ModInverse(new(big.Int).Sub(kj, ki)))
-		wi = modN.Mul(wi, coef)
+		kj, ki := round.key.Ks[j], round.key.Ks[i]
+		// big.Int Div is calculated as: a/b = a * modInv(b,q)
+		coef := modQ.Mul(kj, modQ.ModInverse(new(big.Int).Sub(kj, ki)))
+		wi = modQ.Mul(wi, coef)
 	}
 	round.temp.w = wi
 
+	// 5-10.
 	for j := range round.Parties().IDs() {
 		bigXjCopy := *round.key.BigXj[j]
 		bigWj := &bigXjCopy
@@ -117,7 +122,7 @@ func (round *round1) prepare() {
 			if j == c {
 				continue
 			}
-			iota := modN.Mul(round.key.Ks[c], modN.ModInverse(new(big.Int).Sub(round.key.Ks[c], round.key.Ks[j])))
+			iota := modQ.Mul(round.key.Ks[c], modQ.ModInverse(new(big.Int).Sub(round.key.Ks[c], round.key.Ks[j])))
 			newX, newY := tss.EC().ScalarMult(bigWj.X(), bigWj.Y(), iota.Bytes())
 			bigWj = crypto.NewECPoint(tss.EC(), newX, newY)
 		}

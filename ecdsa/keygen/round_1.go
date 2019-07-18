@@ -38,7 +38,8 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	pIdx := round.PartyID().Index
+	Pi := round.PartyID()
+	i := Pi.Index
 
 	// prepare for concurrent Paillier, RSA key generation
 	paiCh := make(chan *paillier.PrivateKey)
@@ -73,9 +74,9 @@ func (round *round1) Start() *tss.Error {
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
-	vs, shares, err := vss.Create(round.Params().Threshold(), ui, ids)
+	vs, shares, err := vss.Create(round.Threshold(), ui, ids)
 	if err != nil {
-		return round.WrapError(err)
+		return round.WrapError(err, Pi)
 	}
 	round.save.Ks = ids
 
@@ -84,7 +85,7 @@ func (round *round1) Start() *tss.Error {
 
 	pGFlat, err := crypto.FlattenECPoints(vs)
 	if err != nil {
-		return round.WrapError(err)
+		return round.WrapError(err, Pi)
 	}
 	cmt := cmt.NewHashCommitment(pGFlat...)
 
@@ -95,27 +96,27 @@ func (round *round1) Start() *tss.Error {
 
 	NTildei, h1i, h2i, err := GenerateNTildei(rsa.Primes[:2])
 	if err != nil {
-		return round.WrapError(err)
+		return round.WrapError(err, Pi)
 	}
-	round.save.NTildej[pIdx] = NTildei
-	round.save.H1j[pIdx], round.save.H2j[pIdx] = h1i, h2i
+	round.save.NTildej[i] = NTildei
+	round.save.H1j[i], round.save.H2j[i] = h1i, h2i
 
 	// for this P: SAVE
 	// - shareID
 	// - VSS Vs
 	// - our set of Shamir shares
-	round.save.ShareID = ids[pIdx]
+	round.save.ShareID = ids[i]
 	round.temp.vs = vs
 	round.temp.shares = shares
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
 	round.save.PaillierSk = pai
-	round.save.PaillierPks[pIdx] = &pai.PublicKey
+	round.save.PaillierPks[i] = &pai.PublicKey
 	round.temp.deCommitPolyG = cmt.D
 
 	// BROADCAST commitments, paillier pk + proof; round 1 message
 	r1msg := NewKGRound1CommitMessage(round.PartyID(), cmt.C, &pai.PublicKey, NTildei, h1i, h2i)
-	round.temp.kgRound1CommitMessages[pIdx] = &r1msg
+	round.temp.kgRound1CommitMessages[i] = &r1msg
 	round.out <- r1msg
 	return nil
 }
