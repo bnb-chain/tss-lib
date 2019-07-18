@@ -16,6 +16,7 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
+	i := round.PartyID().Index
 	Ps := round.Parties().IDs()
 	PIDs := Ps.Keys()
 	ecdsaPub := round.save.ECDSAPub
@@ -29,7 +30,7 @@ func (round *round4) Start() *tss.Error {
 		chs[i] = make(chan bool)
 	}
 	for j, msg := range r3msgs {
-		if j == round.PartyID().Index { continue }
+		if j == i { continue }
 		go func(prf paillier.Proof, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
 			ok, err := prf.Verify(ppk.N, PIDs[j], ecdsaPub)
@@ -44,7 +45,7 @@ func (round *round4) Start() *tss.Error {
 
 	// consume unbuffered channels (end the goroutines)
 	for j, ch := range chs {
-		if j == round.PartyID().Index {
+		if j == i {
 			round.ok[j] = true
 			continue
 		}

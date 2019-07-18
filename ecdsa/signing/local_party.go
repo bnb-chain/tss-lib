@@ -171,24 +171,34 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	switch m := msg.(type) {
 	case SignRound1MtAInitMessage:
 		p.temp.signRound1MtAInitMessages[fromPIdx] = &m
+
 	case SignRound1CommitMessage:
 		p.temp.signRound1CommitMessages[fromPIdx] = &m
+
 	case SignRound2MtAMidMessage:
 		p.temp.signRound2MtAMidMessages[fromPIdx] = &m
+
 	case SignRound3Message:
 		p.temp.signRound3Messages[fromPIdx] = &m
+
 	case SignRound4DecommitMessage:
 		p.temp.signRound4DecommitMessage[fromPIdx] = &m
+
 	case SignRound5CommitMessage:
 		p.temp.signRound5CommitMessage[fromPIdx] = &m
+
 	case SignRound6DecommitMessage:
 		p.temp.signRound6DecommitMessage[fromPIdx] = &m
+
 	case SignRound7CommitMessage:
 		p.temp.signRound7CommitMessage[fromPIdx] = &m
+
 	case SignRound8DecommitMessage:
 		p.temp.signRound8DecommitMessage[fromPIdx] = &m
+
 	case SignRound9SignatureMessage:
 		p.temp.signRound9SignatureMessage[fromPIdx] = &m
+
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

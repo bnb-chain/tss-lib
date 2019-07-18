@@ -22,8 +22,7 @@ type (
 		*tss.BaseParty
 
 		temp LocalPartyTempData
-		key  keygen.LocalPartySaveData
-		data keygen.LocalPartySaveData
+		key  keygen.LocalPartySaveData // we save straight back into here
 
 		// messaging
 		end chan<- keygen.LocalPartySaveData
@@ -33,6 +32,8 @@ type (
 		// messages
 		dgRound1OldCommitteeCommitMessages []*DGRound1OldCommitteeCommitMessage
 		dgRound2NewCommitteeACKMessage []*DGRound2NewCommitteeACKMessage
+		dgRound3ShareMessage []*DGRound3ShareMessage
+		dgRound3DeCommitMessage []*DGRound3DeCommitMessage
 	}
 
 	LocalPartyTempData struct {
@@ -58,15 +59,17 @@ func NewLocalParty(
 			Out: out,
 		},
 		temp: LocalPartyTempData{},
-		data: keygen.LocalPartySaveData{Index: params.PartyID().Index},
+		key: key,
 		end:  end,
 	}
 	// msgs init
-	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.NewPartyCount())
-	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.PartyCount())
+	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.PartyCount())
+	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.NewPartyCount())
+	p.temp.dgRound3ShareMessage = make([]*DGRound3ShareMessage, params.PartyCount())
+	p.temp.dgRound3DeCommitMessage = make([]*DGRound3DeCommitMessage, params.PartyCount())
 	// data init
 	// round init
-	round := newRound1(params, &p.key, &p.data, &p.temp, out)
+	round := newRound1(params, &p.key, &p.key, &p.temp, out)
 	p.Round = round
 	return p
 }
@@ -108,7 +111,13 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 		r2msg := msg.(DGRound2NewCommitteeACKMessage)
 		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &r2msg
 
-	// TODO implement other messages
+	case DGRound3ShareMessage:
+		r3msg1 := msg.(DGRound3ShareMessage)
+		p.temp.dgRound3ShareMessage[fromPIdx] = &r3msg1
+
+	case DGRound3DeCommitMessage:
+		r3msg2 := msg.(DGRound3DeCommitMessage)
+		p.temp.dgRound3DeCommitMessage[fromPIdx] = &r3msg2
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
@@ -118,5 +127,5 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 }
 
 func (p *LocalParty) Finish() {
-	p.end <- p.data
+	p.end <- p.key
 }

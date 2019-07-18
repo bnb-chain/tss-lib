@@ -21,6 +21,11 @@ func (mi *modInt) Sub(x, y *big.Int) *big.Int {
 	return new(big.Int).Mod(i, mi.i())
 }
 
+func (mi *modInt) Div(x, y *big.Int) *big.Int {
+	i := new(big.Int).Div(x, y)
+	return new(big.Int).Mod(i, mi.i())
+}
+
 func (mi *modInt) Mul(x, y *big.Int) *big.Int {
 	i := new(big.Int).Mul(x, y)
 	return new(big.Int).Mod(i, mi.i())

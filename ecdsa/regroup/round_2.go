@@ -12,13 +12,13 @@ func (round *round2) Start() *tss.Error {
 	}
 	round.number = 2
 	round.started = true
-	round.resetOK()  // resets both round.oldOK and round.newOK
-	round.allOldOK() // set `round.oldOK[0..n]` to true
+	round.resetOK() // resets both round.oldOK and round.newOK
 
 	if round.ReGroupParams().IsOldCommittee() {
-		round.allNewOK()
+		round.receiving = true
 		return nil
 	}
+	round.receiving = false
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg := NewDGRound2NewCommitteeACKMessage(round.OldParties().IDs(), round.PartyID())
@@ -35,6 +35,9 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
+	if !round.receiving {
+		return true, nil
+	}
 	// accept messages from new -> old committee
 	for j, msg := range round.temp.dgRound2NewCommitteeACKMessage {
 		if round.newOK[j] {

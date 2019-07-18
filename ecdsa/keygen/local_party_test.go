@@ -163,25 +163,26 @@ func TestE2EConcurrent(t *testing.T) {
 			dest := msg.GetTo()
 			if dest == nil {
 				for _, P := range parties {
-					if P.PartyID().Index != msg.GetFrom().Index {
-						go func(P *LocalParty, msg tss.Message) {
-							if _, err := P.Update(msg, "keygen"); err != nil {
-								common.Logger.Errorf("Error: %s", err)
-								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-							}
-						}(P, msg)
+					if P.PartyID().Index == msg.GetFrom().Index {
+						continue
 					}
+					go func(P *LocalParty, msg tss.Message) {
+						if _, err := P.Update(msg, "keygen"); err != nil {
+							common.Logger.Errorf("Error: %s", err)
+							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+						}
+					}(P, msg)
 				}
 			} else {
-				if dest.Index == msg.GetFrom().Index {
-					t.Fatalf("party %d tried to send a message to itself (%d)", dest.Index, msg.GetFrom().Index)
+				if dest[0].Index == msg.GetFrom().Index {
+					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
 				}
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "keygen"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
-				}(parties[dest.Index])
+				}(parties[dest[0].Index])
 			}
 		case save := <-end:
 			dmtx.Lock()

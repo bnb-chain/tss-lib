@@ -43,7 +43,9 @@ func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
 
 func (cmt *HashCommitDecommit) Verify() bool {
 	C, D := cmt.C, cmt.D
-
+	if C == nil || D == nil {
+		return false
+	}
 	hash := common.SHA512_256i(D...)
 	if hash.Cmp(C) == 0 {
 		return true
