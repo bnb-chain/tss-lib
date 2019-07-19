@@ -29,7 +29,7 @@ func (round *round7) Start() *tss.Error {
 		cmtDeCmt := commitments.HashCommitDecommit{C: cj, D: dj}
 		ok, values := cmtDeCmt.DeCommit()
 		if !ok || len(values) != 4 {
-			return round.WrapError(errors.New("decommitment for bigVj and bigAj failed"), Pj)
+			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
 		}
 		bigVjX, bigVjY, bigAjX, bigAjY := values[0], values[1], values[2], values[3]
 		bigVj := crypto.NewECPoint(tss.EC(), bigVjX, bigVjY)
