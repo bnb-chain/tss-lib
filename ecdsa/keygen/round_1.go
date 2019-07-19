@@ -4,8 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
-	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -41,7 +39,7 @@ func (round *round1) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	// prepare for concurrent Paillier, RSA key generation
+	// prepare for concurrent Paillier and RSA key generation
 	paiCh := make(chan *paillier.PrivateKey)
 	rsaCh := make(chan *rsa.PrivateKey)
 
@@ -81,7 +79,7 @@ func (round *round1) Start() *tss.Error {
 	round.save.Ks = ids
 
 	// security: the original ui may be discarded
-	ui = big.NewInt(0)
+	ui = zero
 
 	pGFlat, err := crypto.FlattenECPoints(vs)
 	if err != nil {
@@ -91,10 +89,10 @@ func (round *round1) Start() *tss.Error {
 
 	// 9-11. compute h1, h2 (uses RSA primes)
 	if rsa == nil {
-		return round.WrapError(errors.New("RSA generation failed"))
+		return round.WrapError(errors.New("RSA generation failed"), Pi)
 	}
 
-	NTildei, h1i, h2i, err := GenerateNTildei(rsa.Primes[:2])
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsa.Primes[:2])
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -103,6 +101,7 @@ func (round *round1) Start() *tss.Error {
 
 	// for this P: SAVE
 	// - shareID
+	// and keep in temporary storage:
 	// - VSS Vs
 	// - our set of Shamir shares
 	round.save.ShareID = ids[i]
@@ -145,16 +144,4 @@ func (round *round1) Update() (bool, *tss.Error) {
 func (round *round1) NextRound() tss.Round {
 	round.started = false
 	return &round2{round}
-}
-
-// ----- //
-
-func GenerateNTildei(rsaPrimes []*big.Int) (NTildei, h1i, h2i *big.Int, err error) {
-	if len(rsaPrimes) < 2 {
-		return nil, nil, nil, fmt.Errorf("GenerateNTildei: needs two primes, got %d", len(rsaPrimes))
-	}
-	NTildei = new(big.Int).Mul(rsaPrimes[0], rsaPrimes[1])
-	h1 := random.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
-	h2 := random.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
-	return NTildei, h1, h2, nil
 }

@@ -36,7 +36,7 @@ func (round *round4) Start() *tss.Error {
 		cmtDeCmt := commitments.HashCommitDecommit{C: cj, D: dj}
 		ok, flat := cmtDeCmt.DeCommit()
 		if !ok || len(flat) != (round.NewThreshold() + 1) * 2 { // they're points so * 2
-			return round.WrapError(errors.New("decommitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
+			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
 		}
 		vj, err := crypto.UnFlattenECPoints(nil, flat)
 		if err != nil {
@@ -93,6 +93,11 @@ func (round *round4) Start() *tss.Error {
 	}
 
 	// 21.
+	// for this P: SAVE
+	// - shareID
+	// - the new X_i secret
+	// - the new BigX_j = X_i*G
+	round.save.ShareID = round.PartyID().Key
 	round.save.Xi = newXi
 	round.save.BigXj = NewBigXj
 

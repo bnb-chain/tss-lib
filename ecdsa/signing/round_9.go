@@ -27,7 +27,7 @@ func (round *round9) Start() *tss.Error {
 		cmt := commitments.HashCommitDecommit{cj, dj}
 		ok, values := cmt.DeCommit()
 		if !ok && len(values) != 4 {
-			return round.WrapError(errors.New("decommitment for bigVj and bigAj failed"), Pj)
+			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
 		}
 		UjX, UjY, TjX, TjY := values[0], values[1], values[2], values[3]
 		UX, UY = tss.EC().Add(UX, UY, UjX, UjY)

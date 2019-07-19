@@ -11,7 +11,6 @@ import (
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -30,9 +29,9 @@ func TestShareProtocol(t *testing.T) {
 	b := random.GetRandomPositiveInt(q)
 
 	rsaPK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
-	NTildei, h1i, h2i, err := keygen.GenerateNTildei(rsaPK.Primes)
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsaPK.Primes)
 	assert.NoError(t, err)
-	NTildej, h1j, h2j, err := keygen.GenerateNTildei(rsaPK.Primes)
+	NTildej, h1j, h2j, err := crypto.GenerateNTildei(rsaPK.Primes)
 	assert.NoError(t, err)
 
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
@@ -61,9 +60,9 @@ func TestShareProtocolWC(t *testing.T) {
 
 	gBX, gBY := tss.EC().ScalarBaseMult(b.Bytes())
 	rsaPK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
-	NTildei, h1i, h2i, err := keygen.GenerateNTildei(rsaPK.Primes)
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsaPK.Primes)
 	assert.NoError(t, err)
-	NTildej, h1j, h2j, err := keygen.GenerateNTildei(rsaPK.Primes)
+	NTildej, h1j, h2j, err := crypto.GenerateNTildei(rsaPK.Primes)
 	assert.NoError(t, err)
 
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
