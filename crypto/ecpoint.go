@@ -149,7 +149,9 @@ func (p *ECPoint) GobDecode(buf []byte) error {
 	return nil
 }
 
-// crypto.ECPoint is not json marshallable
+// ----- //
+
+// crypto.ECPoint is not inherently json marshal-able
 func (p *ECPoint) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		Coords [2]*big.Int

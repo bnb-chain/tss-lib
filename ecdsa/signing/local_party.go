@@ -21,6 +21,7 @@ var _ fmt.Stringer = (*LocalParty)(nil)
 type (
 	LocalParty struct {
 		*tss.BaseParty
+		params *tss.Parameters
 
 		temp LocalPartyTempData
 		keys keygen.LocalPartySaveData
@@ -105,6 +106,7 @@ func NewLocalParty(
 		BaseParty: &tss.BaseParty{
 			Out: out,
 		},
+		params: params,
 		temp: LocalPartyTempData{},
 		data: LocalPartySignData{},
 		end:  end,
@@ -142,7 +144,7 @@ func (p *LocalParty) String() string {
 }
 
 func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.Round.Params().PartyID()
+	return p.params.PartyID()
 }
 
 func (p *LocalParty) Start() *tss.Error {

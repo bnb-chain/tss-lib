@@ -44,6 +44,8 @@ func TestE2EConcurrent(t *testing.T) {
 	out := make(chan tss.Message, len(pIDs))
 	end := make(chan keygen.LocalPartySaveData, len(pIDs))
 
+	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
+
 	for i := 0; i < len(pIDs); i++ {
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		P := keygen.NewLocalParty(params, out, end)
@@ -57,7 +59,6 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 	var ended int32
-	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
