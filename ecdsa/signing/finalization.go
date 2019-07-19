@@ -27,7 +27,6 @@ func (round *finalization) Start() *tss.Error {
 		sumS = modN.Add(sumS, round.temp.signRound9SignatureMessage[j].Si)
 	}
 
-	// TODO: confirm with steven this is safe!!!
 	// This is copied from:
 	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L442-L444
 	// This is needed because of tendermint checks here:

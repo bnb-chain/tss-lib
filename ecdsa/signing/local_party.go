@@ -122,7 +122,7 @@ func NewLocalParty(
 	p.temp.signRound7CommitMessage = make([]*SignRound7CommitMessage, partyCount)
 	p.temp.signRound8DecommitMessage = make([]*SignRound8DecommitMessage, partyCount)
 	p.temp.signRound9SignatureMessage = make([]*SignRound9SignatureMessage, partyCount)
-	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
+
 	p.temp.m = m
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
@@ -131,8 +131,6 @@ func NewLocalParty(
 	p.temp.pi1jis = make([]*mta.ProofBob, partyCount)
 	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
 	p.temp.vs = make([]*big.Int, partyCount)
-
-	// TODO data init
 
 	round := newRound1(params, &key, &p.data, &p.temp, out)
 	p.Round = round

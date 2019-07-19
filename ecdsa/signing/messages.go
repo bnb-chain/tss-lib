@@ -85,7 +85,7 @@ func NewSignRound1MtAInitMessage(
 }
 
 func (msg SignRound1MtAInitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return msg.C != nil && msg.Pi != nil && msg.Pi.ValidateBasic()
 }
 
 func NewSignRound1CommitMessage(
@@ -103,7 +103,7 @@ func NewSignRound1CommitMessage(
 }
 
 func (msg SignRound1CommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return msg.Commitment != nil
 }
 
 func NewSignRound2MtAMidMessage(
@@ -126,8 +126,8 @@ func NewSignRound2MtAMidMessage(
 	}
 }
 
-func (round SignRound2MtAMidMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound2MtAMidMessage) ValidateBasic() bool {
+	return msg.C1Ji != nil && msg.Pi1Ji != nil && msg.Pi1Ji.ValidateBasic() && msg.C2Ji != nil && msg.Pi2Ji != nil && msg.Pi2Ji.ValidateBasic()
 }
 
 func NewSignRound3Message(
@@ -144,8 +144,8 @@ func NewSignRound3Message(
 	}
 }
 
-func (round SignRound3Message) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound3Message) ValidateBasic() bool {
+	return msg.Thelta != nil
 }
 
 func NewSignRound4DecommitMessage(
@@ -164,8 +164,8 @@ func NewSignRound4DecommitMessage(
 	}
 }
 
-func (round SignRound4DecommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound4DecommitMessage) ValidateBasic() bool {
+	return msg.Decommitment != nil && len(msg.Decommitment) == 3 && msg.Proof != nil && msg.Proof.ValidateBasic()
 }
 
 func NewSignRound5CommitmentMessage(
@@ -182,8 +182,8 @@ func NewSignRound5CommitmentMessage(
 	}
 }
 
-func (round SignRound5CommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound5CommitMessage) ValidateBasic() bool {
+	return msg.Commitment != nil
 }
 
 func NewSignRound6DecommitMessage(
@@ -204,8 +204,8 @@ func NewSignRound6DecommitMessage(
 	}
 }
 
-func (round SignRound6DecommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound6DecommitMessage) ValidateBasic() bool {
+	return msg.Decommitment != nil && len(msg.Decommitment) == 5 && msg.Proof != nil && msg.Proof.ValidateBasic() && msg.VProof != nil && msg.VProof.ValidateBasic()
 }
 
 func NewSignRound7CommitMessage(
@@ -222,8 +222,8 @@ func NewSignRound7CommitMessage(
 	}
 }
 
-func (round SignRound7CommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound7CommitMessage) ValidateBasic() bool {
+	return msg.Commitment != nil
 }
 
 func NewSignRound8DecommitMessage(
@@ -240,8 +240,8 @@ func NewSignRound8DecommitMessage(
 	}
 }
 
-func (round SignRound8DecommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound8DecommitMessage) ValidateBasic() bool {
+	return msg.Decommitment != nil && len(msg.Decommitment) == 5
 }
 
 func NewSignRound9SignatureMessage(
@@ -258,6 +258,6 @@ func NewSignRound9SignatureMessage(
 	}
 }
 
-func (round SignRound9SignatureMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+func (msg SignRound9SignatureMessage) ValidateBasic() bool {
+	return msg.Si != nil
 }

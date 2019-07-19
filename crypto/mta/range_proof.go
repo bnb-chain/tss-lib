@@ -126,3 +126,12 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	}
 	return true
 }
+
+func (pf *RangeProofAlice) ValidateBasic() bool {
+	return pf.Z != nil &&
+		pf.U != nil &&
+		pf.W != nil &&
+		pf.S != nil &&
+		pf.S1 != nil &&
+		pf.S2 != nil
+}
