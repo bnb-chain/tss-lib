@@ -28,7 +28,7 @@ func setUp(level string) {
 }
 
 func TestE2EConcurrent(t *testing.T) {
-	setUp("info")
+	setUp("debug")
 
 	threshold := testThreshold
 	newThreshold := testThreshold
@@ -36,10 +36,6 @@ func TestE2EConcurrent(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	parties := make([]*keygen.LocalParty, 0, len(pIDs))
-
-	newPIDs := append(pIDs, tss.GenerateTestPartyIDs(testParticipants)...) // mix of old + new
-	newP2PCtx := tss.NewPeerContext(newPIDs)
-	newParties := make([]*LocalParty, 0, len(newPIDs))
 
 	out := make(chan tss.Message, len(pIDs))
 	end := make(chan keygen.LocalPartySaveData, len(pIDs))
@@ -59,8 +55,11 @@ func TestE2EConcurrent(t *testing.T) {
 		}(P)
 	}
 
-// keygen:
+	common.Logger.Info("[regroup.TestE2EConcurrent] Starting keygen")
+
+	// PHASE: keygen
 	var ended int32
+keygen:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -95,17 +94,31 @@ func TestE2EConcurrent(t *testing.T) {
 				t.Logf("Done. Received save data from %d participants", ended)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
-				goto regroup
+				break keygen
 			}
 		}
 	}
 
-regroup:
+	// PHASE: regroup
+	common.Logger.Info("[regroup.TestE2EConcurrent] Starting regroup")
+
+	newPIDs := append(pIDs, tss.GenerateTestPartyIDs(testParticipants, len(pIDs))...) // mix of old + new (group * 2)
+	newPIDs = tss.SortPartyIDs(newPIDs.ToUnSorted())
+	newP2PCtx := tss.NewPeerContext(newPIDs)
+	newParties := make([]*LocalParty, 0, len(newPIDs))
+	common.Logger.Infof("newParties: %v", newPIDs)
+
+	regroupOut := make(chan tss.Message, len(newPIDs))
+	regroupEnd := make(chan keygen.LocalPartySaveData, len(newPIDs))
+
 	// init `newParties`
 	for i := 0; i < len(newPIDs); i++ {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, newPIDs[i], len(pIDs), threshold, len(newPIDs), newThreshold)
 		save := keygen.LocalPartySaveData{}
-		P := NewLocalParty(params, save, out, end)
+		if i < len(pIDs) {
+			save = keys[i]
+		}
+		P := NewLocalParty(params, save, regroupOut, regroupEnd)
 		newParties = append(newParties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
@@ -115,16 +128,17 @@ regroup:
 		}(P)
 	}
 
-	ended = 0
+	var regroupEnded int32
+regroup:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
-		case msg := <-out:
+		case msg := <-regroupOut:
 			dest := msg.GetTo()
 			if dest == nil {
-				for _, P := range parties {
+				for _, P := range newParties {
 					if P.PartyID().Index != msg.GetFrom().Index {
-						go func(P *keygen.LocalParty, msg tss.Message) {
+						go func(P *LocalParty, msg tss.Message) {
 							if _, err := P.Update(msg, "regroup"); err != nil {
 								common.Logger.Errorf("Error: %s", err)
 								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
@@ -136,26 +150,28 @@ regroup:
 				if dest[0].Index == msg.GetFrom().Index {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
 				}
-				go func(P *keygen.LocalParty) {
+				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "regroup"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
-				}(parties[dest[0].Index])
+				}(newParties[dest[0].Index])
 			}
-		case save := <-end:
-			atomic.AddInt32(&ended, 1)
+		case save := <-regroupEnd:
+			atomic.AddInt32(&regroupEnded, 1)
 			keys[save.Index] = save
-			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
-				t.Logf("Done. Received save data from %d participants", ended)
+			if atomic.LoadInt32(&regroupEnded) == int32(len(newPIDs)) {
+				t.Logf("Done. Received save data from %d participants", regroupEnded)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
-				goto signing
+				break regroup
 			}
 		}
 	}
 
-signing:
+	// PHASE: signing
+	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
+
 	signPIDs := pIDs[:testThreshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
@@ -177,6 +193,7 @@ signing:
 	}
 
 	var signEnded int32
+signing:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -208,9 +225,7 @@ signing:
 		case <-signEnd:
 			atomic.AddInt32(&signEnded, 1)
 			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
-				t.Logf("Done. Received save data from %d participants", signEnded)
-
-				return
+				break signing
 			}
 		}
 	}

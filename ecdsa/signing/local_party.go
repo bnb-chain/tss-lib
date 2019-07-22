@@ -153,11 +153,11 @@ func (p *LocalParty) Start() *tss.Error {
 	if round, ok := p.Round.(*round1); !ok || round == nil {
 		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
 	} else {
-		common.Logger.Infof("party %s: signing round preparing", p.Round.Params().PartyID())
+		common.Logger.Infof("party %s: %s round preparing", p.Round.Params().PartyID(), TaskName)
 		round.prepare()
 	}
 
-	common.Logger.Infof("party %s: signing round %d starting", p.Round.Params().PartyID(), 1)
+	common.Logger.Infof("party %s: %s round %d starting", p.Round.Params().PartyID(), TaskName, 1)
 	return p.Round.Start()
 }
 

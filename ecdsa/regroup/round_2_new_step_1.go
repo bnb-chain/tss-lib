@@ -20,12 +20,11 @@ func (round *round2) Start() *tss.Error {
 	round.number = 2
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
+	round.allOldOK()
 
 	if round.ReGroupParams().IsOldCommittee() {
-		round.receiving = true
 		return nil
 	}
-	round.receiving = false
 
 	Pi := round.PartyID()
 	i := Pi.Index
@@ -85,7 +84,8 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	if !round.receiving {
+	// only the old committee receive in this round
+	if round.ReGroupParams().IsNewCommittee() {
 		return true, nil
 	}
 	// accept messages from new -> old committee

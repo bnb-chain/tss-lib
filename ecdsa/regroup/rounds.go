@@ -18,8 +18,7 @@ type (
 		out  chan<- tss.Message
 		oldOK, // old committee "ok" tracker
 		newOK []bool // `ok` tracks parties which have been verified by Update(); this one is for the new committee
-		started,
-		receiving bool // just use in regroup to indicate when this group is receiving
+		started bool
 		number int
 	}
 	round1 struct {
@@ -107,5 +106,19 @@ func (round *base) resetOK() {
 	}
 	for j := range round.newOK {
 		round.newOK[j] = false
+	}
+}
+
+// sets all pairings in `oldOK` to true
+func (round *base) allOldOK() {
+	for j := range round.oldOK {
+		round.oldOK[j] = true
+	}
+}
+
+// sets all pairings in `newOK` to true
+func (round *base) allNewOK() {
+	for j := range round.newOK {
+		round.newOK[j] = true
 	}
 }

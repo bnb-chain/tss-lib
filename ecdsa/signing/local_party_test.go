@@ -30,14 +30,9 @@ func setUp(level string) {
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 
-	// tss.SetCurve(elliptic.P256())
-
-	pIDs := tss.GenerateTestPartyIDs(testParticipants)
-	for _, pid := range pIDs {
-		fmt.Println(pid.Key.String())
-	}
 	threshold := testThreshold
 
+	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	parties := make([]*keygen.LocalParty, 0, len(pIDs))
 
@@ -58,7 +53,9 @@ func TestE2EConcurrent(t *testing.T) {
 		}(P)
 	}
 
+	// PHASE: keygen
 	var ended int32
+keygen:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -93,12 +90,12 @@ func TestE2EConcurrent(t *testing.T) {
 				t.Logf("Done. Received save data from %d participants", ended)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
-				goto signing
+				break keygen
 			}
 		}
 	}
 
-signing:
+	// PHASE: signing
 	signPIDs := pIDs[:testThreshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
@@ -120,6 +117,7 @@ signing:
 	}
 
 	var signEnded int32
+signing:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -206,7 +204,7 @@ signing:
 				assert.Equal(t, VVVX, signParties[0].temp.VVV.X())
 				assert.Equal(t, VVVY, signParties[0].temp.VVV.Y())
 				// END VVV verify
-				return
+				break signing
 			}
 		}
 	}

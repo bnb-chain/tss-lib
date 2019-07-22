@@ -90,11 +90,15 @@ func (p *LocalParty) Start() *tss.Error {
 	if round, ok := p.Round.(*round1); !ok || round == nil {
 		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
 	}
-	common.Logger.Infof("party %s: keygen round %d starting", p.Round.Params().PartyID(), 1)
+	common.Logger.Infof("party %s: %s round %d starting", p.Round.Params().PartyID(), TaskName, 1)
+	defer func() {
+		common.Logger.Debugf("party %s: %s round %d finished", p.Round.Params().PartyID(), TaskName, 1)
+	}()
 	return p.Round.Start()
 }
 
 func (p *LocalParty) Update(msg tss.Message, phase string) (ok bool, err *tss.Error) {
+	common.Logger.Infof("Update called on regroup party. waiting for: ", p.Round.WaitingFor())
 	return tss.BaseUpdate(p, msg, phase)
 }
 
@@ -103,23 +107,18 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
-	switch msg.(type) {
-
+	switch m := msg.(type) {
 	case DGRound1OldCommitteeCommitMessage: // Round 1 broadcast messages
-		r1msg := msg.(DGRound1OldCommitteeCommitMessage)
-		p.temp.dgRound1OldCommitteeCommitMessages[fromPIdx] = &r1msg
+		p.temp.dgRound1OldCommitteeCommitMessages[fromPIdx] = &m
 
 	case DGRound2NewCommitteeACKMessage:
-		r2msg := msg.(DGRound2NewCommitteeACKMessage)
-		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &r2msg
+		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &m
 
 	case DGRound3ShareMessage:
-		r3msg1 := msg.(DGRound3ShareMessage)
-		p.temp.dgRound3ShareMessage[fromPIdx] = &r3msg1
+		p.temp.dgRound3ShareMessage[fromPIdx] = &m
 
 	case DGRound3DeCommitMessage:
-		r3msg2 := msg.(DGRound3DeCommitMessage)
-		p.temp.dgRound3DeCommitMessage[fromPIdx] = &r3msg2
+		p.temp.dgRound3DeCommitMessage[fromPIdx] = &m
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
