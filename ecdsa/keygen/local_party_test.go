@@ -153,6 +153,7 @@ func TestE2EConcurrent(t *testing.T) {
 		}(P)
 	}
 
+	// PHASE: keygen
 	var ended int32
 	datas := make([]LocalPartyTempData, 0, len(pIDs))
 	dmtx := sync.Mutex{}

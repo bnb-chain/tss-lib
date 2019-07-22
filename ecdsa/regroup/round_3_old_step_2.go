@@ -13,12 +13,11 @@ func (round *round3) Start() *tss.Error {
 	round.number = 3
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
+	round.allNewOK()
 
 	if round.ReGroupParams().IsNewCommittee() {
-		round.receiving = true
 		return nil
 	}
-	round.receiving = false
 
 	// 2. send share to Pj from the new committee
 	for j, Pj := range round.NewParties().IDs() {
@@ -44,9 +43,11 @@ func (round *round3) CanAccept(msg tss.Message) bool {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
-	if !round.receiving {
+	// only the new committee receive in this round
+	if round.ReGroupParams().IsOldCommittee() {
 		return true, nil
 	}
+	// accept messages from old -> new committee
 	for j, msg := range round.temp.dgRound3ShareMessage {
 		if round.oldOK[j] {
 			continue

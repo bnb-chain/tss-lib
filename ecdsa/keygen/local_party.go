@@ -116,7 +116,7 @@ func (p *LocalParty) Start() *tss.Error {
 	if round, ok := p.Round.(*round1); !ok || round == nil {
 		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
 	}
-	common.Logger.Infof("party %s: keygen round %d starting", p.Round.Params().PartyID(), 1)
+	common.Logger.Infof("party %s: %s round %d starting", p.Round.Params().PartyID(), TaskName, 1)
 	return p.Round.Start()
 }
 
@@ -129,23 +129,19 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
-	switch msg.(type) {
+	switch m := msg.(type) {
 
 	case KGRound1CommitMessage: // Round 1 broadcast messages
-		r1msg := msg.(KGRound1CommitMessage)
-		p.temp.kgRound1CommitMessages[fromPIdx] = &r1msg
+		p.temp.kgRound1CommitMessages[fromPIdx] = &m
 
 	case KGRound2VssMessage: // Round 2 P2P messages
-		r2msg1 := msg.(KGRound2VssMessage)
-		p.temp.kgRound2VssMessages[fromPIdx] = &r2msg1 // just collect
+		p.temp.kgRound2VssMessages[fromPIdx] = &m
 
 	case KGRound2DeCommitMessage:
-		r2msg2 := msg.(KGRound2DeCommitMessage)
-		p.temp.kgRound2DeCommitMessages[fromPIdx] = &r2msg2
+		p.temp.kgRound2DeCommitMessages[fromPIdx] = &m
 
 	case KGRound3PaillierProveMessage:
-		r3msg := msg.(KGRound3PaillierProveMessage)
-		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &r3msg
+		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &m
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

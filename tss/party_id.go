@@ -52,10 +52,16 @@ func SortPartyIDs(ids UnSortedPartyIDs) SortedPartyIDs {
 	return sorted
 }
 
-func GenerateTestPartyIDs(count int) SortedPartyIDs {
+func GenerateTestPartyIDs(count int, from... int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
 	key := random.MustGetRandomInt(256)
-	for i := 0; i < count; i++ {
+	frm := 0
+	i := 0 // default `i`
+	if len(from) > 0 {
+		frm = from[0]
+		i = from[0]
+	}
+	for ; i < count + frm; i++ {
 		ids = append(ids, &PartyID{
 			ID:      fmt.Sprintf("%d", i+1),
 			Moniker: fmt.Sprintf("P[%d]", i+1),
@@ -73,6 +79,10 @@ func (spids SortedPartyIDs) Keys() []*big.Int {
 		ids[i] = pid.Key
 	}
 	return ids
+}
+
+func (spids SortedPartyIDs) ToUnSorted() UnSortedPartyIDs {
+	return UnSortedPartyIDs(spids)
 }
 
 func (spids SortedPartyIDs) FindByKey(key *big.Int) *PartyID {
