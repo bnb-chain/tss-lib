@@ -41,7 +41,6 @@ func TestE2EConcurrent(t *testing.T) {
 
 	out := make(chan tss.Message, len(pIDs))
 	end := make(chan keygen.LocalPartySaveData, len(pIDs))
-
 	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 
 	// init `parties`
@@ -161,25 +160,19 @@ regroup:
 		case msg := <-regroupOut:
 			dest := msg.GetTo()
 			destParties := newCommittee
+			if msg.IsToOldCommittee() {
+				destParties = oldCommittee
+			}
 			if dest == nil {
-				if msg.IsToOldCommittee() {
-					destParties = oldCommittee
-				}
-				for _, P := range destParties {
-					go func(P *LocalParty, msg tss.Message) {
-						if _, err := P.Update(msg, "regroup"); err != nil {
-							common.Logger.Errorf("Error: %s", err)
-							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-						}
-					}(P, msg)
-				}
-			} else {
+				t.Fatal("did not expect a msg to have a nil destination during regroup")
+			}
+			for _, destP := range dest {
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "regroup"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
-				}(destParties[dest[0].Index])
+				}(destParties[destP.Index])
 			}
 		case save := <-regroupEnd:
 			atomic.AddInt32(&regroupEnded, 1)

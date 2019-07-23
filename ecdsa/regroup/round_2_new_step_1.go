@@ -25,6 +25,7 @@ func (round *round2) Start() *tss.Error {
 	if !round.ReGroupParams().IsNewCommittee() {
 		return nil
 	}
+	round.allNewOK()
 
 	Pi := round.PartyID()
 	i := Pi.Index
@@ -37,7 +38,7 @@ func (round *round2) Start() *tss.Error {
 	go func(ch chan<- *paillier.PrivateKey) {
 		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(keygen.PaillierModulusLen) // sk contains pk
-		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", round, time.Since(start))
+		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", round.PartyID(), time.Since(start))
 		ch <- PiPaillierSk
 	}(paiCh)
 
@@ -49,12 +50,13 @@ func (round *round2) Start() *tss.Error {
 			common.Logger.Errorf("RSA generation error: %s", err)
 			ch <- nil
 		}
-		common.Logger.Debugf("party %s: rsa keygen done. took %s\n", round, time.Since(start))
+		common.Logger.Debugf("party %s: rsa keygen done. took %s\n", round.PartyID(), time.Since(start))
 		ch <- pk
 	}(rsaCh)
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg := NewDGRound2NewCommitteeACKMessage(round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
+	round.temp.dgRound2NewCommitteeACKMessage[i] = &r2msg
 	round.out <- r2msg
 
 	// consume chans to end goroutines here

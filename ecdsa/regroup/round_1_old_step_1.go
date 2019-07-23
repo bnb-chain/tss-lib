@@ -28,6 +28,10 @@ func (round *round1) Start() *tss.Error {
 	if !round.ReGroupParams().IsOldCommittee() {
 		return nil
 	}
+	round.allOldOK()
+
+	Pi := round.PartyID()
+	i := Pi.Index
 
 	// 1.
 	newIds := round.NewParties().IDs().Keys()
@@ -46,10 +50,11 @@ func (round *round1) Start() *tss.Error {
 	// 3. populate temp data
 	round.temp.Di = cmt.D
 	round.temp.NewShares = shares
-	round.temp.BigXs = round.key.BigXj
 
 	// 4. "broadcast" C_i to members of the NEW committee
-	r1msg := NewDGRound1OldCommitteeCommitMessage(round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), cmt.C)
+	r1msg := NewDGRound1OldCommitteeCommitMessage(
+		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), cmt.C, round.key.BigXj, round.key.Ks)
+	round.temp.dgRound1OldCommitteeCommitMessages[i] = &r1msg
 	round.out <- r1msg
 
 	return nil
@@ -77,6 +82,10 @@ func (round *round1) Update() (bool, *tss.Error) {
 			return false, nil
 		}
 		round.oldOK[j] = true
+
+		// TODO temp set BigXjs
+		round.temp.OldKs = msg.Ks
+		round.temp.OldBigXj = msg.BigXj
 	}
 	return true, nil
 }
