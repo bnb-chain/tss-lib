@@ -30,25 +30,6 @@ type (
 		end chan<- LocalPartySaveData
 	}
 
-	// Everything in LocalPartySaveData is saved locally to user's HD when done
-	LocalPartySaveData struct {
-		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int             // xi, kj
-		PaillierSk  *paillier.PrivateKey // ski
-
-		// public keys (Xj = uj*G for each Pj)
-		BigXj       []*crypto.ECPoint     // Xj
-		ECDSAPub    *crypto.ECPoint       // y
-		PaillierPks []*paillier.PublicKey // pkj
-
-		// h1, h2 for range proofs
-		NTildej, H1j, H2j []*big.Int
-
-		// original indexes (ki in signing preparation phase)
-		Index int // added for unit test
-		Ks    []*big.Int
-	}
-
 	LocalPartyMessageStore struct {
 		// messages
 		kgRound1CommitMessages       []*KGRound1CommitMessage
@@ -66,6 +47,25 @@ type (
 		vs            vss.Vs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
+	}
+
+	// Everything in LocalPartySaveData is saved locally to user's HD when done
+	LocalPartySaveData struct {
+		// secret fields (not shared, but stored locally)
+		Xi, ShareID *big.Int             // xi, kj
+		PaillierSk  *paillier.PrivateKey // ski
+
+		// public keys (Xj = uj*G for each Pj)
+		BigXj       []*crypto.ECPoint     // Xj
+		ECDSAPub    *crypto.ECPoint       // y
+		PaillierPks []*paillier.PublicKey // pkj
+
+		// h1, h2 for range proofs
+		NTildej, H1j, H2j []*big.Int
+
+		// original indexes (ki in signing preparation phase)
+		Index int // added for unit test
+		Ks    []*big.Int
 	}
 )
 
