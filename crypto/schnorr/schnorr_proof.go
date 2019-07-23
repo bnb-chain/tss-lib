@@ -17,7 +17,7 @@ type (
 
 	ZKVProof struct {
 		Alpha *crypto.ECPoint
-		T, U *big.Int
+		T, U  *big.Int
 	}
 )
 
@@ -60,6 +60,10 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 		return false
 	}
 	return true
+}
+
+func (pf *ZKProof) ValidateBasic() bool {
+	return pf.T != nil && pf.Alpha != nil
 }
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge s_i, l_i such that V_i = R^s_i, g^l_i (GG18Spec Fig. 17)
@@ -106,4 +110,8 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 		return false
 	}
 	return true
+}
+
+func (pf *ZKVProof) ValidateBasic() bool {
+	return pf.Alpha != nil && pf.T != nil && pf.U != nil
 }

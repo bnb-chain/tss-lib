@@ -226,3 +226,20 @@ func (pf *ProofBob) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.I
 	pfWC := &ProofBobWC{ProofBob: pf, U: nil}
 	return pfWC.Verify(pk, NTilde, h1, h2, c1, c2, nil)
 }
+
+func (pf *ProofBob) ValidateBasic() bool {
+	return pf.Z != nil &&
+		pf.ZPrm != nil &&
+		pf.T != nil &&
+		pf.V != nil &&
+		pf.W != nil &&
+		pf.S != nil &&
+		pf.S1 != nil &&
+		pf.S2 != nil &&
+		pf.T1 != nil &&
+		pf.T2 != nil
+}
+
+func (pf *ProofBobWC) ValidateBasic() bool {
+	return pf.ProofBob.ValidateBasic() && pf.U != nil
+}
