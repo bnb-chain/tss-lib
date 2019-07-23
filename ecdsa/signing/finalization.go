@@ -36,6 +36,9 @@ func (round *finalization) Start() *tss.Error {
 		sumS.Sub(tss.EC().Params().N, sumS)
 	}
 
+	// save the signature for final output
+	round.data.R = round.temp.r
+	round.data.S = sumS
 	round.data.Signature = append(round.temp.r.Bytes(), sumS.Bytes()...)
 
 	return nil

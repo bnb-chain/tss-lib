@@ -25,7 +25,6 @@ func (round *round2) Start() *tss.Error {
 	if !round.ReGroupParams().IsNewCommittee() {
 		return nil
 	}
-	round.allNewOK()
 
 	Pi := round.PartyID()
 	i := Pi.Index
@@ -55,16 +54,22 @@ func (round *round2) Start() *tss.Error {
 	}(rsaCh)
 
 	// 2. "broadcast" "ACK" members of the OLD committee
-	r2msg := NewDGRound2NewCommitteeACKMessage(round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
-	round.temp.dgRound2NewCommitteeACKMessage[i] = &r2msg
-	round.out <- r2msg
+	r2msg1 := NewDGRound2NewCommitteeACKMessage(
+		round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
+	round.temp.dgRound2NewCommitteeACKMessage[i] = &r2msg1
+	round.out <- r2msg1
 
-	// consume chans to end goroutines here
-	rsa, pai := <-rsaCh, <-paiCh
+	// consume chans to end goroutines
+	pai := <-paiCh
+	r2msg2 := NewDGRound2PaillierPublicKeyMessage(
+		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), &pai.PublicKey)
+	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
+	round.out <- r2msg2
+
+	rsa := <-rsaCh
 	if rsa == nil {
 		return round.WrapError(errors.New("RSA generation failed"), Pi)
 	}
-
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsa.Primes[:2])
 	if err != nil {
 		return round.WrapError(err, Pi)
@@ -86,19 +91,44 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	// only the old committee receive in this round
-	if !round.ReGroupParams().IsOldCommittee() {
-		return true, nil
-	}
-	// accept messages from new -> old committee
-	for j, msg := range round.temp.dgRound2NewCommitteeACKMessage {
-		if round.newOK[j] {
-			continue
+	if round.ReGroupParams().IsOldCommittee() && round.ReGroupParameters.IsNewCommittee() {
+		// accept messages from new -> old committee
+		for j, msg := range round.temp.dgRound2NewCommitteeACKMessage {
+			if round.newOK[j] {
+				continue
+			}
+			if !round.CanAccept(msg) {
+				return false, nil
+			}
+			// accept message from new -> committee
+			msg2 := round.temp.dgRound2PaillierPublicKeyMessage[j]
+			if !round.CanAccept(msg2) {
+				return false, nil
+			}
+			round.newOK[j] = true
 		}
-		if !round.CanAccept(msg) {
-			return false, nil
+	} else if round.ReGroupParams().IsOldCommittee() {
+		// accept messages from new -> old committee
+		for j, msg := range round.temp.dgRound2NewCommitteeACKMessage {
+			if round.newOK[j] {
+				continue
+			}
+			if !round.CanAccept(msg) {
+				return false, nil
+			}
+			round.newOK[j] = true
 		}
-		round.newOK[j] = true
+	} else if round.ReGroupParams().IsNewCommittee() {
+		// accept messages from new -> new committee
+		for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+			if round.newOK[j] {
+				continue
+			}
+			if !round.CanAccept(msg) {
+				return false, nil
+			}
+			round.newOK[j] = true
+		}
 	}
 	return true, nil
 }

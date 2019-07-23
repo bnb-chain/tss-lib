@@ -5,6 +5,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -21,6 +22,11 @@ type (
 
 	DGRound2NewCommitteeACKMessage struct {
 		tss.MessageMetadata
+	}
+
+	DGRound2PaillierPublicKeyMessage struct {
+		tss.MessageMetadata
+		paillierPK *paillier.PublicKey
 	}
 
 	DGRound3OldCommitteeShareMessage struct {
@@ -76,6 +82,28 @@ func NewDGRound2NewCommitteeACKMessage(
 }
 
 func (msg DGRound2NewCommitteeACKMessage) ValidateBasic() bool {
+	return true // TODO ValidateBasic
+}
+
+// ----- //
+
+func NewDGRound2PaillierPublicKeyMessage(
+	to []*tss.PartyID,
+	from *tss.PartyID,
+	paillierPK *paillier.PublicKey,
+) DGRound2PaillierPublicKeyMessage {
+	return DGRound2PaillierPublicKeyMessage{
+		MessageMetadata: tss.MessageMetadata{
+			To:             to,
+			From:           from,
+			MsgType:        "DGRound2PaillierPublicKeyMessage",
+			ToOldCommittee: true,
+		},
+		paillierPK: paillierPK,
+	}
+}
+
+func (msg DGRound2PaillierPublicKeyMessage) ValidateBasic() bool {
 	return true // TODO ValidateBasic
 }
 

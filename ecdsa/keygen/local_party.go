@@ -57,7 +57,6 @@ type (
 
 		// public keys (Xj = uj*G for each Pj)
 		BigXj       []*crypto.ECPoint     // Xj
-		ECDSAPub    *crypto.ECPoint       // y
 		PaillierPks []*paillier.PublicKey // pkj
 
 		// h1, h2 for range proofs
@@ -66,6 +65,9 @@ type (
 		// original indexes (ki in signing preparation phase)
 		Index int // added for unit test
 		Ks    []*big.Int
+
+		// used for test assertions (may be discarded)
+		ECDSAPub    *crypto.ECPoint       // y
 	}
 )
 

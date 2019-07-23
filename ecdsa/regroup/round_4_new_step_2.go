@@ -25,6 +25,9 @@ func (round *round4) Start() *tss.Error {
 		return nil // old committee finished!
 	}
 
+	Pi := round.PartyID()
+	i := Pi.Index
+
 	// 1.
 	newXi := big.NewInt(0)
 
@@ -84,12 +87,14 @@ func (round *round4) Start() *tss.Error {
 	}
 
 	// 16-20.
+	newKs := make([]*big.Int, 0, round.NewPartyCount())
 	NewBigXj := make([]*crypto.ECPoint, round.NewPartyCount())
 	for j := 0; j < round.NewPartyCount(); j++ {
 		NewBigXj[j] = Vc[0]
+		kj := round.NewParties().IDs()[j].Key
+		newKs = append(newKs, kj)
 		for c := 0; c < round.NewThreshold(); c++ {
-			newKj := round.NewParties().IDs()[j].Key
-			z := modQ.Exp(newKj, big.NewInt(int64(c)))
+			z := modQ.Exp(kj, big.NewInt(int64(c)))
 			NewBigXj[j] = NewBigXj[j].Add(Vc[c].ScalarMult(z))
 		}
 	}
@@ -102,7 +107,13 @@ func (round *round4) Start() *tss.Error {
 	round.save.ShareID = round.PartyID().Key
 	round.save.Xi = newXi
 	round.save.BigXj = NewBigXj
+	round.save.Ks = newKs
+	round.save.Index = i
 
+	// misc: build list of paillier public keys to save
+	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+		round.save.PaillierPks[j] = msg.paillierPK
+	}
 	return nil
 }
 
