@@ -15,7 +15,7 @@ func (round *round3) Start() *tss.Error {
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allNewOK()
 
-	if round.ReGroupParams().IsNewCommittee() {
+	if !round.ReGroupParams().IsOldCommittee() {
 		return nil
 	}
 
@@ -27,7 +27,7 @@ func (round *round3) Start() *tss.Error {
 	}
 
 	deCommitment := round.temp.Di
-	r3msg2 := NewDGRound3DeCommitMessage(round.NewParties().IDs(), round.PartyID(), deCommitment)
+	r3msg2 := NewDGRound3DeCommitMessage(round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), deCommitment)
 	round.out <- r3msg2
 
 	return nil
@@ -44,7 +44,7 @@ func (round *round3) CanAccept(msg tss.Message) bool {
 
 func (round *round3) Update() (bool, *tss.Error) {
 	// only the new committee receive in this round
-	if round.ReGroupParams().IsOldCommittee() {
+	if !round.ReGroupParams().IsNewCommittee() {
 		return true, nil
 	}
 	// accept messages from old -> new committee

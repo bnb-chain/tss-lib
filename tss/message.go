@@ -9,15 +9,17 @@ type (
 		GetTo() []*PartyID
 		GetFrom() *PartyID
 		GetType() string
+		IsToOldCommittee() bool
 		ValidateBasic() bool
 		String() string
 	}
 
 	MessageMetadata struct {
 		// if `To` is `nil`, the message should be broadcast to all parties.
-		To      []*PartyID
-		From    *PartyID
-		MsgType string
+		To             []*PartyID
+		From           *PartyID
+		MsgType        string
+		ToOldCommittee bool // just `true` in DGRound2NewCommitteeACKMessage (regroup)
 	}
 )
 
@@ -31,6 +33,10 @@ func (mm MessageMetadata) GetFrom() *PartyID {
 
 func (mm MessageMetadata) GetType() string {
 	return mm.MsgType
+}
+
+func (mm MessageMetadata) IsToOldCommittee() bool {
+	return mm.ToOldCommittee
 }
 
 func (mm MessageMetadata) String() string {

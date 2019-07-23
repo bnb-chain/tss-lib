@@ -22,7 +22,7 @@ func (round *round2) Start() *tss.Error {
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allOldOK()
 
-	if round.ReGroupParams().IsOldCommittee() {
+	if !round.ReGroupParams().IsNewCommittee() {
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func (round *round2) Start() *tss.Error {
 	}(rsaCh)
 
 	// 2. "broadcast" "ACK" members of the OLD committee
-	r2msg := NewDGRound2NewCommitteeACKMessage(round.OldParties().IDs(), round.PartyID())
+	r2msg := NewDGRound2NewCommitteeACKMessage(round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
 	round.out <- r2msg
 
 	// consume chans to end goroutines here
@@ -85,7 +85,7 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 
 func (round *round2) Update() (bool, *tss.Error) {
 	// only the old committee receive in this round
-	if round.ReGroupParams().IsNewCommittee() {
+	if !round.ReGroupParams().IsOldCommittee() {
 		return true, nil
 	}
 	// accept messages from new -> old committee

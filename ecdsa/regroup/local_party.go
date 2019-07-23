@@ -98,7 +98,6 @@ func (p *LocalParty) Start() *tss.Error {
 }
 
 func (p *LocalParty) Update(msg tss.Message, phase string) (ok bool, err *tss.Error) {
-	common.Logger.Infof("Update called on regroup party. waiting for: ", p.Round.WaitingFor())
 	return tss.BaseUpdate(p, msg, phase)
 }
 
