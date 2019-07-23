@@ -18,6 +18,9 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
 
+	round.allOldOK()
+	round.allNewOK()
+
 	if !round.ReGroupParams().IsNewCommittee() {
 		return nil // old committee finished!
 	}
@@ -44,7 +47,7 @@ func (round *round4) Start() *tss.Error {
 		vjc[j] = vj
 
 		// 5.
-		Xj := round.temp.BigXs[j]
+		Xj := round.temp.OldBigXj[j]
 		if !vj[0].Equals(Xj) {
 			return round.WrapError(errors.New("v_j0 did not equal X_j"), round.Parties().IDs()[j])
 		}
@@ -61,7 +64,7 @@ func (round *round4) Start() *tss.Error {
 			if j == c {
 				continue
 			}
-			kc, kj := round.key.Ks[c], round.key.Ks[j]
+			kc, kj := round.temp.OldKs[c], round.temp.OldKs[j]
 			// big.Int Div is calculated as: a/b = a * modInv(b,q)
 			coef := modQ.Mul(kc, modQ.ModInverse(new(big.Int).Sub(kc, kj)))
 			iota = modQ.Mul(iota, coef)

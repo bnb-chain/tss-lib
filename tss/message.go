@@ -44,5 +44,9 @@ func (mm MessageMetadata) String() string {
 	if mm.To != nil {
 		toStr = fmt.Sprintf("%v", mm.To)
 	}
-	return fmt.Sprintf("From: %s, To: %s, MsgType: %s", mm.From.String(), toStr, mm.MsgType)
+	extraStr := ""
+	if mm.ToOldCommittee {
+		extraStr = " (To Old Committee)"
+	}
+	return fmt.Sprintf("Type: %s, From: %s, To: %s%s", mm.MsgType, mm.From.String(), toStr, extraStr)
 }

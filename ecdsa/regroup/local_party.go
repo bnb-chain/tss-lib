@@ -3,6 +3,7 @@ package regroup
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -32,19 +33,20 @@ type (
 	LocalPartyMessageStore struct {
 		// messages
 		dgRound1OldCommitteeCommitMessages []*DGRound1OldCommitteeCommitMessage
-		dgRound2NewCommitteeACKMessage []*DGRound2NewCommitteeACKMessage
-		dgRound3ShareMessage []*DGRound3ShareMessage
-		dgRound3DeCommitMessage []*DGRound3DeCommitMessage
+		dgRound2NewCommitteeACKMessage     []*DGRound2NewCommitteeACKMessage
+		dgRound3ShareMessage               []*DGRound3OldCommitteeShareMessage
+		dgRound3DeCommitMessage            []*DGRound3OldCommitteeDeCommitMessage
 	}
 
 	LocalPartyTempData struct {
 		LocalPartyMessageStore
 
 		// temp data (thrown away after rounds)
-		Di        cmt.HashDeCommitment
+		OldBigXj []*crypto.ECPoint
+		OldKs    []*big.Int
 		NewVs     vss.Vs
 		NewShares vss.Shares
-		BigXs     []*crypto.ECPoint
+		Di        cmt.HashDeCommitment
 	}
 )
 
@@ -60,16 +62,15 @@ func NewLocalParty(
 			Out: out,
 		},
 		params: params,
-		temp: LocalPartyTempData{},
-		key: key,
-		end:  end,
+		temp:   LocalPartyTempData{},
+		key:    key,
+		end:    end,
 	}
 	// msgs init
 	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.PartyCount())
 	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.NewPartyCount())
-	p.temp.dgRound3ShareMessage = make([]*DGRound3ShareMessage, params.PartyCount())
-	p.temp.dgRound3DeCommitMessage = make([]*DGRound3DeCommitMessage, params.PartyCount())
-	// data init
+	p.temp.dgRound3ShareMessage = make([]*DGRound3OldCommitteeShareMessage, params.PartyCount())
+	p.temp.dgRound3DeCommitMessage = make([]*DGRound3OldCommitteeDeCommitMessage, params.PartyCount())
 	// round init
 	round := newRound1(params, &p.key, &p.key, &p.temp, out)
 	p.Round = round
@@ -113,10 +114,10 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	case DGRound2NewCommitteeACKMessage:
 		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &m
 
-	case DGRound3ShareMessage:
+	case DGRound3OldCommitteeShareMessage:
 		p.temp.dgRound3ShareMessage[fromPIdx] = &m
 
-	case DGRound3DeCommitMessage:
+	case DGRound3OldCommitteeDeCommitMessage:
 		p.temp.dgRound3DeCommitMessage[fromPIdx] = &m
 
 	default: // unrecognised message, just ignore!

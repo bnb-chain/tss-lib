@@ -84,7 +84,7 @@ func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
 		return ok, err
 	}
 	p.Lock() // data is written to P state below
-	common.Logger.Debugf("party received message: %s", msg.String())
+	common.Logger.Debugf("party %s received message: %s", p.PartyID(), msg.String())
 	if p.Rnd() != nil {
 		common.Logger.Debugf("party %s round %d update: %s", p.PartyID(), p.Rnd().RoundNumber(), msg.String())
 	}
