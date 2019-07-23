@@ -3,7 +3,6 @@ package regroup
 import (
 	"errors"
 
-	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
@@ -14,7 +13,7 @@ import (
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.ReGroupParameters, key, save *keygen.LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
-		&base{params, key, save, temp, out, make([]bool, len(params.NewParties().IDs())), make([]bool, len(params.Parties().IDs())), false, 1}}
+		&base{params, key, save, temp, out, make([]bool, len(params.Parties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -26,7 +25,7 @@ func (round *round1) Start() *tss.Error {
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allNewOK()
 
-	if round.ReGroupParams().IsNewCommittee() {
+	if !round.ReGroupParams().IsOldCommittee() {
 		return nil
 	}
 
@@ -50,7 +49,7 @@ func (round *round1) Start() *tss.Error {
 	round.temp.BigXs = round.key.BigXj
 
 	// 4. "broadcast" C_i to members of the NEW committee
-	r1msg := NewDGRound1OldCommitteeCommitMessage(round.NewParties().IDs(), round.PartyID(), cmt.C)
+	r1msg := NewDGRound1OldCommitteeCommitMessage(round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), cmt.C)
 	round.out <- r1msg
 
 	return nil
@@ -66,7 +65,7 @@ func (round *round1) CanAccept(msg tss.Message) bool {
 
 func (round *round1) Update() (bool, *tss.Error) {
 	// only the new committee receive in this round
-	if round.ReGroupParams().IsOldCommittee() {
+	if !round.ReGroupParameters.IsNewCommittee() {
 		return true, nil
 	}
 	// accept messages from old -> new committee
@@ -83,7 +82,6 @@ func (round *round1) Update() (bool, *tss.Error) {
 }
 
 func (round *round1) NextRound() tss.Round {
-	common.Logger.Infof("NextRound() called on %v", round.PartyID())
 	round.started = false
 	return &round2{round}
 }

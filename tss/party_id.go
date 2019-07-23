@@ -39,7 +39,7 @@ func (pid PartyID) String() string {
 // ----- //
 
 // Exported, used in `tss` client
-func SortPartyIDs(ids UnSortedPartyIDs) SortedPartyIDs {
+func SortPartyIDs(ids UnSortedPartyIDs, startAt... int) SortedPartyIDs {
 	sorted := make(SortedPartyIDs, 0, len(ids))
 	for _, id := range ids {
 		sorted = append(sorted, id)
@@ -47,19 +47,23 @@ func SortPartyIDs(ids UnSortedPartyIDs) SortedPartyIDs {
 	sort.Sort(sorted)
 	// assign party indexes
 	for i, id := range sorted {
-		id.Index = i
+		frm := 0
+		if len(startAt) > 0 {
+			frm = startAt[0]
+		}
+		id.Index = i + frm
 	}
 	return sorted
 }
 
-func GenerateTestPartyIDs(count int, from... int) SortedPartyIDs {
+func GenerateTestPartyIDs(count int, startAt... int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
 	key := random.MustGetRandomInt(256)
 	frm := 0
 	i := 0 // default `i`
-	if len(from) > 0 {
-		frm = from[0]
-		i = from[0]
+	if len(startAt) > 0 {
+		frm = startAt[0]
+		i = startAt[0]
 	}
 	for ; i < count + frm; i++ {
 		ids = append(ids, &PartyID{
@@ -70,7 +74,7 @@ func GenerateTestPartyIDs(count int, from... int) SortedPartyIDs {
 			Key: new(big.Int).Sub(key, big.NewInt(int64(count)-int64(i))),
 		})
 	}
-	return SortPartyIDs(ids)
+	return SortPartyIDs(ids, startAt...)
 }
 
 func (spids SortedPartyIDs) Keys() []*big.Int {
@@ -92,6 +96,17 @@ func (spids SortedPartyIDs) FindByKey(key *big.Int) *PartyID {
 		}
 	}
 	return nil
+}
+
+func (spids SortedPartyIDs) Exclude(exclude *PartyID) SortedPartyIDs {
+	newSpIDs := make(SortedPartyIDs, 0, len(spids))
+	for _, pid := range spids {
+		if pid.Key.Cmp(exclude.Key) == 0 {
+			continue // exclude
+		}
+		newSpIDs = append(newSpIDs, pid)
+	}
+	return newSpIDs
 }
 
 // Sortable

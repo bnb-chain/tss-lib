@@ -18,7 +18,7 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
 
-	if round.ReGroupParams().IsOldCommittee() {
+	if !round.ReGroupParams().IsNewCommittee() {
 		return nil // old committee finished!
 	}
 

@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/binance-chain/tss-lib/tss"
@@ -28,7 +30,7 @@ func setUp(level string) {
 }
 
 func TestE2EConcurrent(t *testing.T) {
-	setUp("debug")
+	setUp("info")
 
 	threshold := testThreshold
 	newThreshold := testThreshold
@@ -59,7 +61,6 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// PHASE: keygen
 	var ended int32
-keygen:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -91,35 +92,60 @@ keygen:
 			atomic.AddInt32(&ended, 1)
 			keys[save.Index] = save
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
-				t.Logf("Done. Received save data from %d participants", ended)
+				t.Logf("Keygen done. Received save data from %d participants", ended)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
-				break keygen
+				goto regroup
 			}
 		}
 	}
 
+regroup:
 	// PHASE: regroup
 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting regroup")
 
-	newPIDs := append(pIDs, tss.GenerateTestPartyIDs(testParticipants, len(pIDs))...) // mix of old + new (group * 2)
-	newPIDs = tss.SortPartyIDs(newPIDs.ToUnSorted())
+	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
-	newParties := make([]*LocalParty, 0, len(newPIDs))
-	common.Logger.Infof("newParties: %v", newPIDs)
 
-	regroupOut := make(chan tss.Message, len(newPIDs))
-	regroupEnd := make(chan keygen.LocalPartySaveData, len(newPIDs))
+	oldCommittee := make([]*LocalParty, 0, len(pIDs))
+	newCommittee := make([]*LocalParty, 0, len(newPIDs))
 
-	// init `newParties`
-	for i := 0; i < len(newPIDs); i++ {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, newPIDs[i], len(pIDs), threshold, len(newPIDs), newThreshold)
-		save := keygen.LocalPartySaveData{}
-		if i < len(pIDs) {
-			save = keys[i]
+	regroupOut := make(chan tss.Message, len(oldCommittee) + len(newCommittee))
+	regroupEnd := make(chan keygen.LocalPartySaveData, len(oldCommittee) + len(newCommittee))
+
+	// init `newParties`; add the old parties first
+	for i, pID := range pIDs {
+		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, len(newPIDs), newThreshold)
+		save := keys[i]
+		P := NewLocalParty(params, save, regroupOut, regroupEnd)
+		oldCommittee = append(oldCommittee, P)
+	}
+	// add the new parties
+	for _, pID := range newPIDs {
+		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, len(newPIDs), newThreshold)
+		// TODO do this better!
+		save := keygen.LocalPartySaveData{
+			BigXj: make([]*crypto.ECPoint, len(newPIDs)),
+			PaillierPks: make([]*paillier.PublicKey, len(newPIDs)),
+			NTildej: make([]*big.Int, len(newPIDs)),
+			H1j: make([]*big.Int, len(newPIDs)),
+			H2j: make([]*big.Int, len(newPIDs)),
 		}
 		P := NewLocalParty(params, save, regroupOut, regroupEnd)
-		newParties = append(newParties, P)
+		newCommittee = append(newCommittee, P)
+	}
+
+	// start the new parties; they will wait for messages
+	for _, P := range newCommittee {
+		go func(P *LocalParty) {
+			if err := P.Start(); err != nil {
+				common.Logger.Errorf("Error: %s", err)
+				assert.FailNow(t, err.Error())
+			}
+		}(P)
+	}
+	// start the old parties; they will send messages
+	for _, P := range oldCommittee {
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
 				common.Logger.Errorf("Error: %s", err)
@@ -129,46 +155,45 @@ keygen:
 	}
 
 	var regroupEnded int32
-regroup:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
 		case msg := <-regroupOut:
 			dest := msg.GetTo()
+			destParties := newCommittee
 			if dest == nil {
-				for _, P := range newParties {
-					if P.PartyID().Index != msg.GetFrom().Index {
-						go func(P *LocalParty, msg tss.Message) {
-							if _, err := P.Update(msg, "regroup"); err != nil {
-								common.Logger.Errorf("Error: %s", err)
-								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-							}
-						}(P, msg)
-					}
+				if msg.IsToOldCommittee() {
+					destParties = oldCommittee
+				}
+				for _, P := range destParties {
+					go func(P *LocalParty, msg tss.Message) {
+						if _, err := P.Update(msg, "regroup"); err != nil {
+							common.Logger.Errorf("Error: %s", err)
+							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+						}
+					}(P, msg)
 				}
 			} else {
-				if dest[0].Index == msg.GetFrom().Index {
-					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
-				}
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "regroup"); err != nil {
 						common.Logger.Errorf("Error: %s", err)
 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
 					}
-				}(newParties[dest[0].Index])
+				}(destParties[dest[0].Index])
 			}
 		case save := <-regroupEnd:
 			atomic.AddInt32(&regroupEnded, 1)
 			keys[save.Index] = save
-			if atomic.LoadInt32(&regroupEnded) == int32(len(newPIDs)) {
+			if atomic.LoadInt32(&regroupEnded) == int32(len(oldCommittee) + len(newCommittee)) {
 				t.Logf("Done. Received save data from %d participants", regroupEnded)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
-				break regroup
+				goto signing
 			}
 		}
 	}
 
+signing:
 	// PHASE: signing
 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
 
@@ -193,7 +218,6 @@ regroup:
 	}
 
 	var signEnded int32
-signing:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -225,7 +249,7 @@ signing:
 		case <-signEnd:
 			atomic.AddInt32(&signEnded, 1)
 			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
-				break signing
+				return
 			}
 		}
 	}

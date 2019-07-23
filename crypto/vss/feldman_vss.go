@@ -5,7 +5,6 @@
 package vss
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -39,7 +38,7 @@ var (
 //
 func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, error) {
 	if secret == nil || indexes == nil {
-		return nil, nil, errors.New("vss secret or indexes == nil")
+		return nil, nil, fmt.Errorf("vss secret or indexes == nil: %v %v", secret, indexes)
 	}
 	num := len(indexes)
 	if num < threshold {

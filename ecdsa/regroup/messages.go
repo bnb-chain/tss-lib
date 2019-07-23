@@ -61,6 +61,7 @@ func NewDGRound2NewCommitteeACKMessage(
 			To:      to,
 			From:    from,
 			MsgType: "DGRound2NewCommitteeACKMessage",
+			ToOldCommittee: true,
 		},
 	}
 }
