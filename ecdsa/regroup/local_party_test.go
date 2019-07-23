@@ -1,6 +1,7 @@
 package regroup
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"runtime"
@@ -105,30 +106,31 @@ regroup:
 
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
+	newPCount := len(newPIDs)
 
 	oldCommittee := make([]*LocalParty, 0, len(pIDs))
-	newCommittee := make([]*LocalParty, 0, len(newPIDs))
+	newCommittee := make([]*LocalParty, 0, newPCount)
 
 	regroupOut := make(chan tss.Message, len(oldCommittee) + len(newCommittee))
 	regroupEnd := make(chan keygen.LocalPartySaveData, len(oldCommittee) + len(newCommittee))
 
 	// init `newParties`; add the old parties first
 	for i, pID := range pIDs {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, len(newPIDs), newThreshold)
+		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		save := keys[i]
 		P := NewLocalParty(params, save, regroupOut, regroupEnd)
 		oldCommittee = append(oldCommittee, P)
 	}
 	// add the new parties
 	for _, pID := range newPIDs {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, len(newPIDs), newThreshold)
+		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		// TODO do this better!
 		save := keygen.LocalPartySaveData{
-			BigXj: make([]*crypto.ECPoint, len(newPIDs)),
-			PaillierPks: make([]*paillier.PublicKey, len(newPIDs)),
-			NTildej: make([]*big.Int, len(newPIDs)),
-			H1j: make([]*big.Int, len(newPIDs)),
-			H2j: make([]*big.Int, len(newPIDs)),
+			BigXj: make([]*crypto.ECPoint, newPCount),
+			PaillierPks: make([]*paillier.PublicKey, newPCount),
+			NTildej: make([]*big.Int, newPCount),
+			H1j: make([]*big.Int, newPCount),
+			H2j: make([]*big.Int, newPCount),
 		}
 		P := NewLocalParty(params, save, regroupOut, regroupEnd)
 		newCommittee = append(newCommittee, P)
@@ -178,7 +180,7 @@ regroup:
 			atomic.AddInt32(&regroupEnded, 1)
 			keys[save.Index] = save
 			if atomic.LoadInt32(&regroupEnded) == int32(len(oldCommittee) + len(newCommittee)) {
-				t.Logf("Done. Received save data from %d participants", regroupEnded)
+				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
 				goto signing
@@ -190,7 +192,7 @@ signing:
 	// PHASE: signing
 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
 
-	signPIDs := pIDs[:testThreshold+1]
+	signPIDs := newPIDs[:testThreshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
@@ -198,8 +200,8 @@ signing:
 	signOut := make(chan tss.Message, len(signPIDs))
 	signEnd := make(chan signing.LocalPartySignData, len(signPIDs))
 
-	for i := 0; i < len(signPIDs); i++ {
-		params := tss.NewParameters(signP2pCtx, signPIDs[i], len(signPIDs), threshold)
+	for i, signPID := range signPIDs {
+		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
 		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOut, signEnd)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
@@ -239,9 +241,24 @@ signing:
 					}
 				}(signParties[dest[0].Index])
 			}
-		case <-signEnd:
+		case signData := <-signEnd:
 			atomic.AddInt32(&signEnded, 1)
 			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
+				t.Logf("Signing done. Received sign data from %d participants", signEnded)
+
+				// BEGIN ECDSA verify
+				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
+				pk := ecdsa.PublicKey{
+					Curve: tss.EC(),
+					X:     pkX,
+					Y:     pkY,
+				}
+				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), signData.R, signData.S)
+
+				assert.True(t, ok, "ecdsa verify must pass")
+				t.Log("ECDSA signing test done.")
+				// END ECDSA verify
+
 				return
 			}
 		}

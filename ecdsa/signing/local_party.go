@@ -91,6 +91,8 @@ type (
 	LocalPartySignData struct {
 		Transaction []byte
 		Signature   []byte
+		R           *big.Int
+		S           *big.Int
 	}
 )
 
@@ -107,9 +109,9 @@ func NewLocalParty(
 			Out: out,
 		},
 		params: params,
-		temp: LocalPartyTempData{},
-		data: LocalPartySignData{},
-		end:  end,
+		temp:   LocalPartyTempData{},
+		data:   LocalPartySignData{},
+		end:    end,
 	}
 	// msgs init
 	p.temp.signRound1MtAInitMessages = make([]*SignRound1MtAInitMessage, partyCount)

@@ -192,7 +192,8 @@ signing:
 					Y:     pkY,
 				}
 				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), R.X(), sumS)
-				assert.True(t, ok)
+				assert.True(t, ok, "ecdsa verify must pass")
+				t.Log("ECDSA signing test done.")
 				// END ECDSA verify
 
 				// BEGIN VVV verify
@@ -204,6 +205,7 @@ signing:
 				assert.Equal(t, VVVX, signParties[0].temp.VVV.X())
 				assert.Equal(t, VVVY, signParties[0].temp.VVV.Y())
 				// END VVV verify
+
 				break signing
 			}
 		}
