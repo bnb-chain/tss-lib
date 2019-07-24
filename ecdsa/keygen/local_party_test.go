@@ -121,7 +121,7 @@ func TestUpdateBadMessageCulprits(t *testing.T) {
 	assert.Equal(t, 1, len(err.Culprits()))
 	assert.Equal(t, pIDs[1], err.Culprits()[0])
 	assert.Equal(t,
-		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: From: {1,P[2]}, To: all, MsgType: KGRound1CommitMessage",
+		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: KGRound1CommitMessage, From: {1,P[2]}, To: all",
 		err.Error())
 }
 
