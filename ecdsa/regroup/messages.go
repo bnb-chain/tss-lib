@@ -1,9 +1,6 @@
 package regroup
 
 import (
-	"math/big"
-
-	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
@@ -16,8 +13,6 @@ type (
 	DGRound1OldCommitteeCommitMessage struct {
 		tss.MessageMetadata
 		Commitment cmt.HashCommitment
-		BigXj      []*crypto.ECPoint
-		Ks         []*big.Int
 	}
 
 	DGRound2NewCommitteeACKMessage struct {
@@ -46,8 +41,6 @@ func NewDGRound1OldCommitteeCommitMessage(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	ct cmt.HashCommitment,
-	bigXj []*crypto.ECPoint,
-	ks []*big.Int,
 ) DGRound1OldCommitteeCommitMessage {
 	return DGRound1OldCommitteeCommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -56,8 +49,6 @@ func NewDGRound1OldCommitteeCommitMessage(
 			MsgType: "DGRound1OldCommitteeCommitMessage",
 		},
 		Commitment: ct,
-		BigXj:      bigXj,
-		Ks:         ks,
 	}
 }
 
