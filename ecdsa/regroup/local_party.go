@@ -43,11 +43,12 @@ type (
 		LocalPartyMessageStore
 
 		// temp data (thrown away after rounds)
-		OldBigXj []*crypto.ECPoint
-		OldKs    []*big.Int
+		OldBigXj  []*crypto.ECPoint
+		OldKs     []*big.Int
 		NewVs     vss.Vs
 		NewShares vss.Shares
-		Di        cmt.HashDeCommitment
+		VD,
+		XAndKD    cmt.HashDeCommitment
 	}
 )
 

@@ -1,6 +1,8 @@
 package regroup
 
 import (
+	"math/big"
+
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
@@ -12,7 +14,9 @@ type (
 	// len == (NodeCnt - 1)
 	DGRound1OldCommitteeCommitMessage struct {
 		tss.MessageMetadata
-		Commitment cmt.HashCommitment
+		ECDSAPubX *big.Int // used as security parameter for commitment 2.
+		VCommitment,
+		XAndKCommitment cmt.HashCommitment
 	}
 
 	DGRound2NewCommitteeACKMessage struct {
@@ -31,7 +35,8 @@ type (
 
 	DGRound3OldCommitteeDeCommitMessage struct {
 		tss.MessageMetadata
-		DeCommitment cmt.HashDeCommitment
+		VDeCommitment,
+		XAndKDeCommitment cmt.HashDeCommitment
 	}
 )
 
@@ -40,7 +45,8 @@ type (
 func NewDGRound1OldCommitteeCommitMessage(
 	to []*tss.PartyID,
 	from *tss.PartyID,
-	ct cmt.HashCommitment,
+	ecdsaPubX *big.Int,
+	vct, xkct cmt.HashCommitment,
 ) DGRound1OldCommitteeCommitMessage {
 	return DGRound1OldCommitteeCommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -48,7 +54,9 @@ func NewDGRound1OldCommitteeCommitMessage(
 			From:    from,
 			MsgType: "DGRound1OldCommitteeCommitMessage",
 		},
-		Commitment: ct,
+		ECDSAPubX: ecdsaPubX,
+		VCommitment: vct,
+		XAndKCommitment: xkct,
 	}
 }
 
@@ -124,7 +132,7 @@ func (msg DGRound3OldCommitteeShareMessage) ValidateBasic() bool {
 func NewDGRound3OldCommitteeDeCommitMessage(
 	to []*tss.PartyID,
 	from *tss.PartyID,
-	dct cmt.HashDeCommitment,
+	vdct, xkdct cmt.HashDeCommitment,
 ) DGRound3OldCommitteeDeCommitMessage {
 	return DGRound3OldCommitteeDeCommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -132,7 +140,8 @@ func NewDGRound3OldCommitteeDeCommitMessage(
 			From:    from,
 			MsgType: "DGRound3OldCommitteeDeCommitMessage",
 		},
-		DeCommitment: dct,
+		VDeCommitment: vdct,
+		XAndKDeCommitment: xkdct,
 	}
 }
 

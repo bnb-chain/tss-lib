@@ -52,8 +52,8 @@ type (
 	// Everything in LocalPartySaveData is saved locally to user's HD when done
 	LocalPartySaveData struct {
 		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int             // xi, kj
-		PaillierSk  *paillier.PrivateKey // ski
+		Xi, ShareID *big.Int              // xi, kj
+		PaillierSk  *paillier.PrivateKey  // ski
 
 		// public keys (Xj = uj*G for each Pj)
 		BigXj       []*crypto.ECPoint     // Xj

@@ -98,12 +98,11 @@ func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
 		}
 		if p.Rnd().CanProceed() {
 			if p.Advance(); p.Rnd() != nil {
-				rndNum := p.Rnd().RoundNumber()
-				common.Logger.Infof("party %s: %s round %d starting", p.Rnd().Params().PartyID(), phase, rndNum)
 				if err := p.Rnd().Start(); err != nil {
 					return r(false, err)
 				}
-				common.Logger.Debugf("party %s: %s round %d finished", p.Rnd().Params().PartyID(), phase, rndNum)
+				rndNum := p.Rnd().RoundNumber()
+				common.Logger.Infof("party %s: %s round %d finished", p.Rnd().Params().PartyID(), phase, rndNum)
 			}
 			p.Unlock()                       // recursive so can't defer after return
 			return BaseUpdate(p, msg, phase) // re-run round update or finish)
