@@ -36,20 +36,25 @@ func (round *round4) Start() *tss.Error {
 	vjc := make([][]*crypto.ECPoint, round.Threshold() + 1)
 	for j := 0; j <= round.Threshold(); j++ { // P1..P_t+1. Ps are indexed from 0 here
 		// 3-4.
-		cj := round.temp.dgRound1OldCommitteeCommitMessages[j].Commitment
-		dj := round.temp.dgRound3DeCommitMessage[j].DeCommitment
+		vCj := round.temp.dgRound1OldCommitteeCommitMessages[j].VCommitment
+		vDj := round.temp.dgRound3DeCommitMessage[j].VDeCommitment
 
-		// parse commitment content (points are flattened and everything from round 1 was serialized together)
-		cmtDeCmt := commitments.HashCommitDecommit{C: cj, D: dj}
-		ok, serialized := cmtDeCmt.DeCommit()
+		xAndKCj := round.temp.dgRound1OldCommitteeCommitMessages[j].XAndKCommitment
+		xAndKDj := round.temp.dgRound3DeCommitMessage[j].XAndKDeCommitment
+
+		// unpack compound commitment content (points are flattened and everything from round 1 was serialized together)
+		xAndKCmtDeCmt := commitments.HashCommitDecommit{C: xAndKCj, D: xAndKDj}
+		ok, serialized := xAndKCmtDeCmt.DeCommit()
 		parsed, err := commitments.ParseSecrets(serialized)
 		round.temp.OldBigXj, err = crypto.UnFlattenECPoints(tss.EC(), parsed[1])
 		if err != nil {
 			return round.WrapError(err, round.Parties().IDs()[j])
 		}
 		round.temp.OldKs = parsed[2]
-		flatVs := parsed[0]
 
+		// unpack flat "v" commitment content
+		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}
+	    ok, flatVs := vCmtDeCmt.DeCommit()
 		if !ok || len(flatVs) != (round.NewThreshold() + 1) * 2 { // they're points so * 2
 			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
 		}

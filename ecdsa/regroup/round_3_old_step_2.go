@@ -31,8 +31,11 @@ func (round *round3) Start() *tss.Error {
 		round.out <- r3msg1
 	}
 
-	deCommitment := round.temp.Di
-	r3msg2 := NewDGRound3OldCommitteeDeCommitMessage(round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), deCommitment)
+	vDeCmt := round.temp.VD
+	xAndKDeCmt := round.temp.XAndKD
+	r3msg2 := NewDGRound3OldCommitteeDeCommitMessage(
+		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
+		vDeCmt, xAndKDeCmt)
 	round.temp.dgRound3DeCommitMessage[i] = &r3msg2
 	round.out <- r3msg2
 

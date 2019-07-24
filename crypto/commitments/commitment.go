@@ -25,11 +25,9 @@ type (
 	}
 )
 
-func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
-	security := random.MustGetRandomInt(HashLength) // r
-
+func NewHashCommitmentWithRandomness(r *big.Int, secrets ...*big.Int) *HashCommitDecommit {
 	parts := make([]*big.Int, len(secrets) + 1)
-	parts[0] = security
+	parts[0] = r
 	for i := 1; i < len(parts); i++ {
 		parts[i] = secrets[i - 1]
 	}
@@ -39,6 +37,11 @@ func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
 	cmt.C = hash
 	cmt.D = parts
 	return cmt
+}
+
+func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
+	r := random.MustGetRandomInt(HashLength) // r
+	return NewHashCommitmentWithRandomness(r, secrets...)
 }
 
 func (cmt *HashCommitDecommit) Verify() bool {
