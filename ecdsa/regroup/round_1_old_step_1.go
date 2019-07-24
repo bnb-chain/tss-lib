@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
@@ -41,19 +41,27 @@ func (round *round1) Start() *tss.Error {
 	}
 
 	// 2.
-	pGFlat, err := crypto.FlattenECPoints(vi)
+	flatVis, err := crypto.FlattenECPoints(vi)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
-	cmt := cmt.NewHashCommitment(pGFlat...)
+
+	// misc: include "Big X's" and list of indexes (k_j) known by this party in the commitment
+	flatBigXs, err := crypto.FlattenECPoints(round.key.BigXj)
+	if err != nil {
+		return round.WrapError(err, round.PartyID())
+	}
+
+	cBuilder := commitments.NewBuilder()
+	secrets := cBuilder.AddPart(flatVis).AddPart(flatBigXs).AddPart(round.key.Ks).Secrets()
+	cmt := commitments.NewHashCommitment(secrets...)
 
 	// 3. populate temp data
 	round.temp.Di = cmt.D
 	round.temp.NewShares = shares
 
 	// 4. "broadcast" C_i to members of the NEW committee
-	r1msg := NewDGRound1OldCommitteeCommitMessage(
-		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), cmt.C, round.key.BigXj, round.key.Ks)
+	r1msg := NewDGRound1OldCommitteeCommitMessage(round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(), cmt.C)
 	round.temp.dgRound1OldCommitteeCommitMessages[i] = &r1msg
 	round.out <- r1msg
 
@@ -82,10 +90,6 @@ func (round *round1) Update() (bool, *tss.Error) {
 			return false, nil
 		}
 		round.oldOK[j] = true
-
-		// TODO temp set BigXjs
-		round.temp.OldKs = msg.Ks
-		round.temp.OldBigXj = msg.BigXj
 	}
 	return true, nil
 }
