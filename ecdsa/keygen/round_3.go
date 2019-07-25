@@ -67,18 +67,18 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return
 			}
-			PjPolyGs, err := crypto.UnFlattenECPoints(nil, flatPolyGs)
+			PjVs, err := crypto.UnFlattenECPoints(nil, flatPolyGs)
 			if err != nil {
 				ch <- vssOut{err, nil}
 				return
 			}
 			PjShare := round.temp.kgRound2VssMessages[j].PiShare
-			if ok = PjShare.Verify(round.Threshold(), PjPolyGs); !ok {
+			if ok = PjShare.Verify(round.Threshold(), PjVs); !ok {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
 			}
 			// (9) handled above
-			ch <- vssOut{nil, PjPolyGs}
+			ch <- vssOut{nil, PjVs}
 		}(j, chs[j])
 	}
 
@@ -103,26 +103,22 @@ func (round *round3) Start() *tss.Error {
 			continue
 		}
 		// 10-11.
-		PjPolyGs := vssResults[j].pjVs
+		PjVs := vssResults[j].pjVs
 		for c := 0; c <= round.Threshold(); c++ {
-			VcX, VcY := tss.EC().Add(Vc[c].X(), Vc[c].Y(), PjPolyGs[c].X(), PjPolyGs[c].Y())
-			Vc[c] = crypto.NewECPoint(tss.EC(), VcX, VcY)
+			Vc[c] = Vc[c].Add(PjVs[c])
 		}
 	}
 
 	// 12-16. compute Xj for each Pj
 	bigXj := round.save.BigXj
-	for j, Pj := range Ps {
-		var z *big.Int
-		XjX, XjY := Vc[0].X(), Vc[0].Y()
+	for j := 0; j < round.PartyCount(); j++ {
+		kj := round.Parties().IDs()[j].Key
+		BigXj := Vc[0]
 		for c := 1; c <= round.Threshold(); c++ {
-			// z = kj^c
-			z = new(big.Int).Exp(Pj.Key, big.NewInt(int64(c)), tss.EC().Params().N)
-			// Xj = Xj * Vcz^z
-			VczX, VczY := tss.EC().ScalarMult(Vc[c].X(), Vc[c].Y(), z.Bytes())
-			XjX, XjY = tss.EC().Add(XjX, XjY, VczX, VczY)
+			z := new(big.Int).Exp(kj, big.NewInt(int64(c)), tss.EC().Params().N)
+			BigXj = BigXj.Add(Vc[c].ScalarMult(z))
 		}
-		bigXj[j] = crypto.NewECPoint(tss.EC(), XjX, XjY)
+		bigXj[j] = BigXj
 	}
 	round.save.BigXj = bigXj
 
