@@ -102,7 +102,7 @@ func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
 					return r(false, err)
 				}
 				rndNum := p.Rnd().RoundNumber()
-				common.Logger.Infof("party %s: %s round %d finished", p.Rnd().Params().PartyID(), phase, rndNum)
+				common.Logger.Infof("party %s: %s round %d started", p.Rnd().Params().PartyID(), phase, rndNum)
 			}
 			p.Unlock()                       // recursive so can't defer after return
 			return BaseUpdate(p, msg, phase) // re-run round update or finish)

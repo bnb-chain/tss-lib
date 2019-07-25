@@ -69,11 +69,11 @@ func NewLocalParty(
 		end:    end,
 	}
 	// msgs init
-	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.PartyCount())
+	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.Threshold() + 1)
 	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.NewPartyCount())
 	p.temp.dgRound2PaillierPublicKeyMessage = make([]*DGRound2PaillierPublicKeyMessage, params.NewPartyCount())
-	p.temp.dgRound3ShareMessage = make([]*DGRound3OldCommitteeShareMessage, params.PartyCount())
-	p.temp.dgRound3DeCommitMessage = make([]*DGRound3OldCommitteeDeCommitMessage, params.PartyCount())
+	p.temp.dgRound3ShareMessage = make([]*DGRound3OldCommitteeShareMessage, params.Threshold() + 1)
+	p.temp.dgRound3DeCommitMessage = make([]*DGRound3OldCommitteeDeCommitMessage, params.Threshold() + 1)
 	// round init
 	round := newRound1(params, &p.key, &p.key, &p.temp, out)
 	p.Round = round
