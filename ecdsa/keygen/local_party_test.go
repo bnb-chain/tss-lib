@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -211,16 +212,14 @@ func TestE2EConcurrent(t *testing.T) {
 
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
-					uGX, uGY := tss.EC().ScalarBaseMult(uj.Bytes())
-					assert.Equal(t, uGX, Pj.temp.vs[0].X())
-					assert.Equal(t, uGY, Pj.temp.vs[0].Y())
+					uG := crypto.ScalarBaseMult(tss.EC(), uj)
+					assert.True(t, uG.Equals(Pj.temp.vs[0]), "u*G[j] == V_0")
 
 					// xj test: BigXj == xj*G
 					xj := Pj.data.Xi
-					gXjX, gXjY := tss.EC().ScalarBaseMult(xj.Bytes())
-					BigXjX, BigXjY := Pj.data.BigXj[j].X(), Pj.data.BigXj[j].Y()
-					assert.Equal(t, BigXjX, gXjX)
-					assert.Equal(t, BigXjY, gXjY)
+					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
+					BigXj := Pj.data.BigXj[j]
+					assert.True(t, BigXj.Equals(gXj), "BigX_j == g^x_j")
 
 					// fails if threshold cannot be satisfied (bad share)
 					{
