@@ -115,8 +115,8 @@ func (round *round4) Start() *tss.Error {
 	// 12-15.
 	Vc := make([]*crypto.ECPoint, round.NewThreshold() + 1)
 	for c := 0; c <= round.NewThreshold(); c++ {
-		Vc[c] = crypto.NewECPoint(tss.EC(), big.NewInt(1), big.NewInt(1))
-		for j := 0; j <= round.Threshold(); j++ {
+		Vc[c] = vjc[0][c]
+		for j := 1; j <= round.Threshold(); j++ {
 			Vc[c] = Vc[c].Add(vjc[j][c])
 		}
 	}
@@ -125,23 +125,21 @@ func (round *round4) Start() *tss.Error {
 	newKs := make([]*big.Int, 0, round.NewPartyCount())
 	NewBigXj := make([]*crypto.ECPoint, round.NewPartyCount())
 	for j := 0; j < round.NewPartyCount(); j++ {
-		NewBigXj[j] = Vc[0]
 		kj := round.NewParties().IDs()[j].Key
+		newBigXj := Vc[0]
 		newKs = append(newKs, kj)
-		for c := 0; c < round.NewThreshold(); c++ {
+		for c := 1; c <= round.NewThreshold(); c++ {
 			z := modQ.Exp(kj, big.NewInt(int64(c)))
-			NewBigXj[j] = NewBigXj[j].Add(Vc[c].ScalarMult(z))
+			newBigXj = newBigXj.Add(Vc[c].ScalarMult(z))
 		}
+		NewBigXj[j] = newBigXj
 	}
+	round.save.BigXj = NewBigXj
 
 	// 21.
-	// for this P: SAVE
-	// - shareID
-	// - the new X_i secret
-	// - the new BigX_j = X_i*G
+	// for this P: SAVE other data
 	round.save.ShareID = round.PartyID().Key
 	round.save.Xi = newXi
-	round.save.BigXj = NewBigXj
 	round.save.Ks = newKs
 	round.save.Index = i
 
