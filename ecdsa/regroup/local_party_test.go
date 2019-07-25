@@ -1,7 +1,6 @@
 package regroup
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"runtime"
@@ -15,7 +14,6 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -184,86 +182,96 @@ regroup:
 			if atomic.LoadInt32(&regroupEnded) == int32(len(newCommittee)) {
 				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)
 
+				// xj tests: BigXj == xj*G
+				for j, key := range keys {
+					// xj test: BigXj == xj*G
+					xj := key.Xi
+					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
+					BigXj := key.BigXj[j]
+					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
+				}
+
 				// more verification of signing is implemented within local_party_test.go of keygen package
-				goto signing
-			}
-		}
-	}
-
-signing:
-	// PHASE: signing
-	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
-
-	keys = keys[:testThreshold+1]
-	signPIDs := newPIDs[:testThreshold+1]
-
-	signP2pCtx := tss.NewPeerContext(signPIDs)
-	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
-
-	signOut := make(chan tss.Message, len(signPIDs))
-	signEnd := make(chan signing.LocalPartySignData, len(signPIDs))
-
-	for i, signPID := range signPIDs {
-		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
-		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOut, signEnd)
-		signParties = append(signParties, P)
-		go func(P *signing.LocalParty) {
-			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
-			}
-		}(P)
-	}
-
-	var signEnded int32
-	for {
-		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
-		select {
-		case msg := <-signOut:
-			dest := msg.GetTo()
-			if dest == nil {
-				for _, P := range signParties {
-					if P.PartyID().Index == msg.GetFrom().Index {
-						continue
-					}
-					go func(P *signing.LocalParty, msg tss.Message) {
-						if _, err := P.Update(msg, "sign"); err != nil {
-							common.Logger.Errorf("Error: %s", err)
-							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-						}
-					}(P, msg)
-				}
-			} else {
-				if dest[0].Index == msg.GetFrom().Index {
-					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
-				}
-				go func(P *signing.LocalParty) {
-					if _, err := P.Update(msg, "sign"); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-					}
-				}(signParties[dest[0].Index])
-			}
-		case signData := <-signEnd:
-			atomic.AddInt32(&signEnded, 1)
-			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
-				t.Logf("Signing done. Received sign data from %d participants", signEnded)
-
-				// BEGIN ECDSA verify
-				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
-				pk := ecdsa.PublicKey{
-					Curve: tss.EC(),
-					X:     pkX,
-					Y:     pkY,
-				}
-				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), signData.R, signData.S)
-
-				assert.True(t, ok, "ecdsa verify must pass")
-				t.Log("ECDSA signing test done.")
-				// END ECDSA verify
-
+				// goto signing
 				return
 			}
 		}
 	}
+
+// signing:
+// 	// PHASE: signing
+// 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
+//
+// 	keys = keys[:testThreshold+1]
+// 	signPIDs := newPIDs[:testThreshold+1]
+//
+// 	signP2pCtx := tss.NewPeerContext(signPIDs)
+// 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
+//
+// 	signOut := make(chan tss.Message, len(signPIDs))
+// 	signEnd := make(chan signing.LocalPartySignData, len(signPIDs))
+//
+// 	for i, signPID := range signPIDs {
+// 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
+// 		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOut, signEnd)
+// 		signParties = append(signParties, P)
+// 		go func(P *signing.LocalParty) {
+// 			if err := P.Start(); err != nil {
+// 				common.Logger.Errorf("Error: %s", err)
+// 				assert.FailNow(t, err.Error())
+// 			}
+// 		}(P)
+// 	}
+//
+// 	var signEnded int32
+// 	for {
+// 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
+// 		select {
+// 		case msg := <-signOut:
+// 			dest := msg.GetTo()
+// 			if dest == nil {
+// 				for _, P := range signParties {
+// 					if P.PartyID().Index == msg.GetFrom().Index {
+// 						continue
+// 					}
+// 					go func(P *signing.LocalParty, msg tss.Message) {
+// 						if _, err := P.Update(msg, "sign"); err != nil {
+// 							common.Logger.Errorf("Error: %s", err)
+// 							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+// 						}
+// 					}(P, msg)
+// 				}
+// 			} else {
+// 				if dest[0].Index == msg.GetFrom().Index {
+// 					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
+// 				}
+// 				go func(P *signing.LocalParty) {
+// 					if _, err := P.Update(msg, "sign"); err != nil {
+// 						common.Logger.Errorf("Error: %s", err)
+// 						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+// 					}
+// 				}(signParties[dest[0].Index])
+// 			}
+// 		case signData := <-signEnd:
+// 			atomic.AddInt32(&signEnded, 1)
+// 			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
+// 				t.Logf("Signing done. Received sign data from %d participants", signEnded)
+//
+// 				// BEGIN ECDSA verify
+// 				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
+// 				pk := ecdsa.PublicKey{
+// 					Curve: tss.EC(),
+// 					X:     pkX,
+// 					Y:     pkY,
+// 				}
+// 				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), signData.R, signData.S)
+//
+// 				assert.True(t, ok, "ecdsa verify must pass")
+// 				t.Log("ECDSA signing test done.")
+// 				// END ECDSA verify
+//
+// 				return
+// 			}
+// 		}
+// 	}
 }
