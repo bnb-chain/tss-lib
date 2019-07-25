@@ -89,8 +89,8 @@ func TestE2EConcurrent(t *testing.T) {
 				}(parties[dest[0].Index])
 			}
 		case save := <-end:
-			atomic.AddInt32(&ended, 1)
 			keys[save.Index] = save
+			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
 				t.Logf("Keygen done. Received save data from %d participants", ended)
 
@@ -179,8 +179,8 @@ regroup:
 				}(destParties[destP.Index])
 			}
 		case save := <-regroupEnd:
-			atomic.AddInt32(&regroupEnded, 1)
 			keys[save.Index] = save
+			atomic.AddInt32(&regroupEnded, 1)
 			if atomic.LoadInt32(&regroupEnded) == int32(len(oldCommittee)+len(newCommittee)) {
 				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)
 
@@ -194,6 +194,7 @@ signing:
 	// PHASE: signing
 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
 
+	keys = keys[:testThreshold+1]
 	signPIDs := newPIDs[:testThreshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
