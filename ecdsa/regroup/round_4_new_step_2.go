@@ -28,6 +28,16 @@ func (round *round4) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
+	// save NTilde_j, h1_j, h2_j recieved in NewCommitteeStep1 here
+	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+		if j == i {
+			continue
+		}
+		round.save.NTildej[j] = msg.NTildei
+		round.save.H1j[j] = msg.H1i
+		round.save.H2j[j] = msg.H2i
+	}
+
 	// 1.
 	newXi := big.NewInt(0)
 
@@ -50,6 +60,7 @@ func (round *round4) Start() *tss.Error {
 			return round.WrapError(err, round.Parties().IDs()[j])
 		}
 		if len(parsed) < 2 {
+			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("malformed second commitment; expected two parts"), round.Parties().IDs()[j])
 		}
 		round.temp.OldBigXj, err = crypto.UnFlattenECPoints(tss.EC(), parsed[0])
@@ -62,6 +73,7 @@ func (round *round4) Start() *tss.Error {
 		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}
 	    ok, flatVs := vCmtDeCmt.DeCommit()
 		if !ok || len(flatVs) != (round.NewThreshold() + 1) * 2 { // they're points so * 2
+			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
 		}
 		vj, err := crypto.UnFlattenECPoints(nil, flatVs)
@@ -73,12 +85,14 @@ func (round *round4) Start() *tss.Error {
 		// 5.
 		Xj := round.temp.OldBigXj[j]
 		if !vj[0].Equals(Xj) {
+			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("v_j0 did not equal X_j"), round.Parties().IDs()[j])
 		}
 
 		// 6.
 		sharej := round.temp.dgRound3ShareMessage[j]
 		if ok := sharej.Share.Verify(round.NewThreshold(), vj); !ok {
+			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("share from old committee did not pass Verify()"), round.Parties().IDs()[j])
 		}
 

@@ -23,9 +23,12 @@ type (
 		tss.MessageMetadata
 	}
 
-	DGRound2PaillierPublicKeyMessage struct {
+	DGRound2NewCommitteePaillierPublicKeyMessage struct {
 		tss.MessageMetadata
 		paillierPK *paillier.PublicKey
+		NTildei,
+		H1i,
+		H2i *big.Int
 	}
 
 	DGRound3OldCommitteeShareMessage struct {
@@ -86,22 +89,28 @@ func (msg DGRound2NewCommitteeACKMessage) ValidateBasic() bool {
 
 // ----- //
 
-func NewDGRound2PaillierPublicKeyMessage(
+func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
-) DGRound2PaillierPublicKeyMessage {
-	return DGRound2PaillierPublicKeyMessage{
+	NTildei,
+	H1i,
+	H2i *big.Int,
+) DGRound2NewCommitteePaillierPublicKeyMessage {
+	return DGRound2NewCommitteePaillierPublicKeyMessage{
 		MessageMetadata: tss.MessageMetadata{
 			To:             to,
 			From:           from,
-			MsgType:        "DGRound2PaillierPublicKeyMessage",
+			MsgType:        "DGRound2NewCommitteePaillierPublicKeyMessage",
 		},
 		paillierPK: paillierPK,
+		NTildei: NTildei,
+		H1i: H1i,
+		H2i: H2i,
 	}
 }
 
-func (msg DGRound2PaillierPublicKeyMessage) ValidateBasic() bool {
+func (msg DGRound2NewCommitteePaillierPublicKeyMessage) ValidateBasic() bool {
 	return true // TODO ValidateBasic
 }
 

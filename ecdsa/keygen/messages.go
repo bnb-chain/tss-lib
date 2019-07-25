@@ -28,7 +28,8 @@ type (
 		PaillierPk *paillier.PublicKey
 		RSAModulus *rsa.PublicKey
 		NTildei,
-		H1i, H2i *big.Int
+		H1i,
+		H2i *big.Int
 	}
 
 	// KGRound2VssMessage represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol

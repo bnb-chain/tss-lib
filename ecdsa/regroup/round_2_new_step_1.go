@@ -60,21 +60,21 @@ func (round *round2) Start() *tss.Error {
 	round.out <- r2msg1
 
 	// consume chans to end goroutines
-	pai := <-paiCh
-	r2msg2 := NewDGRound2PaillierPublicKeyMessage(
-		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&pai.PublicKey)
-	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
-	round.out <- r2msg2
-
-	rsa := <-rsaCh
+	pai, rsa := <-paiCh, <-rsaCh
 	if rsa == nil {
 		return round.WrapError(errors.New("RSA generation failed"), Pi)
 	}
+
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsa.Primes[:2])
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
+
+	r2msg2 := NewDGRound2NewCommitteePaillierPublicKeyMessage(
+		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
+		&pai.PublicKey, NTildei, h1i, h2i)
+	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
+	round.out <- r2msg2
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
 	round.save.NTildej[i] = NTildei
@@ -87,7 +87,7 @@ func (round *round2) Start() *tss.Error {
 func (round *round2) CanAccept(msg tss.Message) bool {
 	if round.ReGroupParams().IsOldCommittee() && round.ReGroupParameters.IsNewCommittee() {
 		if msg1, ok := msg.(*DGRound2NewCommitteeACKMessage); !ok || msg1 == nil {
-			if msg2, ok := msg.(*DGRound2PaillierPublicKeyMessage); !ok || msg2 == nil {
+			if msg2, ok := msg.(*DGRound2NewCommitteePaillierPublicKeyMessage); !ok || msg2 == nil {
 				return false
 			}
 		}
@@ -96,7 +96,7 @@ func (round *round2) CanAccept(msg tss.Message) bool {
 			return false
 		}
 	} else if round.ReGroupParams().IsNewCommittee() {
-		if msg, ok := msg.(*DGRound2PaillierPublicKeyMessage); !ok || msg == nil {
+		if msg, ok := msg.(*DGRound2NewCommitteePaillierPublicKeyMessage); !ok || msg == nil {
 			return false
 		}
 	}
@@ -141,11 +141,6 @@ func (round *round2) Update() (bool, *tss.Error) {
 				return false, nil
 			}
 			round.newOK[j] = true
-
-			// log
-			if round.PartyID().Index == 0 {
-				common.Logger.Infof("new party 0 message update received: %v", round.newOK)
-			}
 		}
 	} else {
 		return false, round.WrapError(errors.New("this party is not in the old or the new committee"), round.PartyID())

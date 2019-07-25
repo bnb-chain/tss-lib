@@ -34,7 +34,7 @@ type (
 		// messages
 		dgRound1OldCommitteeCommitMessages []*DGRound1OldCommitteeCommitMessage
 		dgRound2NewCommitteeACKMessage     []*DGRound2NewCommitteeACKMessage
-		dgRound2PaillierPublicKeyMessage   []*DGRound2PaillierPublicKeyMessage
+		dgRound2PaillierPublicKeyMessage   []*DGRound2NewCommitteePaillierPublicKeyMessage
 		dgRound3ShareMessage               []*DGRound3OldCommitteeShareMessage
 		dgRound3DeCommitMessage            []*DGRound3OldCommitteeDeCommitMessage
 	}
@@ -71,7 +71,7 @@ func NewLocalParty(
 	// msgs init
 	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.Threshold() + 1)
 	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.NewPartyCount())
-	p.temp.dgRound2PaillierPublicKeyMessage = make([]*DGRound2PaillierPublicKeyMessage, params.NewPartyCount())
+	p.temp.dgRound2PaillierPublicKeyMessage = make([]*DGRound2NewCommitteePaillierPublicKeyMessage, params.NewPartyCount())
 	p.temp.dgRound3ShareMessage = make([]*DGRound3OldCommitteeShareMessage, params.Threshold() + 1)
 	p.temp.dgRound3DeCommitMessage = make([]*DGRound3OldCommitteeDeCommitMessage, params.Threshold() + 1)
 	// round init
@@ -117,7 +117,7 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 	case DGRound2NewCommitteeACKMessage:
 		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &m
 
-	case DGRound2PaillierPublicKeyMessage:
+	case DGRound2NewCommitteePaillierPublicKeyMessage:
 		p.temp.dgRound2PaillierPublicKeyMessage[fromPIdx] = &m
 
 	case DGRound3OldCommitteeShareMessage:
