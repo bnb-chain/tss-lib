@@ -114,16 +114,16 @@ regroup:
 	newCommittee := make([]*LocalParty, 0, newPCount)
 
 	regroupOut := make(chan tss.Message, len(oldCommittee)+len(newCommittee))
-	regroupEnd := make(chan keygen.LocalPartySaveData, len(oldCommittee)+len(newCommittee))
+	regroupEnd := make(chan keygen.LocalPartySaveData, len(newCommittee))
 
-	// init `newParties`; add the old parties first
+	// init the old parties first
 	for i, pID := range pIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		save := keys[i]
-		P := NewLocalParty(params, save, regroupOut, regroupEnd)
+		P := NewLocalParty(params, save, regroupOut, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
-	// add the new parties
+	// init the new parties
 	for _, pID := range newPIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		// TODO do this better!
@@ -181,7 +181,7 @@ regroup:
 		case save := <-regroupEnd:
 			keys[save.Index] = save
 			atomic.AddInt32(&regroupEnded, 1)
-			if atomic.LoadInt32(&regroupEnded) == int32(len(oldCommittee)+len(newCommittee)) {
+			if atomic.LoadInt32(&regroupEnded) == int32(len(newCommittee)) {
 				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
