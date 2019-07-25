@@ -145,8 +145,14 @@ func (round *round4) Start() *tss.Error {
 	round.save.Ks = newKs
 	round.save.Index = i
 
+	// TODO reconcile with other parties
+	round.save.ECDSAPub = round.temp.dgRound1OldCommitteeCommitMessages[0].ECDSAPub
+
 	// misc: build list of paillier public keys to save
 	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+		if j == i {
+			continue
+		}
 		round.save.PaillierPks[j] = msg.paillierPK
 	}
 	return nil

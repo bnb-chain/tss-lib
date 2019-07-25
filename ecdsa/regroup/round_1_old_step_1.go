@@ -52,12 +52,12 @@ func (round *round1) Start() *tss.Error {
 		return round.WrapError(err, round.PartyID())
 	}
 
-	vCmt := commitments.NewHashCommitment(flatVis...)
-
 	cBuilder := commitments.NewBuilder()
 	secrets := cBuilder.AddPart(flatBigXs).AddPart(round.key.Ks).Secrets()
 	cmtR := round.save.ECDSAPub.X()
 	xAndKCmt := commitments.NewHashCommitmentWithRandomness(cmtR, secrets...)
+
+	vCmt := commitments.NewHashCommitment(flatVis...)
 
 	// 3. populate temp data
 	round.temp.VD = vCmt.D
@@ -67,7 +67,7 @@ func (round *round1) Start() *tss.Error {
 	// 4. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1OldCommitteeCommitMessage(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		round.save.ECDSAPub.X(), vCmt.C, xAndKCmt.C)
+		round.save.ECDSAPub, vCmt.C, xAndKCmt.C)
 	round.temp.dgRound1OldCommitteeCommitMessages[i] = &r1msg
 	round.out <- r1msg
 

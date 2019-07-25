@@ -3,6 +3,7 @@ package regroup
 import (
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
@@ -14,7 +15,7 @@ type (
 	// len == (NodeCnt - 1)
 	DGRound1OldCommitteeCommitMessage struct {
 		tss.MessageMetadata
-		ECDSAPubX *big.Int // used as security parameter for commitment 2.
+		ECDSAPub *crypto.ECPoint // used as security parameter for commitment 2.
 		VCommitment,
 		XAndKCommitment cmt.HashCommitment
 	}
@@ -48,7 +49,7 @@ type (
 func NewDGRound1OldCommitteeCommitMessage(
 	to []*tss.PartyID,
 	from *tss.PartyID,
-	ecdsaPubX *big.Int,
+	ecdsaPub *crypto.ECPoint,
 	vct, xkct cmt.HashCommitment,
 ) DGRound1OldCommitteeCommitMessage {
 	return DGRound1OldCommitteeCommitMessage{
@@ -57,8 +58,8 @@ func NewDGRound1OldCommitteeCommitMessage(
 			From:    from,
 			MsgType: "DGRound1OldCommitteeCommitMessage",
 		},
-		ECDSAPubX: ecdsaPubX,
-		VCommitment: vct,
+		ECDSAPub:       ecdsaPub,
+		VCommitment:     vct,
 		XAndKCommitment: xkct,
 	}
 }
@@ -99,14 +100,14 @@ func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 ) DGRound2NewCommitteePaillierPublicKeyMessage {
 	return DGRound2NewCommitteePaillierPublicKeyMessage{
 		MessageMetadata: tss.MessageMetadata{
-			To:             to,
-			From:           from,
-			MsgType:        "DGRound2NewCommitteePaillierPublicKeyMessage",
+			To:      to,
+			From:    from,
+			MsgType: "DGRound2NewCommitteePaillierPublicKeyMessage",
 		},
 		paillierPK: paillierPK,
-		NTildei: NTildei,
-		H1i: H1i,
-		H2i: H2i,
+		NTildei:    NTildei,
+		H1i:        H1i,
+		H2i:        H2i,
 	}
 }
 
@@ -148,7 +149,7 @@ func NewDGRound3OldCommitteeDeCommitMessage(
 			From:    from,
 			MsgType: "DGRound3OldCommitteeDeCommitMessage",
 		},
-		VDeCommitment: vdct,
+		VDeCommitment:     vdct,
 		XAndKDeCommitment: xkdct,
 	}
 }
