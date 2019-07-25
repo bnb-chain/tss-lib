@@ -9,6 +9,7 @@ type (
 		GetTo() []*PartyID
 		GetFrom() *PartyID
 		GetType() string
+		IsBroadcast() bool
 		IsToOldCommittee() bool
 		ValidateBasic() bool
 		String() string
@@ -33,6 +34,10 @@ func (mm MessageMetadata) GetFrom() *PartyID {
 
 func (mm MessageMetadata) GetType() string {
 	return mm.MsgType
+}
+
+func (mm MessageMetadata) IsBroadcast() bool {
+	return mm.To == nil || len(mm.To) > 1
 }
 
 func (mm MessageMetadata) IsToOldCommittee() bool {
