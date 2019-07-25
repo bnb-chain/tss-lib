@@ -213,13 +213,13 @@ func TestE2EConcurrent(t *testing.T) {
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
 					uG := crypto.ScalarBaseMult(tss.EC(), uj)
-					assert.True(t, uG.Equals(Pj.temp.vs[0]), "u*G[j] == V_0")
+					assert.True(t, uG.Equals(Pj.temp.vs[0]), "ensure u*G[j] == V_0")
 
-					// xj test: BigXj == xj*G
+					// xj tests: BigXj == xj*G
 					xj := Pj.data.Xi
 					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
 					BigXj := Pj.data.BigXj[j]
-					assert.True(t, BigXj.Equals(gXj), "BigX_j == g^x_j")
+					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
 
 					// fails if threshold cannot be satisfied (bad share)
 					{
