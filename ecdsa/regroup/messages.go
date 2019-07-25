@@ -96,7 +96,6 @@ func NewDGRound2PaillierPublicKeyMessage(
 			To:             to,
 			From:           from,
 			MsgType:        "DGRound2PaillierPublicKeyMessage",
-			ToOldCommittee: true,
 		},
 		paillierPK: paillierPK,
 	}

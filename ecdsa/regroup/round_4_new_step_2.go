@@ -46,11 +46,17 @@ func (round *round4) Start() *tss.Error {
 		xAndKCmtDeCmt := commitments.HashCommitDecommit{C: xAndKCj, D: xAndKDj}
 		ok, serialized := xAndKCmtDeCmt.DeCommit()
 		parsed, err := commitments.ParseSecrets(serialized)
-		round.temp.OldBigXj, err = crypto.UnFlattenECPoints(tss.EC(), parsed[1])
 		if err != nil {
 			return round.WrapError(err, round.Parties().IDs()[j])
 		}
-		round.temp.OldKs = parsed[2]
+		if len(parsed) < 2 {
+			return round.WrapError(errors.New("malformed second commitment; expected two parts"), round.Parties().IDs()[j])
+		}
+		round.temp.OldBigXj, err = crypto.UnFlattenECPoints(tss.EC(), parsed[0])
+		if err != nil {
+			return round.WrapError(err, round.Parties().IDs()[j])
+		}
+		round.temp.OldKs = parsed[1]
 
 		// unpack flat "v" commitment content
 		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}

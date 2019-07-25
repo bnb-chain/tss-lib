@@ -104,6 +104,8 @@ regroup:
 	// PHASE: regroup
 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting regroup")
 
+	pIDs = pIDs[:threshold+1] // always regroup with old_t+1
+	p2pCtx = tss.NewPeerContext(pIDs)
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
@@ -111,8 +113,8 @@ regroup:
 	oldCommittee := make([]*LocalParty, 0, len(pIDs))
 	newCommittee := make([]*LocalParty, 0, newPCount)
 
-	regroupOut := make(chan tss.Message, len(oldCommittee) + len(newCommittee))
-	regroupEnd := make(chan keygen.LocalPartySaveData, len(oldCommittee) + len(newCommittee))
+	regroupOut := make(chan tss.Message, len(oldCommittee)+len(newCommittee))
+	regroupEnd := make(chan keygen.LocalPartySaveData, len(oldCommittee)+len(newCommittee))
 
 	// init `newParties`; add the old parties first
 	for i, pID := range pIDs {
@@ -126,11 +128,11 @@ regroup:
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		// TODO do this better!
 		save := keygen.LocalPartySaveData{
-			BigXj: make([]*crypto.ECPoint, newPCount),
+			BigXj:       make([]*crypto.ECPoint, newPCount),
 			PaillierPks: make([]*paillier.PublicKey, newPCount),
-			NTildej: make([]*big.Int, newPCount),
-			H1j: make([]*big.Int, newPCount),
-			H2j: make([]*big.Int, newPCount),
+			NTildej:     make([]*big.Int, newPCount),
+			H1j:         make([]*big.Int, newPCount),
+			H2j:         make([]*big.Int, newPCount),
 		}
 		P := NewLocalParty(params, save, regroupOut, regroupEnd)
 		newCommittee = append(newCommittee, P)
@@ -179,7 +181,7 @@ regroup:
 		case save := <-regroupEnd:
 			atomic.AddInt32(&regroupEnded, 1)
 			keys[save.Index] = save
-			if atomic.LoadInt32(&regroupEnded) == int32(len(oldCommittee) + len(newCommittee)) {
+			if atomic.LoadInt32(&regroupEnded) == int32(len(oldCommittee)+len(newCommittee)) {
 				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)
 
 				// more verification of signing is implemented within local_party_test.go of keygen package
