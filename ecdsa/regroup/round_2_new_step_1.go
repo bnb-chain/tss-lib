@@ -77,9 +77,10 @@ func (round *round2) Start() *tss.Error {
 	round.out <- r2msg2
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
+	round.save.PaillierSk = pai
+	round.save.PaillierPks[i] = &pai.PublicKey
 	round.save.NTildej[i] = NTildei
 	round.save.H1j[i], round.save.H2j[i] = h1i, h2i
-	round.save.PaillierSk = pai
 
 	return nil
 }
