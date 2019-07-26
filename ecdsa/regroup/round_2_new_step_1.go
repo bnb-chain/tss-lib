@@ -70,9 +70,10 @@ func (round *round2) Start() *tss.Error {
 		return round.WrapError(err, Pi)
 	}
 
+	paillierPf := pai.Proof(Pi.Key, round.save.ECDSAPub)
 	r2msg2 := NewDGRound2NewCommitteePaillierPublicKeyMessage(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&pai.PublicKey, NTildei, h1i, h2i)
+		&pai.PublicKey, paillierPf, NTildei, h1i, h2i)
 	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
 	round.out <- r2msg2
 

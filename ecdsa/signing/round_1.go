@@ -97,12 +97,11 @@ func (round *round1) NextRound() tss.Round {
 // helper to call into PrepareForSigning()
 func (round *round1) prepare() {
 	i := round.PartyID().Index
-	pax := round.Parties().IDs().Len()
 
 	xi := round.key.Xi
 	ks := round.key.Ks
 	bigXs := round.key.BigXj
-	wi, bigWs := PrepareForSigning(i, pax, xi, ks, bigXs)
+	wi, bigWs := PrepareForSigning(i, round.Threshold()+1, xi, ks, bigXs)
 
 	round.temp.w = wi
 	round.temp.bigWs = bigWs
