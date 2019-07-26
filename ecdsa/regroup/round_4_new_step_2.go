@@ -52,14 +52,14 @@ func (round *round4) Start() *tss.Error {
 		round.save.H1j[j], round.save.H2j[j] = msg.H1i, msg.H2i
 	}
 
-	// 1.
+	// 4.
 	newXi := big.NewInt(0)
 
-	// 2-11.
+	// 5-9.
 	modQ := common.ModInt(tss.EC().Params().N)
 	vjc := make([][]*crypto.ECPoint, round.Threshold() + 1)
 	for j := 0; j <= round.Threshold(); j++ { // P1..P_t+1. Ps are indexed from 0 here
-		// 3-4.
+		// 6-7.
 		vCj := round.temp.dgRound1OldCommitteeCommitMessages[j].VCommitment
 		vDj := round.temp.dgRound3DeCommitMessage[j].VDeCommitment
 
@@ -83,7 +83,7 @@ func (round *round4) Start() *tss.Error {
 		}
 		round.temp.OldKs = parsed[1]
 
-		// unpack flat "v" commitment content
+		// 6. unpack flat "v" commitment content
 		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}
 	    ok, flatVs := vCmtDeCmt.DeCommit()
 		if !ok || len(flatVs) != (round.NewThreshold() + 1) * 2 { // they're points so * 2
@@ -96,37 +96,18 @@ func (round *round4) Start() *tss.Error {
 		}
 		vjc[j] = vj
 
-		// 5.
-		Xj := round.temp.OldBigXj[j]
-		if !vj[0].Equals(Xj) {
-			// TODO collect culprits and return a list of them as per convention
-			return round.WrapError(errors.New("v_j0 did not equal X_j"), round.Parties().IDs()[j])
-		}
-
-		// 6.
+		// 8.
 		sharej := round.temp.dgRound3ShareMessage[j]
 		if ok := sharej.Share.Verify(round.NewThreshold(), vj); !ok {
 			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("share from old committee did not pass Verify()"), round.Parties().IDs()[j])
 		}
 
-		// 7-10.
-		iota := sharej.Share.Share
-		for c := 0; c <= round.Threshold(); c++ { // P1..P_t+1. Ps are indexed from 0 here
-			if j == c {
-				continue
-			}
-			kc, kj := round.temp.OldKs[c], round.temp.OldKs[j]
-			// big.Int Div is calculated as: a/b = a * modInv(b,q)
-			coef := modQ.Mul(kc, modQ.ModInverse(new(big.Int).Sub(kc, kj)))
-			iota = modQ.Mul(iota, coef)
-		}
-
-		// 11.
-		newXi = new(big.Int).Add(newXi, iota)
+		// 9.
+		newXi = new(big.Int).Add(newXi, sharej.Share.Share)
 	}
 
-	// 12-15.
+	// 10-13.
 	Vc := make([]*crypto.ECPoint, round.NewThreshold() + 1)
 	for c := 0; c <= round.NewThreshold(); c++ {
 		Vc[c] = vjc[0][c]
@@ -135,7 +116,12 @@ func (round *round4) Start() *tss.Error {
 		}
 	}
 
-	// 16-20.
+	// 14.
+	if !Vc[0].Equals(round.save.ECDSAPub) {
+		return round.WrapError(errors.New("assertion failed: V_0 != y"), round.PartyID())
+	}
+
+	// 15-19.
 	newKs := make([]*big.Int, 0, round.NewPartyCount())
 	NewBigXj := make([]*crypto.ECPoint, round.NewPartyCount())
 	for j := 0; j < round.NewPartyCount(); j++ {
