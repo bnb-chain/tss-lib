@@ -7,6 +7,7 @@ import (
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -33,21 +34,27 @@ func (round *round1) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	// 1.
-	newIds := round.NewParties().IDs().Keys()
-	vi, shares, err := vss.Create(round.NewThreshold(), round.key.Xi, newIds)
+	// 1. PrepareForSigning() -> w_i
+	xi := round.key.Xi
+	ks := round.key.Ks
+	bigXs := round.key.BigXj
+	newKs := round.NewParties().IDs().Keys()
+	wi, _ := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks, round.key.BigXj)
+
+	// 2.
+	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
 
-	// 2.
+	// 3.
 	flatVis, err := crypto.FlattenECPoints(vi)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
 
 	// include "Big X's" and list of indexes (k_j) known by this party in the commitment
-	flatBigXs, err := crypto.FlattenECPoints(round.key.BigXj)
+	flatBigXs, err := crypto.FlattenECPoints(bigXs)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
@@ -59,12 +66,12 @@ func (round *round1) Start() *tss.Error {
 
 	vCmt := commitments.NewHashCommitment(flatVis...)
 
-	// 3. populate temp data
+	// 4. populate temp data
 	round.temp.VD = vCmt.D
 	round.temp.XAndKD = xAndKCmt.D
 	round.temp.NewShares = shares
 
-	// 4. "broadcast" C_i to members of the NEW committee
+	// 5. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1OldCommitteeCommitMessage(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
 		round.save.ECDSAPub, vCmt.C, xAndKCmt.C)
@@ -96,6 +103,16 @@ func (round *round1) Update() (bool, *tss.Error) {
 			return false, nil
 		}
 		round.oldOK[j] = true
+
+		// save the ecdsa pub received from the old committee
+		candidate := round.temp.dgRound1OldCommitteeCommitMessages[0].ECDSAPub
+		// TODO improve this ecdsa pubkey consistency check
+		if round.save.ECDSAPub != nil &&
+			candidate != round.save.ECDSAPub {
+			// uh oh - anomaly!
+			return false, round.WrapError(errors.New("ecdsa pub did not match what we received previously"), msg.GetFrom())
+		}
+		round.save.ECDSAPub = round.temp.dgRound1OldCommitteeCommitMessages[0].ECDSAPub
 	}
 	return true, nil
 }

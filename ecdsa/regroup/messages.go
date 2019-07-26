@@ -27,6 +27,7 @@ type (
 	DGRound2NewCommitteePaillierPublicKeyMessage struct {
 		tss.MessageMetadata
 		paillierPK *paillier.PublicKey
+		paillierPf paillier.Proof
 		NTildei,
 		H1i,
 		H2i *big.Int
@@ -94,6 +95,7 @@ func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
+	paillierPf paillier.Proof,
 	NTildei,
 	H1i,
 	H2i *big.Int,
@@ -105,6 +107,7 @@ func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 			MsgType: "DGRound2NewCommitteePaillierPublicKeyMessage",
 		},
 		paillierPK: paillierPK,
+		paillierPf: paillierPf,
 		NTildei:    NTildei,
 		H1i:        H1i,
 		H2i:        H2i,

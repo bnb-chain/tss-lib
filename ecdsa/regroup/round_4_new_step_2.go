@@ -28,14 +28,28 @@ func (round *round4) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	// save NTilde_j, h1_j, h2_j recieved in NewCommitteeStep1 here
+	// 1-3. verify paillier key proofs
+	culprits := make([]*tss.PartyID, 0, len(round.NewParties().IDs())) // who caused the error(s)
+	for _, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+		proof := msg.paillierPf
+		if ok, err := proof.Verify(msg.paillierPK.N, msg.GetFrom().Key, round.save.ECDSAPub); !ok || err != nil {
+			culprits = append(culprits, msg.GetFrom())
+			common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom())
+			continue
+		}
+		common.Logger.Debugf("paillier verify passed for party %s", msg.GetFrom())
+	}
+	if len(culprits) > 0 {
+		return round.WrapError(errors.New("paillier verify failed"), culprits...)
+	}
+
+	// save NTilde_j, h1_j, h2_j received in NewCommitteeStep1 here
 	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
 		if j == i {
 			continue
 		}
 		round.save.NTildej[j] = msg.NTildei
-		round.save.H1j[j] = msg.H1i
-		round.save.H2j[j] = msg.H2i
+		round.save.H1j[j], round.save.H2j[j] = msg.H1i, msg.H2i
 	}
 
 	// 1.
@@ -142,9 +156,6 @@ func (round *round4) Start() *tss.Error {
 	round.save.Xi = newXi
 	round.save.Ks = newKs
 	round.save.Index = i
-
-	// TODO reconcile with other parties
-	round.save.ECDSAPub = round.temp.dgRound1OldCommitteeCommitMessages[0].ECDSAPub
 
 	// misc: build list of paillier public keys to save
 	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
