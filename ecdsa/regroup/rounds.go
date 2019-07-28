@@ -71,20 +71,21 @@ func (round *base) CanProceed() bool {
 
 // WaitingFor is called by a Party for reporting back to the caller
 func (round *base) WaitingFor() []*tss.PartyID {
-	Ps := round.Parties().IDs()
+	oldPs := round.OldParties().IDs()
+	newPs := round.NewParties().IDs()
 	idsMap := make(map[*tss.PartyID]bool)
 	ids := make([]*tss.PartyID, 0, len(round.oldOK))
 	for j, ok := range round.oldOK {
 		if ok {
 			continue
 		}
-		idsMap[Ps[j]] = true
+		idsMap[oldPs[j]] = true
 	}
 	for j, ok := range round.newOK {
 		if ok {
 			continue
 		}
-		idsMap[Ps[j]] = true
+		idsMap[newPs[j]] = true
 	}
 	// consolidate into the list
 	for id := range idsMap {
