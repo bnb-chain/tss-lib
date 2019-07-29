@@ -59,14 +59,17 @@ func NewDGRound1OldCommitteeCommitMessage(
 			From:    from,
 			MsgType: "DGRound1OldCommitteeCommitMessage",
 		},
-		ECDSAPub:       ecdsaPub,
+		ECDSAPub:        ecdsaPub,
 		VCommitment:     vct,
 		XAndKCommitment: xkct,
 	}
 }
 
 func (msg DGRound1OldCommitteeCommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return msg.ECDSAPub != nil &&
+		msg.VCommitment != nil &&
+		msg.XAndKCommitment != nil &&
+		msg.ECDSAPub.ValidateBasic()
 }
 
 // ----- //
@@ -86,7 +89,7 @@ func NewDGRound2NewCommitteeACKMessage(
 }
 
 func (msg DGRound2NewCommitteeACKMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return true
 }
 
 // ----- //
@@ -115,7 +118,11 @@ func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 }
 
 func (msg DGRound2NewCommitteePaillierPublicKeyMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return msg.paillierPK != nil &&
+		msg.paillierPf != nil && // TODO implement Paillier proof ValidateBasic()
+		msg.NTildei != nil &&
+		msg.H1i != nil &&
+		msg.H2i != nil
 }
 
 // ----- //
@@ -136,7 +143,9 @@ func NewDGRound3OldCommitteeShareMessage(
 }
 
 func (msg DGRound3OldCommitteeShareMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return msg.Share != nil &&
+		msg.Share.Share != nil &&
+		msg.Share.ID != nil
 }
 
 // ----- //
@@ -158,5 +167,6 @@ func NewDGRound3OldCommitteeDeCommitMessage(
 }
 
 func (msg DGRound3OldCommitteeDeCommitMessage) ValidateBasic() bool {
-	return true // TODO ValidateBasic
+	return msg.VDeCommitment != nil &&
+		msg.XAndKDeCommitment != nil
 }

@@ -59,6 +59,10 @@ func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
 	return p
 }
 
+func (p *ECPoint) ValidateBasic() bool {
+	return p != nil && len(p.coords) == 2 && p.coords[0] != nil && p.coords[1] != nil
+}
+
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
 	x, y := curve.ScalarBaseMult(k.Bytes())
 	return NewECPoint(curve, x, y)
