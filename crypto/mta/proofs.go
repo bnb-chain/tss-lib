@@ -75,7 +75,7 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	// 9.
 	modNSquared := common.ModInt(NSquared)
 	v := modNSquared.Exp(c1, alpha)
-	v = modNSquared.Mul(v, modNSquared.Exp(pk.Gamma, gamma))
+	v = modNSquared.Mul(v, modNSquared.Exp(pk.Gamma(), gamma))
 	v = modNSquared.Mul(v, modNSquared.Exp(beta, pk.N))
 
 	// 10.
@@ -206,7 +206,7 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 
 		c1ExpS1 := modNSquared.Exp(c1, pf.S1)
 		sExpN := modNSquared.Exp(pf.S, pk.N)
-		gammaExpT1 := modNSquared.Exp(pk.Gamma, pf.T1)
+		gammaExpT1 := modNSquared.Exp(pk.Gamma(), pf.T1)
 		left = modNSquared.Mul(c1ExpS1, sExpN)
 		left = modNSquared.Mul(left, gammaExpT1)
 		c2ExpE := modNSquared.Exp(c2, e)

@@ -31,7 +31,6 @@ const (
 type (
 	PublicKey struct {
 		N, PhiN *big.Int
-		Gamma   *big.Int
 	}
 
 	PrivateKey struct {
@@ -63,14 +62,11 @@ func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
 	phiN := new(big.Int).Mul(PMinus1, QMinus1)
 
-	N2 := new(big.Int).Mul(N, N)
-	gamma := random.GetRandomPositiveRelativelyPrimeInt(N2)
-
 	// lambdaN = lcm(P−1, Q−1)
 	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
 	lambdaN := new(big.Int).Div(phiN, gcd)
 
-	publicKey = &PublicKey{N: N, PhiN: phiN, Gamma: gamma}
+	publicKey = &PublicKey{N: N, PhiN: phiN}
 	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN}
 	return
 }
@@ -84,7 +80,7 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 	x = random.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
 	N2 := publicKey.NSquare()
 	// 1. gamma^m mod N2
-	Gm := new(big.Int).Exp(publicKey.Gamma, m, N2)
+	Gm := new(big.Int).Exp(publicKey.Gamma(), m, N2)
 	// 2. x^N mod N2
 	xN := new(big.Int).Exp(x, publicKey.N, N2)
 	// 3. (1) * (2) mod N2
@@ -127,7 +123,12 @@ func (publicKey *PublicKey) NSquare() *big.Int {
 
 // AsInts returns the PublicKey serialised to a slice of *big.Int for hashing
 func (publicKey *PublicKey) AsInts() []*big.Int {
-	return []*big.Int{publicKey.N, publicKey.Gamma, publicKey.PhiN}
+	return []*big.Int{publicKey.N, publicKey.Gamma(), publicKey.PhiN}
+}
+
+// Gamma returns N+1
+func (publicKey *PublicKey) Gamma() *big.Int {
+	return new(big.Int).Add(publicKey.N, one)
 }
 
 // ----- //
@@ -140,7 +141,7 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 	// 1. L(u) = (c^LambdaN-1 mod N2) / N
 	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, N2), privateKey.N)
 	// 2. L(u) = (Gamma^LambdaN-1 mod N2) / N
-	Lg := L(new(big.Int).Exp(privateKey.Gamma, privateKey.LambdaN, N2), privateKey.N)
+	Lg := L(new(big.Int).Exp(privateKey.Gamma(), privateKey.LambdaN, N2), privateKey.N)
 	// 3. (1) * modInv(2) mod N
 	inv := new(big.Int).ModInverse(Lg, privateKey.N)
 	m = common.ModInt(privateKey.N).Mul(Lc, inv)
