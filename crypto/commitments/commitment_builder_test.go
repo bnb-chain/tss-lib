@@ -20,6 +20,7 @@ func Test_builder_Secrets(t *testing.T) {
 		name   string
 		fields fields
 		want   []*big.Int
+		wantErr bool
 	}{{
 		name: "Happy path: Single part",
 		fields: fields{[][]*big.Int{
@@ -40,13 +41,27 @@ func Test_builder_Secrets(t *testing.T) {
 			two, one, two,
 			three, one, two, three,
 		},
+	}, {
+		name: "Errors: Too many parts - max is 3",
+		fields: fields{[][]*big.Int{
+			{one},
+			{one},
+			{one, two},
+			{one, two, three},
+		}},
+		wantErr: true,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &builder{
 				parts: tt.fields.parts,
 			}
-			if got := b.Secrets(); !reflect.DeepEqual(got, tt.want) {
+			got, err := b.Secrets()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("builder.Secrets() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("builder.Secrets() = %v, want %v", got, tt.want)
 			}
 		})
@@ -72,7 +87,6 @@ func TestParseSecrets(t *testing.T) {
 		want: [][]*big.Int{
 			{one},
 		},
-		wantErr: false,
 	}, {
 		name: "Happy path: Multiple parts",
 		args: args{
@@ -90,7 +104,6 @@ func TestParseSecrets(t *testing.T) {
 			{one, two},
 			{one, two, three},
 		},
-		wantErr: false,
 	}, {
 		name: "Errors: Invalid input - too short",
 		args: args{
@@ -98,7 +111,6 @@ func TestParseSecrets(t *testing.T) {
 				one, // just the length prefix, no content!
 			},
 		},
-		want:    nil,
 		wantErr: true,
 	}, {
 		name: "Errors: Invalid input - insufficient data",
@@ -108,7 +120,17 @@ func TestParseSecrets(t *testing.T) {
 				two, one, // one element is missing
 			},
 		},
-		want:    nil,
+		wantErr: true,
+	}, {
+		name: "Errors: Too many parts - max is 3",
+		args: args{
+			[]*big.Int{
+				one, one,
+				one, one,
+				one, one,
+				one, one,
+			},
+		},
 		wantErr: true,
 	}}
 	for _, tt := range tests {
@@ -118,10 +140,8 @@ func TestParseSecrets(t *testing.T) {
 				t.Errorf("ParseSecrets() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != nil {
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("ParseSecrets() = %v, want %v", got, tt.want)
-				}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseSecrets() = %v, want %v", got, tt.want)
 			}
 		})
 	}

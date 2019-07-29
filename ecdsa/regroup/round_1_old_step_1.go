@@ -60,7 +60,10 @@ func (round *round1) Start() *tss.Error {
 	}
 
 	cBuilder := commitments.NewBuilder()
-	secrets := cBuilder.AddPart(flatBigXs).AddPart(round.key.Ks).Secrets()
+	secrets, err := cBuilder.AddPart(flatBigXs).AddPart(round.key.Ks).Secrets()
+	if err != nil {
+		return round.WrapError(err, round.PartyID())
+	}
 	cmtR := round.save.ECDSAPub.X()
 	xAndKCmt := commitments.NewHashCommitmentWithRandomness(cmtR, secrets...)
 
