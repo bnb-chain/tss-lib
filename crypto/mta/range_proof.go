@@ -43,7 +43,7 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) *
 
 	// 6.
 	modNSquared := common.ModInt(pk.NSquare())
-	u := modNSquared.Exp(pk.Gamma, alpha)
+	u := modNSquared.Exp(pk.Gamma(), alpha)
 	u = modNSquared.Mul(u, modNSquared.Exp(beta, pk.N))
 
 	// 7.
@@ -102,7 +102,7 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 
 		cExpMinusE := modN2.Exp(c, minusE)
 		sExpN := modN2.Exp(pf.S, pk.N)
-		gammaExpS1 := modN2.Exp(pk.Gamma, pf.S1)
+		gammaExpS1 := modN2.Exp(pk.Gamma(), pf.S1)
 		// u != (4)
 		products = modN2.Mul(gammaExpS1, sExpN)
 		products = modN2.Mul(products, cExpMinusE)
