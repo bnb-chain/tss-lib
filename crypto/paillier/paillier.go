@@ -30,12 +30,13 @@ const (
 
 type (
 	PublicKey struct {
-		N, PhiN *big.Int
+		N *big.Int
 	}
 
 	PrivateKey struct {
 		PublicKey
-		LambdaN *big.Int // lcm(p-1, q-1)
+		LambdaN, // lcm(p-1, q-1)
+		PhiN *big.Int // (p-1) * (q-1)
 	}
 
 	// Proof uses the new GenerateXs method in GG18Spec (6)
@@ -66,8 +67,8 @@ func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
 	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
 	lambdaN := new(big.Int).Div(phiN, gcd)
 
-	publicKey = &PublicKey{N: N, PhiN: phiN}
-	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN}
+	publicKey = &PublicKey{N: N}
+	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN}
 	return
 }
 
@@ -123,7 +124,7 @@ func (publicKey *PublicKey) NSquare() *big.Int {
 
 // AsInts returns the PublicKey serialised to a slice of *big.Int for hashing
 func (publicKey *PublicKey) AsInts() []*big.Int {
-	return []*big.Int{publicKey.N, publicKey.Gamma(), publicKey.PhiN}
+	return []*big.Int{publicKey.N, publicKey.Gamma()}
 }
 
 // Gamma returns N+1
