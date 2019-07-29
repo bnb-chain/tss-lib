@@ -9,25 +9,12 @@ import (
 	. "github.com/binance-chain/tss-lib/crypto/commitments"
 )
 
-func TestCommit(t *testing.T) {
-	one := big.NewInt(1)
-	zero := big.NewInt(0)
-
-	commitment := NewHashCommitment(zero, one)
-
-	t.Log(commitment.C)
-	t.Log(commitment.D)
-}
-
-func TestVerify(t *testing.T) {
+func TestCreateVerify(t *testing.T) {
 	one := big.NewInt(1)
 	zero := big.NewInt(0)
 
 	commitment := NewHashCommitment(zero, one)
 	pass := commitment.Verify()
-
-	t.Log(commitment.C)
-	t.Log(commitment.D)
 
 	assert.True(t, pass, "must pass")
 }
@@ -38,9 +25,6 @@ func TestDeCommit(t *testing.T) {
 
 	commitment := NewHashCommitment(zero, one)
 	pass, secrets := commitment.DeCommit()
-
-	t.Log(commitment.D)
-	t.Log(commitment.C)
 
 	assert.True(t, pass, "must pass")
 
