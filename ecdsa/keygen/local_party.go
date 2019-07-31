@@ -52,8 +52,8 @@ type (
 	// Everything in LocalPartySaveData is saved locally to user's HD when done
 	LocalPartySaveData struct {
 		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int              // xi, kj
-		PaillierSk  *paillier.PrivateKey  // ski
+		Xi, ShareID *big.Int             // xi, kj
+		PaillierSk  *paillier.PrivateKey // ski
 
 		// public keys (Xj = uj*G for each Pj)
 		BigXj       []*crypto.ECPoint     // Xj
@@ -67,7 +67,7 @@ type (
 		Ks    []*big.Int
 
 		// used for test assertions (may be discarded)
-		ECDSAPub    *crypto.ECPoint       // y
+		ECDSAPub *crypto.ECPoint // y
 	}
 )
 
@@ -83,9 +83,9 @@ func NewLocalParty(
 			Out: out,
 		},
 		params: params,
-		temp: LocalPartyTempData{},
-		data: LocalPartySaveData{Index: params.PartyID().Index},
-		end:  end,
+		temp:   LocalPartyTempData{},
+		data:   LocalPartySaveData{Index: params.PartyID().Index},
+		end:    end,
 	}
 	// msgs init
 	p.temp.KGCs = make([]*cmt.HashCommitment, partyCount)
