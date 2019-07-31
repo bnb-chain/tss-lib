@@ -31,8 +31,8 @@ func (round *round4) Start() *tss.Error {
 	// 1-3. verify paillier key proofs
 	culprits := make([]*tss.PartyID, 0, len(round.NewParties().IDs())) // who caused the error(s)
 	for _, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
-		proof := msg.paillierPf
-		if ok, err := proof.Verify(msg.paillierPK.N, msg.GetFrom().Key, round.save.ECDSAPub); !ok || err != nil {
+		proof := msg.PaillierPf
+		if ok, err := proof.Verify(msg.PaillierPK.N, msg.GetFrom().Key, round.save.ECDSAPub); !ok || err != nil {
 			culprits = append(culprits, msg.GetFrom())
 			common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom())
 			continue
@@ -57,7 +57,7 @@ func (round *round4) Start() *tss.Error {
 
 	// 5-9.
 	modQ := common.ModInt(tss.EC().Params().N)
-	vjc := make([][]*crypto.ECPoint, round.Threshold() + 1)
+	vjc := make([][]*crypto.ECPoint, round.Threshold()+1)
 	for j := 0; j <= round.Threshold(); j++ { // P1..P_t+1. Ps are indexed from 0 here
 		// 6-7.
 		vCj := round.temp.dgRound1OldCommitteeCommitMessages[j].VCommitment
@@ -85,8 +85,8 @@ func (round *round4) Start() *tss.Error {
 
 		// 6. unpack flat "v" commitment content
 		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}
-	    ok, flatVs := vCmtDeCmt.DeCommit()
-		if !ok || len(flatVs) != (round.NewThreshold() + 1) * 2 { // they're points so * 2
+		ok, flatVs := vCmtDeCmt.DeCommit()
+		if !ok || len(flatVs) != (round.NewThreshold()+1)*2 { // they're points so * 2
 			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
 		}
@@ -108,7 +108,7 @@ func (round *round4) Start() *tss.Error {
 	}
 
 	// 10-13.
-	Vc := make([]*crypto.ECPoint, round.NewThreshold() + 1)
+	Vc := make([]*crypto.ECPoint, round.NewThreshold()+1)
 	for c := 0; c <= round.NewThreshold(); c++ {
 		Vc[c] = vjc[0][c]
 		for j := 1; j <= round.Threshold(); j++ {
@@ -148,7 +148,7 @@ func (round *round4) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		round.save.PaillierPks[j] = msg.paillierPK
+		round.save.PaillierPks[j] = msg.PaillierPK
 	}
 	return nil
 }

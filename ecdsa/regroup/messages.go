@@ -26,8 +26,8 @@ type (
 
 	DGRound2NewCommitteePaillierPublicKeyMessage struct {
 		tss.MessageMetadata
-		paillierPK *paillier.PublicKey
-		paillierPf paillier.Proof
+		PaillierPK *paillier.PublicKey
+		PaillierPf paillier.Proof
 		NTildei,
 		H1i,
 		H2i *big.Int
@@ -109,8 +109,8 @@ func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 			From:    from,
 			MsgType: "DGRound2NewCommitteePaillierPublicKeyMessage",
 		},
-		paillierPK: paillierPK,
-		paillierPf: paillierPf,
+		PaillierPK: paillierPK,
+		PaillierPf: paillierPf,
 		NTildei:    NTildei,
 		H1i:        H1i,
 		H2i:        H2i,
@@ -118,8 +118,8 @@ func NewDGRound2NewCommitteePaillierPublicKeyMessage(
 }
 
 func (msg DGRound2NewCommitteePaillierPublicKeyMessage) ValidateBasic() bool {
-	return msg.paillierPK != nil &&
-		msg.paillierPf != nil && // TODO implement Paillier proof ValidateBasic()
+	return msg.PaillierPK != nil &&
+		msg.PaillierPf != nil && // TODO implement Paillier proof ValidateBasic()
 		msg.NTildei != nil &&
 		msg.H1i != nil &&
 		msg.H2i != nil
