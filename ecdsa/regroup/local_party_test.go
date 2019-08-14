@@ -2,7 +2,9 @@ package regroup
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"runtime"
 	"sync/atomic"
@@ -35,77 +37,32 @@ func TestE2EConcurrent(t *testing.T) {
 
 	threshold := testThreshold
 	newThreshold := testThreshold
-
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	parties := make([]*keygen.LocalParty, 0, len(pIDs))
-
-	out := make(chan tss.Message, len(pIDs))
-	end := make(chan keygen.LocalPartySaveData, len(pIDs))
 	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 
-	// init `parties`
-	for i := 0; i < len(pIDs); i++ {
-		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
-		P := keygen.NewLocalParty(params, out, end)
-		parties = append(parties, P)
-		go func(P *keygen.LocalParty) {
-			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
-			}
-		}(P)
-	}
-
-	common.Logger.Info("[regroup.TestE2EConcurrent] Starting keygen")
-
-	// PHASE: keygen
-	var ended int32
-	for {
-		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
-		select {
-		case msg := <-out:
-			dest := msg.GetTo()
-			if dest == nil {
-				for _, P := range parties {
-					if P.PartyID().Index != msg.GetFrom().Index {
-						go func(P *keygen.LocalParty, msg tss.Message) {
-							if _, err := P.Update(msg, "keygen"); err != nil {
-								common.Logger.Errorf("Error: %s", err)
-								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-							}
-						}(P, msg)
-					}
-				}
-			} else {
-				if dest[0].Index == msg.GetFrom().Index {
-					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
-				}
-				go func(P *keygen.LocalParty) {
-					if _, err := P.Update(msg, "keygen"); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-					}
-				}(parties[dest[0].Index])
-			}
-		case save := <-end:
-			keys[save.Index] = save
-			atomic.AddInt32(&ended, 1)
-			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
-				t.Logf("Keygen done. Received save data from %d participants", ended)
-
-				// more verification of signing is implemented within local_party_test.go of keygen package
-				goto regroup
+	// PHASE: load keygen fixtures
+	for j := 0; j < len(pIDs); j++ {
+		fixtureFilePath := keygen.MakeTestFixtureFilePath(j)
+		bz, err := ioutil.ReadFile(fixtureFilePath)
+		if assert.NoErrorf(t, err,
+			"could not find a test fixture for party %d in the expected location: %s. run keygen tests first.",
+			j, fixtureFilePath) {
+			var key keygen.LocalPartySaveData
+			err = json.Unmarshal(bz, &key)
+			if assert.NoErrorf(t, err, "should unmarshal fixture data for party %d", j) {
+				keys[j] = key
+				common.Logger.Infof("Loaded test key fixture for party %d: %s", j, fixtureFilePath)
+				continue
 			}
 		}
+		t.FailNow()
 	}
 
-regroup:
 	// PHASE: regroup
 	common.Logger.Info("[regroup.TestE2EConcurrent] Starting regroup")
 
 	pIDs = pIDs[:threshold+1] // always regroup with old_t+1
-	p2pCtx = tss.NewPeerContext(pIDs)
+	p2pCtx := tss.NewPeerContext(pIDs)
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
@@ -119,8 +76,7 @@ regroup:
 	// init the old parties first
 	for i, pID := range pIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		save := keys[i]
-		P := NewLocalParty(params, save, regroupOut, nil) // discard old key data
+		P := NewLocalParty(params, keys[i], regroupOut, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties

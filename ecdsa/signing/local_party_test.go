@@ -2,7 +2,9 @@ package signing
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"runtime"
 	"sync/atomic"
@@ -31,68 +33,25 @@ func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 
 	threshold := testThreshold
-
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	parties := make([]*keygen.LocalParty, 0, len(pIDs))
-
-	out := make(chan tss.Message, len(pIDs))
-	end := make(chan keygen.LocalPartySaveData, len(pIDs))
-
 	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 
-	for i := 0; i < len(pIDs); i++ {
-		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
-		P := keygen.NewLocalParty(params, out, end)
-		parties = append(parties, P)
-		go func(P *keygen.LocalParty) {
-			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
-			}
-		}(P)
-	}
-
-	// PHASE: keygen
-	var ended int32
-keygen:
-	for {
-		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
-		select {
-		case msg := <-out:
-			dest := msg.GetTo()
-			if dest == nil {
-				for _, P := range parties {
-					if P.PartyID().Index != msg.GetFrom().Index {
-						go func(P *keygen.LocalParty, msg tss.Message) {
-							if _, err := P.Update(msg, "keygen"); err != nil {
-								common.Logger.Errorf("Error: %s", err)
-								assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-							}
-						}(P, msg)
-					}
-				}
-			} else {
-				if dest[0].Index == msg.GetFrom().Index {
-					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
-				}
-				go func(P *keygen.LocalParty) {
-					if _, err := P.Update(msg, "keygen"); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
-					}
-				}(parties[dest[0].Index])
-			}
-		case save := <-end:
-			atomic.AddInt32(&ended, 1)
-			keys[save.Index] = save
-			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
-				t.Logf("Done. Received save data from %d participants", ended)
-
-				// more verification of signing is implemented within local_party_test.go of keygen package
-				break keygen
+	// PHASE: load keygen fixtures
+	for j := 0; j < len(pIDs); j++ {
+		fixtureFilePath := keygen.MakeTestFixtureFilePath(j)
+		bz, err := ioutil.ReadFile(fixtureFilePath)
+		if assert.NoErrorf(t, err,
+			"could not find a test fixture for party %d in the expected location: %s. run keygen tests first.",
+			j, fixtureFilePath) {
+			var key keygen.LocalPartySaveData
+			err = json.Unmarshal(bz, &key)
+			if assert.NoErrorf(t, err, "should unmarshal fixture data for party %d", j) {
+				keys[j] = key
+				common.Logger.Infof("Loaded test key fixture for party %d: %s", j, fixtureFilePath)
+				continue
 			}
 		}
+		t.FailNow()
 	}
 
 	// PHASE: signing

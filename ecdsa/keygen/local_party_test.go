@@ -3,8 +3,10 @@ package keygen
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -88,10 +90,10 @@ func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	// round up to 256
 	len1 := len(lp.data.H1j[0].Bytes())
 	len2 := len(lp.data.H2j[0].Bytes())
-	if len1 % 2 != 0 {
+	if len1%2 != 0 {
 		len1 = len1 + (256 - (len1 % 256))
 	}
-	if len2 % 2 != 0 {
+	if len2%2 != 0 {
 		len2 = len2 + (256 - (len2 % 256))
 	}
 	assert.Equal(t, 256, len1, "h1 should be correct len")
@@ -100,7 +102,7 @@ func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	assert.NotZero(t, lp.data.H2j, "h2 should be non-zero")
 }
 
-func TestUpdateBadMessageCulprits(t *testing.T) {
+func TestKeygenBadMessageCulprits(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(2)
@@ -126,7 +128,7 @@ func TestUpdateBadMessageCulprits(t *testing.T) {
 		err.Error())
 }
 
-func TestE2EConcurrent(t *testing.T) {
+func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	setUp("info")
 
 	// tss.SetCurve(elliptic.P256())
@@ -186,12 +188,17 @@ func TestE2EConcurrent(t *testing.T) {
 					}
 				}(parties[dest[0].Index])
 			}
+
 		case save := <-end:
 			dmtx.Lock()
 			for _, P := range parties {
 				datas = append(datas, P.temp)
 			}
 			dmtx.Unlock()
+
+			// SAVE a test fixture file for this P (if it doesn't already exist)
+			tryWriteTestFixtureFile(t, save) // %d becomes party index
+
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
 				t.Logf("Done. Received save data from %d participants", ended)
@@ -231,7 +238,6 @@ func TestE2EConcurrent(t *testing.T) {
 						assert.NotEqual(t, BigXjX, Pj.temp.vs[0].X())
 						assert.NotEqual(t, BigXjY, Pj.temp.vs[0].Y())
 					}
-
 					u = new(big.Int).Add(u, uj)
 				}
 
@@ -280,4 +286,31 @@ func TestE2EConcurrent(t *testing.T) {
 			}
 		}
 	}
+}
+
+func tryWriteTestFixtureFile(t *testing.T, data LocalPartySaveData) {
+	index := data.Index
+	fixtureFName := MakeTestFixtureFilePath(index)
+
+	// fixture file does not already exist?
+	// if it does, we won't re-create it here
+	fi, err := os.Stat(fixtureFName)
+	if !(err == nil && fi != nil && !fi.IsDir()) {
+		fd, err := os.OpenFile(fixtureFName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			assert.NoErrorf(t, err, "unable to open fixture file %s for writing", fixtureFName)
+		}
+		bz, err := json.Marshal(&data)
+		if err != nil {
+			t.Fatalf("unable to marshal save data for fixture file %s", fixtureFName)
+		}
+		_, err = fd.Write(bz)
+		if err != nil {
+			t.Fatalf("unable to write to fixture file %s", fixtureFName)
+		}
+		t.Logf("Saved a test fixture file for party %d: %s", data.Index, fixtureFName)
+	} else {
+		t.Logf("Fixture file already exists for party %d; not re-creating: %s", data.Index, fixtureFName)
+	}
+	//
 }
