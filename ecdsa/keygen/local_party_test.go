@@ -32,7 +32,7 @@ func setUp(level string) {
 	}
 }
 
-func TestStartKeygenRound1Paillier(t *testing.T) {
+func TestStartRound1Paillier(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
@@ -52,7 +52,7 @@ func TestStartKeygenRound1Paillier(t *testing.T) {
 	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
 
-func TestStartKeygenRound1RSA(t *testing.T) {
+func TestStartRound1RSA(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
@@ -72,7 +72,7 @@ func TestStartKeygenRound1RSA(t *testing.T) {
 	assert.Equal(t, 2048/8, len(lp.data.H2j[pIDs[0].Index].Bytes()))
 }
 
-func TestFinishAndSaveKeygenH1H2(t *testing.T) {
+func TestFinishAndSaveH1H2(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
@@ -102,7 +102,7 @@ func TestFinishAndSaveKeygenH1H2(t *testing.T) {
 	assert.NotZero(t, lp.data.H2j, "h2 should be non-zero")
 }
 
-func TestKeygenBadMessageCulprits(t *testing.T) {
+func TestBadMessageCulprits(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(2)
