@@ -35,6 +35,8 @@ func setUp(level string) {
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 
+	// tss.SetCurve(elliptic.P256())
+
 	threshold := testThreshold
 	newThreshold := testThreshold
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
@@ -59,8 +61,6 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 	// PHASE: regroup
-	common.Logger.Info("[regroup.TestE2EConcurrent] Starting regroup")
-
 	pIDs = pIDs[:threshold+1] // always regroup with old_t+1
 	p2pCtx := tss.NewPeerContext(pIDs)
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
@@ -69,14 +69,16 @@ func TestE2EConcurrent(t *testing.T) {
 
 	oldCommittee := make([]*LocalParty, 0, len(pIDs))
 	newCommittee := make([]*LocalParty, 0, newPCount)
+	bothCommitteesPax := len(oldCommittee) + len(newCommittee)
 
-	regroupOut := make(chan tss.Message, len(oldCommittee)+len(newCommittee))
-	regroupEnd := make(chan keygen.LocalPartySaveData, len(newCommittee))
+	errCh := make(chan *tss.Error, bothCommitteesPax)
+	outCh := make(chan tss.Message, bothCommitteesPax)
+	endCh := make(chan keygen.LocalPartySaveData, len(newCommittee))
 
 	// init the old parties first
 	for i, pID := range pIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		P := NewLocalParty(params, keys[i], regroupOut, nil) // discard old key data
+		P := NewLocalParty(params, keys[i], outCh, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties
@@ -90,7 +92,7 @@ func TestE2EConcurrent(t *testing.T) {
 			H1j:         make([]*big.Int, newPCount),
 			H2j:         make([]*big.Int, newPCount),
 		}
-		P := NewLocalParty(params, save, regroupOut, regroupEnd)
+		P := NewLocalParty(params, save, outCh, endCh)
 		newCommittee = append(newCommittee, P)
 	}
 
@@ -98,8 +100,7 @@ func TestE2EConcurrent(t *testing.T) {
 	for _, P := range newCommittee {
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
+				errCh <- err
 			}
 		}(P)
 	}
@@ -107,8 +108,7 @@ func TestE2EConcurrent(t *testing.T) {
 	for _, P := range oldCommittee {
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
+				errCh <- err
 			}
 		}(P)
 	}
@@ -117,7 +117,12 @@ func TestE2EConcurrent(t *testing.T) {
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
-		case msg := <-regroupOut:
+		case err := <-errCh:
+			common.Logger.Errorf("Error: %s", err)
+			assert.FailNow(t, err.Error())
+			return
+
+		case msg := <-outCh:
 			dest := msg.GetTo()
 			destParties := newCommittee
 			if msg.IsToOldCommittee() {
@@ -129,12 +134,12 @@ func TestE2EConcurrent(t *testing.T) {
 			for _, destP := range dest {
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "regroup"); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+						errCh <- err
 					}
 				}(destParties[destP.Index])
 			}
-		case save := <-regroupEnd:
+
+		case save := <-endCh:
 			keys[save.Index] = save
 			atomic.AddInt32(&regroupEnded, 1)
 			if atomic.LoadInt32(&regroupEnded) == int32(len(newCommittee)) {
@@ -157,25 +162,23 @@ func TestE2EConcurrent(t *testing.T) {
 
 signing:
 	// PHASE: signing
-	common.Logger.Info("[regroup.TestE2EConcurrent] Starting signing")
-
 	keys = keys[:testThreshold+1]
 	signPIDs := newPIDs[:testThreshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
 
-	signOut := make(chan tss.Message, len(signPIDs))
-	signEnd := make(chan signing.LocalPartySignData, len(signPIDs))
+	signErrCh := make(chan *tss.Error, len(signPIDs))
+	signOutCh := make(chan tss.Message, len(signPIDs))
+	signEndCh := make(chan signing.LocalPartySignData, len(signPIDs))
 
 	for i, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
-		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOut, signEnd)
+		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOutCh, signEndCh)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
 			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
+				signErrCh <- err
 			}
 		}(P)
 	}
@@ -184,7 +187,12 @@ signing:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
-		case msg := <-signOut:
+		case err := <-signErrCh:
+			common.Logger.Errorf("Error: %s", err)
+			assert.FailNow(t, err.Error())
+			return
+
+		case msg := <-signOutCh:
 			dest := msg.GetTo()
 			if dest == nil {
 				for _, P := range signParties {
@@ -193,8 +201,7 @@ signing:
 					}
 					go func(P *signing.LocalParty, msg tss.Message) {
 						if _, err := P.Update(msg, "sign"); err != nil {
-							common.Logger.Errorf("Error: %s", err)
-							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+							signErrCh <- err
 						}
 					}(P, msg)
 				}
@@ -204,12 +211,12 @@ signing:
 				}
 				go func(P *signing.LocalParty) {
 					if _, err := P.Update(msg, "sign"); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+						signErrCh <- err
 					}
 				}(signParties[dest[0].Index])
 			}
-		case signData := <-signEnd:
+
+		case signData := <-signEndCh:
 			atomic.AddInt32(&signEnded, 1)
 			if atomic.LoadInt32(&signEnded) == int32(len(signPIDs)) {
 				t.Logf("Signing done. Received sign data from %d participants", signEnded)

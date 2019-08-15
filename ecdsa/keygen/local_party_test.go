@@ -133,25 +133,25 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	// tss.SetCurve(elliptic.P256())
 
-	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 	threshold := testThreshold
+	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 
 	p2pCtx := tss.NewPeerContext(pIDs)
 	parties := make([]*LocalParty, 0, len(pIDs))
 
-	out := make(chan tss.Message, len(pIDs))
-	end := make(chan LocalPartySaveData, len(pIDs))
+	errCh := make(chan *tss.Error, len(pIDs))
+	outCh := make(chan tss.Message, len(pIDs))
+	endCh := make(chan LocalPartySaveData, len(pIDs))
 
 	startGR := runtime.NumGoroutine()
 
 	for i := 0; i < len(pIDs); i++ {
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
-		P := NewLocalParty(params, out, end)
+		P := NewLocalParty(params, outCh, endCh)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
-				common.Logger.Errorf("Error: %s", err)
-				assert.FailNow(t, err.Error())
+				errCh <- err
 			}
 		}(P)
 	}
@@ -160,10 +160,16 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	var ended int32
 	datas := make([]LocalPartyTempData, 0, len(pIDs))
 	dmtx := sync.Mutex{}
+keygen:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
-		case msg := <-out:
+		case err := <-errCh:
+			common.Logger.Errorf("Error: %s", err)
+			assert.FailNow(t, err.Error())
+			break keygen
+
+		case msg := <-outCh:
 			dest := msg.GetTo()
 			if dest == nil {
 				for _, P := range parties {
@@ -172,8 +178,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 					}
 					go func(P *LocalParty, msg tss.Message) {
 						if _, err := P.Update(msg, "keygen"); err != nil {
-							common.Logger.Errorf("Error: %s", err)
-							assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+							errCh <- err
 						}
 					}(P, msg)
 				}
@@ -183,13 +188,12 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 				}
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "keygen"); err != nil {
-						common.Logger.Errorf("Error: %s", err)
-						assert.FailNow(t, err.Error()) // TODO fail outside goroutine
+						errCh <- err
 					}
 				}(parties[dest[0].Index])
 			}
 
-		case save := <-end:
+		case save := <-endCh:
 			dmtx.Lock()
 			for _, P := range parties {
 				datas = append(datas, P.temp)
@@ -282,7 +286,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 				t.Logf("Start goroutines: %d, End goroutines: %d", startGR, runtime.NumGoroutine())
 
-				return
+				break keygen
 			}
 		}
 	}
