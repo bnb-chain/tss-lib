@@ -158,7 +158,7 @@ func (p *LocalParty) Finish() {
 // ----- //
 
 // recovers a party's original index in the set of parties during keygen
-func (save LocalPartySaveData) Index() (int, error) {
+func (save LocalPartySaveData) OriginalIndex() (int, error) {
 	index := -1
 	ki := save.ShareID
 	for j, kj := range save.Ks {
