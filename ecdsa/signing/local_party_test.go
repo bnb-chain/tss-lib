@@ -2,9 +2,7 @@ package signing
 
 import (
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"runtime"
 	"sync/atomic"
@@ -34,25 +32,10 @@ func TestE2EConcurrent(t *testing.T) {
 
 	threshold := testThreshold
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
-	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 
 	// PHASE: load keygen fixtures
-	for j := 0; j < len(pIDs); j++ {
-		fixtureFilePath := keygen.MakeTestFixtureFilePath(j)
-		bz, err := ioutil.ReadFile(fixtureFilePath)
-		if assert.NoErrorf(t, err,
-			"could not find a test fixture for party %d in the expected location: %s. run keygen tests first.",
-			j, fixtureFilePath) {
-			var key keygen.LocalPartySaveData
-			err = json.Unmarshal(bz, &key)
-			if assert.NoErrorf(t, err, "should unmarshal fixture data for party %d", j) {
-				keys[j] = key
-				common.Logger.Infof("Loaded test key fixture for party %d: %s", j, fixtureFilePath)
-				continue
-			}
-		}
-		t.FailNow()
-	}
+	keys, err := keygen.LoadKeygenTestFixtures(len(pIDs))
+	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: signing
 	signPIDs := pIDs[:testThreshold+1]
