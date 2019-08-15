@@ -141,7 +141,6 @@ func (round *round4) Start() *tss.Error {
 	round.save.ShareID = round.PartyID().Key
 	round.save.Xi = newXi
 	round.save.Ks = newKs
-	round.save.Index = i
 
 	// misc: build list of paillier public keys to save
 	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {

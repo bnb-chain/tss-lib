@@ -63,8 +63,7 @@ type (
 		NTildej, H1j, H2j []*big.Int
 
 		// original indexes (ki in signing preparation phase)
-		Index int // added for unit test
-		Ks    []*big.Int
+		Ks []*big.Int
 
 		// used for test assertions (may be discarded)
 		ECDSAPub *crypto.ECPoint // y
@@ -84,7 +83,7 @@ func NewLocalParty(
 		},
 		params: params,
 		temp:   LocalPartyTempData{},
-		data:   LocalPartySaveData{Index: params.PartyID().Index},
+		data:   LocalPartySaveData{},
 		end:    end,
 	}
 	// msgs init
@@ -154,4 +153,23 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 func (p *LocalParty) Finish() {
 	p.end <- p.data
+}
+
+// ----- //
+
+// recovers a party's original index in the set of parties during keygen
+func (save LocalPartySaveData) OriginalIndex() (int, error) {
+	index := -1
+	ki := save.ShareID
+	for j, kj := range save.Ks {
+		if kj.Cmp(ki) != 0 {
+			continue
+		}
+		index = j
+		break
+	}
+	if index < 0 {
+		return -1, errors.New("a party index could not be recovered from Ks")
+	}
+	return index, nil
 }

@@ -123,7 +123,9 @@ func TestE2EConcurrent(t *testing.T) {
 			}
 
 		case save := <-endCh:
-			keys[save.Index] = save
+			index, err := save.OriginalIndex()
+			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
+			keys[index] = save
 			atomic.AddInt32(&regroupEnded, 1)
 			if atomic.LoadInt32(&regroupEnded) == int32(len(newCommittee)) {
 				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)

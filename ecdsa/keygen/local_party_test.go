@@ -185,6 +185,7 @@ keygen:
 			} else {
 				if dest[0].Index == msg.GetFrom().Index {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
+					return
 				}
 				go func(P *LocalParty) {
 					if _, err := P.Update(msg, "keygen"); err != nil {
@@ -201,7 +202,10 @@ keygen:
 			dmtx.Unlock()
 
 			// SAVE a test fixture file for this P (if it doesn't already exist)
-			tryWriteTestFixtureFile(t, save) // %d becomes party index
+			// .. here comes a workaround to recover this party's index (it was removed from save data)
+			index, err := save.OriginalIndex()
+			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
+			tryWriteTestFixtureFile(t, index, save) // %d becomes party index
 
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
@@ -292,29 +296,28 @@ keygen:
 	}
 }
 
-func tryWriteTestFixtureFile(t *testing.T, data LocalPartySaveData) {
-	index := data.Index
-	fixtureFName := MakeTestFixtureFilePath(index)
+func tryWriteTestFixtureFile(t *testing.T, index int, data LocalPartySaveData) {
+	fixtureFileName := MakeTestFixtureFilePath(index)
 
 	// fixture file does not already exist?
 	// if it does, we won't re-create it here
-	fi, err := os.Stat(fixtureFName)
+	fi, err := os.Stat(fixtureFileName)
 	if !(err == nil && fi != nil && !fi.IsDir()) {
-		fd, err := os.OpenFile(fixtureFName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		fd, err := os.OpenFile(fixtureFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			assert.NoErrorf(t, err, "unable to open fixture file %s for writing", fixtureFName)
+			assert.NoErrorf(t, err, "unable to open fixture file %s for writing", fixtureFileName)
 		}
 		bz, err := json.Marshal(&data)
 		if err != nil {
-			t.Fatalf("unable to marshal save data for fixture file %s", fixtureFName)
+			t.Fatalf("unable to marshal save data for fixture file %s", fixtureFileName)
 		}
 		_, err = fd.Write(bz)
 		if err != nil {
-			t.Fatalf("unable to write to fixture file %s", fixtureFName)
+			t.Fatalf("unable to write to fixture file %s", fixtureFileName)
 		}
-		t.Logf("Saved a test fixture file for party %d: %s", data.Index, fixtureFName)
+		t.Logf("Saved a test fixture file for party %d: %s", index, fixtureFileName)
 	} else {
-		t.Logf("Fixture file already exists for party %d; not re-creating: %s", data.Index, fixtureFName)
+		t.Logf("Fixture file already exists for party %d; not re-creating: %s", index, fixtureFileName)
 	}
 	//
 }
