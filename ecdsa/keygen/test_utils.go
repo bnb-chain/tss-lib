@@ -35,7 +35,8 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 		err = json.Unmarshal(bz, &key)
 		if err != nil {
 			return nil, errors.Wrapf(err,
-				"could not unmarshal fixture data for party %d located at: %s", j, fixtureFilePath)
+				"could not unmarshal fixture data for party %d located at: %s",
+				j, fixtureFilePath)
 		}
 		keys[j] = key
 	}

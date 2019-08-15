@@ -38,7 +38,7 @@ func TestE2EConcurrent(t *testing.T) {
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: signing
-	signPIDs := pIDs[:testThreshold+1]
+	signPIDs := pIDs[:threshold+1]
 
 	p2pCtx := tss.NewPeerContext(signPIDs)
 	parties := make([]*LocalParty, 0, len(signPIDs))
