@@ -205,7 +205,7 @@ keygen:
 			// .. here comes a workaround to recover this party's index (it was removed from save data)
 			index, err := save.OriginalIndex()
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-			tryWriteTestFixtureFile(t, index, save) // %d becomes party index
+			tryWriteTestFixtureFile(t, index, save)
 
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
