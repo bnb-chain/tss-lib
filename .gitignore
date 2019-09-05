@@ -2,6 +2,9 @@ build
 vendor
 .DS_Store
 
+# Built Protobufs
+**/*.pb.go
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
