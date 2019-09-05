@@ -68,6 +68,8 @@ type (
 	}
 )
 
+// ----- //
+
 func NewSignRound1MtAInitMessage(
 	to, from *tss.PartyID,
 	C *big.Int,
@@ -88,9 +90,11 @@ func (msg SignRound1MtAInitMessage) ValidateBasic() bool {
 	return msg.C != nil && msg.Pi != nil && msg.Pi.ValidateBasic()
 }
 
+// ----- //
+
 func NewSignRound1CommitMessage(
 	from *tss.PartyID,
-	Commitment cmt.HashCommitment,
+	commitment cmt.HashCommitment,
 ) SignRound1CommitMessage {
 	return SignRound1CommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -98,13 +102,15 @@ func NewSignRound1CommitMessage(
 			From:    from,
 			MsgType: "SignRound1CommitMessage",
 		},
-		Commitment: Commitment,
+		Commitment: commitment,
 	}
 }
 
 func (msg SignRound1CommitMessage) ValidateBasic() bool {
 	return msg.Commitment != nil
 }
+
+// ----- //
 
 func NewSignRound2MtAMidMessage(
 	to, from *tss.PartyID,
@@ -130,9 +136,11 @@ func (msg SignRound2MtAMidMessage) ValidateBasic() bool {
 	return msg.C1Ji != nil && msg.Pi1Ji != nil && msg.Pi1Ji.ValidateBasic() && msg.C2Ji != nil && msg.Pi2Ji != nil && msg.Pi2Ji.ValidateBasic()
 }
 
+// ----- //
+
 func NewSignRound3Message(
 	from *tss.PartyID,
-	thelta *big.Int,
+	theta *big.Int,
 ) SignRound3Message {
 	return SignRound3Message{
 		MessageMetadata: tss.MessageMetadata{
@@ -140,7 +148,7 @@ func NewSignRound3Message(
 			From:    from,
 			MsgType: "SignRound3Message",
 		},
-		Thelta: thelta,
+		Thelta: theta,
 	}
 }
 
@@ -148,9 +156,11 @@ func (msg SignRound3Message) ValidateBasic() bool {
 	return msg.Thelta != nil
 }
 
+// ----- //
+
 func NewSignRound4DecommitMessage(
 	from *tss.PartyID,
-	decommitment cmt.HashDeCommitment,
+	deCommitment cmt.HashDeCommitment,
 	proof *schnorr.ZKProof,
 ) SignRound4DecommitMessage {
 	return SignRound4DecommitMessage{
@@ -159,7 +169,7 @@ func NewSignRound4DecommitMessage(
 			From:    from,
 			MsgType: "SignRound4DecommitMessage",
 		},
-		Decommitment: decommitment,
+		Decommitment: deCommitment,
 		Proof:        proof,
 	}
 }
@@ -168,9 +178,11 @@ func (msg SignRound4DecommitMessage) ValidateBasic() bool {
 	return msg.Decommitment != nil && len(msg.Decommitment) == 3 && msg.Proof != nil && msg.Proof.ValidateBasic()
 }
 
+// ----- //
+
 func NewSignRound5CommitmentMessage(
 	from *tss.PartyID,
-	C cmt.HashCommitment,
+	commitment cmt.HashCommitment,
 ) SignRound5CommitMessage {
 	return SignRound5CommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -178,7 +190,7 @@ func NewSignRound5CommitmentMessage(
 			From:    from,
 			MsgType: "SignRound5CommitmentMessage",
 		},
-		Commitment: C,
+		Commitment: commitment,
 	}
 }
 
@@ -186,11 +198,13 @@ func (msg SignRound5CommitMessage) ValidateBasic() bool {
 	return msg.Commitment != nil
 }
 
+// ----- //
+
 func NewSignRound6DecommitMessage(
 	from *tss.PartyID,
-	D cmt.HashDeCommitment,
-	Proof *schnorr.ZKProof,
-	VProof *schnorr.ZKVProof,
+	deCommitment cmt.HashDeCommitment,
+	proof *schnorr.ZKProof,
+	vProof *schnorr.ZKVProof,
 ) SignRound6DecommitMessage {
 	return SignRound6DecommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -198,9 +212,9 @@ func NewSignRound6DecommitMessage(
 			From:    from,
 			MsgType: "SignRound6DecommitmentMessage",
 		},
-		Decommitment: D,
-		Proof:        Proof,
-		VProof:       VProof,
+		Decommitment: deCommitment,
+		Proof:        proof,
+		VProof:       vProof,
 	}
 }
 
@@ -208,9 +222,11 @@ func (msg SignRound6DecommitMessage) ValidateBasic() bool {
 	return msg.Decommitment != nil && len(msg.Decommitment) == 5 && msg.Proof != nil && msg.Proof.ValidateBasic() && msg.VProof != nil && msg.VProof.ValidateBasic()
 }
 
+// ----- //
+
 func NewSignRound7CommitMessage(
 	from *tss.PartyID,
-	C cmt.HashCommitment,
+	commitment cmt.HashCommitment,
 ) SignRound7CommitMessage {
 	return SignRound7CommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -218,7 +234,7 @@ func NewSignRound7CommitMessage(
 			From:    from,
 			MsgType: "SignRound7CommitMessage",
 		},
-		Commitment: C,
+		Commitment: commitment,
 	}
 }
 
@@ -226,9 +242,11 @@ func (msg SignRound7CommitMessage) ValidateBasic() bool {
 	return msg.Commitment != nil
 }
 
+// ----- //
+
 func NewSignRound8DecommitMessage(
 	from *tss.PartyID,
-	D cmt.HashDeCommitment,
+	deCommitment cmt.HashDeCommitment,
 ) SignRound8DecommitMessage {
 	return SignRound8DecommitMessage{
 		MessageMetadata: tss.MessageMetadata{
@@ -236,13 +254,15 @@ func NewSignRound8DecommitMessage(
 			From:    from,
 			MsgType: "SignRound8DecommitMessage",
 		},
-		Decommitment: D,
+		Decommitment: deCommitment,
 	}
 }
 
 func (msg SignRound8DecommitMessage) ValidateBasic() bool {
 	return msg.Decommitment != nil && len(msg.Decommitment) == 5
 }
+
+// ----- //
 
 func NewSignRound9SignatureMessage(
 	from *tss.PartyID,
