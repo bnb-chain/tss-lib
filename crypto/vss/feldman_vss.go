@@ -71,9 +71,9 @@ func (share *Share) Verify(threshold int, vs Vs) bool {
 	modQ := common.ModInt(tss.EC().Params().N)
 	v, t := vs[0], one // YRO : we need to have our accumulator outside of the loop
 	for j := 1; j <= threshold; j++ {
-		// t = ki^j
+		// t = k_i^j
 		t = modQ.Mul(t, share.ID)
-		// v = v * vj^t
+		// v = v * v_j^t
 		vjt := vs[j].SetCurve(tss.EC()).ScalarMult(t)
 		v, err = v.SetCurve(tss.EC()).Add(vjt)
 		if err != nil {

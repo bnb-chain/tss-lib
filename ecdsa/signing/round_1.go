@@ -42,14 +42,14 @@ func (round *round1) Start() *tss.Error {
 	round.ok[i] = true
 
 	for j, Pj := range round.Parties().IDs() {
-		c, pi, err := mta.AliceInit(round.key.PaillierPks[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
-		if err != nil {
-			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
-		}
 		if j == i {
 			continue
 		}
-		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), c, pi)
+		cA, pi, err := mta.AliceInit(round.key.PaillierPks[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		if err != nil {
+			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
+		}
+		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), cA, pi)
 		round.temp.signRound1SentMtaInitMessages[j] = &r1msg1
 		round.out <- r1msg1
 	}
