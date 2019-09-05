@@ -3,6 +3,7 @@ package common
 import (
 	"crypto"
 	_ "crypto/sha512"
+	"encoding/binary"
 	"math/big"
 )
 
@@ -20,10 +21,16 @@ func SHA512_256(in ...[]byte) []byte {
 		return nil
 	}
 	if bzSize := 0; inLen > 1 {
+		// prevent hash collisions with this prefix containing the block count
+		inLenBz := make([]byte, 64 / 8)
+		// converting between int and uint64 doesn't change the sign bit, but it may be interpreted as a larger value.
+		// this prefix is never read/interpreted, so that doesn't matter.
+		binary.LittleEndian.PutUint64(inLenBz, uint64(inLen))
 		for _, bz := range in {
 			bzSize += len(bz)
 		}
-		data = make([]byte, 0, bzSize + inLen)
+		data = make([]byte, 0, len(inLenBz) + bzSize + inLen)
+		data = append(data, inLenBz...)
 		for _, bz := range in {
 			data = append(data, bz...)
 			data = append(data, hashInputDelimiter) // safety delimiter
@@ -47,12 +54,18 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 		return nil
 	}
 	if bzSize := 0; inLen > 1 {
+		// prevent hash collisions with this prefix containing the block count
+		inLenBz := make([]byte, 64 / 8)
+		// converting between int and uint64 doesn't change the sign bit, but it may be interpreted as a larger value.
+		// this prefix is never read/interpreted, so that doesn't matter.
+		binary.LittleEndian.PutUint64(inLenBz, uint64(inLen))
 		ptrs := make([][]byte, inLen)
 		for i, int := range in {
 			ptrs[i] = int.Bytes()
 			bzSize += len(ptrs[i])
 		}
-		data = make([]byte, 0, bzSize + inLen)
+		data = make([]byte, 0, len(inLenBz) + bzSize + inLen)
+		data = append(data, inLenBz...)
 		for i := range in {
 			data = append(data, ptrs[i]...)
 			data = append(data, hashInputDelimiter) // safety delimiter
