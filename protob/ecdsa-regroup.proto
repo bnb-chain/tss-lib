@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option go_package = "ecdsa/regroup";
+
+/*
+ * The Round 1 data is broadcast to peers of the New Committee in this message.
+ */
+message DGRound1Message {
+    bytes ecdsa_pub_x = 1;
+    bytes ecdsa_pub_y = 2;
+    bytes v_commitment = 3;
+    bytes x_and_k_commitment = 4;
+}
+
+/*
+ * The Round 2 data is broadcast to other peers of the New Committee in this message.
+ */
+message DGRound2Message1 {
+    bytes paillier_n = 1;
+    repeated bytes paillier_proof = 2;
+    bytes n_tilde = 3;
+    bytes h1 = 4;
+    bytes h2 = 5;
+}
+
+/*
+ * The Round 2 "ACK" is broadcast to peers of the Old Committee in this message.
+ */
+message DGRound2Message2 {
+}
+
+/*
+ * The Round 3 data is sent to peers of the New Committee in this message.
+ */
+message DGRound3Message1 {
+    bytes share = 1;
+}
+
+/*
+ * The Round 3 data is broadcast to peers of the New Committee in this message.
+ */
+message DGRound3Message2 {
+    bytes v_decommitment = 1;
+    bytes x_and_k_decommitment = 2;
+}

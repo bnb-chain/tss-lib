@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+option go_package = "ecdsa/signing";
+
+/*
+ * The Round 1 data is sent to another peer in this message.
+ */
+message SignRound1Message1 {
+    bytes c = 1;
+    bytes proof = 2;
+}
+
+/*
+ * The Round 1 data is broadcast to other peers in this message.
+ */
+message SignRound1Message2 {
+    bytes commitment = 1;
+}
+
+/*
+ * The Round 2 data is sent to another peer in this message.
+ */
+message SignRound2Message {
+    bytes c1_j = 1;
+    bytes pi1_j = 2;
+    bytes c2_j = 3;
+    bytes pi2_j = 4;
+}
+
+/*
+ * The Round 3 data is broadcast to other peers in this message.
+ */
+message SignRound3Message {
+    bytes theta = 1;
+}
+
+/*
+ * The Round 4 data is broadcast to other peers in this message.
+ */
+message SignRound4Message {
+    repeated bytes de_commitment = 1;
+    bytes proof_alpha_x = 2;
+    bytes proof_alpha_y = 3;
+    bytes proof_t = 4;
+}
+
+/*
+ * The Round 5 data is broadcast to other peers in this message.
+ */
+message SignRound5Message {
+    bytes commitment = 1;
+}
+
+/*
+ * The Round 6 data is broadcast to other peers in this message.
+ */
+message SignRound6Message {
+    repeated bytes de_commitment = 1;
+    bytes proof_alpha_x = 2;
+    bytes proof_alpha_y = 3;
+    bytes proof_t = 4;
+    bytes v_proof_alpha_x = 5;
+    bytes v_proof_alpha_y = 6;
+    bytes v_proof_t = 7;
+    bytes v_proof_u = 8;
+}
+
+/*
+ * The Round 7 data is broadcast to other peers in this message.
+ */
+message SignRound7Message {
+    bytes commitment = 1;
+}
+
+/*
+ * The Round 8 data is broadcast to other peers in this message.
+ */
+message SignRound8Message {
+    repeated bytes de_commitment = 1;
+}
+
+/*
+ * The Round 9 data is broadcast to other peers in this message.
+ */
+message SignRound9Message {
+    bytes s = 1;
+}
