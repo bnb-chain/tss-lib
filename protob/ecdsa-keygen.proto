@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+option go_package = "ecdsa/keygen";
+
+/*
+ * Represents a BROADCAST message sent during Round 1 of the ECDSA TSS keygen protocol.
+ */
+message KGRound1Message {
+    bytes commitment = 1;
+    bytes paillier_n = 2;
+    bytes n_tilde = 3;
+    bytes h1 = 4;
+    bytes h2 = 5;
+}
+
+/*
+ * Represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol.
+ */
+message KGRound2Message1 {
+    bytes share = 1;
+}
+
+/*
+ * Represents a BROADCAST message sent to each party during Round 2 of the ECDSA TSS keygen protocol.
+ */
+message KGRound2Message2 {
+    repeated bytes de_commitment = 1;
+}
+
+/*
+ * Represents a BROADCAST message sent to each party during Round 3 of the ECDSA TSS keygen protocol.
+ */
+message KGRound3Message {
+    repeated bytes paillier_proof = 1;
+}
