@@ -11,7 +11,7 @@ import (
 func TestRejectionSample(t *testing.T) {
 	curveQ  := random.GetRandomPrimeInt(256)
 	randomQ := random.MustGetRandomInt(64)
-	hash := SHA512_256i(big.NewInt(123))
+	hash := SHA512_256iOne(big.NewInt(123))
 	rs1 := RejectionSample(curveQ, hash)
 	rs2 := RejectionSample(randomQ, hash)
 	rs3 := RejectionSample(random.MustGetRandomInt(64), hash)

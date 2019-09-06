@@ -16,7 +16,7 @@ func RejectionSample(q *big.Int, eHash *big.Int) *big.Int { // e' = eHash
 	e := firstBitsOf(qBits, eHash)
 	// while e is not between 0-q
 	for !(e.Cmp(q) == -1 && zero.Cmp(q) == -1) {
-		eHash := SHA512_256i(eHash)
+		eHash := SHA512_256iOne(eHash)
 		e = firstBitsOf(qBits, eHash)
 	}
 	return e
