@@ -35,7 +35,8 @@ func SHA512_256(in ...[]byte) []byte {
 		data = append(data, bz...)
 		data = append(data, hashInputDelimiter) // safety delimiter
 	}
-	// an error should never happen. see: https://golang.org/pkg/hash/#Hash
+	// n < len(data) or an error will never happen.
+	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
 	if _, err := state.Write(data); err != nil {
 		Logger.Errorf("SHA512_256 Write() failed: %v", err)
 		return nil
@@ -57,8 +58,8 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 	// this prefix is never read/interpreted, so that doesn't matter.
 	binary.LittleEndian.PutUint64(inLenBz, uint64(inLen))
 	ptrs := make([][]byte, inLen)
-	for i, int := range in {
-		ptrs[i] = int.Bytes()
+	for i, n := range in {
+		ptrs[i] = n.Bytes()
 		bzSize += len(ptrs[i])
 	}
 	data = make([]byte, 0, len(inLenBz) + bzSize + inLen)
@@ -67,7 +68,8 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 		data = append(data, ptrs[i]...)
 		data = append(data, hashInputDelimiter) // safety delimiter
 	}
-	// an error should never happen. see: https://golang.org/pkg/hash/#Hash
+	// n < len(data) or an error will never happen.
+	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
 	if _, err := state.Write(data); err != nil {
 		Logger.Errorf("SHA512_256i Write() failed: %v", err)
 		return nil
@@ -82,7 +84,8 @@ func SHA512_256iOne(in *big.Int) *big.Int {
 		return nil
 	}
 	data = in.Bytes()
-	// an error should never happen. see: https://golang.org/pkg/hash/#Hash
+	// n < len(data) or an error will never happen.
+	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
 	if _, err := state.Write(data); err != nil {
 		Logger.Errorf("SHA512_256iOne Write() failed: %v", err)
 		return nil
