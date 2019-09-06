@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "ecdsa/signing";
 
 /*
- * The Round 1 data is sent to another peer in this message.
+ * Represents a P2P message sent to each party during Round 1 of the ECDSA TSS signing protocol.
  */
 message SignRound1Message1 {
     bytes c = 1;
@@ -11,14 +11,14 @@ message SignRound1Message1 {
 }
 
 /*
- * The Round 1 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 1 of the ECDSA TSS signing protocol.
  */
 message SignRound1Message2 {
     bytes commitment = 1;
 }
 
 /*
- * The Round 2 data is sent to another peer in this message.
+ * Represents a P2P message sent to each party during Round 2 of the ECDSA TSS signing protocol.
  */
 message SignRound2Message {
     bytes c1_j = 1;
@@ -28,14 +28,14 @@ message SignRound2Message {
 }
 
 /*
- * The Round 3 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 3 of the ECDSA TSS signing protocol.
  */
 message SignRound3Message {
     bytes theta = 1;
 }
 
 /*
- * The Round 4 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 4 of the ECDSA TSS signing protocol.
  */
 message SignRound4Message {
     repeated bytes de_commitment = 1;
@@ -45,14 +45,14 @@ message SignRound4Message {
 }
 
 /*
- * The Round 5 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 5 of the ECDSA TSS signing protocol.
  */
 message SignRound5Message {
     bytes commitment = 1;
 }
 
 /*
- * The Round 6 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 6 of the ECDSA TSS signing protocol.
  */
 message SignRound6Message {
     repeated bytes de_commitment = 1;
@@ -66,22 +66,22 @@ message SignRound6Message {
 }
 
 /*
- * The Round 7 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 7 of the ECDSA TSS signing protocol.
  */
 message SignRound7Message {
     bytes commitment = 1;
 }
 
 /*
- * The Round 8 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 8 of the ECDSA TSS signing protocol.
  */
 message SignRound8Message {
     repeated bytes de_commitment = 1;
 }
 
 /*
- * The Round 9 data is broadcast to other peers in this message.
+ * Represents a BROADCAST message sent to all parties during Round 9 of the ECDSA TSS signing protocol.
  */
 message SignRound9Message {
-    bytes s = 1;
+    bytes signature = 1;
 }

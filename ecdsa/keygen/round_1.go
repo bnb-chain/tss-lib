@@ -23,6 +23,10 @@ const (
 	RSAModulusLen = 2048
 )
 
+var (
+	zero = big.NewInt(0)
+)
+
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{

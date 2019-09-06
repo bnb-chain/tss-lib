@@ -7,7 +7,8 @@ all: protob test
 
 protob:
 	@echo "--> Building Protocol Buffers"
-	for protocol in keygen signing regroup; do \
+	@for protocol in keygen signing regroup; do \
+		echo "Generating ecdsa-$$protocol.pb.go" ; \
 		protoc --go_out=. ./protob/ecdsa-$$protocol.proto ; \
 	done
 

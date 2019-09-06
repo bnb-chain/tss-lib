@@ -2,49 +2,50 @@ package tss
 
 import (
 	"fmt"
+
+	"github.com/golang/protobuf/proto"
 )
 
 type (
-	Message interface {
-		GetTo() []*PartyID
-		GetFrom() *PartyID
-		GetType() string
-		IsBroadcast() bool
-		IsToOldCommittee() bool
-		ValidateBasic() bool
-		String() string
-	}
-
 	MessageMetadata struct {
-		// if `To` is `nil`, the message should be broadcast to all parties.
+		// if `To` is `nil` the message should be broadcast to all parties
 		To             []*PartyID
 		From           *PartyID
 		MsgType        string
-		ToOldCommittee bool // just `true` in DGRound2NewCommitteeACKMessage (regroup)
+		ToOldCommittee bool // only `true` in DGRound2NewCommitteeACKMessage (regroup)
+	}
+
+	Message struct {
+		MessageMetadata
+		Msg proto.Message
 	}
 )
 
-func (mm MessageMetadata) GetTo() []*PartyID {
+func (mm Message) GetTo() []*PartyID {
 	return mm.To
 }
 
-func (mm MessageMetadata) GetFrom() *PartyID {
+func (mm Message) GetFrom() *PartyID {
 	return mm.From
 }
 
-func (mm MessageMetadata) GetType() string {
+func (mm Message) GetType() string {
 	return mm.MsgType
 }
 
-func (mm MessageMetadata) IsBroadcast() bool {
+func (mm Message) GetMessage() proto.Message {
+	return mm.Msg
+}
+
+func (mm Message) IsBroadcast() bool {
 	return mm.To == nil || len(mm.To) > 1
 }
 
-func (mm MessageMetadata) IsToOldCommittee() bool {
+func (mm Message) IsToOldCommittee() bool {
 	return mm.ToOldCommittee
 }
 
-func (mm MessageMetadata) String() string {
+func (mm Message) String() string {
 	toStr := "all"
 	if mm.To != nil {
 		toStr = fmt.Sprintf("%v", mm.To)
