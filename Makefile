@@ -6,23 +6,27 @@ all: protob test
 ### Protocol Buffers
 
 protob:
-	protoc --go_out=paths=source_relative:. ./protob/*.proto
+	@echo "--> Building Protocol Buffers"
+	for protocol in keygen signing regroup; do \
+		protoc --go_out=. ./protob/ecdsa-$$protocol.proto ; \
+	done
 
 build: protob
 
 ########################################
 ### Testing
 
+test_unit:
+	@echo "--> Running Unit Tests"
+	go test -race $(PACKAGES)
+
 test:
 	make test_unit
-
-test_unit:
-	go test -race $(PACKAGES)
 
 ########################################
 ### Pre Commit
 
-pre_commit: test_unit
+pre_commit: test
 
 ########################################
 
