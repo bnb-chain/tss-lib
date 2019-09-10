@@ -7,6 +7,17 @@ import (
 )
 
 type (
+	Message interface {
+		GetTo() []*PartyID
+		GetFrom() *PartyID
+		Type() string
+		Content() MessageContent
+		IsBroadcast() bool
+		IsToOldCommittee() bool
+		ValidateBasic() bool
+		String() string
+	}
+
 	MessageMetadata struct {
 		// if `To` is `nil` the message should be broadcast to all parties
 		To             []*PartyID
@@ -15,37 +26,49 @@ type (
 		ToOldCommittee bool // only `true` in DGRound2NewCommitteeACKMessage (regroup)
 	}
 
-	Message struct {
+	// MessageContent implements ValidateBasic
+	MessageContent interface {
+		proto.Message
+		ValidateBasic() bool
+	}
+
+	MessageImpl struct {
 		MessageMetadata
-		Msg proto.Message
+		Msg MessageContent
 	}
 )
 
-func (mm Message) GetTo() []*PartyID {
+var _ Message = (*MessageImpl)(nil)
+
+func (mm *MessageImpl) GetTo() []*PartyID {
 	return mm.To
 }
 
-func (mm Message) GetFrom() *PartyID {
+func (mm *MessageImpl) GetFrom() *PartyID {
 	return mm.From
 }
 
-func (mm Message) GetType() string {
+func (mm *MessageImpl) Type() string {
 	return mm.MsgType
 }
 
-func (mm Message) GetMessage() proto.Message {
+func (mm *MessageImpl) Content() MessageContent {
 	return mm.Msg
 }
 
-func (mm Message) IsBroadcast() bool {
+func (mm *MessageImpl) IsBroadcast() bool {
 	return mm.To == nil || len(mm.To) > 1
 }
 
-func (mm Message) IsToOldCommittee() bool {
+func (mm *MessageImpl) IsToOldCommittee() bool {
 	return mm.ToOldCommittee
 }
 
-func (mm Message) String() string {
+func (mm *MessageImpl) ValidateBasic() bool {
+	return mm.Msg.ValidateBasic()
+}
+
+func (mm *MessageImpl) String() string {
 	toStr := "all"
 	if mm.To != nil {
 		toStr = fmt.Sprintf("%v", mm.To)

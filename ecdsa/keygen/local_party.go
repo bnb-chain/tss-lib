@@ -32,10 +32,10 @@ type (
 
 	LocalPartyMessageStore struct {
 		// messages
-		kgRound1CommitMessages       []*KGRound1CommitMessage
-		kgRound2VssMessages          []*KGRound2VssMessage
-		kgRound2DeCommitMessages     []*KGRound2DeCommitMessage
-		kgRound3PaillierProveMessage []*KGRound3PaillierProveMessage
+		kgRound1Messages,
+		kgRound2Message1s,
+		kgRound2Message2s,
+		kgRound3Messages []tss.Message
 	}
 
 	LocalPartyTempData struct {
@@ -43,7 +43,7 @@ type (
 
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
-		KGCs          []*cmt.HashCommitment
+		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
@@ -87,11 +87,11 @@ func NewLocalParty(
 		end:    end,
 	}
 	// msgs init
-	p.temp.KGCs = make([]*cmt.HashCommitment, partyCount)
-	p.temp.kgRound1CommitMessages = make([]*KGRound1CommitMessage, partyCount)
-	p.temp.kgRound2VssMessages = make([]*KGRound2VssMessage, partyCount)
-	p.temp.kgRound2DeCommitMessages = make([]*KGRound2DeCommitMessage, partyCount)
-	p.temp.kgRound3PaillierProveMessage = make([]*KGRound3PaillierProveMessage, partyCount)
+	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
+	p.temp.kgRound1Messages = make([]tss.Message, partyCount)
+	p.temp.kgRound2Message1s = make([]tss.Message, partyCount)
+	p.temp.kgRound2Message2s = make([]tss.Message, partyCount)
+	p.temp.kgRound3Messages = make([]tss.Message, partyCount)
 	// data init
 	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
 	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
@@ -130,19 +130,19 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
-	switch m := msg.(type) {
+	switch msg.Content().(type) {
 
-	case KGRound1CommitMessage: // Round 1 broadcast messages
-		p.temp.kgRound1CommitMessages[fromPIdx] = &m
+	case *KGRound1Message:
+		p.temp.kgRound1Messages[fromPIdx] = msg
 
-	case KGRound2VssMessage: // Round 2 P2P messages
-		p.temp.kgRound2VssMessages[fromPIdx] = &m
+	case *KGRound2Message1:
+		p.temp.kgRound2Message1s[fromPIdx] = msg
 
-	case KGRound2DeCommitMessage:
-		p.temp.kgRound2DeCommitMessages[fromPIdx] = &m
+	case *KGRound2Message2:
+		p.temp.kgRound2Message2s[fromPIdx] = msg
 
-	case KGRound3PaillierProveMessage:
-		p.temp.kgRound3PaillierProveMessage[fromPIdx] = &m
+	case *KGRound3Message:
+		p.temp.kgRound3Messages[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

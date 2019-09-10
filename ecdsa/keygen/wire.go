@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	gob.RegisterName("KGRound1CommitMessage",   KGRound1CommitMessage{})
-	gob.RegisterName("KGRound2VssMessage",      KGRound2VssMessage{})
-	gob.RegisterName("KGRound2DeCommitMessage", KGRound2DeCommitMessage{})
-	gob.RegisterName("KGRound3PaillierProveMessage", KGRound3PaillierProveMessage{})
+	gob.RegisterName("KGRound1Message",   KGRound1Message{})
+	gob.RegisterName("KGRound2Message1",      KGRound2Message1{})
+	gob.RegisterName("KGRound2Message2", KGRound2Message2{})
+	gob.RegisterName("KGRound3Message", KGRound3Message{})
 }
 
 // ----- //

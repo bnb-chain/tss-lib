@@ -25,7 +25,7 @@ func TestEncodeDecodeMsg(t *testing.T) {
 	cmt := new(commitments.HashCommitment)
 	pk := new(paillier.PublicKey)
 	N := random.GetRandomPositiveInt(tss.EC().Params().N)
-	msg1 := tss.Message(NewKGRound1CommitMessage(from, *cmt, pk, N, N, N))
+	msg1 := tss.Message(NewKGRound1Message(from, *cmt, pk, N, N, N))
 	emsg1, err := EncodeMsg(msg1)
 	assert.NoError(t, err, "encode should not fail")
 

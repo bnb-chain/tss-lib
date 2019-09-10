@@ -10,7 +10,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
@@ -73,7 +73,7 @@ func (round *round1) Start() *tss.Error {
 	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
-	rsaSK, pai := <-rsaCh, <-paiCh
+	rsaSK, paiSK := <-rsaCh, <-paiCh
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
@@ -90,7 +90,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	commitment := cmt.NewHashCommitment(pGFlat...)
+	cmt := cmts.NewHashCommitment(pGFlat...)
 
 	// 9-11. compute h1, h2 (uses RSA primes)
 	if rsaSK == nil {
@@ -114,30 +114,32 @@ func (round *round1) Start() *tss.Error {
 	round.temp.shares = shares
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
-	round.save.PaillierSk = pai
-	round.save.PaillierPks[i] = &pai.PublicKey
-	round.temp.deCommitPolyG = commitment.D
+	round.save.PaillierSk = paiSK
+	round.save.PaillierPks[i] = &paiSK.PublicKey
+	round.temp.deCommitPolyG = cmt.D
 
 	// BROADCAST commitments, paillier pk + proof; round 1 message
-	r1msg := NewKGRound1CommitMessage(round.PartyID(), commitment.C, &pai.PublicKey, NTildei, h1i, h2i)
-	round.temp.kgRound1CommitMessages[i] = &r1msg
-	round.out <- r1msg
+	{
+		msg := NewKGRound1Message(round.PartyID(), cmt.C, &paiSK.PublicKey, NTildei, h1i, h2i)
+		round.temp.kgRound1Messages[i] = msg
+		round.out <- msg
+	}
 	return nil
 }
 
 func (round *round1) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*KGRound1CommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*KGRound1Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.kgRound1CommitMessages {
+	for j, msg := range round.temp.kgRound1Messages {
 		if round.ok[j] {
 			continue
 		}
-		if !round.CanAccept(msg) {
+		if msg == nil || !round.CanAccept(msg) {
 			return false, nil
 		}
 		// vss check is in round 2
