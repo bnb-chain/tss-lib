@@ -21,16 +21,16 @@ func (round *round4) Start() *tss.Error {
 	PIDs := Ps.Keys()
 	ecdsaPub := round.save.ECDSAPub
 
-	// r3 messages are assumed to be available and != nil in this function
-	r3msgs := round.temp.kgRound3PaillierProveMessage
-
 	// 1-3. (concurrent)
+	// r3 messages are assumed to be available and != nil in this function
+	r3msgs := round.temp.kgRound3Messages
 	chs := make([]chan bool, len(r3msgs))
 	for i := range chs {
 		chs[i] = make(chan bool)
 	}
-	for j, msg := range r3msgs {
+	for j, msg := range round.temp.kgRound3Messages {
 		if j == i { continue }
+		r3msg := msg.Content().(*KGRound3Message)
 		go func(prf paillier.Proof, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
 			ok, err := prf.Verify(ppk.N, PIDs[j], ecdsaPub)
@@ -40,7 +40,7 @@ func (round *round4) Start() *tss.Error {
 				return
 			}
 			ch <- ok
-		}(msg.Proof, j, chs[j])
+		}(r3msg.UnmarshalProofInts(), j, chs[j])
 	}
 
 	// consume unbuffered channels (end the goroutines)

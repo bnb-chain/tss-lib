@@ -30,7 +30,8 @@ func (round *round3) Start() *tss.Error {
 		if j == PIdx {
 			continue
 		}
-		share := round.temp.kgRound2VssMessages[j].PiShare.Share
+		r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
+		share := r2msg1.UnmarshalShare()
 		xi = new(big.Int).Add(xi, share)
 	}
 	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
@@ -61,9 +62,9 @@ func (round *round3) Start() *tss.Error {
 		go func(j int, ch chan<- vssOut) {
 			// 4-9.
 			KGCj := round.temp.KGCs[j]
-			r2msg2 := round.temp.kgRound2DeCommitMessages[j]
-			KGDj := r2msg2.DeCommitment
-			cmtDeCmt := commitments.HashCommitDecommit{C: *KGCj, D: KGDj}
+			r2msg2 := round.temp.kgRound2Message2s[j].Content().(*KGRound2Message2)
+			KGDj := r2msg2.UnmarshalDeCommitment()
+			cmtDeCmt := commitments.HashCommitDecommit{C: KGCj, D: KGDj}
 			ok, flatPolyGs := cmtDeCmt.DeCommit()
 			if !ok || flatPolyGs == nil {
 				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
@@ -74,7 +75,12 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{err, nil}
 				return
 			}
-			PjShare := round.temp.kgRound2VssMessages[j].PiShare
+			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
+			PjShare := vss.Share{
+				Threshold: round.Threshold(),
+				ID: round.PartyID().Key,
+				Share: r2msg1.UnmarshalShare(),
+			}
 			if ok = PjShare.Verify(round.Threshold(), PjVs); !ok {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
@@ -162,25 +168,25 @@ func (round *round3) Start() *tss.Error {
 	// BROADCAST paillier proof for Pi
 	ki := round.PartyID().Key
 	proof := round.save.PaillierSk.Proof(ki, ecdsaPubKey)
-	r3msg := NewKGRound3PaillierProveMessage(round.PartyID(), proof)
-	round.temp.kgRound3PaillierProveMessage[PIdx] = &r3msg
+	r3msg := NewKGRound3Message(round.PartyID(), proof)
+	round.temp.kgRound3Messages[PIdx] = r3msg
 	round.out <- r3msg
 	return nil
 }
 
 func (round *round3) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*KGRound3PaillierProveMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*KGRound3Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.kgRound3PaillierProveMessage {
+	for j, msg := range round.temp.kgRound3Messages {
 		if round.ok[j] {
 			continue
 		}
-		if !round.CanAccept(msg) {
+		if msg == nil || !round.CanAccept(msg) {
 			return false, nil
 		}
 		// proof check is in round 4

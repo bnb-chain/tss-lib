@@ -17,6 +17,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -116,7 +117,7 @@ func TestBadMessageCulprits(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	}
 
-	badMsg := NewKGRound1CommitMessage(pIDs[1], nil, nil, nil, nil, nil)
+	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
 	ok, err := lp.Update(badMsg, "keygen")
 	t.Log(err)
 	assert.False(t, ok)
@@ -124,7 +125,7 @@ func TestBadMessageCulprits(t *testing.T) {
 	assert.Equal(t, 1, len(err.Culprits()))
 	assert.Equal(t, pIDs[1], err.Culprits()[0])
 	assert.Equal(t,
-		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: KGRound1CommitMessage, From: {1,P[2]}, To: all",
+		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: KGRound1Message, From: {1,P[2]}, To: all",
 		err.Error())
 }
 
@@ -219,8 +220,14 @@ keygen:
 						if j2 == j {
 							continue
 						}
-						vssMsgs := P.temp.kgRound2VssMessages
-						pShares = append(pShares, vssMsgs[j].PiShare)
+						vssMsgs := P.temp.kgRound2Message1s
+						share := vssMsgs[j].Content().(*KGRound2Message1).Share
+						shareStruct := &vss.Share{
+							Threshold: threshold,
+							ID:        P.PartyID().Key,
+							Share:     new(big.Int).SetBytes(share),
+						}
+						pShares = append(pShares, shareStruct)
 					}
 					uj, err := pShares[:threshold+1].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")

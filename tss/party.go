@@ -59,7 +59,7 @@ func (p *BaseParty) WrapError(err error, culprits ...*PartyID) *Error {
 
 // an implementation of ValidateMessage that is shared across the different types of parties (keygen, signing, dynamic groups)
 func (p *BaseParty) ValidateMessage(msg Message) (bool, *Error) {
-	if msg == nil {
+	if msg == nil || msg.Content() == nil {
 		return false, p.WrapError(fmt.Errorf("received nil msg: %s", msg))
 	}
 	if msg.GetFrom() == nil {

@@ -15,21 +15,21 @@ const (
 )
 
 type (
-	HashCommitment   =   *big.Int
+	HashCommitment   = *big.Int
 	HashDeCommitment = []*big.Int
 
 	HashCommitDecommit struct {
 		// TODO include 256-bit random component R in D, written to C digest
-		C  HashCommitment
-		D  HashDeCommitment
+		C HashCommitment
+		D HashDeCommitment
 	}
 )
 
 func NewHashCommitmentWithRandomness(r *big.Int, secrets ...*big.Int) *HashCommitDecommit {
-	parts := make([]*big.Int, len(secrets) + 1)
+	parts := make([]*big.Int, len(secrets)+1)
 	parts[0] = r
 	for i := 1; i < len(parts); i++ {
-		parts[i] = secrets[i - 1]
+		parts[i] = secrets[i-1]
 	}
 	hash := common.SHA512_256i(parts...)
 
@@ -42,6 +42,10 @@ func NewHashCommitmentWithRandomness(r *big.Int, secrets ...*big.Int) *HashCommi
 func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
 	r := random.MustGetRandomInt(HashLength) // r
 	return NewHashCommitmentWithRandomness(r, secrets...)
+}
+
+func NewHashDeCommitmentFromBytes(marshalled [][]byte) HashDeCommitment {
+	return common.MultiBytesToBigInts(marshalled)
 }
 
 func (cmt *HashCommitDecommit) Verify() bool {
