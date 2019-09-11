@@ -126,6 +126,7 @@ func UnFlattenECPoints(curve elliptic.Curve, in []*big.Int, noCurveCheck ...bool
 }
 
 // ----- //
+// Gob helpers for if you choose to encode messages with Gob.
 
 func (p *ECPoint) GobEncode() ([]byte, error) {
 	buf := &bytes.Buffer{}
