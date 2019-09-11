@@ -43,8 +43,8 @@ func NewSignRound1Message1(
 	}
 	pfBz := proof.Bytes()
 	msg := SignRound1Message1{
-		C:          c.Bytes(),
-		ProofAlice: pfBz[:],
+		C:               c.Bytes(),
+		RangeProofAlice: pfBz[:],
 	}
 	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
@@ -52,11 +52,15 @@ func NewSignRound1Message1(
 func (m *SignRound1Message1) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyBytes(m.GetC()) &&
-		common.NonEmptyMultiBytes(m.GetProofAlice(), mta.RangeProofAliceBytesParts)
+		common.NonEmptyMultiBytes(m.GetRangeProofAlice(), mta.RangeProofAliceBytesParts)
+}
+
+func (m *SignRound1Message1) UnmarshalC() *big.Int {
+	return new(big.Int).SetBytes(m.GetC())
 }
 
 func (m *SignRound1Message1) UnmarshalRangeProofAlice() (*mta.RangeProofAlice, error) {
-	return mta.RangeProofAliceFromBytes(m.ProofAlice)
+	return mta.RangeProofAliceFromBytes(m.GetRangeProofAlice())
 }
 
 // ----- //
@@ -267,13 +271,14 @@ func (m *SignRound6Message) UnmarshalZKProof() *schnorr.ZKProof {
 		T: new(big.Int).SetBytes(m.GetProofT()),
 	}
 }
+
 func (m *SignRound6Message) UnmarshalZKVProof() *schnorr.ZKVProof {
 	return &schnorr.ZKVProof{
 		Alpha: crypto.NewECPoint(
 			tss.EC(),
-			new(big.Int).SetBytes(m.GetProofAlphaX()),
-			new(big.Int).SetBytes(m.GetProofAlphaY())),
-		T: new(big.Int).SetBytes(m.GetProofT()),
+			new(big.Int).SetBytes(m.GetVProofAlphaX()),
+			new(big.Int).SetBytes(m.GetVProofAlphaY())),
+		T: new(big.Int).SetBytes(m.GetVProofT()),
 		U: new(big.Int).SetBytes(m.GetVProofU()),
 	}
 }
@@ -288,7 +293,7 @@ func NewSignRound7Message(
 		MsgType: "SignRound7Message",
 		From:    from,
 	}
-	msg := SignRound5Message{
+	msg := SignRound7Message{
 		Commitment: commitment.Bytes(),
 	}
 	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}

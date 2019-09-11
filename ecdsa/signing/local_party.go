@@ -47,7 +47,7 @@ type (
 	LocalPartyTempData struct {
 		LocalPartyMessageStore
 
-		// temp data (thrown away after sign)
+		// temp data (thrown away after sign) / round 1
 		w,
 		m,
 		k,
@@ -55,6 +55,7 @@ type (
 		thetaInverse,
 		sigma,
 		gamma *big.Int
+		cis      []*big.Int
 		bigWs    []*crypto.ECPoint
 		point    *crypto.ECPoint
 		deCommit cmt.HashDeCommitment
@@ -115,7 +116,6 @@ func NewLocalParty(
 	}
 	// msgs init
 	p.temp.signRound1Message1s = make([]tss.Message, partyCount)
-	p.temp.signRound1Message1s = make([]tss.Message, partyCount)
 	p.temp.signRound1Message2s = make([]tss.Message, partyCount)
 	p.temp.signRound2Messages = make([]tss.Message, partyCount)
 	p.temp.signRound3Messages = make([]tss.Message, partyCount)
@@ -128,6 +128,7 @@ func NewLocalParty(
 	// data init
 	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
 	p.temp.m = msg
+	p.temp.cis = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
 	p.temp.c1jis = make([]*big.Int, partyCount)

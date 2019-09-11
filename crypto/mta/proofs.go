@@ -154,8 +154,11 @@ func ProofBobWCFromBytes(bzs [][]byte) (*ProofBobWC, error) {
 }
 
 func ProofBobFromBytes(bzs [][]byte) (*ProofBob, error) {
-	if bzs == nil || len(bzs) < ProofBobBytesParts {
-		return nil, fmt.Errorf("expected %d byte parts to construct ProofBob", ProofBobBytesParts)
+	if !common.NonEmptyMultiBytes(bzs, ProofBobBytesParts) &&
+		!common.NonEmptyMultiBytes(bzs, ProofBobWCBytesParts) {
+		return nil, fmt.Errorf(
+			"expected %d byte parts to construct ProofBob, or %d for ProofBobWC",
+			ProofBobBytesParts, ProofBobWCBytesParts)
 	}
 	return &ProofBob{
 		Z:    new(big.Int).SetBytes(bzs[0]),
