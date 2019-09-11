@@ -42,8 +42,7 @@ func GetRandomPositiveInt(lessThan *big.Int) *big.Int {
 func GetRandomPrimeInt(bits int) *big.Int {
 	try, err := rand.Prime(rand.Reader, bits)
 	if err != nil ||
-			try == nil ||
-			try.Cmp(zero) == 0 {
+		try.Cmp(zero) == 0 {
 		// fallback to older method
 		for {
 			try = MustGetRandomInt(bits)
