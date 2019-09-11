@@ -93,7 +93,7 @@ func TestProof(t *testing.T) {
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof(ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
 		// TODO add a better assertion
@@ -106,8 +106,8 @@ func TestProofVerify(t *testing.T) {
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof(ki, crypto.NewECPoint(tss.EC(), yX, yY))
-	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
+	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	assert.NoError(t, err)
 	assert.True(t, res, "proof verify result must be true")
 }
@@ -117,10 +117,10 @@ func TestProofVerifyFail(t *testing.T) {
 	ki := random.MustGetRandomInt(256)            // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
-	proof := privateKey.Proof(ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	last := proof[len(proof) - 1]
 	last.Sub(last, big.NewInt(1))
-	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPoint(tss.EC(), yX, yY))
+	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	assert.NoError(t, err)
 	assert.False(t, res, "proof verify result must be true")
 }
@@ -141,7 +141,7 @@ func TestGenerateXs(t *testing.T) {
 	sY := random.MustGetRandomInt(256)
 	N := random.GetRandomPrimeInt(2048)
 
-	xs := GenerateXs(13, k, N, crypto.NewECPoint(tss.EC(), sX, sY))
+	xs := GenerateXs(13, k, N, crypto.NewECPointNoCurveCheck(tss.EC(), sX, sY))
 	assert.Equal(t, 13, len(xs))
 	for _, xi := range xs {
 		assert.True(t, random.IsNumberInMultiplicativeGroup(N, xi))
