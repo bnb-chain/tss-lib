@@ -26,8 +26,9 @@ func (round *round7) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		cj := round.temp.signRound5CommitMessage[j].Commitment
-		dj := round.temp.signRound6DecommitMessage[j].Decommitment
+		r5msg := round.temp.signRound5Messages[j].Content().(*SignRound5Message)
+		r6msg := round.temp.signRound6Messages[j].Content().(*SignRound6Message)
+		cj, dj := r5msg.UnmarshalCommitment(), r6msg.UnmarshalDeCommitment()
 		cmtDeCmt := commitments.HashCommitDecommit{C: cj, D: dj}
 		ok, values := cmtDeCmt.DeCommit()
 		if !ok || len(values) != 4 {
@@ -44,8 +45,7 @@ func (round *round7) Start() *tss.Error {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigAj)"), Pj)
 		}
 		bigAjs[j] = bigAj
-		pijA := round.temp.signRound6DecommitMessage[j].Proof
-		pijV := round.temp.signRound6DecommitMessage[j].VProof
+		pijA, pijV := r6msg.UnmarshalZKProof(), r6msg.UnmarshalZKVProof()
 		if !pijA.Verify(bigAj) {
 			return round.WrapError(errors.New("schnorr verify for Aj failed"), Pj)
 		}
@@ -81,8 +81,8 @@ func (round *round7) Start() *tss.Error {
 	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)
 	round.temp.Ti = crypto.NewECPointNoCurveCheck(tss.EC(), TiX, TiY)
 	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
-	r7msg := NewSignRound7CommitMessage(round.PartyID(), cmt.C)
-	round.temp.signRound7CommitMessage[round.PartyID().Index] = &r7msg
+	r7msg := NewSignRound7Message(round.PartyID(), cmt.C)
+	round.temp.signRound7Messages[round.PartyID().Index] = r7msg
 	round.out <- r7msg
 	round.temp.DTelda = cmt.D
 
@@ -90,8 +90,8 @@ func (round *round7) Start() *tss.Error {
 }
 
 func (round *round7) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound7CommitMessage {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound7Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -103,10 +103,10 @@ func (round *round7) Update() (bool, *tss.Error) {
 }
 
 func (round *round7) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound7CommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound7Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round7) NextRound() tss.Round {

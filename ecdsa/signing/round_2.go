@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 
+	errorspkg "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -30,11 +32,17 @@ func (round *round2) Start() *tss.Error {
 		// Bob_mid
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
+			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
+			if err != nil {
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalRangeProofAlice failed"), Pj)
+				return
+			}
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
 				round.key.PaillierPks[j],
-				round.temp.signRound1MtAInitMessages[j].Pi,
+				rangeProofAliceJ,
 				round.temp.gamma,
-				round.temp.signRound1MtAInitMessages[j].C,
+				r1msg.UnmarshalC(),
 				round.key.NTildej[j],
 				round.key.H1j[j],
 				round.key.H2j[j],
@@ -52,11 +60,17 @@ func (round *round2) Start() *tss.Error {
 		// Bob_mid_wc
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
+			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
+			if err != nil {
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalRangeProofAlice failed"), Pj)
+				return
+			}
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
 				round.key.PaillierPks[j],
-				round.temp.signRound1MtAInitMessages[j].Pi,
+				rangeProofAliceJ,
 				round.temp.w,
-				round.temp.signRound1MtAInitMessages[j].C,
+				r1msg.UnmarshalC(),
 				round.key.NTildej[j],
 				round.key.H1j[j],
 				round.key.H2j[j],
@@ -95,8 +109,8 @@ func (round *round2) Start() *tss.Error {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound2MtAMidMessages {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound2Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -108,10 +122,10 @@ func (round *round2) Update() (bool, *tss.Error) {
 }
 
 func (round *round2) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound2MtAMidMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound2Message); ok {
+		return !msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round2) NextRound() tss.Round {

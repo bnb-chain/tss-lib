@@ -25,8 +25,9 @@ func (round *round5) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		SCj := round.temp.signRound1CommitMessages[j].Commitment
-		SDj := round.temp.signRound4DecommitMessage[j].Decommitment
+		r1msg2 := round.temp.signRound1Message2s[j].Content().(*SignRound1Message2)
+		r4msg := round.temp.signRound4Messages[j].Content().(*SignRound4Message)
+		SCj, SDj := r1msg2.UnmarshalCommitment(), r4msg.UnmarshalDeCommitment()
 		cmtDeCmt := commitments.HashCommitDecommit{C: SCj, D: SDj}
 		ok, bigGammaJ := cmtDeCmt.DeCommit()
 		if !ok || len(bigGammaJ) != 2 {
@@ -36,7 +37,7 @@ func (round *round5) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
 		}
-		ok = round.temp.signRound4DecommitMessage[j].Proof.Verify(bigGammaJPoint)
+		ok = r4msg.UnmarshalZKProof().Verify(bigGammaJPoint)
 		if !ok {
 			return round.WrapError(errors.New("failed to proof bigGamma"), Pj)
 		}
@@ -45,7 +46,8 @@ func (round *round5) Start() *tss.Error {
 			return round.WrapError(errors2.Wrapf(err, "R.Add(bigGammaJ)"), Pj)
 		}
 	}
-	R = R.ScalarMult(round.temp.thelta_inverse)
+
+	R = R.ScalarMult(round.temp.thetaInverse)
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
 	rx := R.X()
@@ -64,8 +66,8 @@ func (round *round5) Start() *tss.Error {
 	}
 
 	cmt := commitments.NewHashCommitment(bigVi.X(), bigVi.Y(), bigAi.X(), bigAi.Y())
-	r5msg := NewSignRound5CommitmentMessage(round.PartyID(), cmt.C)
-	round.temp.signRound5CommitMessage[round.PartyID().Index] = &r5msg
+	r5msg := NewSignRound5Message(round.PartyID(), cmt.C)
+	round.temp.signRound5Messages[round.PartyID().Index] = gr5msg
 	round.out <- r5msg
 
 	round.temp.li = li
@@ -82,8 +84,8 @@ func (round *round5) Start() *tss.Error {
 }
 
 func (round *round5) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound5CommitMessage {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound5Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -95,14 +97,13 @@ func (round *round5) Update() (bool, *tss.Error) {
 }
 
 func (round *round5) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound5CommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound5Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round5) NextRound() tss.Round {
 	round.started = false
 	return &round6{round}
-	return nil
 }

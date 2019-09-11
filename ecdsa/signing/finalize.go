@@ -24,7 +24,8 @@ func (round *finalization) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		sumS = modN.Add(sumS, round.temp.signRound9SignatureMessage[j].Si)
+		r9msg := round.temp.signRound9Messages[j].Content().(*SignRound9Message)
+		sumS = modN.Add(sumS, r9msg.UnmarshalS())
 	}
 
 	recid := 0

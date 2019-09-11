@@ -5,14 +5,14 @@ import (
 )
 
 func init() {
-	gob.RegisterName("SignRound1MtAInitMessage", SignRound1MtAInitMessage{})
-	gob.RegisterName("SignRound1CommitMessage", SignRound1CommitMessage{})
-	gob.RegisterName("SignRound2MtAMidMessage", SignRound2MtAMidMessage{})
+	gob.RegisterName("SignRound1Message1", SignRound1Message1{})
+	gob.RegisterName("SignRound1Message2", SignRound1Message2{})
+	gob.RegisterName("SignRound2Message", SignRound2Message{})
 	gob.RegisterName("SignRound3Message", SignRound3Message{})
-	gob.RegisterName("SignRound4DecommitMessage", SignRound4DecommitMessage{})
-	gob.RegisterName("SignRound5CommitMessage", SignRound5CommitMessage{})
-	gob.RegisterName("SignRound6DecommitMessage", SignRound6DecommitMessage{})
-	gob.RegisterName("SignRound7CommitMessage", SignRound7CommitMessage{})
-	gob.RegisterName("SignRound8DecommitMessage", SignRound8DecommitMessage{})
-	gob.RegisterName("SignRound9SignatureMessage", SignRound9SignatureMessage{})
+	gob.RegisterName("SignRound4Message", SignRound4Message{})
+	gob.RegisterName("SignRound5Message", SignRound5Message{})
+	gob.RegisterName("SignRound6Message", SignRound6Message{})
+	gob.RegisterName("SignRound7Message", SignRound7Message{})
+	gob.RegisterName("SignRound8Message", SignRound8Message{})
+	gob.RegisterName("SignRound9Message", SignRound9Message{})
 }

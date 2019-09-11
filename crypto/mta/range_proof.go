@@ -2,6 +2,7 @@ package mta
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -10,12 +11,18 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-type RangeProofAlice struct {
-	Z, U, W, S, S1, S2 *big.Int
-}
+const (
+	RangeProofAliceBytesParts = 6
+)
 
 var (
 	zero = big.NewInt(0)
+)
+
+type (
+	RangeProofAlice struct {
+		Z, U, W, S, S1, S2 *big.Int
+	}
 )
 
 // ProveRangeAlice implements Alice's range proof used in the MtA and MtAwc protocols from GG18Spec (9) Fig. 9.
@@ -75,6 +82,20 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (
 	s2 = new(big.Int).Add(s2, gamma)
 
 	return &RangeProofAlice{Z: z, U: u, W: w, S: s, S1: s1, S2: s2}, nil
+}
+
+func RangeProofAliceFromBytes(bzs [][]byte) (*RangeProofAlice, error) {
+	if bzs == nil || len(bzs) < RangeProofAliceBytesParts {
+		return nil, fmt.Errorf("expected %d byte parts to construct RangeProofAlice", RangeProofAliceBytesParts)
+	}
+	return &RangeProofAlice{
+		Z:  new(big.Int).SetBytes(bzs[0]),
+		U:  new(big.Int).SetBytes(bzs[1]),
+		W:  new(big.Int).SetBytes(bzs[2]),
+		S:  new(big.Int).SetBytes(bzs[3]),
+		S1: new(big.Int).SetBytes(bzs[4]),
+		S2: new(big.Int).SetBytes(bzs[5]),
+	}, nil
 }
 
 func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
@@ -139,4 +160,15 @@ func (pf *RangeProofAlice) ValidateBasic() bool {
 		pf.S != nil &&
 		pf.S1 != nil &&
 		pf.S2 != nil
+}
+
+func (pf *RangeProofAlice) Bytes() [RangeProofAliceBytesParts][]byte {
+	return [...][]byte{
+		pf.Z.Bytes(),
+		pf.U.Bytes(),
+		pf.W.Bytes(),
+		pf.S.Bytes(),
+		pf.S1.Bytes(),
+		pf.S2.Bytes(),
+	}
 }
