@@ -36,6 +36,9 @@ func BobMid(
 	q := tss.EC().Params().N
 	betaPrm = random.GetRandomPositiveInt(pkA.N)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
+	if err != nil {
+		return
+	}
 	cB, err = pkA.HomoMult(b, cA)
 	if err != nil {
 		return
@@ -62,6 +65,9 @@ func BobMidWC(
 	q := tss.EC().Params().N
 	betaPrm = random.GetRandomPositiveInt(pkA.N)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
+	if err != nil {
+		return
+	}
 	cB, err = pkA.HomoMult(b, cA)
 	if err != nil {
 		return
