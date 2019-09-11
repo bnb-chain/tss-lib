@@ -85,7 +85,7 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (
 }
 
 func RangeProofAliceFromBytes(bzs [][]byte) (*RangeProofAlice, error) {
-	if bzs == nil || len(bzs) < RangeProofAliceBytesParts {
+	if !common.NonEmptyMultiBytes(bzs, RangeProofAliceBytesParts) {
 		return nil, fmt.Errorf("expected %d byte parts to construct RangeProofAlice", RangeProofAliceBytesParts)
 	}
 	return &RangeProofAlice{
