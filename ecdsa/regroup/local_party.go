@@ -32,11 +32,11 @@ type (
 
 	LocalPartyMessageStore struct {
 		// messages
-		dgRound1OldCommitteeCommitMessages []*DGRound1OldCommitteeCommitMessage
-		dgRound2NewCommitteeACKMessage     []*DGRound2NewCommitteeACKMessage
-		dgRound2PaillierPublicKeyMessage   []*DGRound2NewCommitteePaillierPublicKeyMessage
-		dgRound3ShareMessage               []*DGRound3OldCommitteeShareMessage
-		dgRound3DeCommitMessage            []*DGRound3OldCommitteeDeCommitMessage
+		dgRound1Messages,
+		dgRound2Message1s,
+		dgRound2Message2s,
+		dgRound3Message1s,
+		dgRound3Message2s []tss.Message
 	}
 
 	LocalPartyTempData struct {
@@ -69,11 +69,11 @@ func NewLocalParty(
 		end:    end,
 	}
 	// msgs init
-	p.temp.dgRound1OldCommitteeCommitMessages = make([]*DGRound1OldCommitteeCommitMessage, params.Threshold()+1)
-	p.temp.dgRound2NewCommitteeACKMessage = make([]*DGRound2NewCommitteeACKMessage, params.NewPartyCount())
-	p.temp.dgRound2PaillierPublicKeyMessage = make([]*DGRound2NewCommitteePaillierPublicKeyMessage, params.NewPartyCount())
-	p.temp.dgRound3ShareMessage = make([]*DGRound3OldCommitteeShareMessage, params.Threshold()+1)
-	p.temp.dgRound3DeCommitMessage = make([]*DGRound3OldCommitteeDeCommitMessage, params.Threshold()+1)
+	p.temp.dgRound1Messages = make([]tss.Message, params.Threshold()+1)    // from t+1 of Old Committee
+	p.temp.dgRound2Message1s = make([]tss.Message, params.NewPartyCount()) // from n of New Committee
+	p.temp.dgRound2Message2s = make([]tss.Message, params.NewPartyCount()) // "
+	p.temp.dgRound3Message1s = make([]tss.Message, params.Threshold()+1)   // from t+1 of Old Committee
+	p.temp.dgRound3Message2s = make([]tss.Message, params.Threshold()+1)   // "
 	// round init
 	round := newRound1(params, &p.key, &p.key, &p.temp, out)
 	p.Round = round
@@ -110,21 +110,21 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
-	switch m := msg.(type) {
-	case DGRound1OldCommitteeCommitMessage: // Round 1 broadcast messages
-		p.temp.dgRound1OldCommitteeCommitMessages[fromPIdx] = &m
+	switch msg.Content().(type) {
+	case *DGRound1Message:
+		p.temp.dgRound1Messages[fromPIdx] = msg
 
-	case DGRound2NewCommitteeACKMessage:
-		p.temp.dgRound2NewCommitteeACKMessage[fromPIdx] = &m
+	case *DGRound2Message1:
+		p.temp.dgRound2Message1s[fromPIdx] = msg
 
-	case DGRound2NewCommitteePaillierPublicKeyMessage:
-		p.temp.dgRound2PaillierPublicKeyMessage[fromPIdx] = &m
+	case *DGRound2Message2:
+		p.temp.dgRound2Message2s[fromPIdx] = msg
 
-	case DGRound3OldCommitteeShareMessage:
-		p.temp.dgRound3ShareMessage[fromPIdx] = &m
+	case *DGRound3Message1:
+		p.temp.dgRound3Message1s[fromPIdx] = msg
 
-	case DGRound3OldCommitteeDeCommitMessage:
-		p.temp.dgRound3DeCommitMessage[fromPIdx] = &m
+	case *DGRound3Message2:
+		p.temp.dgRound3Message2s[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

@@ -9,6 +9,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -32,9 +33,10 @@ func (round *round4) Start() *tss.Error {
 
 	// 1-3. verify paillier key proofs
 	culprits := make([]*tss.PartyID, 0, len(round.NewParties().IDs())) // who caused the error(s)
-	for _, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
-		proof := msg.PaillierPf
-		if ok, err := proof.Verify(msg.PaillierPK.N, msg.GetFrom().Key, round.save.ECDSAPub); !ok || err != nil {
+	for _, msg := range round.temp.dgRound2Message1s {
+		r2msg1 := msg.Content().(*DGRound2Message1)
+		paiPK, proof := r2msg1.UnmarshalPaillierPK(), r2msg1.UnmarshalPaillierProof()
+		if ok, err := proof.Verify(paiPK.N, msg.GetFrom().Key, round.save.ECDSAPub); !ok || err != nil {
 			culprits = append(culprits, msg.GetFrom())
 			common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom())
 			continue
@@ -46,12 +48,14 @@ func (round *round4) Start() *tss.Error {
 	}
 
 	// save NTilde_j, h1_j, h2_j received in NewCommitteeStep1 here
-	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+	for j, msg := range round.temp.dgRound2Message1s {
 		if j == i {
 			continue
 		}
-		round.save.NTildej[j] = msg.NTildei
-		round.save.H1j[j], round.save.H2j[j] = msg.H1i, msg.H2i
+		r2msg1 := msg.Content().(*DGRound2Message1)
+		round.save.NTildej[j] = new(big.Int).SetBytes(r2msg1.NTilde)
+		round.save.H1j[j] = new(big.Int).SetBytes(r2msg1.H1)
+		round.save.H2j[j] = new(big.Int).SetBytes(r2msg1.H2)
 	}
 
 	// 4.
@@ -62,11 +66,11 @@ func (round *round4) Start() *tss.Error {
 	vjc := make([][]*crypto.ECPoint, round.Threshold()+1)
 	for j := 0; j <= round.Threshold(); j++ { // P1..P_t+1. Ps are indexed from 0 here
 		// 6-7.
-		vCj := round.temp.dgRound1OldCommitteeCommitMessages[j].VCommitment
-		vDj := round.temp.dgRound3DeCommitMessage[j].VDeCommitment
+		r1msg := round.temp.dgRound1Messages[j].Content().(*DGRound1Message)
+		r3msg2 := round.temp.dgRound3Message2s[j].Content().(*DGRound3Message2)
 
-		xAndKCj := round.temp.dgRound1OldCommitteeCommitMessages[j].XAndKCommitment
-		xAndKDj := round.temp.dgRound3DeCommitMessage[j].XAndKDeCommitment
+		vCj, vDj := r1msg.UnmarshalVCommitment(), r3msg2.UnmarshalVDeCommitment()
+		xAndKCj, xAndKDj := r1msg.UnmarshalXAndKCommitment(), r3msg2.UnmarshalXAndKDeCommitment()
 
 		// unpack compound commitment content (points are flattened and everything from round 1 was serialized together)
 		xAndKCmtDeCmt := commitments.HashCommitDecommit{C: xAndKCj, D: xAndKDj}
@@ -99,14 +103,19 @@ func (round *round4) Start() *tss.Error {
 		vjc[j] = vj
 
 		// 8.
-		sharej := round.temp.dgRound3ShareMessage[j]
-		if ok := sharej.Share.Verify(round.NewThreshold(), vj); !ok {
+		r3msg1 := round.temp.dgRound3Message1s[j].Content().(*DGRound3Message1)
+		sharej := &vss.Share{
+			Threshold: round.NewThreshold(),
+			ID:        round.PartyID().Key,
+			Share:     new(big.Int).SetBytes(r3msg1.Share),
+		}
+		if ok := sharej.Verify(round.NewThreshold(), vj); !ok {
 			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("share from old committee did not pass Verify()"), round.Parties().IDs()[j])
 		}
 
 		// 9.
-		newXi = new(big.Int).Add(newXi, sharej.Share.Share)
+		newXi = new(big.Int).Add(newXi, sharej.Share)
 	}
 
 	// 10-13.
@@ -158,11 +167,12 @@ func (round *round4) Start() *tss.Error {
 	round.save.Ks = newKs
 
 	// misc: build list of paillier public keys to save
-	for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+	for j, msg := range round.temp.dgRound2Message1s {
 		if j == i {
 			continue
 		}
-		round.save.PaillierPks[j] = msg.PaillierPK
+		r2msg1 := msg.Content().(*DGRound2Message1)
+		round.save.PaillierPks[j] = r2msg1.UnmarshalPaillierPK()
 	}
 	return nil
 }

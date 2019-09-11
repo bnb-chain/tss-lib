@@ -22,9 +22,10 @@ func (round *round9) Start() *tss.Error {
 			continue
 		}
 
-		cj := round.temp.signRound7CommitMessage[j].Commitment
-		dj := round.temp.signRound8DecommitMessage[j].Decommitment
-		cmt := commitments.HashCommitDecommit{cj, dj}
+		r7msg := round.temp.signRound7Messages[j].Content().(*SignRound7Message)
+		r8msg := round.temp.signRound8Messages[j].Content().(*SignRound8Message)
+		cj, dj := r7msg.UnmarshalCommitment(), r8msg.UnmarshalDeCommitment()
+		cmt := commitments.HashCommitDecommit{C: cj, D: dj}
 		ok, values := cmt.DeCommit()
 		if !ok && len(values) != 4 {
 			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
@@ -37,15 +38,15 @@ func (round *round9) Start() *tss.Error {
 		return round.WrapError(errors.New("U doesn't equal T"), round.PartyID())
 	}
 
-	r9msg := NewSignRound9SignatureMessage(round.PartyID(), round.temp.si)
-	round.temp.signRound9SignatureMessage[round.PartyID().Index] = &r9msg
+	r9msg := NewSignRound9Message(round.PartyID(), round.temp.si)
+	round.temp.signRound9Messages[round.PartyID().Index] = r9msg
 	round.out <- r9msg
 	return nil
 }
 
 func (round *round9) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound9SignatureMessage {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound9Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -57,10 +58,10 @@ func (round *round9) Update() (bool, *tss.Error) {
 }
 
 func (round *round9) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound9SignatureMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound9Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round9) NextRound() tss.Round {

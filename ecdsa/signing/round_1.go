@@ -49,28 +49,31 @@ func (round *round1) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
-		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), cA, pi)
-		round.temp.signRound1SentMtaInitMessages[j] = &r1msg1
+		r1msg1 := NewSignRound1Message1(Pj, round.PartyID(), cA, pi)
+		round.temp.signRound1Message1s[j] = r1msg1
+		if j == i {
+			continue
+		}
 		round.out <- r1msg1
 	}
 
-	r1msg2 := NewSignRound1CommitMessage(round.PartyID(), cmt.C)
-	round.temp.signRound1CommitMessages[i] = &r1msg2
+	r1msg2 := NewSignRound1Message2(round.PartyID(), cmt.C)
+	round.temp.signRound1Message2s[i] = r1msg2
 	round.out <- r1msg2
 
 	return nil
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound1MtAInitMessages {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound1Message1s {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
 			return false, nil
 		}
-		msg2 := round.temp.signRound1CommitMessages[j]
-		if !round.CanAccept(msg2) {
+		msg2 := round.temp.signRound1Message2s[j]
+		if msg2 == nil || !round.CanAccept(msg2) {
 			return false, nil
 		}
 		round.ok[j] = true
@@ -79,12 +82,13 @@ func (round *round1) Update() (bool, *tss.Error) {
 }
 
 func (round *round1) CanAccept(msg tss.Message) bool {
-	if msg1, ok := msg.(*SignRound1MtAInitMessage); !ok || msg1 == nil {
-		if msg2, ok := msg.(*SignRound1CommitMessage); !ok || msg2 == nil {
-			return false
-		}
+	if _, ok := msg.Content().(*SignRound1Message1); ok {
+		return !msg.IsBroadcast()
 	}
-	return true
+	if _, ok := msg.Content().(*SignRound1Message2); ok {
+		return msg.IsBroadcast()
+	}
+	return false
 }
 
 func (round *round1) NextRound() tss.Round {

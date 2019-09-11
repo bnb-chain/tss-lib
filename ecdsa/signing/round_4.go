@@ -2,6 +2,7 @@ package signing
 
 import (
 	"errors"
+	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
@@ -19,8 +20,8 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	thelta := *round.temp.thelta
-	theltaInverse := &thelta
+	theta := *round.temp.theta
+	thetaInverse := &theta
 
 	modN := common.ModInt(tss.EC().Params().N)
 
@@ -28,28 +29,29 @@ func (round *round4) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		theltaJ := round.temp.signRound3Messages[j].Thelta
-		theltaInverse = modN.Add(theltaInverse, theltaJ)
+		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
+		theltaJ := r3msg.GetTheta()
+		thetaInverse = modN.Add(thetaInverse, new(big.Int).SetBytes(theltaJ))
 	}
 
 	// compute the multiplicative inverse thelta mod q
-	theltaInverse = modN.ModInverse(theltaInverse)
-  bigGamma := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
+	thetaInverse = modN.ModInverse(thetaInverse)
+	bigGamma := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
 	piGamma, err := schnorr.NewZKProof(round.temp.gamma, bigGamma)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(gamma, bigGamma)"))
 	}
-	round.temp.thelta_inverse = theltaInverse
-	r4msg := NewSignRound4DecommitMessage(round.PartyID(), round.temp.deCommit, piGamma)
-	round.temp.signRound4DecommitMessage[round.PartyID().Index] = &r4msg
+	round.temp.thetaInverse = thetaInverse
+	r4msg := NewSignRound4Message(round.PartyID(), round.temp.deCommit, piGamma)
+	round.temp.signRound4Messages[round.PartyID().Index] = r4msg
 	round.out <- r4msg
 
 	return nil
 }
 
 func (round *round4) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound4DecommitMessage {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound4Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -61,10 +63,10 @@ func (round *round4) Update() (bool, *tss.Error) {
 }
 
 func (round *round4) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound4DecommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound4Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round4) NextRound() tss.Round {

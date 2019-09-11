@@ -14,16 +14,16 @@ func (round *round8) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	r8msg := NewSignRound8DecommitMessage(round.PartyID(), round.temp.DTelda)
-	round.temp.signRound8DecommitMessage[round.PartyID().Index] = &r8msg
+	r8msg := NewSignRound8Message(round.PartyID(), round.temp.DTelda)
+	round.temp.signRound8Messages[round.PartyID().Index] = r8msg
 	round.out <- r8msg
 
 	return nil
 }
 
 func (round *round8) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound8DecommitMessage {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound8Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -35,10 +35,10 @@ func (round *round8) Update() (bool, *tss.Error) {
 }
 
 func (round *round8) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound8DecommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound8Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round8) NextRound() tss.Round {

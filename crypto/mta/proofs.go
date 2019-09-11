@@ -2,6 +2,7 @@ package mta
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -9,6 +10,11 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
+)
+
+const (
+	ProofBobBytesParts   = 10
+	ProofBobWCBytesParts = 12
 )
 
 type (
@@ -134,6 +140,37 @@ func ProveBob(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) 
 	return pf.ProofBob, nil
 }
 
+func ProofBobWCFromBytes(bzs [][]byte) (*ProofBobWC, error) {
+	proofBob, err := ProofBobFromBytes(bzs)
+	if err != nil {
+		return nil, err
+	}
+	return &ProofBobWC{
+		ProofBob: proofBob,
+		U: crypto.NewECPoint(tss.EC(),
+			new(big.Int).SetBytes(bzs[10]),
+			new(big.Int).SetBytes(bzs[11])),
+	}, nil
+}
+
+func ProofBobFromBytes(bzs [][]byte) (*ProofBob, error) {
+	if bzs == nil || len(bzs) < ProofBobBytesParts {
+		return nil, fmt.Errorf("expected %d byte parts to construct ProofBob", ProofBobBytesParts)
+	}
+	return &ProofBob{
+		Z:    new(big.Int).SetBytes(bzs[0]),
+		ZPrm: new(big.Int).SetBytes(bzs[1]),
+		T:    new(big.Int).SetBytes(bzs[2]),
+		V:    new(big.Int).SetBytes(bzs[3]),
+		W:    new(big.Int).SetBytes(bzs[4]),
+		S:    new(big.Int).SetBytes(bzs[5]),
+		S1:   new(big.Int).SetBytes(bzs[6]),
+		S2:   new(big.Int).SetBytes(bzs[7]),
+		T1:   new(big.Int).SetBytes(bzs[8]),
+		T2:   new(big.Int).SetBytes(bzs[9]),
+	}, nil
+}
+
 // ProveBobWC.Verify implements verification of Bob's proof with check "VerifyMtawc_Bob" used in the MtA protocol from GG18Spec (9) Fig. 10.
 // an absent `X` verifies a proof generated without the X consistency check X = g^x
 func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big.Int, X *crypto.ECPoint) bool {
@@ -242,4 +279,29 @@ func (pf *ProofBob) ValidateBasic() bool {
 
 func (pf *ProofBobWC) ValidateBasic() bool {
 	return pf.ProofBob.ValidateBasic() && pf.U != nil
+}
+
+func (pf *ProofBob) Bytes() [ProofBobBytesParts][]byte {
+	return [...][]byte{
+		pf.Z.Bytes(),
+		pf.ZPrm.Bytes(),
+		pf.T.Bytes(),
+		pf.V.Bytes(),
+		pf.W.Bytes(),
+		pf.S.Bytes(),
+		pf.S1.Bytes(),
+		pf.S2.Bytes(),
+		pf.T1.Bytes(),
+		pf.T2.Bytes(),
+	}
+}
+
+func (pf *ProofBobWC) Bytes() [ProofBobWCBytesParts][]byte {
+	var out [12][]byte
+	bobBzs := pf.ProofBob.Bytes()
+	bobBzsSlice := bobBzs[:]
+	bobBzsSlice = append(bobBzsSlice, pf.U.X().Bytes())
+	bobBzsSlice = append(bobBzsSlice, pf.U.Y().Bytes())
+	copy(out[:], bobBzsSlice[:12])
+	return out
 }

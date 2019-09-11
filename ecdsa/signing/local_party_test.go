@@ -113,7 +113,7 @@ signing:
 				}
 				sumTheta := big.NewInt(0)
 				for _, p := range parties {
-					sumTheta = modN.Add(sumTheta, p.temp.thelta)
+					sumTheta = modN.Add(sumTheta, p.temp.theta)
 				}
 				assert.Equal(t, sumTheta, modN.Mul(sumGamma, sumK))
 				sumKInverse := modN.ModInverse(sumK)

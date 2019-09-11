@@ -40,6 +40,6 @@ message DGRound3Message1 {
  * The Round 3 data is broadcast to peers of the New Committee in this message.
  */
 message DGRound3Message2 {
-    bytes v_decommitment = 1;
-    bytes x_and_k_decommitment = 2;
+    repeated bytes v_decommitment = 1;
+    repeated bytes x_and_k_decommitment = 2;
 }

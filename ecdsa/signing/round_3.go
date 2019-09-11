@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"sync"
 
+	errorspkg "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/tss"
@@ -34,13 +36,19 @@ func (round *round3) Start() *tss.Error {
 		// Alice_end
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
+			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
+			proofBob, err := r2msg.UnmarshalProofBob()
+			if err != nil {
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBob failed"), Pj)
+				return
+			}
 			alphaIj, err := mta.AliceEnd(
 				round.key.PaillierPks[i],
-				round.temp.signRound2MtAMidMessages[j].Pi1Ji,
+				proofBob,
 				round.key.H1j[i],
 				round.key.H2j[i],
-				round.temp.signRound1SentMtaInitMessages[j].C,
-				round.temp.signRound2MtAMidMessages[j].C1Ji,
+				round.temp.cis[j],
+				new(big.Int).SetBytes(r2msg.GetC1()),
 				round.key.NTildej[i],
 				round.key.PaillierSk)
 			alphas[j] = alphaIj
@@ -51,12 +59,18 @@ func (round *round3) Start() *tss.Error {
 		// Alice_end_wc
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
+			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
+			proofBobWC, err := r2msg.UnmarshalProofBobWC()
+			if err != nil {
+				errCh <- rsound.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBobWC failed"), Pj)
+				return
+			}
 			uIj, err := mta.AliceEndWC(
 				round.key.PaillierPks[i],
-				round.temp.signRound2MtAMidMessages[j].Pi2Ji,
+				proofBobWC,
 				round.temp.bigWs[j],
-				round.temp.signRound1SentMtaInitMessages[j].C,
-				round.temp.signRound2MtAMidMessages[j].C2Ji,
+				round.temp.cis[j],
+				new(big.Int).SetBytes(r2msg.GetC2()),
 				round.key.NTildej[i],
 				round.key.H1j[i],
 				round.key.H2j[i],

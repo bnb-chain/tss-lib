@@ -3,137 +3,126 @@ package signing
 import (
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/crypto/schnorr"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-type (
-	SignRound1MtAInitMessage struct {
-		tss.MessageMetadata
-		C  *big.Int
-		Pi *mta.RangeProofAlice
-	}
+// These messages were generated from Protocol Buffers definitions into ecdsa-signing.pb.go
 
-	SignRound1CommitMessage struct {
-		tss.MessageMetadata
-		Commitment cmt.HashCommitment
-	}
-
-	SignRound2MtAMidMessage struct {
-		tss.MessageMetadata
-		C1Ji  *big.Int
-		Pi1Ji *mta.ProofBob
-		C2Ji  *big.Int
-		Pi2Ji *mta.ProofBobWC
-	}
-
-	SignRound3Message struct {
-		tss.MessageMetadata
-		Thelta *big.Int
-	}
-
-	SignRound4DecommitMessage struct {
-		tss.MessageMetadata
-		Decommitment cmt.HashDeCommitment
-		Proof        *schnorr.ZKProof
-	}
-
-	SignRound5CommitMessage struct {
-		tss.MessageMetadata
-		Commitment cmt.HashCommitment
-	}
-
-	SignRound6DecommitMessage struct {
-		tss.MessageMetadata
-		Decommitment cmt.HashDeCommitment
-		Proof        *schnorr.ZKProof
-		VProof       *schnorr.ZKVProof
-	}
-
-	SignRound7CommitMessage struct {
-		tss.MessageMetadata
-		Commitment cmt.HashCommitment
-	}
-
-	SignRound8DecommitMessage struct {
-		tss.MessageMetadata
-		Decommitment cmt.HashDeCommitment
-	}
-
-	SignRound9SignatureMessage struct {
-		tss.MessageMetadata
-		Si *big.Int
+var (
+	// Ensure that signing messages implement ValidateBasic
+	_ = []tss.MessageContent{
+		(*SignRound1Message1)(nil),
+		(*SignRound1Message2)(nil),
+		(*SignRound2Message)(nil),
+		(*SignRound3Message)(nil),
+		(*SignRound4Message)(nil),
+		(*SignRound5Message)(nil),
+		(*SignRound6Message)(nil),
+		(*SignRound7Message)(nil),
+		(*SignRound8Message)(nil),
+		(*SignRound9Message)(nil),
 	}
 )
 
 // ----- //
 
-func NewSignRound1MtAInitMessage(
+func NewSignRound1Message1(
 	to, from *tss.PartyID,
-	C *big.Int,
-	Pi *mta.RangeProofAlice,
-) SignRound1MtAInitMessage {
-	return SignRound1MtAInitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      []*tss.PartyID{to},
-			From:    from,
-			MsgType: "SignRound1MtAInitMessage",
-		},
-		C:  C,
-		Pi: Pi,
+	c *big.Int,
+	proof *mta.RangeProofAlice,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound1Message1",
+		From:    from,
+		To:      []*tss.PartyID{to},
 	}
+	pfBz := proof.Bytes()
+	msg := SignRound1Message1{
+		C:          c.Bytes(),
+		ProofAlice: pfBz[:],
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound1MtAInitMessage) ValidateBasic() bool {
-	return msg.C != nil && msg.Pi != nil && msg.Pi.ValidateBasic()
+func (m *SignRound1Message1) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.GetC()) &&
+		common.NonEmptyMultiBytes(m.GetProofAlice(), mta.RangeProofAliceBytesParts)
+}
+
+func (m *SignRound1Message1) UnmarshalRangeProofAlice() (*mta.RangeProofAlice, error) {
+	return mta.RangeProofAliceFromBytes(m.ProofAlice)
 }
 
 // ----- //
 
-func NewSignRound1CommitMessage(
+func NewSignRound1Message2(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
-) SignRound1CommitMessage {
-	return SignRound1CommitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound1CommitMessage",
-		},
-		Commitment: commitment,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound1Message2",
+		From:    from,
 	}
+	msg := SignRound1Message2{
+		Commitment: commitment.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound1CommitMessage) ValidateBasic() bool {
-	return msg.Commitment != nil
+func (m *SignRound1Message2) ValidateBasic() bool {
+	return m.Commitment != nil &&
+		common.NonEmptyBytes(m.GetCommitment())
+}
+
+func (m *SignRound1Message2) UnmarshalCommitment() *big.Int {
+	return new(big.Int).SetBytes(m.GetCommitment())
 }
 
 // ----- //
 
-func NewSignRound2MtAMidMessage(
+func NewSignRound2Message(
 	to, from *tss.PartyID,
 	c1Ji *big.Int,
 	pi1Ji *mta.ProofBob,
 	c2Ji *big.Int,
 	pi2Ji *mta.ProofBobWC,
-) SignRound2MtAMidMessage {
-	return SignRound2MtAMidMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      []*tss.PartyID{to},
-			From:    from,
-			MsgType: "SignRound2MtAMidMessage",
-		},
-		C1Ji:  c1Ji,
-		Pi1Ji: pi1Ji,
-		C2Ji:  c2Ji,
-		Pi2Ji: pi2Ji,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound2Message",
+		From:    from,
+		To:      []*tss.PartyID{to},
 	}
+	pfBob := pi1Ji.Bytes()
+	pfBobWC := pi2Ji.Bytes()
+	msg := SignRound2Message{
+		C1:         c1Ji.Bytes(),
+		C2:         c2Ji.Bytes(),
+		ProofBob:   pfBob[:],
+		ProofBobWc: pfBobWC[:],
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound2MtAMidMessage) ValidateBasic() bool {
-	return msg.C1Ji != nil && msg.Pi1Ji != nil && msg.Pi1Ji.ValidateBasic() && msg.C2Ji != nil && msg.Pi2Ji != nil && msg.Pi2Ji.ValidateBasic()
+func (m *SignRound2Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.C1) &&
+		common.NonEmptyBytes(m.C2) &&
+		common.NonEmptyMultiBytes(m.ProofBob, mta.ProofBobBytesParts) &&
+		common.NonEmptyMultiBytes(m.ProofBobWc, mta.ProofBobWCBytesParts)
+}
+
+func (m *SignRound2Message) UnmarshalProofBob() (*mta.ProofBob, error) {
+	return mta.ProofBobFromBytes(m.ProofBob)
+}
+
+func (m *SignRound2Message) UnmarshalProofBobWC() (*mta.ProofBobWC, error) {
+	return mta.ProofBobWCFromBytes(m.ProofBobWc)
 }
 
 // ----- //
@@ -141,143 +130,227 @@ func (msg SignRound2MtAMidMessage) ValidateBasic() bool {
 func NewSignRound3Message(
 	from *tss.PartyID,
 	theta *big.Int,
-) SignRound3Message {
-	return SignRound3Message{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound3Message",
-		},
-		Thelta: theta,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound3Message",
+		From:    from,
 	}
+	msg := SignRound3Message{
+		Theta: theta.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound3Message) ValidateBasic() bool {
-	return msg.Thelta != nil
+func (m *SignRound3Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.Theta)
 }
 
 // ----- //
 
-func NewSignRound4DecommitMessage(
+func NewSignRound4Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
 	proof *schnorr.ZKProof,
-) SignRound4DecommitMessage {
-	return SignRound4DecommitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound4DecommitMessage",
-		},
-		Decommitment: deCommitment,
-		Proof:        proof,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound4Message",
+		From:    from,
 	}
+	dcBzs := common.BigIntsToBytes(deCommitment)
+	msg := SignRound4Message{
+		DeCommitment: dcBzs,
+		ProofAlphaX:  proof.Alpha.X().Bytes(),
+		ProofAlphaY:  proof.Alpha.Y().Bytes(),
+		ProofT:       proof.T.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound4DecommitMessage) ValidateBasic() bool {
-	return msg.Decommitment != nil && len(msg.Decommitment) == 3 && msg.Proof != nil && msg.Proof.ValidateBasic()
+func (m *SignRound4Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyMultiBytes(m.DeCommitment, 3) &&
+		common.NonEmptyBytes(m.ProofAlphaX) &&
+		common.NonEmptyBytes(m.ProofAlphaY) &&
+		common.NonEmptyBytes(m.ProofT)
+}
+
+func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
+	deComBzs := m.GetDeCommitment()
+	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
+}
+
+func (m *SignRound4Message) UnmarshalZKProof() *schnorr.ZKProof {
+	return &schnorr.ZKProof{
+		Alpha: crypto.NewECPoint(
+			tss.EC(),
+			new(big.Int).SetBytes(m.GetProofAlphaX()),
+			new(big.Int).SetBytes(m.GetProofAlphaY())),
+		T: new(big.Int).SetBytes(m.GetProofT()),
+	}
 }
 
 // ----- //
 
-func NewSignRound5CommitmentMessage(
+func NewSignRound5Message(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
-) SignRound5CommitMessage {
-	return SignRound5CommitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound5CommitmentMessage",
-		},
-		Commitment: commitment,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound5Message",
+		From:    from,
 	}
+	msg := SignRound5Message{
+		Commitment: commitment.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound5CommitMessage) ValidateBasic() bool {
-	return msg.Commitment != nil
+func (m *SignRound5Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.Commitment)
+}
+
+func (m *SignRound5Message) UnmarshalCommitment() *big.Int {
+	return new(big.Int).SetBytes(m.GetCommitment())
 }
 
 // ----- //
 
-func NewSignRound6DecommitMessage(
+func NewSignRound6Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
 	proof *schnorr.ZKProof,
 	vProof *schnorr.ZKVProof,
-) SignRound6DecommitMessage {
-	return SignRound6DecommitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound6DecommitmentMessage",
-		},
-		Decommitment: deCommitment,
-		Proof:        proof,
-		VProof:       vProof,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound6Message",
+		From:    from,
 	}
+	dcBzs := common.BigIntsToBytes(deCommitment)
+	msg := SignRound6Message{
+		DeCommitment: dcBzs,
+		ProofAlphaX:  proof.Alpha.X().Bytes(),
+		ProofAlphaY:  proof.Alpha.Y().Bytes(),
+		ProofT:       proof.T.Bytes(),
+		VProofAlphaX: vProof.Alpha.X().Bytes(),
+		VProofAlphaY: vProof.Alpha.Y().Bytes(),
+		VProofT:      vProof.T.Bytes(),
+		VProofU:      vProof.U.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound6DecommitMessage) ValidateBasic() bool {
-	return msg.Decommitment != nil && len(msg.Decommitment) == 5 && msg.Proof != nil && msg.Proof.ValidateBasic() && msg.VProof != nil && msg.VProof.ValidateBasic()
+func (m *SignRound6Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyMultiBytes(m.DeCommitment, 5) &&
+		common.NonEmptyBytes(m.ProofAlphaX) &&
+		common.NonEmptyBytes(m.ProofAlphaY) &&
+		common.NonEmptyBytes(m.ProofT) &&
+		common.NonEmptyBytes(m.VProofAlphaX) &&
+		common.NonEmptyBytes(m.VProofAlphaY) &&
+		common.NonEmptyBytes(m.VProofT) &&
+		common.NonEmptyBytes(m.VProofU)
+}
+
+func (m *SignRound6Message) UnmarshalDeCommitment() []*big.Int {
+	deComBzs := m.GetDeCommitment()
+	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
+}
+
+func (m *SignRound6Message) UnmarshalZKProof() *schnorr.ZKProof {
+	return &schnorr.ZKProof{
+		Alpha: crypto.NewECPoint(
+			tss.EC(),
+			new(big.Int).SetBytes(m.GetProofAlphaX()),
+			new(big.Int).SetBytes(m.GetProofAlphaY())),
+		T: new(big.Int).SetBytes(m.GetProofT()),
+	}
+}
+func (m *SignRound6Message) UnmarshalZKVProof() *schnorr.ZKVProof {
+	return &schnorr.ZKVProof{
+		Alpha: crypto.NewECPoint(
+			tss.EC(),
+			new(big.Int).SetBytes(m.GetProofAlphaX()),
+			new(big.Int).SetBytes(m.GetProofAlphaY())),
+		T: new(big.Int).SetBytes(m.GetProofT()),
+		U: new(big.Int).SetBytes(m.GetVProofU()),
+	}
 }
 
 // ----- //
 
-func NewSignRound7CommitMessage(
+func NewSignRound7Message(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
-) SignRound7CommitMessage {
-	return SignRound7CommitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound7CommitMessage",
-		},
-		Commitment: commitment,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound7Message",
+		From:    from,
 	}
+	msg := SignRound5Message{
+		Commitment: commitment.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound7CommitMessage) ValidateBasic() bool {
-	return msg.Commitment != nil
+func (m *SignRound7Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.Commitment)
+}
+
+func (m *SignRound7Message) UnmarshalCommitment() *big.Int {
+	return new(big.Int).SetBytes(m.GetCommitment())
 }
 
 // ----- //
 
-func NewSignRound8DecommitMessage(
+func NewSignRound8Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-) SignRound8DecommitMessage {
-	return SignRound8DecommitMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound8DecommitMessage",
-		},
-		Decommitment: deCommitment,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound8Message",
+		From:    from,
 	}
+	dcBzs := common.BigIntsToBytes(deCommitment)
+	msg := SignRound8Message{
+		DeCommitment: dcBzs,
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound8DecommitMessage) ValidateBasic() bool {
-	return msg.Decommitment != nil && len(msg.Decommitment) == 5
+func (m *SignRound8Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyMultiBytes(m.DeCommitment, 5)
+}
+
+func (m *SignRound8Message) UnmarshalDeCommitment() []*big.Int {
+	deComBzs := m.GetDeCommitment()
+	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
 // ----- //
 
-func NewSignRound9SignatureMessage(
+func NewSignRound9Message(
 	from *tss.PartyID,
 	si *big.Int,
-) SignRound9SignatureMessage {
-	return SignRound9SignatureMessage{
-		MessageMetadata: tss.MessageMetadata{
-			To:      nil,
-			From:    from,
-			MsgType: "SignRound9SignatureMessage",
-		},
-		Si: si,
+) tss.Message {
+	meta := tss.MessageMetadata{
+		MsgType: "SignRound9Message",
+		From:    from,
 	}
+	msg := SignRound9Message{
+		S: si.Bytes(),
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
 }
 
-func (msg SignRound9SignatureMessage) ValidateBasic() bool {
-	return msg.Si != nil
+func (m *SignRound9Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.S)
+}
+
+func (m *SignRound9Message) UnmarshalS() *big.Int {
+	return new(big.Int).SetBytes(m.S)
 }

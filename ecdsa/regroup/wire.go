@@ -8,11 +8,11 @@ import (
 )
 
 func init() {
-	gob.RegisterName("DGRound1OldCommitteeCommitMessage", DGRound1OldCommitteeCommitMessage{})
-	gob.RegisterName("DGRound2NewCommitteeACKMessage", DGRound2NewCommitteeACKMessage{})
-	gob.RegisterName("DGRound2NewCommitteePaillierPublicKeyMessage", DGRound2NewCommitteePaillierPublicKeyMessage{})
-	gob.RegisterName("DGRound3OldCommitteeShareMessage", DGRound3OldCommitteeShareMessage{})
-	gob.RegisterName("DGRound3OldCommitteeDeCommitMessage", DGRound3OldCommitteeDeCommitMessage{})
+	gob.RegisterName("DGRound1Message", DGRound1Message{})
+	gob.RegisterName("DGRound2Message2", DGRound2Message2{})
+	gob.RegisterName("DGRound2Message1", DGRound2Message1{})
+	gob.RegisterName("DGRound3Message1", DGRound3Message1{})
+	gob.RegisterName("DGRound3Message2", DGRound3Message2{})
 }
 
 // ----- //

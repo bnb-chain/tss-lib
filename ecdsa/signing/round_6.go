@@ -26,15 +26,15 @@ func (round *round6) Start() *tss.Error {
 		return round.WrapError(errors2.Wrapf(err, "NewZKVProof(bigVi, bigR, si, li)"))
 	}
 
-	r6msg := NewSignRound6DecommitMessage(round.PartyID(), round.temp.DPower, piAi, piV)
-	round.temp.signRound6DecommitMessage[round.PartyID().Index] = &r6msg
+	r6msg := NewSignRound6Message(round.PartyID(), round.temp.DPower, piAi, piV)
+	round.temp.signRound6Messages[round.PartyID().Index] = r6msg
 	round.out <- r6msg
 	return nil
 }
 
 func (round *round6) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound6DecommitMessage {
-		if round.ok[j] {
+	for j, msg := range round.temp.signRound6Messages {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -46,10 +46,10 @@ func (round *round6) Update() (bool, *tss.Error) {
 }
 
 func (round *round6) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound6DecommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*SignRound6Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round6) NextRound() tss.Round {

@@ -55,9 +55,9 @@ func (round *round2) Start() *tss.Error {
 	}(rsaCh)
 
 	// 2. "broadcast" "ACK" members of the OLD committee
-	r2msg1 := NewDGRound2NewCommitteeACKMessage(
-		round.Parties().IDs().Exclude(round.PartyID()), round.PartyID())
-	round.temp.dgRound2NewCommitteeACKMessage[i] = &r2msg1
+	r2msg1 := NewDGRound2Message2(
+		round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
+	round.temp.dgRound2Message2s[i] = r2msg1
 	round.out <- r2msg1
 
 	// consume chans to end goroutines
@@ -72,10 +72,10 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	paillierPf := paiSK.Proof(Pi.Key, round.save.ECDSAPub)
-	r2msg2 := NewDGRound2NewCommitteePaillierPublicKeyMessage(
+	r2msg2 := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
 		&paiSK.PublicKey, paillierPf, NTildei, h1i, h2i)
-	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
+	round.temp.dgRound2Message1s[i] = r2msg2
 	round.out <- r2msg2
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
@@ -88,59 +88,54 @@ func (round *round2) Start() *tss.Error {
 }
 
 func (round *round2) CanAccept(msg tss.Message) bool {
-	if round.ReGroupParams().IsOldCommittee() && round.ReGroupParameters.IsNewCommittee() {
-		if msg1, ok := msg.(*DGRound2NewCommitteeACKMessage); !ok || msg1 == nil {
-			if msg2, ok := msg.(*DGRound2NewCommitteePaillierPublicKeyMessage); !ok || msg2 == nil {
-				return false
-			}
-		}
-	} else if round.ReGroupParams().IsOldCommittee() {
-		if msg, ok := msg.(*DGRound2NewCommitteeACKMessage); !ok || msg == nil {
-			return false
-		}
-	} else if round.ReGroupParams().IsNewCommittee() {
-		if msg, ok := msg.(*DGRound2NewCommitteePaillierPublicKeyMessage); !ok || msg == nil {
-			return false
+	if round.ReGroupParams().IsOldCommittee() {
+		if _, ok := msg.Content().(*DGRound2Message2); ok {
+			return msg.IsBroadcast()
 		}
 	}
-	return true
+	if round.ReGroupParams().IsNewCommittee() {
+		if _, ok := msg.Content().(*DGRound2Message1); ok {
+			return msg.IsBroadcast()
+		}
+	}
+	return false
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
 	if round.ReGroupParams().IsOldCommittee() && round.ReGroupParameters.IsNewCommittee() {
 		// accept messages from new -> old committee
-		for j, msg := range round.temp.dgRound2NewCommitteeACKMessage {
+		for j, msg1 := range round.temp.dgRound2Message2s {
 			if round.newOK[j] {
 				continue
 			}
-			if !round.CanAccept(msg) {
+			if msg1 == nil || !round.CanAccept(msg1) {
 				return false, nil
 			}
 			// accept message from new -> committee
-			msg2 := round.temp.dgRound2PaillierPublicKeyMessage[j]
-			if !round.CanAccept(msg2) {
+			msg2 := round.temp.dgRound2Message1s[j]
+			if msg2 == nil || !round.CanAccept(msg2) {
 				return false, nil
 			}
 			round.newOK[j] = true
 		}
 	} else if round.ReGroupParams().IsOldCommittee() {
 		// accept messages from new -> old committee
-		for j, msg := range round.temp.dgRound2NewCommitteeACKMessage {
+		for j, msg := range round.temp.dgRound2Message2s {
 			if round.newOK[j] {
 				continue
 			}
-			if !round.CanAccept(msg) {
+			if msg == nil || !round.CanAccept(msg) {
 				return false, nil
 			}
 			round.newOK[j] = true
 		}
 	} else if round.ReGroupParams().IsNewCommittee() {
 		// accept messages from new -> new committee
-		for j, msg := range round.temp.dgRound2PaillierPublicKeyMessage {
+		for j, msg := range round.temp.dgRound2Message1s {
 			if round.newOK[j] {
 				continue
 			}
-			if !round.CanAccept(msg) {
+			if msg == nil || !round.CanAccept(msg) {
 				return false, nil
 			}
 			round.newOK[j] = true

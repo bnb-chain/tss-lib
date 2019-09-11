@@ -7,7 +7,7 @@ option go_package = "ecdsa/signing";
  */
 message SignRound1Message1 {
     bytes c = 1;
-    bytes proof = 2;
+    repeated bytes range_proof_alice = 2;
 }
 
 /*
@@ -21,10 +21,10 @@ message SignRound1Message2 {
  * Represents a P2P message sent to each party during Round 2 of the ECDSA TSS signing protocol.
  */
 message SignRound2Message {
-    bytes c1_j = 1;
-    bytes pi1_j = 2;
-    bytes c2_j = 3;
-    bytes pi2_j = 4;
+    bytes c1 = 1;
+    bytes c2 = 2;
+    repeated bytes proof_bob = 3;
+    repeated bytes proof_bob_wc = 4;
 }
 
 /*
@@ -83,5 +83,5 @@ message SignRound8Message {
  * Represents a BROADCAST message sent to all parties during Round 9 of the ECDSA TSS signing protocol.
  */
 message SignRound9Message {
-    bytes signature = 1;
+    bytes s = 1;
 }

@@ -32,18 +32,16 @@ type (
 	}
 
 	LocalPartyMessageStore struct {
-		// messages
-		signRound1CommitMessages      []*SignRound1CommitMessage
-		signRound1MtAInitMessages     []*SignRound1MtAInitMessage // messages others sent to me
-		signRound1SentMtaInitMessages []*SignRound1MtAInitMessage // messages I sent to others, for range_proof
-		signRound2MtAMidMessages      []*SignRound2MtAMidMessage
-		signRound3Messages            []*SignRound3Message
-		signRound4DecommitMessage     []*SignRound4DecommitMessage
-		signRound5CommitMessage       []*SignRound5CommitMessage
-		signRound6DecommitMessage     []*SignRound6DecommitMessage
-		signRound7CommitMessage       []*SignRound7CommitMessage
-		signRound8DecommitMessage     []*SignRound8DecommitMessage
-		signRound9SignatureMessage    []*SignRound9SignatureMessage
+		signRound1Message1s,
+		signRound1Message2s,
+		signRound2Messages,
+		signRound3Messages,
+		signRound4Messages,
+		signRound5Messages,
+		signRound6Messages,
+		signRound7Messages,
+		signRound8Messages,
+		signRound9Messages []tss.Message
 	}
 
 	LocalPartyTempData struct {
@@ -53,8 +51,8 @@ type (
 		w,
 		m,
 		k,
-		thelta,
-		thelta_inverse,
+		theta,
+		thetaInverse,
 		sigma,
 		gamma *big.Int
 		bigWs    []*crypto.ECPoint
@@ -116,17 +114,17 @@ func NewLocalParty(
 		end:    end,
 	}
 	// msgs init
-	p.temp.signRound1MtAInitMessages = make([]*SignRound1MtAInitMessage, partyCount)
-	p.temp.signRound1SentMtaInitMessages = make([]*SignRound1MtAInitMessage, partyCount)
-	p.temp.signRound1CommitMessages = make([]*SignRound1CommitMessage, partyCount)
-	p.temp.signRound2MtAMidMessages = make([]*SignRound2MtAMidMessage, partyCount)
-	p.temp.signRound3Messages = make([]*SignRound3Message, partyCount)
-	p.temp.signRound4DecommitMessage = make([]*SignRound4DecommitMessage, partyCount)
-	p.temp.signRound5CommitMessage = make([]*SignRound5CommitMessage, partyCount)
-	p.temp.signRound6DecommitMessage = make([]*SignRound6DecommitMessage, partyCount)
-	p.temp.signRound7CommitMessage = make([]*SignRound7CommitMessage, partyCount)
-	p.temp.signRound8DecommitMessage = make([]*SignRound8DecommitMessage, partyCount)
-	p.temp.signRound9SignatureMessage = make([]*SignRound9SignatureMessage, partyCount)
+	p.temp.signRound1Message1s = make([]tss.Message, partyCount)
+	p.temp.signRound1Message1s = make([]tss.Message, partyCount)
+	p.temp.signRound1Message2s = make([]tss.Message, partyCount)
+	p.temp.signRound2Messages = make([]tss.Message, partyCount)
+	p.temp.signRound3Messages = make([]tss.Message, partyCount)
+	p.temp.signRound4Messages = make([]tss.Message, partyCount)
+	p.temp.signRound5Messages = make([]tss.Message, partyCount)
+	p.temp.signRound6Messages = make([]tss.Message, partyCount)
+	p.temp.signRound7Messages = make([]tss.Message, partyCount)
+	p.temp.signRound8Messages = make([]tss.Message, partyCount)
+	p.temp.signRound9Messages = make([]tss.Message, partyCount)
 	// data init
 	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
 	p.temp.m = msg
@@ -174,36 +172,36 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
-	switch m := msg.(type) {
-	case SignRound1MtAInitMessage:
-		p.temp.signRound1MtAInitMessages[fromPIdx] = &m
+	switch msg.Content().(type) {
+	case *SignRound1Message1:
+		p.temp.signRound1Message1s[fromPIdx] = msg
 
-	case SignRound1CommitMessage:
-		p.temp.signRound1CommitMessages[fromPIdx] = &m
+	case *SignRound1Message2:
+		p.temp.signRound1Message2s[fromPIdx] = msg
 
-	case SignRound2MtAMidMessage:
-		p.temp.signRound2MtAMidMessages[fromPIdx] = &m
+	case *SignRound2Message:
+		p.temp.signRound2Messages[fromPIdx] = msg
 
-	case SignRound3Message:
-		p.temp.signRound3Messages[fromPIdx] = &m
+	case *SignRound3Message:
+		p.temp.signRound3Messages[fromPIdx] = msg
 
-	case SignRound4DecommitMessage:
-		p.temp.signRound4DecommitMessage[fromPIdx] = &m
+	case *SignRound4Message:
+		p.temp.signRound4Messages[fromPIdx] = msg
 
-	case SignRound5CommitMessage:
-		p.temp.signRound5CommitMessage[fromPIdx] = &m
+	case *SignRound5Message:
+		p.temp.signRound5Messages[fromPIdx] = msg
 
-	case SignRound6DecommitMessage:
-		p.temp.signRound6DecommitMessage[fromPIdx] = &m
+	case *SignRound6Message:
+		p.temp.signRound6Messages[fromPIdx] = msg
 
-	case SignRound7CommitMessage:
-		p.temp.signRound7CommitMessage[fromPIdx] = &m
+	case *SignRound7Message:
+		p.temp.signRound7Messages[fromPIdx] = msg
 
-	case SignRound8DecommitMessage:
-		p.temp.signRound8DecommitMessage[fromPIdx] = &m
+	case *SignRound8Message:
+		p.temp.signRound8Messages[fromPIdx] = msg
 
-	case SignRound9SignatureMessage:
-		p.temp.signRound9SignatureMessage[fromPIdx] = &m
+	case *SignRound9Message:
+		p.temp.signRound9Messages[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

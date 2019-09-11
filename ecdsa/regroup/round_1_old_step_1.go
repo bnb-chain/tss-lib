@@ -75,10 +75,10 @@ func (round *round1) Start() *tss.Error {
 	round.temp.NewShares = shares
 
 	// 5. "broadcast" C_i to members of the NEW committee
-	r1msg := NewDGRound1OldCommitteeCommitMessage(
+	r1msg := NewDGRound1Message(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
 		round.save.ECDSAPub, vCmt.C, xAndKCmt.C)
-	round.temp.dgRound1OldCommitteeCommitMessages[i] = &r1msg
+	round.temp.dgRound1Messages[i] = r1msg
 	round.out <- r1msg
 
 	return nil
@@ -86,10 +86,10 @@ func (round *round1) Start() *tss.Error {
 
 func (round *round1) CanAccept(msg tss.Message) bool {
 	// accept messages from old -> new committee
-	if msg, ok := msg.(*DGRound1OldCommitteeCommitMessage); !ok || msg == nil {
-		return false
+	if _, ok := msg.Content().(*DGRound1Message); ok {
+		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
@@ -98,24 +98,25 @@ func (round *round1) Update() (bool, *tss.Error) {
 		return true, nil
 	}
 	// accept messages from old -> new committee
-	for j, msg := range round.temp.dgRound1OldCommitteeCommitMessages {
+	for j, msg := range round.temp.dgRound1Messages {
 		if round.oldOK[j] {
 			continue
 		}
-		if !round.CanAccept(msg) {
+		if msg == nil || !round.CanAccept(msg) {
 			return false, nil
 		}
 		round.oldOK[j] = true
 
 		// save the ecdsa pub received from the old committee
-		candidate := round.temp.dgRound1OldCommitteeCommitMessages[0].ECDSAPub
 		// TODO improve this ecdsa pubkey consistency check
+		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
+		candidate := r1msg.UnmarshalECDSAPub()
 		if round.save.ECDSAPub != nil &&
-			candidate != round.save.ECDSAPub {
+			!candidate.Equals(round.save.ECDSAPub) {
 			// uh oh - anomaly!
 			return false, round.WrapError(errors.New("ecdsa pub did not match what we received previously"), msg.GetFrom())
 		}
-		round.save.ECDSAPub = round.temp.dgRound1OldCommitteeCommitMessages[0].ECDSAPub
+		round.save.ECDSAPub = candidate
 	}
 	return true, nil
 }
