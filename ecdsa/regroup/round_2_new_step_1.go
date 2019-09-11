@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -60,26 +61,26 @@ func (round *round2) Start() *tss.Error {
 	round.out <- r2msg1
 
 	// consume chans to end goroutines
-	pai, rsa := <-paiCh, <-rsaCh
-	if rsa == nil {
+	paiSK, rsaSK := <-paiCh, <-rsaCh
+	if rsaSK == nil {
 		return round.WrapError(errors.New("RSA generation failed"), Pi)
 	}
 
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsa.Primes[:2])
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
 
-	paillierPf := pai.Proof(Pi.Key, round.save.ECDSAPub)
+	paillierPf := paiSK.Proof(Pi.Key, round.save.ECDSAPub)
 	r2msg2 := NewDGRound2NewCommitteePaillierPublicKeyMessage(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&pai.PublicKey, paillierPf, NTildei, h1i, h2i)
+		&paiSK.PublicKey, paillierPf, NTildei, h1i, h2i)
 	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
 	round.out <- r2msg2
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
-	round.save.PaillierSk = pai
-	round.save.PaillierPks[i] = &pai.PublicKey
+	round.save.PaillierSk = paiSK
+	round.save.PaillierPks[i] = &paiSK.PublicKey
 	round.save.NTildej[i] = NTildei
 	round.save.H1j[i], round.save.H2j[i] = h1i, h2i
 
