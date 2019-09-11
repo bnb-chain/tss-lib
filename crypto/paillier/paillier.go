@@ -166,7 +166,7 @@ func (privateKey *PrivateKey) Proof(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof
 	return pi
 }
 
-func (proof Proof) Verify(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
+func (pf Proof) Verify(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
 	iters := ProofIters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	prms := primes.Until(verifyPrimesUntil).List()           // uses cache primed in init()
@@ -195,7 +195,7 @@ func (proof Proof) Verify(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, err
 			}
 			for i, xi := range xs {
 				xiModN := new(big.Int).Mod(xi, pkN)
-				yiExpN := new(big.Int).Exp(proof[i], pkN, pkN)
+				yiExpN := new(big.Int).Exp(pf[i], pkN, pkN)
 				if xiModN.Cmp(yiExpN) != 0 {
 					return false, nil
 				}

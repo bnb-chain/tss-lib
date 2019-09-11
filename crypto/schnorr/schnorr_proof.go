@@ -1,6 +1,7 @@
 package schnorr
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -22,7 +23,10 @@ type (
 )
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func NewZKProof(x *big.Int, X *crypto.ECPoint) *ZKProof {
+func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
+	if x == nil || X == nil || !X.ValidateBasic() {
+		return nil, errors.New("ZKProof constructor received nil or invalid value(s)")
+	}
 	ecParams := tss.EC().Params()
 	q := ecParams.N
 	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
@@ -38,11 +42,14 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) *ZKProof {
 	t := new(big.Int).Mul(c, x)
 	t = common.ModInt(q).Add(a, t)
 
-	return &ZKProof{Alpha: alpha, T: t}
+	return &ZKProof{Alpha: alpha, T: t}, nil
 }
 
 // NewZKProof verifies a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
 func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
+	if pf == nil || !pf.ValidateBasic() {
+		return false
+	}
 	ecParams := tss.EC().Params()
 	q := ecParams.N
 	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
@@ -67,7 +74,10 @@ func (pf *ZKProof) ValidateBasic() bool {
 }
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge s_i, l_i such that V_i = R^s_i, g^l_i (GG18Spec Fig. 17)
-func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) *ZKVProof {
+func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
+	if V == nil || R == nil || s == nil || l == nil || !V.ValidateBasic() || !R.ValidateBasic() {
+		return nil, errors.New("ZKVProof constructor received nil value(s)")
+	}
 	ecParams := tss.EC().Params()
 	q := ecParams.N
 	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
@@ -86,10 +96,13 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) *ZKVProof {
 	t := modQ.Add(a, new(big.Int).Mul(c, s))
 	u := modQ.Add(b, new(big.Int).Mul(c, l))
 
-	return &ZKVProof{Alpha: alpha, T: t, U: u}
+	return &ZKVProof{Alpha: alpha, T: t, U: u}, nil
 }
 
 func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
+	if pf == nil || !pf.ValidateBasic() {
+		return false
+	}
 	ecParams := tss.EC().Params()
 	q := ecParams.N
 	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
@@ -113,5 +126,5 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 }
 
 func (pf *ZKVProof) ValidateBasic() bool {
-	return pf.Alpha != nil && pf.T != nil && pf.U != nil
+	return pf.Alpha != nil && pf.T != nil && pf.U != nil && pf.Alpha.ValidateBasic()
 }
