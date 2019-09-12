@@ -222,14 +222,18 @@ func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound4Message) UnmarshalZKProof() *schnorr.ZKProof {
-	return &schnorr.ZKProof{
-		Alpha: crypto.NewECPoint(
-			tss.EC(),
-			new(big.Int).SetBytes(m.GetProofAlphaX()),
-			new(big.Int).SetBytes(m.GetProofAlphaY())),
-		T: new(big.Int).SetBytes(m.GetProofT()),
+func (m *SignRound4Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+	point, err := crypto.NewECPoint(
+		tss.EC(),
+		new(big.Int).SetBytes(m.GetProofAlphaX()),
+		new(big.Int).SetBytes(m.GetProofAlphaY()))
+	if err != nil {
+		return nil, err
 	}
+	return &schnorr.ZKProof{
+		Alpha: point,
+		T:     new(big.Int).SetBytes(m.GetProofT()),
+	}, nil
 }
 
 // ----- //
@@ -308,25 +312,33 @@ func (m *SignRound6Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound6Message) UnmarshalZKProof() *schnorr.ZKProof {
-	return &schnorr.ZKProof{
-		Alpha: crypto.NewECPoint(
-			tss.EC(),
-			new(big.Int).SetBytes(m.GetProofAlphaX()),
-			new(big.Int).SetBytes(m.GetProofAlphaY())),
-		T: new(big.Int).SetBytes(m.GetProofT()),
+func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+	point, err := crypto.NewECPoint(
+		tss.EC(),
+		new(big.Int).SetBytes(m.GetProofAlphaX()),
+		new(big.Int).SetBytes(m.GetProofAlphaY()))
+	if err != nil {
+		return nil, err
 	}
+	return &schnorr.ZKProof{
+		Alpha: point,
+		T: new(big.Int).SetBytes(m.GetProofT()),
+	}, nil
 }
 
-func (m *SignRound6Message) UnmarshalZKVProof() *schnorr.ZKVProof {
+func (m *SignRound6Message) UnmarshalZKVProof() (*schnorr.ZKVProof, error) {
+	point, err := crypto.NewECPoint(
+		tss.EC(),
+		new(big.Int).SetBytes(m.GetVProofAlphaX()),
+		new(big.Int).SetBytes(m.GetVProofAlphaY()))
+	if err != nil {
+		return nil, err
+	}
 	return &schnorr.ZKVProof{
-		Alpha: crypto.NewECPoint(
-			tss.EC(),
-			new(big.Int).SetBytes(m.GetVProofAlphaX()),
-			new(big.Int).SetBytes(m.GetVProofAlphaY())),
+		Alpha: point,
 		T: new(big.Int).SetBytes(m.GetVProofT()),
 		U: new(big.Int).SetBytes(m.GetVProofU()),
-	}
+	}, nil
 }
 
 // ----- //

@@ -45,11 +45,12 @@ func (round *round7) Start() *tss.Error {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigAj)"), Pj)
 		}
 		bigAjs[j] = bigAj
-		pijA, pijV := r6msg.UnmarshalZKProof(), r6msg.UnmarshalZKVProof()
-		if !pijA.Verify(bigAj) {
+		pijA, err := r6msg.UnmarshalZKProof()
+		if err != nil || !pijA.Verify(bigAj) {
 			return round.WrapError(errors.New("schnorr verify for Aj failed"), Pj)
 		}
-		if !pijV.Verify(bigVj, round.temp.bigR) {
+		pijV, err := r6msg.UnmarshalZKVProof()
+		if err != nil || !pijV.Verify(bigVj, round.temp.bigR) {
 			return round.WrapError(errors.New("vverify for Vj failed"), Pj)
 		}
 	}
