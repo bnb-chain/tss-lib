@@ -90,9 +90,9 @@ func TestHomoAdd(t *testing.T) {
 
 func TestProof(t *testing.T) {
 	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
-	ki := random.MustGetRandomInt(256)            // index
+	ki := random.MustGetRandomInt(256)                     // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
-	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public
 	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	for _, yi := range proof {
 		assert.NotZero(t, yi)
@@ -103,9 +103,9 @@ func TestProof(t *testing.T) {
 
 func TestProofVerify(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
-	ki := random.MustGetRandomInt(256)            // index
+	ki := random.MustGetRandomInt(256)                     // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
-	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public
 	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	assert.NoError(t, err)
@@ -114,11 +114,11 @@ func TestProofVerify(t *testing.T) {
 
 func TestProofVerifyFail(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
-	ki := random.MustGetRandomInt(256)            // index
+	ki := random.MustGetRandomInt(256)                     // index
 	ui := random.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
-	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes()) // ECDSA public
+	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public
 	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
-	last := proof[len(proof) - 1]
+	last := proof[len(proof)-1]
 	last.Sub(last, big.NewInt(1))
 	res, err := proof.Verify(publicKey.N, ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	assert.NoError(t, err)

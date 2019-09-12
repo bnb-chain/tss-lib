@@ -24,10 +24,10 @@ func TestCreate(t *testing.T) {
 	vs, _, err := Create(threshold, secret, ids)
 	assert.Nil(t, err)
 
-	assert.Equal(t, threshold + 1, len(vs))
+	assert.Equal(t, threshold+1, len(vs))
 	// assert.Equal(t, num, params.NumShares)
 
-	assert.Equal(t, threshold + 1, len(vs))
+	assert.Equal(t, threshold+1, len(vs))
 
 	// ensure that each vs has two points on the curve
 	for i, pg := range vs {

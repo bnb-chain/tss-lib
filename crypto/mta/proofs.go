@@ -153,7 +153,7 @@ func ProofBobWCFromBytes(bzs [][]byte) (*ProofBobWC, error) {
 	}
 	return &ProofBobWC{
 		ProofBob: proofBob,
-		U: point,
+		U:        point,
 	}, nil
 }
 

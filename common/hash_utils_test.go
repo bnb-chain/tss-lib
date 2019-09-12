@@ -9,7 +9,7 @@ import (
 )
 
 func TestRejectionSample(t *testing.T) {
-	curveQ  := random.GetRandomPrimeInt(256)
+	curveQ := random.GetRandomPrimeInt(256)
 	randomQ := random.MustGetRandomInt(64)
 	hash := SHA512_256iOne(big.NewInt(123))
 	rs1 := RejectionSample(curveQ, hash)
@@ -26,21 +26,21 @@ func TestRejectionSample(t *testing.T) {
 		wantBitLen int
 		notEqual   bool
 	}{{
-		name: "happy path with curve order",
-		args: args{curveQ, hash},
-		want: rs1,
+		name:       "happy path with curve order",
+		args:       args{curveQ, hash},
+		want:       rs1,
 		wantBitLen: 256,
 	}, {
-		name: "happy path with random 64-bit int",
-		args: args{randomQ, hash},
-		want: rs2,
+		name:       "happy path with random 64-bit int",
+		args:       args{randomQ, hash},
+		want:       rs2,
 		wantBitLen: 64,
 	}, {
-		name: "inequality with different input",
-		args: args{randomQ, hash},
-		want: rs3,
+		name:       "inequality with different input",
+		args:       args{randomQ, hash},
+		want:       rs3,
 		wantBitLen: 64,
-		notEqual: true,
+		notEqual:   true,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

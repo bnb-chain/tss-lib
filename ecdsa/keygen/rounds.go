@@ -67,7 +67,9 @@ func (round *base) WaitingFor() []*tss.PartyID {
 	Ps := round.Parties().IDs()
 	ids := make([]*tss.PartyID, 0, len(round.ok))
 	for j, ok := range round.ok {
-		if ok { continue }
+		if ok {
+			continue
+		}
 		ids = append(ids, Ps[j])
 	}
 	return ids

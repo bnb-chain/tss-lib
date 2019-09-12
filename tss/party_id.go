@@ -39,7 +39,7 @@ func (pid PartyID) String() string {
 // ----- //
 
 // Exported, used in `tss` client
-func SortPartyIDs(ids UnSortedPartyIDs, startAt... int) SortedPartyIDs {
+func SortPartyIDs(ids UnSortedPartyIDs, startAt ...int) SortedPartyIDs {
 	sorted := make(SortedPartyIDs, 0, len(ids))
 	for _, id := range ids {
 		sorted = append(sorted, id)
@@ -56,7 +56,7 @@ func SortPartyIDs(ids UnSortedPartyIDs, startAt... int) SortedPartyIDs {
 	return sorted
 }
 
-func GenerateTestPartyIDs(count int, startAt... int) SortedPartyIDs {
+func GenerateTestPartyIDs(count int, startAt ...int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
 	key := random.MustGetRandomInt(256)
 	frm := 0
@@ -65,7 +65,7 @@ func GenerateTestPartyIDs(count int, startAt... int) SortedPartyIDs {
 		frm = startAt[0]
 		i = startAt[0]
 	}
-	for ; i < count + frm; i++ {
+	for ; i < count+frm; i++ {
 		ids = append(ids, &PartyID{
 			ID:      fmt.Sprintf("%d", i+1),
 			Moniker: fmt.Sprintf("P[%d]", i+1),

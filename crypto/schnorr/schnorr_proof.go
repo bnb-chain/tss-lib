@@ -82,7 +82,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	}
 	ecParams := tss.EC().Params()
 	q := ecParams.N
-	g  := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
 	a, b := random.GetRandomPositiveInt(q), random.GetRandomPositiveInt(q)
 	aR := R.ScalarMult(a)
