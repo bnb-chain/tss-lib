@@ -13,6 +13,7 @@ protob:
 	done
 
 build: protob
+	go fmt ./...
 
 ########################################
 ### Testing
@@ -27,7 +28,7 @@ test:
 ########################################
 ### Pre Commit
 
-pre_commit: test
+pre_commit: build test
 
 ########################################
 
