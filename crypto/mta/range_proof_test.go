@@ -28,7 +28,8 @@ func TestProveRangeAlice(t *testing.T) {
 
 	primes := [2]*big.Int{random.GetRandomPrimeInt(testRSAPrimeBits), random.GetRandomPrimeInt(testRSAPrimeBits)}
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(primes)
-	proof := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)
+	assert.NoError(t, err)
+	proof, err := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)
 	assert.NoError(t, err)
 
 	ok := proof.Verify(pk, NTildei, h1i, h2i, c)

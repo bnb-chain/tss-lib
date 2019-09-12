@@ -3,6 +3,8 @@ package signing
 import (
 	"errors"
 
+	errors2 "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/schnorr"
@@ -32,9 +34,11 @@ func (round *round4) Start() *tss.Error {
 
 	// compute the multiplicative inverse thelta mod q
 	theltaInverse = modN.ModInverse(theltaInverse)
-	bigGammaX, bigGammaY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
-	bigGamma := crypto.NewECPointNoCurveCheck(tss.EC(), bigGammaX, bigGammaY) // already on the curve.
-	piGamma := schnorr.NewZKProof(round.temp.gamma, bigGamma)
+  bigGamma := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
+	piGamma, err := schnorr.NewZKProof(round.temp.gamma, bigGamma)
+	if err != nil {
+		return round.WrapError(errors2.Wrapf(err, "NewZKProof(gamma, bigGamma)"))
+	}
 	round.temp.thelta_inverse = theltaInverse
 	r4msg := NewSignRound4DecommitMessage(round.PartyID(), round.temp.deCommit, piGamma)
 	round.temp.signRound4DecommitMessage[round.PartyID().Index] = &r4msg

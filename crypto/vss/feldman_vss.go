@@ -64,7 +64,7 @@ func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, err
 }
 
 func (share *Share) Verify(threshold int, vs Vs) bool {
-	if share.Threshold != threshold {
+	if share.Threshold != threshold || vs == nil {
 		return false
 	}
 	var err error

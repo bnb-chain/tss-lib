@@ -20,8 +20,8 @@ func AliceInit(
 	if err != nil {
 		return nil, nil, err
 	}
-	pf = ProveRangeAlice(pkA, cA, NTildeB, h1B, h2B, a, rA)
-	return cA, pf, nil
+	pf, err = ProveRangeAlice(pkA, cA, NTildeB, h1B, h2B, a, rA)
+	return cA, pf, err
 }
 
 func BobMid(

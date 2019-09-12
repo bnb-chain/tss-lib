@@ -1,6 +1,7 @@
 package mta
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -18,7 +19,11 @@ var (
 )
 
 // ProveRangeAlice implements Alice's range proof used in the MtA and MtAwc protocols from GG18Spec (9) Fig. 9.
-func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) *RangeProofAlice {
+func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (*RangeProofAlice, error) {
+	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil || m == nil || r == nil {
+		return nil, errors.New("ProveRangeAlice constructor received nil value(s)")
+	}
+
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
 	q3 = new(big.Int).Mul(q, q3)
@@ -69,11 +74,11 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) *
 	s2 := new(big.Int).Mul(e, rho)
 	s2 = new(big.Int).Add(s2, gamma)
 
-	return &RangeProofAlice{Z: z, U: u, W: w, S: s, S1: s1, S2: s2}
+	return &RangeProofAlice{Z: z, U: u, W: w, S: s, S1: s1, S2: s2}, nil
 }
 
 func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
-	if pf == nil || pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil {
+	if pf == nil || !pf.ValidateBasic() || pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil {
 		return false
 	}
 
