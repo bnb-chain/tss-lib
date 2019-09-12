@@ -54,7 +54,7 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	gamma := random.GetRandomPositiveRelativelyPrimeInt(pk.N)
 
 	// 5.
-	u := crypto.NewECPoint(tss.EC(), zero, zero) // initialization suppresses an IDE warning
+	u := crypto.NewECPointNoCurveCheck(tss.EC(), zero, zero) // initialization suppresses an IDE warning
 	if X != nil {
 		u = crypto.ScalarBaseMult(tss.EC(), alpha)
 	}
@@ -169,8 +169,8 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 	if X != nil {
 		s1ModQ := new(big.Int).Mod(pf.S1, tss.EC().Params().N)
 		gS1 := crypto.ScalarBaseMult(tss.EC(), s1ModQ)
-		xEU := X.ScalarMult(e).Add(pf.U)
-		if !gS1.IsOnCurve() || !xEU.IsOnCurve() || !gS1.Equals(xEU) {
+		xEU, err := X.ScalarMult(e).Add(pf.U)
+		if err != nil || !gS1.Equals(xEU) {
 			return false
 		}
 	}

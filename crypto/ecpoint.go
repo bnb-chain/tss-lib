@@ -18,7 +18,17 @@ type ECPoint struct {
 	coords [2]*big.Int
 }
 
-func NewECPoint(curve elliptic.Curve, X, Y *big.Int) *ECPoint {
+// Creates a new ECPoint and checks that the given coordinates are on the elliptic curve.
+func NewECPoint(curve elliptic.Curve, X, Y *big.Int) (*ECPoint, error) {
+	if !isOnCurve(curve, X, Y) {
+		return nil, fmt.Errorf("NewECPoint: the given point is not on the elliptic curve")
+	}
+	return &ECPoint{curve, [2]*big.Int{X, Y}}, nil
+}
+
+// Creates a new ECPoint without checking that the coordinates are on the elliptic curve.
+// Only use this function when you are completely sure that the point is already on the curve.
+func NewECPointNoCurveCheck(curve elliptic.Curve, X, Y *big.Int) *ECPoint {
 	return &ECPoint{curve, [2]*big.Int{X, Y}}
 }
 
@@ -30,21 +40,19 @@ func (p *ECPoint) Y() *big.Int {
 	return new(big.Int).Set(p.coords[1])
 }
 
-func (p *ECPoint) Add(p1 *ECPoint) *ECPoint {
+func (p *ECPoint) Add(p1 *ECPoint) (*ECPoint, error) {
 	x, y := p.curve.Add(p.X(), p.Y(), p1.X(), p1.Y())
 	return NewECPoint(p.curve, x, y)
 }
 
 func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
 	x, y := p.curve.ScalarMult(p.X(), p.Y(), k.Bytes())
-	return NewECPoint(p.curve, x, y)
+	newP, _ := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
+	return newP
 }
 
 func (p *ECPoint) IsOnCurve() bool {
-	if p.coords[0] == nil || p.coords[1] == nil {
-		return false
-	}
-	return p.curve.IsOnCurve(p.coords[0], p.coords[1])
+	return isOnCurve(p.curve, p.coords[0], p.coords[1])
 }
 
 func (p *ECPoint) Equals(p2 *ECPoint) bool {
@@ -60,12 +68,20 @@ func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
 }
 
 func (p *ECPoint) ValidateBasic() bool {
-	return p != nil && len(p.coords) == 2 && p.coords[0] != nil && p.coords[1] != nil
+	return p != nil && p.coords[0] != nil && p.coords[1] != nil && p.IsOnCurve()
 }
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
 	x, y := curve.ScalarBaseMult(k.Bytes())
-	return NewECPoint(curve, x, y)
+	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	return p
+}
+
+func isOnCurve(c elliptic.Curve, x, y *big.Int) bool {
+	if x == nil || y == nil {
+		return false
+	}
+	return c.IsOnCurve(x, y)
 }
 
 // ----- //
@@ -85,13 +101,21 @@ func FlattenECPoints(in []*ECPoint) ([]*big.Int, error) {
 	return flat, nil
 }
 
-func UnFlattenECPoints(curve elliptic.Curve, in []*big.Int) ([]*ECPoint, error) {
+func UnFlattenECPoints(curve elliptic.Curve, in []*big.Int, noCurveCheck ...bool) ([]*ECPoint, error) {
 	if in == nil || len(in)%2 != 0 {
 		return nil, errors.New("UnFlattenECPoints expected an in len divisible by 2")
 	}
+	var err error
 	unFlat := make([]*ECPoint, len(in)/2)
 	for i, j := 0, 0; i < len(in); i, j = i+2, j+1 {
-		unFlat[j] = NewECPoint(curve, in[i], in[i+1])
+		if len(noCurveCheck) == 0 || noCurveCheck[0] == false {
+			unFlat[j], err = NewECPoint(curve, in[i], in[i+1])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			unFlat[j] = NewECPointNoCurveCheck(curve, in[i], in[i+1])
+		}
 	}
 	for _, point := range unFlat {
 		if point.coords[0] == nil || point.coords[1] == nil {
@@ -131,13 +155,17 @@ func (p *ECPoint) GobEncode() ([]byte, error) {
 func (p *ECPoint) GobDecode(buf []byte) error {
 	reader := bytes.NewReader(buf)
 	var length uint32
-	binary.Read(reader, binary.LittleEndian, &length)
+	if err := binary.Read(reader, binary.LittleEndian, &length); err != nil {
+		return err
+	}
 	x := make([]byte, length)
 	n, err := reader.Read(x)
 	if n != int(length) || err != nil {
 		return fmt.Errorf("gob decode failed: %v", err)
 	}
-	binary.Read(reader, binary.LittleEndian, &length)
+	if err := binary.Read(reader, binary.LittleEndian, &length); err != nil {
+		return err
+	}
 	y := make([]byte, length)
 	n, err = reader.Read(y)
 	if n != int(length) || err != nil {
@@ -145,11 +173,18 @@ func (p *ECPoint) GobDecode(buf []byte) error {
 	}
 
 	X := new(big.Int)
-	X.GobDecode(x)
+	if err := X.GobDecode(x); err != nil {
+		return err
+	}
 	Y := new(big.Int)
-	Y.GobDecode(y)
+	if err := Y.GobDecode(y); err != nil {
+		return err
+	}
 	p.curve = tss.EC()
 	p.coords = [2]*big.Int{X, Y}
+	if !p.IsOnCurve() {
+		return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
+	}
 	return nil
 }
 
@@ -173,5 +208,8 @@ func (p *ECPoint) UnmarshalJSON(payload []byte) error {
 	}
 	p.curve = tss.EC()
 	p.coords = [2]*big.Int{aux.Coords[0], aux.Coords[1]}
+	if !p.IsOnCurve() {
+		return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
+	}
 	return nil
 }

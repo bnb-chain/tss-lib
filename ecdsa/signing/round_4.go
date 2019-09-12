@@ -34,8 +34,7 @@ func (round *round4) Start() *tss.Error {
 
 	// compute the multiplicative inverse thelta mod q
 	theltaInverse = modN.ModInverse(theltaInverse)
-	bigGammaX, bigGammaY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
-	bigGamma := crypto.NewECPoint(tss.EC(), bigGammaX, bigGammaY)
+  bigGamma := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
 	piGamma, err := schnorr.NewZKProof(round.temp.gamma, bigGamma)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(gamma, bigGamma)"))

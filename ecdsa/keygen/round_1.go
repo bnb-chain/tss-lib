@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -68,7 +69,7 @@ func (round *round1) Start() *tss.Error {
 	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
-	rsa, pai := <-rsaCh, <-paiCh
+	rsaSK, pai := <-rsaCh, <-paiCh
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
@@ -88,11 +89,11 @@ func (round *round1) Start() *tss.Error {
 	cmt := cmt.NewHashCommitment(pGFlat...)
 
 	// 9-11. compute h1, h2 (uses RSA primes)
-	if rsa == nil {
+	if rsaSK == nil {
 		return round.WrapError(errors.New("RSA generation failed"), Pi)
 	}
 
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsa.Primes[:2])
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}

@@ -31,8 +31,7 @@ func (round *round1) Start() *tss.Error {
 	k := random.GetRandomPositiveInt(tss.EC().Params().N)
 	gamma := random.GetRandomPositiveInt(tss.EC().Params().N)
 
-	X, Y := tss.EC().ScalarBaseMult(gamma.Bytes())
-	pointGamma := crypto.NewECPoint(tss.EC(), X, Y)
+	pointGamma := crypto.ScalarBaseMult(tss.EC(), gamma)
 	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
 	round.temp.k = k
 	round.temp.gamma = gamma

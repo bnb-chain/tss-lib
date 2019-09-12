@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math/big"
 
+	errors2 "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -32,9 +34,15 @@ func (round *round7) Start() *tss.Error {
 			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
 		}
 		bigVjX, bigVjY, bigAjX, bigAjY := values[0], values[1], values[2], values[3]
-		bigVj := crypto.NewECPoint(tss.EC(), bigVjX, bigVjY)
+		bigVj, err := crypto.NewECPoint(tss.EC(), bigVjX, bigVjY)
+		if err != nil {
+			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigVj)"), Pj)
+		}
 		bigVjs[j] = bigVj
-		bigAj := crypto.NewECPoint(tss.EC(), bigAjX, bigAjY)
+		bigAj, err := crypto.NewECPoint(tss.EC(), bigAjX, bigAjY)
+		if err != nil {
+			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigAj)"), Pj)
+		}
 		bigAjs[j] = bigAj
 		pijA := round.temp.signRound6DecommitMessage[j].Proof
 		pijV := round.temp.signRound6DecommitMessage[j].VProof
@@ -63,11 +71,15 @@ func (round *round7) Start() *tss.Error {
 		AX, AY = tss.EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
 	}
 
-	round.temp.VVV = crypto.NewECPoint(tss.EC(), VX, VY)
+	var err error
+	round.temp.VVV, err = crypto.NewECPoint(tss.EC(), VX, VY)
+	if err != nil {
+		return round.WrapError(errors2.Wrapf(err, "NewECPoint(V)"))
+	}
 	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.roi.Bytes())
 	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
-	round.temp.Ui = crypto.NewECPoint(tss.EC(), UiX, UiY)
-	round.temp.Ti = crypto.NewECPoint(tss.EC(), TiX, TiY)
+	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)
+	round.temp.Ti = crypto.NewECPointNoCurveCheck(tss.EC(), TiX, TiY)
 	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
 	r7msg := NewSignRound7CommitMessage(round.PartyID(), cmt.C)
 	round.temp.signRound7CommitMessage[round.PartyID().Index] = &r7msg
