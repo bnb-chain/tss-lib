@@ -110,11 +110,14 @@ func (round *round1) Update() (bool, *tss.Error) {
 		// save the ecdsa pub received from the old committee
 		// TODO improve this ecdsa pubkey consistency check
 		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
-		candidate := r1msg.UnmarshalECDSAPub()
+		candidate, err := r1msg.UnmarshalECDSAPub()
+		if err != nil {
+			return false, round.WrapError(errors.New("unable to unmarshal the ecdsa pub key"), msg.GetFrom())
+		}
 		if round.save.ECDSAPub != nil &&
 			!candidate.Equals(round.save.ECDSAPub) {
 			// uh oh - anomaly!
-			return false, round.WrapError(errors.New("ecdsa pub did not match what we received previously"), msg.GetFrom())
+			return false, round.WrapError(errors.New("ecdsa pub key did not match what we received previously"), msg.GetFrom())
 		}
 		round.save.ECDSAPub = candidate
 	}

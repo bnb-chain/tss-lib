@@ -71,7 +71,7 @@ func (m *DGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.XAndKCommitment)
 }
 
-func (m *DGRound1Message) UnmarshalECDSAPub() *crypto.ECPoint {
+func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
 	return crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.EcdsaPubX),

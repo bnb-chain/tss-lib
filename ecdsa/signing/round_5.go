@@ -37,9 +37,13 @@ func (round *round5) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
 		}
-		ok = r4msg.UnmarshalZKProof().Verify(bigGammaJPoint)
+		proof, err := r4msg.UnmarshalZKProof()
+		if err != nil {
+			return round.WrapError(errors.New("failed to unmarshal bigGamma proof"), Pj)
+		}
+		ok = proof.Verify(bigGammaJPoint)
 		if !ok {
-			return round.WrapError(errors.New("failed to proof bigGamma"), Pj)
+			return round.WrapError(errors.New("failed to prove bigGamma"), Pj)
 		}
 		R, err = R.Add(bigGammaJPoint)
 		if err != nil {
@@ -67,7 +71,7 @@ func (round *round5) Start() *tss.Error {
 
 	cmt := commitments.NewHashCommitment(bigVi.X(), bigVi.Y(), bigAi.X(), bigAi.Y())
 	r5msg := NewSignRound5Message(round.PartyID(), cmt.C)
-	round.temp.signRound5Messages[round.PartyID().Index] = gr5msg
+	round.temp.signRound5Messages[round.PartyID().Index] = r5msg
 	round.out <- r5msg
 
 	round.temp.li = li

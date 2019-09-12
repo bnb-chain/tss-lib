@@ -145,11 +145,15 @@ func ProofBobWCFromBytes(bzs [][]byte) (*ProofBobWC, error) {
 	if err != nil {
 		return nil, err
 	}
+	point, err := crypto.NewECPoint(tss.EC(),
+		new(big.Int).SetBytes(bzs[10]),
+		new(big.Int).SetBytes(bzs[11]))
+	if err != nil {
+		return nil, err
+	}
 	return &ProofBobWC{
 		ProofBob: proofBob,
-		U: crypto.NewECPoint(tss.EC(),
-			new(big.Int).SetBytes(bzs[10]),
-			new(big.Int).SetBytes(bzs[11])),
+		U: point,
 	}, nil
 }
 
