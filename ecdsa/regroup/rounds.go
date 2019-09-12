@@ -14,12 +14,12 @@ type (
 		*tss.ReGroupParameters
 		key,
 		save *keygen.LocalPartySaveData
-		temp *LocalPartyTempData
-		out  chan<- tss.Message
+		temp   *LocalPartyTempData
+		out    chan<- tss.Message
 		oldOK, // old committee "ok" tracker
 		newOK []bool // `ok` tracks parties which have been verified by Update(); this one is for the new committee
 		started bool
-		number int
+		number  int
 	}
 	round1 struct {
 		*base

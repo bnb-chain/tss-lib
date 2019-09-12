@@ -322,7 +322,7 @@ func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
 	}
 	return &schnorr.ZKProof{
 		Alpha: point,
-		T: new(big.Int).SetBytes(m.GetProofT()),
+		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil
 }
 
@@ -336,8 +336,8 @@ func (m *SignRound6Message) UnmarshalZKVProof() (*schnorr.ZKVProof, error) {
 	}
 	return &schnorr.ZKVProof{
 		Alpha: point,
-		T: new(big.Int).SetBytes(m.GetVProofT()),
-		U: new(big.Int).SetBytes(m.GetVProofU()),
+		T:     new(big.Int).SetBytes(m.GetVProofT()),
+		U:     new(big.Int).SetBytes(m.GetVProofU()),
 	}, nil
 }
 

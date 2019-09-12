@@ -78,8 +78,8 @@ func (round *round3) Start() *tss.Error {
 			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
 			PjShare := vss.Share{
 				Threshold: round.Threshold(),
-				ID: round.PartyID().Key,
-				Share: r2msg1.UnmarshalShare(),
+				ID:        round.PartyID().Key,
+				Share:     r2msg1.UnmarshalShare(),
 			}
 			if ok = PjShare.Verify(round.Threshold(), PjVs); !ok {
 				ch <- vssOut{errors.New("vss verify failed"), nil}

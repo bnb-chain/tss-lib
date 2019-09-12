@@ -101,7 +101,7 @@ func (round *round2) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		r2msg := NewSignRound2MtAMidMessage(
+		r2msg := NewSignRound2Message(
 			Pj, round.PartyID(), round.temp.c1jis[j], round.temp.pi1jis[j], round.temp.c2jis[j], round.temp.pi2jis[j])
 		round.out <- r2msg
 	}

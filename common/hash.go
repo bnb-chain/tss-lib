@@ -22,14 +22,14 @@ func SHA512_256(in ...[]byte) []byte {
 	}
 	bzSize := 0
 	// prevent hash collisions with this prefix containing the block count
-	inLenBz := make([]byte, 64 / 8)
+	inLenBz := make([]byte, 64/8)
 	// converting between int and uint64 doesn't change the sign bit, but it may be interpreted as a larger value.
 	// this prefix is never read/interpreted, so that doesn't matter.
 	binary.LittleEndian.PutUint64(inLenBz, uint64(inLen))
 	for _, bz := range in {
 		bzSize += len(bz)
 	}
-	data = make([]byte, 0, len(inLenBz) + bzSize + inLen)
+	data = make([]byte, 0, len(inLenBz)+bzSize+inLen)
 	data = append(data, inLenBz...)
 	for _, bz := range in {
 		data = append(data, bz...)
@@ -53,7 +53,7 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 	}
 	bzSize := 0
 	// prevent hash collisions with this prefix containing the block count
-	inLenBz := make([]byte, 64 / 8)
+	inLenBz := make([]byte, 64/8)
 	// converting between int and uint64 doesn't change the sign bit, but it may be interpreted as a larger value.
 	// this prefix is never read/interpreted, so that doesn't matter.
 	binary.LittleEndian.PutUint64(inLenBz, uint64(inLen))
@@ -62,7 +62,7 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 		ptrs[i] = n.Bytes()
 		bzSize += len(ptrs[i])
 	}
-	data = make([]byte, 0, len(inLenBz) + bzSize + inLen)
+	data = make([]byte, 0, len(inLenBz)+bzSize+inLen)
 	data = append(data, inLenBz...)
 	for i := range in {
 		data = append(data, ptrs[i]...)

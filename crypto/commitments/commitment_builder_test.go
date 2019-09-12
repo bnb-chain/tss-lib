@@ -17,9 +17,9 @@ func Test_builder_Secrets(t *testing.T) {
 		parts [][]*big.Int
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   []*big.Int
+		name    string
+		fields  fields
+		want    []*big.Int
 		wantErr bool
 	}{{
 		name: "Happy path: Single part",
