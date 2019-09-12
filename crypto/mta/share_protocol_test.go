@@ -28,10 +28,11 @@ func TestShareProtocol(t *testing.T) {
 	a := random.GetRandomPositiveInt(q)
 	b := random.GetRandomPositiveInt(q)
 
-	rsaPK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsaPK.Primes)
+	rsaSK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
 	assert.NoError(t, err)
-	NTildej, h1j, h2j, err := crypto.GenerateNTildei(rsaPK.Primes)
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
+	assert.NoError(t, err)
+	NTildej, h1j, h2j, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
 	assert.NoError(t, err)
 
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
@@ -59,10 +60,11 @@ func TestShareProtocolWC(t *testing.T) {
 	b := random.GetRandomPositiveInt(q)
 
 	gBX, gBY := tss.EC().ScalarBaseMult(b.Bytes())
-	rsaPK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei(rsaPK.Primes)
+	rsaSK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
 	assert.NoError(t, err)
-	NTildej, h1j, h2j, err := crypto.GenerateNTildei(rsaPK.Primes)
+	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
+	assert.NoError(t, err)
+	NTildej, h1j, h2j, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
 	assert.NoError(t, err)
 
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)

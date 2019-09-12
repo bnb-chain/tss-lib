@@ -26,7 +26,7 @@ func TestProveRangeAlice(t *testing.T) {
 	c, r, err := sk.EncryptAndReturnRandomness(m)
 	assert.NoError(t, err)
 
-	primes := []*big.Int{random.GetRandomPrimeInt(testRSAPrimeBits), random.GetRandomPrimeInt(testRSAPrimeBits)}
+	primes := [2]*big.Int{random.GetRandomPrimeInt(testRSAPrimeBits), random.GetRandomPrimeInt(testRSAPrimeBits)}
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(primes)
 	proof := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)
 	assert.NoError(t, err)
