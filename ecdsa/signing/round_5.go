@@ -3,6 +3,8 @@ package signing
 import (
 	"errors"
 
+	errors2 "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -18,8 +20,7 @@ func (round *round5) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	RX, RY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
-	R := crypto.NewECPoint(tss.EC(), RX, RY)
+	R := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
 	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
@@ -31,36 +32,44 @@ func (round *round5) Start() *tss.Error {
 		if !ok || len(bigGammaJ) != 2 {
 			return round.WrapError(errors.New("commitment verify failed"), Pj)
 		}
-		ok = round.temp.signRound4DecommitMessage[j].Proof.Verify(crypto.NewECPoint(tss.EC(), bigGammaJ[0], bigGammaJ[1]))
+		bigGammaJPoint, err := crypto.NewECPoint(tss.EC(), bigGammaJ[0], bigGammaJ[1])
+		if err != nil {
+			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
+		}
+		ok = round.temp.signRound4DecommitMessage[j].Proof.Verify(bigGammaJPoint)
 		if !ok {
 			return round.WrapError(errors.New("failed to proof bigGamma"), Pj)
 		}
-		RXNew, RYNew := tss.EC().Add(R.X(), R.Y(), bigGammaJ[0], bigGammaJ[1])
-		R = crypto.NewECPoint(tss.EC(), RXNew, RYNew)
+		R, err = R.Add(bigGammaJPoint)
+		if err != nil {
+			return round.WrapError(errors2.Wrapf(err, "R.Add(bigGammaJ)"), Pj)
+		}
 	}
-	finalRX, finalRY := tss.EC().ScalarMult(R.X(), R.Y(), round.temp.thelta_inverse.Bytes())
-	R = crypto.NewECPoint(tss.EC(), finalRX, finalRY)
+	R = R.ScalarMult(round.temp.thelta_inverse)
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
-	r := finalRX
+	r := R.X()
 	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(r, round.temp.sigma))
 	// TODO: clear temp.k, temp.w
 
 	li := random.GetRandomPositiveInt(N)  // li
 	roI := random.GetRandomPositiveInt(N) // pi
-	rToSiX, rToSiY := tss.EC().ScalarMult(R.X(), R.Y(), si.Bytes())
-	liX, liY := tss.EC().ScalarBaseMult(li.Bytes())
-	bigViX, bigViY := tss.EC().Add(rToSiX, rToSiY, liX, liY)
-	bigAiX, bigAiY := tss.EC().ScalarBaseMult(roI.Bytes())
+	rToSi := R.ScalarMult(si)
+	liPoint := crypto.ScalarBaseMult(tss.EC(), li)
+	bigAi := crypto.ScalarBaseMult(tss.EC(), roI)
+	bigVi, err := rToSi.Add(liPoint)
+	if err != nil {
+		return round.WrapError(errors2.Wrapf(err, "rToSi.Add(li)"))
+	}
 
-	cmt := commitments.NewHashCommitment(bigViX, bigViY, bigAiX, bigAiY)
+	cmt := commitments.NewHashCommitment(bigVi.X(), bigVi.Y(), bigAi.X(), bigAi.Y())
 	r5msg := NewSignRound5CommitmentMessage(round.PartyID(), cmt.C)
 	round.temp.signRound5CommitMessage[round.PartyID().Index] = &r5msg
 	round.out <- r5msg
 
 	round.temp.li = li
-	round.temp.bigAi = crypto.NewECPoint(tss.EC(), bigAiX, bigAiY)
-	round.temp.bigVi = crypto.NewECPoint(tss.EC(), bigViX, bigViY)
+	round.temp.bigAi = bigAi
+	round.temp.bigVi = bigVi
 	round.temp.roi = roI
 	round.temp.DPower = cmt.D
 	round.temp.si = si

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math/big"
 
+	errors2 "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -90,7 +92,7 @@ func (round *round4) Start() *tss.Error {
 			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
 		}
-		vj, err := crypto.UnFlattenECPoints(nil, flatVs)
+		vj, err := crypto.UnFlattenECPoints(tss.EC(), flatVs)
 		if err != nil {
 			return round.WrapError(err, round.Parties().IDs()[j])
 		}
@@ -108,11 +110,15 @@ func (round *round4) Start() *tss.Error {
 	}
 
 	// 10-13.
+	var err error
 	Vc := make([]*crypto.ECPoint, round.NewThreshold()+1)
 	for c := 0; c <= round.NewThreshold(); c++ {
 		Vc[c] = vjc[0][c]
 		for j := 1; j <= round.Threshold(); j++ {
-			Vc[c] = Vc[c].Add(vjc[j][c])
+			Vc[c], err = Vc[c].Add(vjc[j][c])
+			if err != nil {
+				return round.WrapError(errors2.Wrapf(err, "Vc[c].Add(vjc[j][c])"))
+			}
 		}
 	}
 
@@ -130,7 +136,10 @@ func (round *round4) Start() *tss.Error {
 		newKs = append(newKs, kj)
 		for c := 1; c <= round.NewThreshold(); c++ {
 			z := modQ.Exp(kj, big.NewInt(int64(c)))
-			newBigXj = newBigXj.Add(Vc[c].ScalarMult(z))
+			newBigXj, err = newBigXj.Add(Vc[c].ScalarMult(z))
+			if err != nil {
+				return round.WrapError(errors2.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"))
+			}
 		}
 		NewBigXj[j] = newBigXj
 	}

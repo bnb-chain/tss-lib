@@ -33,7 +33,7 @@ func (round *round4) Start() *tss.Error {
 	// compute the multiplicative inverse thelta mod q
 	theltaInverse = modN.ModInverse(theltaInverse)
 	bigGammaX, bigGammaY := tss.EC().ScalarBaseMult(round.temp.gamma.Bytes())
-	bigGamma := crypto.NewECPoint(tss.EC(), bigGammaX, bigGammaY)
+	bigGamma := crypto.NewECPointNoCurveCheck(tss.EC(), bigGammaX, bigGammaY) // already on the curve.
 	piGamma := schnorr.NewZKProof(round.temp.gamma, bigGamma)
 	round.temp.thelta_inverse = theltaInverse
 	r4msg := NewSignRound4DecommitMessage(round.PartyID(), round.temp.deCommit, piGamma)

@@ -25,7 +25,7 @@ type (
 func NewZKProof(x *big.Int, X *crypto.ECPoint) *ZKProof {
 	ecParams := tss.EC().Params()
 	q := ecParams.N
-	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy) // already on the curve.
 
 	a := random.GetRandomPositiveInt(q)
 	alpha := crypto.ScalarBaseMult(tss.EC(), a)
@@ -45,7 +45,7 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) *ZKProof {
 func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 	ecParams := tss.EC().Params()
 	q := ecParams.N
-	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
 	{ // must use RejectionSample
@@ -54,8 +54,10 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 	}
 	tG := crypto.ScalarBaseMult(tss.EC(), pf.T)
 	Xc := X.ScalarMult(c)
-	aXc := pf.Alpha.Add(Xc)
-
+	aXc, err := pf.Alpha.Add(Xc)
+	if err != nil {
+		return false
+	}
 	if aXc.X().Cmp(tG.X()) != 0 || aXc.Y().Cmp(tG.Y()) != 0 {
 		return false
 	}
@@ -70,12 +72,12 @@ func (pf *ZKProof) ValidateBasic() bool {
 func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) *ZKVProof {
 	ecParams := tss.EC().Params()
 	q := ecParams.N
-	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g  := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
 	a, b := random.GetRandomPositiveInt(q), random.GetRandomPositiveInt(q)
 	aR := R.ScalarMult(a)
 	bG := crypto.ScalarBaseMult(tss.EC(), b)
-	alpha := aR.Add(bG)
+	alpha, _ := aR.Add(bG) // already on the curve.
 
 	var c *big.Int
 	{ // must use RejectionSample
@@ -92,7 +94,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) *ZKVProof {
 func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 	ecParams := tss.EC().Params()
 	q := ecParams.N
-	g := crypto.NewECPoint(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
 	{ // must use RejectionSample
@@ -101,11 +103,13 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 	}
 	tR := R.ScalarMult(pf.T)
 	uG := crypto.ScalarBaseMult(tss.EC(), pf.U)
-	tRuG := tR.Add(uG)
+	tRuG, _ := tR.Add(uG) // already on the curve.
 
 	Vc := V.ScalarMult(c)
-	aVc := pf.Alpha.Add(Vc)
-
+	aVc, err := pf.Alpha.Add(Vc)
+	if err != nil {
+		return false
+	}
 	if tRuG.X().Cmp(aVc.X()) != 0 || tRuG.Y().Cmp(aVc.Y()) != 0 {
 		return false
 	}

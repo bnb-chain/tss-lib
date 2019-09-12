@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math/big"
 
+	errors2 "github.com/pkg/errors"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -34,7 +36,7 @@ func (round *round3) Start() *tss.Error {
 	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
 
 	// 2-3.
-	Vc := make(vss.Vs, round.Threshold() + 1)
+	Vc := make(vss.Vs, round.Threshold()+1)
 	for c := range Vc {
 		Vc[c] = round.temp.vs[c] // ours
 	}
@@ -67,7 +69,7 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return
 			}
-			PjVs, err := crypto.UnFlattenECPoints(nil, flatPolyGs)
+			PjVs, err := crypto.UnFlattenECPoints(tss.EC(), flatPolyGs)
 			if err != nil {
 				ch <- vssOut{err, nil}
 				return
@@ -84,48 +86,71 @@ func (round *round3) Start() *tss.Error {
 
 	// consume unbuffered channels (end the goroutines)
 	vssResults := make([]vssOut, len(Ps))
-	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
-	for j, Pj := range Ps {
-		if j == PIdx {
-			continue
+	{
+		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
+		for j, Pj := range Ps {
+			if j == PIdx {
+				continue
+			}
+			vssResults[j] = <-chs[j]
+			// collect culprits to error out with
+			if err := vssResults[j].unWrappedErr; err != nil {
+				culprits = append(culprits, Pj)
+			}
 		}
-		vssResults[j] = <-chs[j]
-		// collect culprits to error out with
-		if err := vssResults[j].unWrappedErr; err != nil {
-			culprits = append(culprits, Pj)
+		if len(culprits) > 0 {
+			return round.WrapError(vssResults[0].unWrappedErr, culprits...)
 		}
 	}
-	if len(culprits) > 0 {
-		return round.WrapError(vssResults[0].unWrappedErr, culprits...)
-	}
-	for j := range Ps {
-		if j == PIdx {
-			continue
+	{
+		var err error
+		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
+		for j, Pj := range Ps {
+			if j == PIdx {
+				continue
+			}
+			// 10-11.
+			PjVs := vssResults[j].pjVs
+			for c := 0; c <= round.Threshold(); c++ {
+				Vc[c], err = Vc[c].Add(PjVs[c])
+				if err != nil {
+					culprits = append(culprits, Pj)
+				}
+			}
 		}
-		// 10-11.
-		PjVs := vssResults[j].pjVs
-		for c := 0; c <= round.Threshold(); c++ {
-			Vc[c] = Vc[c].Add(PjVs[c])
+		if len(culprits) > 0 {
+			return round.WrapError(errors.New("adding PjVs[c] to Vc[c] resulted in a point not on the curve"), culprits...)
 		}
 	}
 
 	// 12-16. compute Xj for each Pj
-	bigXj := round.save.BigXj
-	for j := 0; j < round.PartyCount(); j++ {
-		kj := round.Parties().IDs()[j].Key
-		BigXj := Vc[0]
-		for c := 1; c <= round.Threshold(); c++ {
-			z := new(big.Int).Exp(kj, big.NewInt(int64(c)), tss.EC().Params().N)
-			BigXj = BigXj.Add(Vc[c].ScalarMult(z))
+	{
+		var err error
+		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
+		bigXj := round.save.BigXj
+		for j := 0; j < round.PartyCount(); j++ {
+			Pj := round.Parties().IDs()[j]
+			kj := Pj.Key
+			BigXj := Vc[0]
+			for c := 1; c <= round.Threshold(); c++ {
+				z := new(big.Int).Exp(kj, big.NewInt(int64(c)), tss.EC().Params().N)
+				BigXj, err = BigXj.Add(Vc[c].ScalarMult(z))
+				if err != nil {
+					culprits = append(culprits, Pj)
+				}
+			}
+			bigXj[j] = BigXj
 		}
-		bigXj[j] = BigXj
+		if len(culprits) > 0 {
+			return round.WrapError(errors.New("adding Vc[c].ScalarMult(z) to BigXj resulted in a point not on the curve"), culprits...)
+		}
+		round.save.BigXj = bigXj
 	}
-	round.save.BigXj = bigXj
 
 	// 17. compute and SAVE the ECDSA public key `y`
-	ecdsaPubKey := crypto.NewECPoint(tss.EC(), Vc[0].X(), Vc[0].Y())
-	if !ecdsaPubKey.IsOnCurve() {
-		return round.WrapError(errors.New("public key is not on the curve"))
+	ecdsaPubKey, err := crypto.NewECPoint(tss.EC(), Vc[0].X(), Vc[0].Y())
+	if err != nil {
+		return round.WrapError(errors2.Wrapf(err, "public key is not on the curve"))
 	}
 	round.save.ECDSAPub = ecdsaPubKey
 

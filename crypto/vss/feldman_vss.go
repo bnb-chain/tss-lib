@@ -67,6 +67,7 @@ func (share *Share) Verify(threshold int, vs Vs) bool {
 	if share.Threshold != threshold {
 		return false
 	}
+	var err error
 	modN := common.ModInt(tss.EC().Params().N)
 	v := vs[0]
 	for j := 1; j <= threshold; j++ {
@@ -74,7 +75,10 @@ func (share *Share) Verify(threshold int, vs Vs) bool {
 		t := modN.Exp(share.ID, big.NewInt(int64(j)))
 		// v = v * vj^t
 		vjt := vs[j].SetCurve(tss.EC()).ScalarMult(t)
-		v = v.SetCurve(tss.EC()).Add(vjt)
+		v, err = v.SetCurve(tss.EC()).Add(vjt)
+		if err != nil {
+			return false
+		}
 	}
 	sigmaGi := crypto.ScalarBaseMult(tss.EC(), share.Share)
 	if sigmaGi.Equals(v) {

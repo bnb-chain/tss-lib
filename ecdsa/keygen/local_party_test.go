@@ -240,7 +240,8 @@ keygen:
 					{
 						badShares := pShares[:threshold]
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
-						uj, _ := pShares[:threshold].ReConstruct()
+						uj, err := pShares[:threshold].ReConstruct()
+						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
 						assert.NotEqual(t, BigXjX, Pj.temp.vs[0].X())

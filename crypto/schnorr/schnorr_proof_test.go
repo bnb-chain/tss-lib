@@ -55,7 +55,7 @@ func TestSchnorrVProofVerify(t *testing.T) {
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
-	V := Rs.Add(lG)
+	V, _ := Rs.Add(lG)
 
 	proof := NewZKVProof(V, R, s, l)
 	res := proof.Verify(V, R)
@@ -87,7 +87,7 @@ func TestSchnorrVProofVerifyBadS(t *testing.T) {
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
-	V := Rs.Add(lG)
+	V, _ := Rs.Add(lG)
 
 	proof := NewZKVProof(V, R, s2, l)
 	res := proof.Verify(V, R)
