@@ -3,15 +3,20 @@ package signing
 import (
 	"math/big"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	"github.com/binance-chain/tss-lib/protob"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-signing.pb.go
+// The following messages are registered on the Protocol Buffers "wire"
 
 var (
 	// Ensure that signing messages implement ValidateBasic
@@ -29,24 +34,41 @@ var (
 	}
 )
 
+func init() {
+	proto.RegisterType((*SignRound1Message1)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message1")
+	proto.RegisterType((*SignRound1Message2)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message2")
+	proto.RegisterType((*SignRound2Message)(nil), tss.ProtoNamePrefix+"signing.SignRound2Message")
+	proto.RegisterType((*SignRound3Message)(nil), tss.ProtoNamePrefix+"signing.SignRound3Message")
+	proto.RegisterType((*SignRound4Message)(nil), tss.ProtoNamePrefix+"signing.SignRound4Message")
+	proto.RegisterType((*SignRound5Message)(nil), tss.ProtoNamePrefix+"signing.SignRound5Message")
+	proto.RegisterType((*SignRound6Message)(nil), tss.ProtoNamePrefix+"signing.SignRound6Message")
+	proto.RegisterType((*SignRound7Message)(nil), tss.ProtoNamePrefix+"signing.SignRound7Message")
+	proto.RegisterType((*SignRound8Message)(nil), tss.ProtoNamePrefix+"signing.SignRound8Message")
+	proto.RegisterType((*SignRound9Message)(nil), tss.ProtoNamePrefix+"signing.SignRound9Message")
+}
+
 // ----- //
 
 func NewSignRound1Message1(
 	to, from *tss.PartyID,
 	c *big.Int,
 	proof *mta.RangeProofAlice,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound1Message1",
-		From:    from,
-		To:      []*tss.PartyID{to},
+		From: from,
+		To:   []*tss.PartyID{to},
 	}
 	pfBz := proof.Bytes()
-	msg := SignRound1Message1{
+	content := &SignRound1Message1{
 		C:               c.Bytes(),
 		RangeProofAlice: pfBz[:],
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: false,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound1Message1) ValidateBasic() bool {
@@ -68,15 +90,19 @@ func (m *SignRound1Message1) UnmarshalRangeProofAlice() (*mta.RangeProofAlice, e
 func NewSignRound1Message2(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound1Message2",
-		From:    from,
+		From: from,
 	}
-	msg := SignRound1Message2{
+	content := &SignRound1Message2{
 		Commitment: commitment.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound1Message2) ValidateBasic() bool {
@@ -96,21 +122,25 @@ func NewSignRound2Message(
 	pi1Ji *mta.ProofBob,
 	c2Ji *big.Int,
 	pi2Ji *mta.ProofBobWC,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound2Message",
-		From:    from,
-		To:      []*tss.PartyID{to},
+		From: from,
+		To:   []*tss.PartyID{to},
 	}
 	pfBob := pi1Ji.Bytes()
 	pfBobWC := pi2Ji.Bytes()
-	msg := SignRound2Message{
+	content := &SignRound2Message{
 		C1:         c1Ji.Bytes(),
 		C2:         c2Ji.Bytes(),
 		ProofBob:   pfBob[:],
 		ProofBobWc: pfBobWC[:],
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: false,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound2Message) ValidateBasic() bool {
@@ -134,15 +164,19 @@ func (m *SignRound2Message) UnmarshalProofBobWC() (*mta.ProofBobWC, error) {
 func NewSignRound3Message(
 	from *tss.PartyID,
 	theta *big.Int,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound3Message",
-		From:    from,
+		From: from,
 	}
-	msg := SignRound3Message{
+	content := &SignRound3Message{
 		Theta: theta.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound3Message) ValidateBasic() bool {
@@ -156,19 +190,23 @@ func NewSignRound4Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
 	proof *schnorr.ZKProof,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound4Message",
-		From:    from,
+		From: from,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
-	msg := SignRound4Message{
+	content := &SignRound4Message{
 		DeCommitment: dcBzs,
 		ProofAlphaX:  proof.Alpha.X().Bytes(),
 		ProofAlphaY:  proof.Alpha.Y().Bytes(),
 		ProofT:       proof.T.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound4Message) ValidateBasic() bool {
@@ -199,15 +237,19 @@ func (m *SignRound4Message) UnmarshalZKProof() *schnorr.ZKProof {
 func NewSignRound5Message(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound5Message",
-		From:    from,
+		From: from,
 	}
-	msg := SignRound5Message{
+	content := &SignRound5Message{
 		Commitment: commitment.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound5Message) ValidateBasic() bool {
@@ -226,13 +268,12 @@ func NewSignRound6Message(
 	deCommitment cmt.HashDeCommitment,
 	proof *schnorr.ZKProof,
 	vProof *schnorr.ZKVProof,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound6Message",
-		From:    from,
+		From: from,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
-	msg := SignRound6Message{
+	content := &SignRound6Message{
 		DeCommitment: dcBzs,
 		ProofAlphaX:  proof.Alpha.X().Bytes(),
 		ProofAlphaY:  proof.Alpha.Y().Bytes(),
@@ -242,7 +283,12 @@ func NewSignRound6Message(
 		VProofT:      vProof.T.Bytes(),
 		VProofU:      vProof.U.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound6Message) ValidateBasic() bool {
@@ -288,15 +334,19 @@ func (m *SignRound6Message) UnmarshalZKVProof() *schnorr.ZKVProof {
 func NewSignRound7Message(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound7Message",
-		From:    from,
+		From: from,
 	}
-	msg := SignRound7Message{
+	content := &SignRound7Message{
 		Commitment: commitment.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound7Message) ValidateBasic() bool {
@@ -313,16 +363,20 @@ func (m *SignRound7Message) UnmarshalCommitment() *big.Int {
 func NewSignRound8Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound8Message",
-		From:    from,
+		From: from,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
-	msg := SignRound8Message{
+	content := &SignRound8Message{
 		DeCommitment: dcBzs,
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound8Message) ValidateBasic() bool {
@@ -340,15 +394,19 @@ func (m *SignRound8Message) UnmarshalDeCommitment() []*big.Int {
 func NewSignRound9Message(
 	from *tss.PartyID,
 	si *big.Int,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "SignRound9Message",
-		From:    from,
+		From: from,
 	}
-	msg := SignRound9Message{
+	content := &SignRound9Message{
 		S: si.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *SignRound9Message) ValidateBasic() bool {

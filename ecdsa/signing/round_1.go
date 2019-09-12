@@ -82,7 +82,7 @@ func (round *round1) Update() (bool, *tss.Error) {
 	return true, nil
 }
 
-func (round *round1) CanAccept(msg tss.Message) bool {
+func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*SignRound1Message1); ok {
 		return !msg.IsBroadcast()
 	}

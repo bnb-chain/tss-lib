@@ -47,6 +47,19 @@ func TestE2EConcurrent(t *testing.T) {
 	outCh := make(chan tss.Message, len(signPIDs))
 	endCh := make(chan LocalPartySignData, len(signPIDs))
 
+	// the Party updater (async)
+	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
+		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom(), msg.GetTo())
+		if err != nil {
+			errCh <- P.WrapError(err)
+			return
+		}
+		if _, err := P.Update(pMsg); err != nil {
+			errCh <- err
+		}
+	}
+
+	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
 		P := NewLocalParty(big.NewInt(42), params, keys[i], outCh, endCh)
@@ -75,21 +88,13 @@ signing:
 					if P.PartyID().Index == msg.GetFrom().Index {
 						continue
 					}
-					go func(P *LocalParty, msg tss.Message) {
-						if _, err := P.Update(msg, "sign"); err != nil {
-							errCh <- err
-						}
-					}(P, msg)
+					go updater(P, msg, errCh)
 				}
 			} else {
 				if dest[0].Index == msg.GetFrom().Index {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
 				}
-				go func(P *LocalParty) {
-					if _, err := P.Update(msg, "sign"); err != nil {
-						errCh <- err
-					}
-				}(parties[dest[0].Index])
+				go updater(parties[dest[0].Index], msg, errCh)
 			}
 
 		case <-endCh:

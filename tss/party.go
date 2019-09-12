@@ -11,9 +11,12 @@ type Party interface {
 	String() string
 	PartyID() *PartyID
 	Start() *Error
-	Update(msg Message, phase string) (ok bool, err *Error)
-	ValidateMessage(msg Message) (bool, *Error)
-	StoreMessage(msg Message) (bool, *Error)
+	// The main entry point when updating a party's state from the wire
+	UpdateFromBytes(wireBytes []byte, from *PartyID, to []*PartyID) (ok bool, err *Error)
+	// You may use this entry point to update a party's state when running locally or in tests
+	Update(msg ParsedMessage) (ok bool, err *Error)
+	ValidateMessage(msg ParsedMessage) (bool, *Error)
+	StoreMessage(msg ParsedMessage) (bool, *Error)
 	Finish()
 	Rnd() Round
 	WaitingFor() []*PartyID
@@ -28,7 +31,7 @@ type BaseParty struct {
 	mtx   sync.Mutex
 
 	// messaging
-	Out chan<- WireMessage
+	Out chan<- Message
 }
 
 func (p *BaseParty) Rnd() Round {
@@ -58,7 +61,7 @@ func (p *BaseParty) WrapError(err error, culprits ...*PartyID) *Error {
 }
 
 // an implementation of ValidateMessage that is shared across the different types of parties (keygen, signing, dynamic groups)
-func (p *BaseParty) ValidateMessage(msg Message) (bool, *Error) {
+func (p *BaseParty) ValidateMessage(msg ParsedMessage) (bool, *Error) {
 	if msg == nil || msg.Content() == nil {
 		return false, p.WrapError(fmt.Errorf("received nil msg: %s", msg))
 	}
@@ -74,7 +77,7 @@ func (p *BaseParty) ValidateMessage(msg Message) (bool, *Error) {
 // ----- //
 
 // an implementation of Update that is shared across the different types of parties (keygen, signing, dynamic groups)
-func BaseUpdate(p Party, msg Message, phase string) (ok bool, err *Error) {
+func BaseUpdate(p Party, msg ParsedMessage, phase string) (ok bool, err *Error) {
 	if _, err := p.ValidateMessage(msg); err != nil {
 		return false, err
 	}

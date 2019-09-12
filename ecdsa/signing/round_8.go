@@ -34,7 +34,7 @@ func (round *round8) Update() (bool, *tss.Error) {
 	return true, nil
 }
 
-func (round *round8) CanAccept(msg tss.Message) bool {
+func (round *round8) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*SignRound8Message); ok {
 		return msg.IsBroadcast()
 	}

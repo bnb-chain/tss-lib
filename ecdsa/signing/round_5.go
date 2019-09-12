@@ -96,7 +96,7 @@ func (round *round5) Update() (bool, *tss.Error) {
 	return true, nil
 }
 
-func (round *round5) CanAccept(msg tss.Message) bool {
+func (round *round5) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*SignRound5Message); ok {
 		return msg.IsBroadcast()
 	}

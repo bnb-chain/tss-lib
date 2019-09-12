@@ -62,7 +62,7 @@ func (round *round3) Start() *tss.Error {
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
 			proofBobWC, err := r2msg.UnmarshalProofBobWC()
 			if err != nil {
-				errCh <- rsound.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBobWC failed"), Pj)
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBobWC failed"), Pj)
 				return
 			}
 			uIj, err := mta.AliceEndWC(
@@ -105,10 +105,10 @@ func (round *round3) Start() *tss.Error {
 		sigma = modN.Add(sigma, us[j].Add(us[j], round.temp.vs[j]))
 	}
 
-	round.temp.thelta = thelta
+	round.temp.theta = thelta
 	round.temp.sigma = sigma
 	r3msg := NewSignRound3Message(round.PartyID(), thelta)
-	round.temp.signRound3Messages[round.PartyID().Index] = &r3msg
+	round.temp.signRound3Messages[round.PartyID().Index] = r3msg
 	round.out <- r3msg
 
 	return nil
@@ -127,9 +127,9 @@ func (round *round3) Update() (bool, *tss.Error) {
 	return true, nil
 }
 
-func (round *round3) CanAccept(msg tss.Message) bool {
-	if msg, ok := msg.(*SignRound3Message); !ok || msg == nil {
-		return false
+func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
+	if _, ok := msg.Content().(*SignRound3Message); ok {
+		return msg.IsBroadcast()
 	}
 	return true
 }

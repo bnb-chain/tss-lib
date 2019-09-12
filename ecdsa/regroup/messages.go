@@ -3,11 +3,15 @@ package regroup
 import (
 	"math/big"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
+
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/protob"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -24,6 +28,14 @@ var (
 	}
 )
 
+func init() {
+	proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"regroup.DGRound1Message")
+	proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"regroup.DGRound2Message1")
+	proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"regroup.DGRound2Message2")
+	proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"regroup.DGRound3Message1")
+	proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"regroup.DGRound3Message2")
+}
+
 // ----- //
 
 func NewDGRound1Message(
@@ -31,19 +43,24 @@ func NewDGRound1Message(
 	from *tss.PartyID,
 	ecdsaPub *crypto.ECPoint,
 	vct, xkct cmt.HashCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "DGRound1Message",
-		From:    from,
-		To:      to,
+		From: from,
+		To:   to,
 	}
-	msg := DGRound1Message{
+	content := &DGRound1Message{
 		EcdsaPubX:       ecdsaPub.X().Bytes(),
 		EcdsaPubY:       ecdsaPub.Y().Bytes(),
 		VCommitment:     vct.Bytes(),
 		XAndKCommitment: xkct.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
+		Message:          any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *DGRound1Message) ValidateBasic() bool {
@@ -79,21 +96,26 @@ func NewDGRound2Message1(
 	NTildei,
 	H1i,
 	H2i *big.Int,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "DGRound2Message1",
-		From:    from,
-		To:      to,
+		From: from,
+		To:   to,
 	}
 	paiPfBzs := common.BigIntsToBytes(paillierPf)
-	msg := DGRound2Message1{
+	content := &DGRound2Message1{
 		PaillierN:     paillierPK.N.Bytes(),
 		PaillierProof: paiPfBzs,
 		NTilde:        NTildei.Bytes(),
 		H1:            H1i.Bytes(),
 		H2:            H2i.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
+		Message:          any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *DGRound2Message1) ValidateBasic() bool {
@@ -120,18 +142,22 @@ func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
 func NewDGRound2Message2(
 	to []*tss.PartyID,
 	from *tss.PartyID,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType:        "DGRound2Message2",
-		From:           from,
-		To:             to,
-		ToOldCommittee: true,
+		From: from,
+		To:   to,
 	}
-	msg := DGRound2Message2{}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	content := &DGRound2Message2{}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast:      true,
+		IsToOldCommittee: true,
+		Message:          any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
-func (msg DGRound2Message2) ValidateBasic() bool {
+func (m *DGRound2Message2) ValidateBasic() bool {
 	return true
 }
 
@@ -141,16 +167,21 @@ func NewDGRound3Message1(
 	to *tss.PartyID,
 	from *tss.PartyID,
 	share *vss.Share,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "DGRound3Message1",
-		From:    from,
-		To:      []*tss.PartyID{to},
+		From: from,
+		To:   []*tss.PartyID{to},
 	}
-	msg := DGRound3Message1{
+	content := &DGRound3Message1{
 		Share: share.Share.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast:      false,
+		IsToOldCommittee: false,
+		Message:          any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *DGRound3Message1) ValidateBasic() bool {
@@ -164,19 +195,24 @@ func NewDGRound3Message2(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	vdct, xkdct cmt.HashDeCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "DGRound3Message2",
-		From:    from,
-		To:      to,
+		From: from,
+		To:   to,
 	}
 	vDctBzs := common.BigIntsToBytes(vdct)
 	xAndKDctBzs := common.BigIntsToBytes(xkdct)
-	msg := DGRound3Message2{
+	content := &DGRound3Message2{
 		VDecommitment:     vDctBzs,
 		XAndKDecommitment: xAndKDctBzs,
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
+		Message:          any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *DGRound3Message2) ValidateBasic() bool {

@@ -49,6 +49,7 @@ func TestStartRound1Paillier(t *testing.T) {
 	_ = <-out
 
 	// Paillier modulus 2048 (two 1024-bit primes)
+	// TODO: flaky assertion, sometimes comes back with 1 byte less
 	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.LambdaN.Bytes()))
 	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
 }
@@ -118,14 +119,14 @@ func TestBadMessageCulprits(t *testing.T) {
 	}
 
 	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
-	ok, err := lp.Update(badMsg, "keygen")
+	ok, err := lp.Update(badMsg)
 	t.Log(err)
 	assert.False(t, ok)
 	assert.Error(t, err)
 	assert.Equal(t, 1, len(err.Culprits()))
 	assert.Equal(t, pIDs[1], err.Culprits()[0])
 	assert.Equal(t,
-		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: KGRound1Message, From: {1,P[2]}, To: all",
+		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tss-lib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
 		err.Error())
 }
 
@@ -146,6 +147,19 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	startGR := runtime.NumGoroutine()
 
+	// the Party updater (async)
+	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
+		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom(), msg.GetTo())
+		if err != nil {
+			errCh <- P.WrapError(err)
+			return
+		}
+		if _, err := P.Update(pMsg); err != nil {
+			errCh <- err
+		}
+	}
+
+	// init the parties
 	for i := 0; i < len(pIDs); i++ {
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		P := NewLocalParty(params, outCh, endCh)
@@ -172,27 +186,19 @@ keygen:
 
 		case msg := <-outCh:
 			dest := msg.GetTo()
-			if dest == nil {
+			if dest == nil { // broadcast!
 				for _, P := range parties {
 					if P.PartyID().Index == msg.GetFrom().Index {
 						continue
 					}
-					go func(P *LocalParty, msg tss.Message) {
-						if _, err := P.Update(msg, "keygen"); err != nil {
-							errCh <- err
-						}
-					}(P, msg)
+					go updater(P, msg, errCh)
 				}
-			} else {
+			} else { // point-to-point!
 				if dest[0].Index == msg.GetFrom().Index {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
 					return
 				}
-				go func(P *LocalParty) {
-					if _, err := P.Update(msg, "keygen"); err != nil {
-						errCh <- err
-					}
-				}(parties[dest[0].Index])
+				go updater(parties[dest[0].Index], msg, errCh)
 			}
 
 		case save := <-endCh:
