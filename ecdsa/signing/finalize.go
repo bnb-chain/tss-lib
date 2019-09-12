@@ -56,7 +56,7 @@ func (round *finalization) Start() *tss.Error {
 	return nil
 }
 
-func (round *finalization) CanAccept(msg tss.Message) bool {
+func (round *finalization) CanAccept(msg tss.ParsedMessage) bool {
 	// not expecting any incoming messages in this round
 	return false
 }

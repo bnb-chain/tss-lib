@@ -4,17 +4,18 @@ import (
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes"
 
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/protob"
 	"github.com/binance-chain/tss-lib/tss"
-	"github.com/binance-chain/tss-lib/tss/wire"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go
+// The following messages are registered on the Protocol Buffers "wire"
 
 var (
 	// Ensure that keygen messages implement ValidateBasic
@@ -26,7 +27,12 @@ var (
 	}
 )
 
-// The following messages are registered on the Protocol Buffers "wire" in tss/wire
+func init() {
+	proto.RegisterType((*KGRound1Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound1Message")
+	proto.RegisterType((*KGRound2Message1)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message1")
+	proto.RegisterType((*KGRound2Message2)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message2")
+	proto.RegisterType((*KGRound3Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound3Message")
+}
 
 // ----- //
 
@@ -35,10 +41,9 @@ func NewKGRound1Message(
 	ct cmt.HashCommitment,
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
-) tss.Message {
-	isBroadcast := true
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		From:    from,
+		From: from,
 	}
 	content := &KGRound1Message{
 		Commitment: ct.Bytes(),
@@ -47,15 +52,12 @@ func NewKGRound1Message(
 		H1:         h1I.Bytes(),
 		H2:         h2I.Bytes(),
 	}
-	bz, _ := proto.Marshal(content)
-	msg := &wire.Message{
-		IsBroadcast: isBroadcast,
-		Message: &any.Any{
-			TypeUrl: wire.ProtoNamePrefix + proto.MessageName(content),
-			Value: bz,
-		},
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: content, Wire: msg}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *KGRound1Message) ValidateBasic() bool {
@@ -92,16 +94,20 @@ func (m *KGRound1Message) UnmarshalH2() *big.Int {
 func NewKGRound2Message1(
 	to, from *tss.PartyID,
 	share *vss.Share,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "KGRound2Message1",
-		From:    from,
-		To:      []*tss.PartyID{to},
+		From: from,
+		To:   []*tss.PartyID{to},
 	}
-	msg := KGRound2Message1{
+	content := &KGRound2Message1{
 		Share: share.Share.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: false,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *KGRound2Message1) ValidateBasic() bool {
@@ -118,16 +124,20 @@ func (m *KGRound2Message1) UnmarshalShare() *big.Int {
 func NewKGRound2Message2(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "KGRound2Message2",
-		From:    from,
+		From: from,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
-	msg := KGRound2Message2{
+	content := &KGRound2Message2{
 		DeCommitment: dcBzs,
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *KGRound2Message2) ValidateBasic() bool {
@@ -145,10 +155,9 @@ func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 func NewKGRound3Message(
 	from *tss.PartyID,
 	proof paillier.Proof,
-) tss.Message {
+) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
-		MsgType: "KGRound3Message",
-		From:    from,
+		From: from,
 	}
 	pfBzs := make([][]byte, len(proof))
 	for i := range pfBzs {
@@ -157,11 +166,15 @@ func NewKGRound3Message(
 		}
 		pfBzs[i] = proof[i].Bytes()
 	}
-
-	msg := KGRound3Message{
+	content := &KGRound3Message{
 		PaillierProof: pfBzs,
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: &msg}
+	any, _ := ptypes.MarshalAny(content)
+	msg := &protob.Message{
+		IsBroadcast: true,
+		Message:     any,
+	}
+	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *KGRound3Message) ValidateBasic() bool {

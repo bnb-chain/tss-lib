@@ -58,6 +58,18 @@ func TestE2EConcurrent(t *testing.T) {
 	outCh := make(chan tss.Message, bothCommitteesPax)
 	endCh := make(chan keygen.LocalPartySaveData, len(newCommittee))
 
+	// the Party updater (async)
+	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
+		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom(), msg.GetTo())
+		if err != nil {
+			errCh <- P.WrapError(err)
+			return
+		}
+		if _, err := P.Update(pMsg); err != nil {
+			errCh <- err
+		}
+	}
+
 	// init the old parties first
 	for i, pID := range pIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
@@ -127,11 +139,7 @@ func TestE2EConcurrent(t *testing.T) {
 				t.Fatal("did not expect a msg to have a nil destination during regroup")
 			}
 			for _, destP := range dest {
-				go func(P *LocalParty) {
-					if _, err := P.Update(msg, "regroup"); err != nil {
-						errCh <- err
-					}
-				}(destParties[destP.Index])
+				go updater(destParties[destP.Index], msg, errCh)
 			}
 
 		case save := <-endCh:
@@ -197,21 +205,13 @@ signing:
 					if P.PartyID().Index == msg.GetFrom().Index {
 						continue
 					}
-					go func(P *signing.LocalParty, msg tss.Message) {
-						if _, err := P.Update(msg, "sign"); err != nil {
-							signErrCh <- err
-						}
-					}(P, msg)
+					go updater(P, msg, signErrCh)
 				}
 			} else {
 				if dest[0].Index == msg.GetFrom().Index {
 					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
 				}
-				go func(P *signing.LocalParty) {
-					if _, err := P.Update(msg, "sign"); err != nil {
-						signErrCh <- err
-					}
-				}(signParties[dest[0].Index])
+				go updater(signParties[dest[0].Index], msg, signErrCh)
 			}
 
 		case signData := <-signEndCh:

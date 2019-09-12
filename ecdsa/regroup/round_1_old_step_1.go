@@ -84,7 +84,7 @@ func (round *round1) Start() *tss.Error {
 	return nil
 }
 
-func (round *round1) CanAccept(msg tss.Message) bool {
+func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
 	// accept messages from old -> new committee
 	if _, ok := msg.Content().(*DGRound1Message); ok {
 		return msg.IsBroadcast()

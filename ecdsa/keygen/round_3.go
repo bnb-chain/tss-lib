@@ -174,7 +174,7 @@ func (round *round3) Start() *tss.Error {
 	return nil
 }
 
-func (round *round3) CanAccept(msg tss.Message) bool {
+func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*KGRound3Message); ok {
 		return msg.IsBroadcast()
 	}

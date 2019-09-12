@@ -5,48 +5,61 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	"github.com/binance-chain/tss-lib/tss/wire"
+	"github.com/binance-chain/tss-lib/protob"
 )
 
 type (
-	WireMessage interface {
+	Message interface {
+		// Type is encoded in the protobuf Any structure
+		Type() string
 		GetTo() []*PartyID
 		GetFrom() *PartyID
-		Type() string
 		IsBroadcast() bool
 		IsToOldCommittee() bool
-		WireMsg() *wire.Message
+		// Returns the encoded bytes to send over the wire
 		WireBytes() ([]byte, error)
+		// Returns the protobuf message struct to send over the wire
+		WireMsg() *protob.Message
 		String() string
 	}
 
-	Message interface {
-		WireMessage
+	ParsedMessage interface {
+		Message
 		Content() MessageContent
 		ValidateBasic() bool
 	}
 
-	// MessageContent implements ValidateBasic
 	MessageContent interface {
 		proto.Message
 		ValidateBasic() bool
 	}
 
 	MessageMetadata struct {
+		From *PartyID
 		// if `To` is `nil` the message should be broadcast to all parties
-		To             []*PartyID
-		From           *PartyID
-		ToOldCommittee bool // only `true` in DGRound2NewCommitteeACKMessage (regroup)
+		To []*PartyID
 	}
 
+	// Implements ParsedMessage
 	MessageImpl struct {
 		MessageMetadata
-		Msg  MessageContent
-		Wire *wire.Message
+		content MessageContent
+		wire    *protob.Message
 	}
 )
 
-var _ Message = (*MessageImpl)(nil)
+var (
+	_ Message       = (*MessageImpl)(nil)
+	_ ParsedMessage = (*MessageImpl)(nil)
+)
+
+func NewMessage(meta MessageMetadata, content MessageContent, wire *protob.Message) ParsedMessage {
+	return &MessageImpl{
+		MessageMetadata: meta,
+		content:         content,
+		wire:            wire,
+	}
+}
 
 func (mm *MessageImpl) GetTo() []*PartyID {
 	return mm.To
@@ -57,31 +70,32 @@ func (mm *MessageImpl) GetFrom() *PartyID {
 }
 
 func (mm *MessageImpl) Type() string {
-	return proto.MessageName(mm.Msg)
+	return proto.MessageName(mm.content)
 }
 
 func (mm *MessageImpl) Content() MessageContent {
-	return mm.Msg
+	return mm.content
 }
 
-func (mm *MessageImpl) WireMsg() *wire.Message {
-	return mm.Wire
+func (mm *MessageImpl) WireMsg() *protob.Message {
+	return mm.wire
 }
 
 func (mm *MessageImpl) WireBytes() ([]byte, error) {
-	return proto.Marshal(mm.WireMsg())
+	return proto.Marshal(mm.wire)
 }
 
 func (mm *MessageImpl) IsBroadcast() bool {
-	return mm.To == nil || len(mm.To) > 1
+	return mm.wire.IsBroadcast
 }
 
+// only `true` in DGRound2NewCommitteeACKMessage (regroup)
 func (mm *MessageImpl) IsToOldCommittee() bool {
-	return mm.ToOldCommittee
+	return mm.wire.IsToOldCommittee
 }
 
 func (mm *MessageImpl) ValidateBasic() bool {
-	return mm.Msg.ValidateBasic()
+	return mm.content.ValidateBasic()
 }
 
 func (mm *MessageImpl) String() string {
@@ -90,7 +104,7 @@ func (mm *MessageImpl) String() string {
 		toStr = fmt.Sprintf("%v", mm.To)
 	}
 	extraStr := ""
-	if mm.ToOldCommittee {
+	if mm.IsToOldCommittee() {
 		extraStr = " (To Old Committee)"
 	}
 	return fmt.Sprintf("Type: %s, From: %s, To: %s%s", mm.Type(), mm.From.String(), toStr, extraStr)

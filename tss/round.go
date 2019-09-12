@@ -5,7 +5,7 @@ type Round interface {
 	Start() *Error
 	Update() (bool, *Error)
 	RoundNumber() int
-	CanAccept(msg Message) bool
+	CanAccept(msg ParsedMessage) bool
 	CanProceed() bool
 	NextRound() Round
 	WaitingFor() []*PartyID

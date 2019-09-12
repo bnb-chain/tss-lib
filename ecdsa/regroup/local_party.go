@@ -26,17 +26,16 @@ type (
 		temp LocalPartyTempData
 		key  keygen.LocalPartySaveData // we save straight back into here
 
-		// messaging
+		// outbound messaging
 		end chan<- keygen.LocalPartySaveData
 	}
 
 	LocalPartyMessageStore struct {
-		// messages
 		dgRound1Messages,
 		dgRound2Message1s,
 		dgRound2Message2s,
 		dgRound3Message1s,
-		dgRound3Message2s []tss.Message
+		dgRound3Message2s []tss.ParsedMessage
 	}
 
 	LocalPartyTempData struct {
@@ -69,19 +68,15 @@ func NewLocalParty(
 		end:    end,
 	}
 	// msgs init
-	p.temp.dgRound1Messages = make([]tss.Message, params.Threshold()+1)    // from t+1 of Old Committee
-	p.temp.dgRound2Message1s = make([]tss.Message, params.NewPartyCount()) // from n of New Committee
-	p.temp.dgRound2Message2s = make([]tss.Message, params.NewPartyCount()) // "
-	p.temp.dgRound3Message1s = make([]tss.Message, params.Threshold()+1)   // from t+1 of Old Committee
-	p.temp.dgRound3Message2s = make([]tss.Message, params.Threshold()+1)   // "
+	p.temp.dgRound1Messages = make([]tss.ParsedMessage, params.Threshold()+1)    // from t+1 of Old Committee
+	p.temp.dgRound2Message1s = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
+	p.temp.dgRound2Message2s = make([]tss.ParsedMessage, params.NewPartyCount()) // "
+	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
+	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)   // "
 	// round init
 	round := newRound1(params, &p.key, &p.key, &p.temp, out)
 	p.Round = round
 	return p
-}
-
-func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
 }
 
 func (p *LocalParty) PartyID() *tss.PartyID {
@@ -101,11 +96,19 @@ func (p *LocalParty) Start() *tss.Error {
 	return p.Round.Start()
 }
 
-func (p *LocalParty) Update(msg tss.Message, phase string) (ok bool, err *tss.Error) {
-	return tss.BaseUpdate(p, msg, phase)
+func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
+	return tss.BaseUpdate(p, msg, "regroup")
 }
 
-func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, to []*tss.PartyID) (bool, *tss.Error) {
+	msg, err := tss.ParseMessage(wireBytes, from, to)
+	if err != nil {
+		return false, p.WrapError(err)
+	}
+	return p.Update(msg)
+}
+
+func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -135,4 +138,8 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 func (p *LocalParty) Finish() {
 	p.end <- p.key
+}
+
+func (p *LocalParty) String() string {
+	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
 }

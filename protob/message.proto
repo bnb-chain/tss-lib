@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "tss/wire"; // must have a slash in it :(
+option go_package = "protob"; // must have a slash in it :(
 
 import "google/protobuf/any.proto";
 

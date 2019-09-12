@@ -87,15 +87,15 @@ func (round *round2) Start() *tss.Error {
 	return nil
 }
 
-func (round *round2) CanAccept(msg tss.Message) bool {
-	if round.ReGroupParams().IsOldCommittee() {
-		if _, ok := msg.Content().(*DGRound2Message2); ok {
-			return msg.IsBroadcast()
-		}
-	}
+func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 	if round.ReGroupParams().IsNewCommittee() {
 		if _, ok := msg.Content().(*DGRound2Message1); ok {
 			return msg.IsBroadcast()
+		}
+	}
+	if round.ReGroupParams().IsOldCommittee() {
+		if _, ok := msg.Content().(*DGRound2Message2); ok {
+			return msg.IsBroadcast() && msg.IsToOldCommittee()
 		}
 	}
 	return false

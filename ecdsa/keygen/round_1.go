@@ -28,7 +28,7 @@ var (
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.WireMessage) tss.Round {
+func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
 		&base{params, save, temp, out, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
@@ -127,7 +127,7 @@ func (round *round1) Start() *tss.Error {
 	return nil
 }
 
-func (round *round1) CanAccept(msg tss.Message) bool {
+func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*KGRound1Message); ok {
 		return msg.IsBroadcast()
 	}

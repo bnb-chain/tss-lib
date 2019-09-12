@@ -27,7 +27,7 @@ type (
 		keys keygen.LocalPartySaveData
 		data LocalPartySignData
 
-		// messaging
+		// outbound messaging
 		end chan<- LocalPartySignData
 	}
 
@@ -41,7 +41,7 @@ type (
 		signRound6Messages,
 		signRound7Messages,
 		signRound8Messages,
-		signRound9Messages []tss.Message
+		signRound9Messages []tss.ParsedMessage
 	}
 
 	LocalPartyTempData struct {
@@ -115,16 +115,16 @@ func NewLocalParty(
 		end:    end,
 	}
 	// msgs init
-	p.temp.signRound1Message1s = make([]tss.Message, partyCount)
-	p.temp.signRound1Message2s = make([]tss.Message, partyCount)
-	p.temp.signRound2Messages = make([]tss.Message, partyCount)
-	p.temp.signRound3Messages = make([]tss.Message, partyCount)
-	p.temp.signRound4Messages = make([]tss.Message, partyCount)
-	p.temp.signRound5Messages = make([]tss.Message, partyCount)
-	p.temp.signRound6Messages = make([]tss.Message, partyCount)
-	p.temp.signRound7Messages = make([]tss.Message, partyCount)
-	p.temp.signRound8Messages = make([]tss.Message, partyCount)
-	p.temp.signRound9Messages = make([]tss.Message, partyCount)
+	p.temp.signRound1Message1s = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound1Message2s = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound2Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound3Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound4Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound5Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound6Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
 	// data init
 	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
 	p.temp.m = msg
@@ -140,10 +140,6 @@ func NewLocalParty(
 	round := newRound1(params, &keys, &p.data, &p.temp, out)
 	p.Round = round
 	return p
-}
-
-func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
 }
 
 func (p *LocalParty) PartyID() *tss.PartyID {
@@ -164,11 +160,19 @@ func (p *LocalParty) Start() *tss.Error {
 	return p.Round.Start()
 }
 
-func (p *LocalParty) Update(msg tss.Message, phase string) (ok bool, err *tss.Error) {
-	return tss.BaseUpdate(p, msg, phase)
+func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
+	return tss.BaseUpdate(p, msg, "signing")
 }
 
-func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, to []*tss.PartyID) (bool, *tss.Error) {
+	msg, err := tss.ParseMessage(wireBytes, from, to)
+	if err != nil {
+		return false, p.WrapError(err)
+	}
+	return p.Update(msg)
+}
+
+func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -213,4 +217,8 @@ func (p *LocalParty) StoreMessage(msg tss.Message) (bool, *tss.Error) {
 
 func (p *LocalParty) Finish() {
 	p.end <- p.data
+}
+
+func (p *LocalParty) String() string {
+	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
 }
