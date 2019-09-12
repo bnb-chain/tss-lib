@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "tss/wire"; // must have a slash in it :(
+
+import "google/protobuf/any.proto";
+
+/*
+ * Wrapper for TSS messages
+ */
+message Message {
+    bool is_broadcast = 1;
+    bool is_to_old_committee = 2; // used only in certain regroup messages
+    // An Any contains an arbitrary serialized message as bytes, along with a URL that
+    // acts as a globally unique identifier for and resolves to that message's type.
+    google.protobuf.Any message = 10;
+}

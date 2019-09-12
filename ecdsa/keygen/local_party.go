@@ -73,7 +73,7 @@ type (
 // Exported, used in `tss` client
 func NewLocalParty(
 	params *tss.Parameters,
-	out chan<- tss.Message,
+	out chan<- tss.WireMessage,
 	end chan<- LocalPartySaveData,
 ) *LocalParty {
 	partyCount := params.PartyCount()
