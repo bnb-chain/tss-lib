@@ -13,7 +13,7 @@ type (
 		*tss.Parameters
 		save    *LocalPartySaveData
 		temp    *LocalPartyTempData
-		out     chan<- tss.Message
+		out     chan<- tss.WireMessage
 		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool
 		number  int

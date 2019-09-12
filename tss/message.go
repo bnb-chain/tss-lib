@@ -4,26 +4,26 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
+
+	"github.com/binance-chain/tss-lib/tss/wire"
 )
 
 type (
-	Message interface {
+	WireMessage interface {
 		GetTo() []*PartyID
 		GetFrom() *PartyID
 		Type() string
-		Content() MessageContent
 		IsBroadcast() bool
 		IsToOldCommittee() bool
-		ValidateBasic() bool
+		WireMsg() *wire.Message
+		WireBytes() ([]byte, error)
 		String() string
 	}
 
-	MessageMetadata struct {
-		// if `To` is `nil` the message should be broadcast to all parties
-		To             []*PartyID
-		From           *PartyID
-		MsgType        string
-		ToOldCommittee bool // only `true` in DGRound2NewCommitteeACKMessage (regroup)
+	Message interface {
+		WireMessage
+		Content() MessageContent
+		ValidateBasic() bool
 	}
 
 	// MessageContent implements ValidateBasic
@@ -32,9 +32,17 @@ type (
 		ValidateBasic() bool
 	}
 
+	MessageMetadata struct {
+		// if `To` is `nil` the message should be broadcast to all parties
+		To             []*PartyID
+		From           *PartyID
+		ToOldCommittee bool // only `true` in DGRound2NewCommitteeACKMessage (regroup)
+	}
+
 	MessageImpl struct {
 		MessageMetadata
-		Msg MessageContent
+		Msg  MessageContent
+		Wire *wire.Message
 	}
 )
 
@@ -49,11 +57,19 @@ func (mm *MessageImpl) GetFrom() *PartyID {
 }
 
 func (mm *MessageImpl) Type() string {
-	return mm.MsgType
+	return proto.MessageName(mm.Msg)
 }
 
 func (mm *MessageImpl) Content() MessageContent {
 	return mm.Msg
+}
+
+func (mm *MessageImpl) WireMsg() *wire.Message {
+	return mm.Wire
+}
+
+func (mm *MessageImpl) WireBytes() ([]byte, error) {
+	return proto.Marshal(mm.WireMsg())
 }
 
 func (mm *MessageImpl) IsBroadcast() bool {
@@ -77,5 +93,5 @@ func (mm *MessageImpl) String() string {
 	if mm.ToOldCommittee {
 		extraStr = " (To Old Committee)"
 	}
-	return fmt.Sprintf("Type: %s, From: %s, To: %s%s", mm.MsgType, mm.From.String(), toStr, extraStr)
+	return fmt.Sprintf("Type: %s, From: %s, To: %s%s", mm.Type(), mm.From.String(), toStr, extraStr)
 }

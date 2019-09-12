@@ -3,11 +3,15 @@ package keygen
 import (
 	"math/big"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
+
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
+	"github.com/binance-chain/tss-lib/tss/wire"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go
@@ -22,6 +26,8 @@ var (
 	}
 )
 
+// The following messages are registered on the Protocol Buffers "wire" in tss/wire
+
 // ----- //
 
 func NewKGRound1Message(
@@ -30,18 +36,26 @@ func NewKGRound1Message(
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
 ) tss.Message {
+	isBroadcast := true
 	meta := tss.MessageMetadata{
-		MsgType: "KGRound1Message",
 		From:    from,
 	}
-	msg := &KGRound1Message{
+	content := &KGRound1Message{
 		Commitment: ct.Bytes(),
 		PaillierN:  paillierPK.N.Bytes(),
 		NTilde:     nTildeI.Bytes(),
 		H1:         h1I.Bytes(),
 		H2:         h2I.Bytes(),
 	}
-	return &tss.MessageImpl{MessageMetadata: meta, Msg: msg}
+	bz, _ := proto.Marshal(content)
+	msg := &wire.Message{
+		IsBroadcast: isBroadcast,
+		Message: &any.Any{
+			TypeUrl: wire.ProtoNamePrefix + proto.MessageName(content),
+			Value: bz,
+		},
+	}
+	return &tss.MessageImpl{MessageMetadata: meta, Msg: content, Wire: msg}
 }
 
 func (m *KGRound1Message) ValidateBasic() bool {

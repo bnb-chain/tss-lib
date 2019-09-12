@@ -28,7 +28,7 @@ type BaseParty struct {
 	mtx   sync.Mutex
 
 	// messaging
-	Out chan<- Message
+	Out chan<- WireMessage
 }
 
 func (p *BaseParty) Rnd() Round {
