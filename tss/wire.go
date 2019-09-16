@@ -19,8 +19,7 @@ func ParseMessageFromProtoB(wire *protob.Message, from *PartyID, to []*PartyID) 
 		From: from,
 		To:   to,
 	}
-	err := ptypes.UnmarshalAny(wire.Message, &any)
-	if err != nil {
+	if err := ptypes.UnmarshalAny(wire.Message, &any); err != nil {
 		return nil, err
 	}
 	if content, ok := any.Message.(MessageContent); ok {

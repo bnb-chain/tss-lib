@@ -304,7 +304,7 @@ func (pf *ProofBob) Bytes() [ProofBobBytesParts][]byte {
 }
 
 func (pf *ProofBobWC) Bytes() [ProofBobWCBytesParts][]byte {
-	var out [12][]byte
+	var out [ProofBobWCBytesParts][]byte
 	bobBzs := pf.ProofBob.Bytes()
 	bobBzsSlice := bobBzs[:]
 	bobBzsSlice = append(bobBzsSlice, pf.U.X().Bytes())
