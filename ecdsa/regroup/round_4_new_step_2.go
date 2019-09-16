@@ -130,18 +130,24 @@ func (round *round4) Start() *tss.Error {
 	// 15-19.
 	newKs := make([]*big.Int, 0, round.NewPartyCount())
 	NewBigXj := make([]*crypto.ECPoint, round.NewPartyCount())
+	culprits = make([]*tss.PartyID, 0, round.NewPartyCount()) // who caused the error(s)
 	for j := 0; j < round.NewPartyCount(); j++ {
-		kj := round.NewParties().IDs()[j].Key
+		Pj := round.NewParties().IDs()[j]
+		kj := Pj.Key
 		newBigXj := Vc[0]
 		newKs = append(newKs, kj)
+		z := new(big.Int).SetInt64(int64(1))
 		for c := 1; c <= round.NewThreshold(); c++ {
-			z := modQ.Exp(kj, big.NewInt(int64(c)))
+			z = modQ.Mul(z, kj)
 			newBigXj, err = newBigXj.Add(Vc[c].ScalarMult(z))
 			if err != nil {
-				return round.WrapError(errors2.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"))
+				culprits = append(culprits, Pj)
 			}
 		}
 		NewBigXj[j] = newBigXj
+	}
+	if len(culprits) > 0 {
+		return round.WrapError(errors2.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"), culprits...)
 	}
 	round.save.BigXj = NewBigXj
 
