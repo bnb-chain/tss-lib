@@ -48,8 +48,10 @@ func TestStartRound1Paillier(t *testing.T) {
 	_ = <-out
 
 	// Paillier modulus 2048 (two 1024-bit primes)
-	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.LambdaN.Bytes()))
-	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
+	lambdaNLen := len(lp.data.PaillierSk.LambdaN.Bytes())
+	assert.True(t, 2048/8 == lambdaNLen || (2048/8)-1 == lambdaNLen)
+	pubKeyNLen := len(lp.data.PaillierSk.PublicKey.N.Bytes())
+	assert.True(t, 2048/8 == pubKeyNLen || (2048/8)-1 == pubKeyNLen)
 }
 
 func TestStartRound1RSA(t *testing.T) {
