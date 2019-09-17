@@ -17,7 +17,7 @@ import (
 type (
 	Share struct {
 		Threshold int
-		ID, // xi
+		ID,       // xi
 		Share *big.Int // Sigma i
 	}
 

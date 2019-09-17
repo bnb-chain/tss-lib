@@ -30,7 +30,9 @@ func (round *round4) Start() *tss.Error {
 		chs[i] = make(chan bool)
 	}
 	for j, msg := range r3msgs {
-		if j == i { continue }
+		if j == i {
+			continue
+		}
 		go func(prf paillier.Proof, j int, ch chan<- bool) {
 			ppk := round.save.PaillierPks[j]
 			ok, err := prf.Verify(ppk.N, PIDs[j], ecdsaPub)
@@ -49,7 +51,7 @@ func (round *round4) Start() *tss.Error {
 			round.ok[j] = true
 			continue
 		}
-		round.ok[j] = <- ch
+		round.ok[j] = <-ch
 	}
 	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 	for j, ok := range round.ok {

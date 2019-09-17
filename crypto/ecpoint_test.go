@@ -32,7 +32,7 @@ func TestFlattenECPoints(t *testing.T) {
 			nil,
 			NewECPointNoCurveCheck(tss.EC(), big.NewInt(3), big.NewInt(4))},
 		},
-		want: nil,
+		want:    nil,
 		wantErr: true,
 	}, {
 		name: "flatten with nil coordinate (expects err)",
@@ -40,12 +40,12 @@ func TestFlattenECPoints(t *testing.T) {
 			NewECPointNoCurveCheck(tss.EC(), big.NewInt(1), big.NewInt(2)),
 			NewECPointNoCurveCheck(tss.EC(), nil, big.NewInt(4))},
 		},
-		want: nil,
+		want:    nil,
 		wantErr: true,
 	}, {
-		name: "flatten with nil `in` slice",
-		args: args{nil},
-		want: nil,
+		name:    "flatten with nil `in` slice",
+		args:    args{nil},
+		want:    nil,
 		wantErr: true,
 	}}
 	for _, tt := range tests {
@@ -79,19 +79,19 @@ func TestUnFlattenECPoints(t *testing.T) {
 			NewECPointNoCurveCheck(tss.EC(), big.NewInt(3), big.NewInt(4)),
 		},
 	}, {
-		name: "un-flatten uneven len(points) (expects err)",
-		args: args{[]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}},
-		want: nil,
+		name:    "un-flatten uneven len(points) (expects err)",
+		args:    args{[]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}},
+		want:    nil,
 		wantErr: true,
 	}, {
-		name: "un-flatten with nil coordinate (expects err)",
-		args: args{[]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3), nil}},
-		want: nil,
+		name:    "un-flatten with nil coordinate (expects err)",
+		args:    args{[]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3), nil}},
+		want:    nil,
 		wantErr: true,
 	}, {
-		name: "flatten with nil `in` slice",
-		args: args{nil},
-		want: nil,
+		name:    "flatten with nil `in` slice",
+		args:    args{nil},
+		want:    nil,
 		wantErr: true,
 	}}
 	for _, tt := range tests {

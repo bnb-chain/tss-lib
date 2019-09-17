@@ -26,8 +26,7 @@ func (round *round2) Start() *tss.Error {
 	if !round.ReGroupParams().IsNewCommittee() {
 		return nil
 	}
-
-	Pi := round.PartyID()
+	Pi := round.NewCommitteePartyID()
 	i := Pi.Index
 
 	// prepare for concurrent Paillier and RSA key generation
@@ -38,7 +37,7 @@ func (round *round2) Start() *tss.Error {
 	go func(ch chan<- *paillier.PrivateKey) {
 		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(keygen.PaillierModulusLen) // sk contains pk
-		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", round.PartyID(), time.Since(start))
+		common.Logger.Debugf("party %s: paillier keygen done. took %s\n", Pi, time.Since(start))
 		ch <- PiPaillierSk
 	}(paiCh)
 
@@ -50,13 +49,13 @@ func (round *round2) Start() *tss.Error {
 			common.Logger.Errorf("RSA generation error: %s", err)
 			ch <- nil
 		}
-		common.Logger.Debugf("party %s: rsa keygen done. took %s\n", round.PartyID(), time.Since(start))
+		common.Logger.Debugf("party %s: rsa keygen done. took %s\n", Pi, time.Since(start))
 		ch <- pk
 	}(rsaCh)
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2NewCommitteeACKMessage(
-		round.Parties().IDs().Exclude(round.PartyID()), round.PartyID())
+		round.Parties().IDs().Exclude(Pi), Pi)
 	round.temp.dgRound2NewCommitteeACKMessage[i] = &r2msg1
 	round.out <- r2msg1
 
@@ -73,7 +72,7 @@ func (round *round2) Start() *tss.Error {
 
 	paillierPf := paiSK.Proof(Pi.Key, round.save.ECDSAPub)
 	r2msg2 := NewDGRound2NewCommitteePaillierPublicKeyMessage(
-		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
+		round.NewParties().IDs().Exclude(Pi), Pi,
 		&paiSK.PublicKey, paillierPf, NTildei, h1i, h2i)
 	round.temp.dgRound2PaillierPublicKeyMessage[i] = &r2msg2
 	round.out <- r2msg2

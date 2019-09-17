@@ -10,10 +10,9 @@ import (
 
 type (
 	PartyID struct {
-		ID      string
-		Moniker string
-		Index   int
-		Key     *big.Int // used in crypto and for sorting parties
+		Moniker string   `json:"moniker"`
+		Key     *big.Int `json:"key"` // used in crypto and for sorting parties
+		Index   int      `json:"index"`
 	}
 
 	UnSortedPartyIDs []*PartyID
@@ -22,13 +21,13 @@ type (
 
 // ----- //
 
-// Exported, used in `tss` client. `key` should remain consistent between runs for each party.
-func NewPartyID(id string, moniker string, key *big.Int) *PartyID {
+// Exported and used in client implementations.
+// `key` should remain consistent between runs for each party.
+func NewPartyID(moniker string, key *big.Int) *PartyID {
 	return &PartyID{
-		Index:   -1, // not known until sorted
-		ID:      id,
 		Moniker: moniker,
 		Key:     key,
+		Index:   -1, // not known until sorted
 	}
 }
 
@@ -39,7 +38,7 @@ func (pid PartyID) String() string {
 // ----- //
 
 // Exported, used in `tss` client
-func SortPartyIDs(ids UnSortedPartyIDs, startAt... int) SortedPartyIDs {
+func SortPartyIDs(ids UnSortedPartyIDs, startAt ...int) SortedPartyIDs {
 	sorted := make(SortedPartyIDs, 0, len(ids))
 	for _, id := range ids {
 		sorted = append(sorted, id)
@@ -56,7 +55,7 @@ func SortPartyIDs(ids UnSortedPartyIDs, startAt... int) SortedPartyIDs {
 	return sorted
 }
 
-func GenerateTestPartyIDs(count int, startAt... int) SortedPartyIDs {
+func GenerateTestPartyIDs(count int, startAt ...int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
 	key := random.MustGetRandomInt(256)
 	frm := 0
@@ -65,13 +64,12 @@ func GenerateTestPartyIDs(count int, startAt... int) SortedPartyIDs {
 		frm = startAt[0]
 		i = startAt[0]
 	}
-	for ; i < count + frm; i++ {
+	for ; i < count+frm; i++ {
 		ids = append(ids, &PartyID{
-			ID:      fmt.Sprintf("%d", i+1),
 			Moniker: fmt.Sprintf("P[%d]", i+1),
+			Key:     new(big.Int).Sub(key, big.NewInt(int64(count)-int64(i))),
 			Index:   i,
 			// this key makes tests more deterministic
-			Key: new(big.Int).Sub(key, big.NewInt(int64(count)-int64(i))),
 		})
 	}
 	return SortPartyIDs(ids, startAt...)

@@ -2,14 +2,33 @@ package tss
 
 type (
 	PeerContext struct {
-		partyIDs SortedPartyIDs
+		PartyIDs   SortedPartyIDs `json:"parties"`
+		OurPartyID *PartyID       `json:"our_party_id"`
 	}
 )
 
-func NewPeerContext(parties SortedPartyIDs) *PeerContext {
-	return &PeerContext{partyIDs: parties}
+// Exported and used in client implementations.
+func NewPeerContextFromUnSortedIDs(parties UnSortedPartyIDs, ourIDIndex int) *PeerContext {
+	return NewPeerContextFromSortedIDs(SortPartyIDs(parties), parties[ourIDIndex])
 }
 
-func (p2pCtx *PeerContext) IDs() SortedPartyIDs {
-	return p2pCtx.partyIDs
+// Exported and used in client implementations.
+func NewPeerContextFromUnSortedIDsWithoutUs(parties UnSortedPartyIDs) *PeerContext {
+	return NewPeerContextFromSortedIDs(SortPartyIDs(parties), nil)
+}
+
+// Exported and used in client implementations.
+func NewPeerContextFromSortedIDs(parties SortedPartyIDs, ourPartyID *PartyID) *PeerContext {
+	return &PeerContext{
+		PartyIDs:   parties,
+		OurPartyID: ourPartyID,
+	}
+}
+
+func (ctx *PeerContext) IDs() SortedPartyIDs {
+	return ctx.PartyIDs
+}
+
+func (ctx *PeerContext) OurID() *PartyID {
+	return ctx.OurPartyID
 }

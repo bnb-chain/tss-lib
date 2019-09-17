@@ -89,7 +89,9 @@ func (round *round2) Start() *tss.Error {
 	// consume error channels; wait for goroutines
 	culprits := make([]*tss.PartyID, 0, len(round.Parties().IDs()))
 	for _, errCh := range append(errChs1, errChs2...) {
-		if errCh == nil { continue }
+		if errCh == nil {
+			continue
+		}
 		if err := <-errCh; err != nil {
 			culprits = append(culprits, err.Culprits()...)
 		}

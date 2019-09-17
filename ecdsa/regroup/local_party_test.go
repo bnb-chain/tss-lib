@@ -44,10 +44,8 @@ func TestE2EConcurrent(t *testing.T) {
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: regroup
-	pIDs = pIDs[:threshold+1] // always regroup with old_t+1
-	p2pCtx := tss.NewPeerContext(pIDs)
+	pIDs = pIDs[:threshold+1]                             // always regroup with old_t+1
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
-	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
 
 	oldCommittee := make([]*LocalParty, 0, len(pIDs))
@@ -59,14 +57,18 @@ func TestE2EConcurrent(t *testing.T) {
 	endCh := make(chan keygen.LocalPartySaveData, len(newCommittee))
 
 	// init the old parties first
-	for i, pID := range pIDs {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+	for i := range pIDs {
+		p2pCtx := tss.NewPeerContextFromUnSortedIDs(pIDs.ToUnSorted(), i)
+		newP2PCtx := tss.NewPeerContextFromUnSortedIDsWithoutUs(newPIDs.ToUnSorted())
+		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, testParticipants, threshold, newPCount, newThreshold)
 		P := NewLocalParty(params, keys[i], outCh, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
-	// init the new parties
-	for _, pID := range newPIDs {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+	// init the new parties next
+	for i := range newPIDs {
+		p2pCtx := tss.NewPeerContextFromUnSortedIDsWithoutUs(pIDs.ToUnSorted())
+		newP2PCtx := tss.NewPeerContextFromUnSortedIDs(newPIDs.ToUnSorted(), i)
+		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, testParticipants, threshold, newPCount, newThreshold)
 		// TODO do this better!
 		save := keygen.LocalPartySaveData{
 			BigXj:       make([]*crypto.ECPoint, newPCount),
@@ -149,16 +151,15 @@ signing:
 	// PHASE: signing
 	keys = keys[:threshold+1]
 	signPIDs := newPIDs[:threshold+1]
-
-	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
 
 	signErrCh := make(chan *tss.Error, len(signPIDs))
 	signOutCh := make(chan tss.Message, len(signPIDs))
 	signEndCh := make(chan signing.LocalPartySignData, len(signPIDs))
 
-	for i, signPID := range signPIDs {
-		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
+	for i := range signPIDs {
+		signP2pCtx := tss.NewPeerContextFromUnSortedIDs(signPIDs.ToUnSorted(), i)
+		params := tss.NewParameters(signP2pCtx, len(signPIDs), newThreshold)
 		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOutCh, signEndCh)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {

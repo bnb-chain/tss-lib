@@ -36,9 +36,9 @@ func TestStartRound1Paillier(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
-	p2pCtx := tss.NewPeerContext(pIDs)
+	p2pCtx := tss.NewPeerContextFromUnSortedIDs(pIDs.ToUnSorted(), 0)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
@@ -58,9 +58,9 @@ func TestStartRound1RSA(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
-	p2pCtx := tss.NewPeerContext(pIDs)
+	p2pCtx := tss.NewPeerContextFromUnSortedIDs(pIDs.ToUnSorted(), 0)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
@@ -78,9 +78,9 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(1)
-	p2pCtx := tss.NewPeerContext(pIDs)
+	p2pCtx := tss.NewPeerContextFromUnSortedIDs(pIDs.ToUnSorted(), 0)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
@@ -108,9 +108,9 @@ func TestBadMessageCulprits(t *testing.T) {
 	setUp("debug")
 
 	pIDs := tss.GenerateTestPartyIDs(2)
-	p2pCtx := tss.NewPeerContext(pIDs)
+	p2pCtx := tss.NewPeerContextFromUnSortedIDs(pIDs.ToUnSorted(), 0)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
@@ -138,7 +138,6 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	threshold := testThreshold
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 
-	p2pCtx := tss.NewPeerContext(pIDs)
 	parties := make([]*LocalParty, 0, len(pIDs))
 
 	errCh := make(chan *tss.Error, len(pIDs))
@@ -148,7 +147,8 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	startGR := runtime.NumGoroutine()
 
 	for i := 0; i < len(pIDs); i++ {
-		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
+		p2pCtx := tss.NewPeerContextFromUnSortedIDs(pIDs.ToUnSorted(), i)
+		params := tss.NewParameters(p2pCtx, len(pIDs), threshold)
 		P := NewLocalParty(params, outCh, endCh)
 		parties = append(parties, P)
 		go func(P *LocalParty) {

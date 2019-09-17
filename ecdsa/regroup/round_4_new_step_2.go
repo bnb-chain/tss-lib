@@ -26,8 +26,7 @@ func (round *round4) Start() *tss.Error {
 	if !round.ReGroupParams().IsNewCommittee() {
 		return nil // old committee finished!
 	}
-
-	Pi := round.PartyID()
+	Pi := round.NewCommitteePartyID()
 	i := Pi.Index
 
 	// 1-3. verify paillier key proofs
@@ -124,7 +123,7 @@ func (round *round4) Start() *tss.Error {
 
 	// 14.
 	if !Vc[0].Equals(round.save.ECDSAPub) {
-		return round.WrapError(errors.New("assertion failed: V_0 != y"), round.PartyID())
+		return round.WrapError(errors.New("assertion failed: V_0 != y"), Pi)
 	}
 
 	// 15-19.
@@ -153,7 +152,7 @@ func (round *round4) Start() *tss.Error {
 
 	// 21.
 	// for this P: SAVE other data
-	round.save.ShareID = round.PartyID().Key
+	round.save.ShareID = Pi.Key
 	round.save.Xi = newXi
 	round.save.Ks = newKs
 

@@ -39,8 +39,6 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// PHASE: signing
 	signPIDs := pIDs[:threshold+1]
-
-	p2pCtx := tss.NewPeerContext(signPIDs)
 	parties := make([]*LocalParty, 0, len(signPIDs))
 
 	errCh := make(chan *tss.Error, len(signPIDs))
@@ -48,7 +46,8 @@ func TestE2EConcurrent(t *testing.T) {
 	endCh := make(chan LocalPartySignData, len(signPIDs))
 
 	for i := 0; i < len(signPIDs); i++ {
-		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
+		p2pCtx := tss.NewPeerContextFromUnSortedIDs(signPIDs.ToUnSorted(), i)
+		params := tss.NewParameters(p2pCtx, len(signPIDs), threshold)
 		P := NewLocalParty(big.NewInt(42), params, keys[i], outCh, endCh)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
