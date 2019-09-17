@@ -68,11 +68,11 @@ func (share *Share) Verify(threshold int, vs Vs) bool {
 		return false
 	}
 	var err error
-	modN := common.ModInt(tss.EC().Params().N)
-	v := vs[0]
+	modQ := common.ModInt(tss.EC().Params().N)
+	v, t := vs[0], new(big.Int).SetInt64(int64(1)) // YRO : we need to have our accumulator outside of the loop
 	for j := 1; j <= threshold; j++ {
 		// t = ki^j
-		t := modN.Exp(share.ID, big.NewInt(int64(j)))
+		t = modQ.Mul(t, share.ID)
 		// v = v * vj^t
 		vjt := vs[j].SetCurve(tss.EC()).ScalarMult(t)
 		v, err = v.SetCurve(tss.EC()).Add(vjt)
@@ -81,10 +81,7 @@ func (share *Share) Verify(threshold int, vs Vs) bool {
 		}
 	}
 	sigmaGi := crypto.ScalarBaseMult(tss.EC(), share.Share)
-	if sigmaGi.Equals(v) {
-		return true
-	}
-	return false
+	return sigmaGi.Equals(v)
 }
 
 func (shares Shares) ReConstruct() (secret *big.Int, err error) {
@@ -138,9 +135,11 @@ func evaluatePolynomial(threshold int, v []*big.Int, id *big.Int) (result *big.I
 	q := tss.EC().Params().N
 	modQ := common.ModInt(q)
 	result = new(big.Int).Set(v[0])
+	X := big.NewInt(int64(1))
 	for i := 1; i <= threshold; i++ {
 		ai := v[i]
-		aiXi := new(big.Int).Mul(ai, modQ.Exp(id, big.NewInt(int64(i))))
+		X = modQ.Mul(X, id)
+		aiXi := new(big.Int).Mul(ai, X)
 		result = modQ.Add(result, aiXi)
 	}
 	return
