@@ -85,7 +85,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	cmt := cmt.NewHashCommitment(pGFlat...)
+	commitment := cmt.NewHashCommitment(pGFlat...)
 
 	// 9-11. compute h1, h2 (uses RSA primes)
 	if rsa == nil {
@@ -111,10 +111,10 @@ func (round *round1) Start() *tss.Error {
 	// for this P: SAVE de-commitments, paillier keys for round 2
 	round.save.PaillierSk = pai
 	round.save.PaillierPks[i] = &pai.PublicKey
-	round.temp.deCommitPolyG = cmt.D
+	round.temp.deCommitPolyG = commitment.D
 
 	// BROADCAST commitments, paillier pk + proof; round 1 message
-	r1msg := NewKGRound1CommitMessage(round.PartyID(), cmt.C, &pai.PublicKey, NTildei, h1i, h2i)
+	r1msg := NewKGRound1CommitMessage(round.PartyID(), commitment.C, &pai.PublicKey, NTildei, h1i, h2i)
 	round.temp.kgRound1CommitMessages[i] = &r1msg
 	round.out <- r1msg
 	return nil

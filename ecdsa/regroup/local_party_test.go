@@ -40,7 +40,7 @@ func TestE2EConcurrent(t *testing.T) {
 	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 
 	// PHASE: load keygen fixtures
-	keys, err := keygen.LoadKeygenTestFixtures(len(pIDs))
+	keys, err := keygen.LoadKeygenTestFixtures(testParticipants)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: regroup
@@ -61,7 +61,19 @@ func TestE2EConcurrent(t *testing.T) {
 	// init the old parties first
 	for i, pID := range pIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		P := NewLocalParty(params, keys[i], outCh, nil) // discard old key data
+		keyI := keygen.LocalPartySaveData{
+			keys[i].Xi,
+			keys[i].ShareID,
+			keys[i].PaillierSk,
+			keys[i].BigXj[:testThreshold+1],
+			keys[i].PaillierPks[:testThreshold+1],
+			keys[i].NTildej[:testThreshold+1],
+			keys[i].H1j[:testThreshold+1],
+			keys[i].H2j[:testThreshold+1],
+			keys[i].Ks[:testThreshold+1],
+			keys[i].ECDSAPub,
+		}
+		P := NewLocalParty(params, keyI, outCh, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties
@@ -147,7 +159,8 @@ func TestE2EConcurrent(t *testing.T) {
 
 signing:
 	// PHASE: signing
-	keys = keys[:threshold+1]
+	keys, err = keygen.LoadKeygenTestFixtures(testThreshold + 1)
+
 	signPIDs := newPIDs[:threshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)

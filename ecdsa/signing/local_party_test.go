@@ -34,7 +34,7 @@ func TestE2EConcurrent(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 
 	// PHASE: load keygen fixtures
-	keys, err := keygen.LoadKeygenTestFixtures(len(pIDs))
+	keys, err := keygen.LoadKeygenTestFixtures(testThreshold + 1)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: signing

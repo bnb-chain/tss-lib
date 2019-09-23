@@ -3,6 +3,7 @@ package signing
 import (
 	"errors"
 	"math/big"
+	"sync"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/mta"
@@ -23,29 +24,16 @@ func (round *round3) Start() *tss.Error {
 	i := round.PartyID().Index
 
 	// it's concurrency time...
-	errChs1 := make([]chan *tss.Error, len(round.Parties().IDs()))
-	for j := range errChs1 {
-		if j == i {
-			errChs1[j] = nil
-			continue
-		}
-		errChs1[j] = make(chan *tss.Error)
-	}
-	errChs2 := make([]chan *tss.Error, len(round.Parties().IDs()))
-	for j := range errChs2 {
-		if j == i {
-			errChs2[j] = nil
-			continue
-		}
-		errChs2[j] = make(chan *tss.Error)
-	}
-
+	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
+	wg := sync.WaitGroup{}
+	wg.Add((len(round.Parties().IDs()) - 1) * 2)
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
 		// Alice_end
 		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
 			alphaIj, err := mta.AliceEnd(
 				round.key.PaillierPks[i],
 				round.temp.signRound2MtAMidMessages[j].Pi1Ji,
@@ -56,14 +44,13 @@ func (round *round3) Start() *tss.Error {
 				round.key.NTildej[i],
 				round.key.PaillierSk)
 			alphas[j] = alphaIj
-			if err == nil {
-				errChs1[j] <- nil
-				return
+			if err != nil {
+				errChs <- round.WrapError(err, Pj)
 			}
-			errChs1[j] <- round.WrapError(err, Pj)
 		}(j, Pj)
 		// Alice_end_wc
 		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
 			uIj, err := mta.AliceEndWC(
 				round.key.PaillierPks[i],
 				round.temp.signRound2MtAMidMessages[j].Pi2Ji,
@@ -75,21 +62,18 @@ func (round *round3) Start() *tss.Error {
 				round.key.H2j[i],
 				round.key.PaillierSk)
 			us[j] = uIj
-			if err == nil {
-				errChs2[j] <- nil
-				return
+			if err != nil {
+				errChs <- round.WrapError(err, Pj)
 			}
-			errChs2[j] <- round.WrapError(err, Pj)
 		}(j, Pj)
 	}
 
 	// consume error channels; wait for goroutines
+	wg.Wait()
+	close(errChs)
 	culprits := make([]*tss.PartyID, 0, len(round.Parties().IDs()))
-	for _, errCh := range append(errChs1, errChs2...) {
-		if errCh == nil { continue }
-		if err := <-errCh; err != nil {
-			culprits = append(culprits, err.Culprits()...)
-		}
+	for err := range errChs {
+		culprits = append(culprits, err.Culprits()...)
 	}
 	if len(culprits) > 0 {
 		return round.WrapError(errors.New("failed to calculate Alice_end or Alice_end_wc"), culprits...)

@@ -33,12 +33,24 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 		}
 		var key LocalPartySaveData
 		err = json.Unmarshal(bz, &key)
+
 		if err != nil {
 			return nil, errors.Wrapf(err,
 				"could not unmarshal fixture data for party %d located at: %s",
 				j, fixtureFilePath)
 		}
-		keys[j] = key
+		keys[j] = LocalPartySaveData{
+			key.Xi,
+			key.ShareID,
+			key.PaillierSk,
+			key.BigXj[:count],
+			key.PaillierPks[:count],
+			key.NTildej[:count],
+			key.H1j[:count],
+			key.H2j[:count],
+			key.Ks[:count],
+			key.ECDSAPub,
+		}
 	}
 	return keys, nil
 }

@@ -1,6 +1,7 @@
 package signing
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -11,6 +12,12 @@ import (
 // PrepareForSigning(), GG18Spec (11) Fig. 14
 func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
 	modQ := common.ModInt(tss.EC().Params().N)
+	if len(ks) != len(bigXs) {
+		panic(fmt.Errorf("indices and bigX are not same length"))
+	}
+	if len(ks) != pax {
+		panic(fmt.Errorf("indices is not in pax size"))
+	}
 
 	// 2-4.
 	wi = xi
@@ -18,9 +25,8 @@ func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.E
 		if j == i {
 			continue
 		}
-		kj, ki := ks[j], ks[i]
 		// big.Int Div is calculated as: a/b = a * modInv(b,q)
-		coef := modQ.Mul(kj, modQ.ModInverse(new(big.Int).Sub(kj, ki)))
+		coef := modQ.Mul(ks[j], modQ.ModInverse(new(big.Int).Sub(ks[j], ks[i])))
 		wi = modQ.Mul(wi, coef)
 	}
 
@@ -32,8 +38,13 @@ func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.E
 			if j == c {
 				continue
 			}
+			ksc := ks[c]
+			ksj := ks[j]
+			if ksj.Cmp(ksc) == 0 {
+				panic(fmt.Errorf("index of two parties are equal"))
+			}
 			// big.Int Div is calculated as: a/b = a * modInv(b,q)
-			iota := modQ.Mul(ks[c], modQ.ModInverse(new(big.Int).Sub(ks[c], ks[j])))
+			iota := modQ.Mul(ksc, modQ.ModInverse(new(big.Int).Sub(ksc, ksj)))
 			bigWj = bigWj.ScalarMult(iota)
 		}
 		bigWs[j] = bigWj

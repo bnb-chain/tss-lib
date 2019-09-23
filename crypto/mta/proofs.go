@@ -102,19 +102,19 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 
 	// 14.
 	s1 := new(big.Int).Mul(e, x)
-	s1 = new(big.Int).Add(s1, alpha)
+	s1 = s1.Add(s1, alpha)
 
 	// 15.
 	s2 := new(big.Int).Mul(e, rho)
-	s2 = new(big.Int).Add(s2, rhoPrm)
+	s2 = s2.Add(s2, rhoPrm)
 
 	// 16.
 	t1 := new(big.Int).Mul(e, y)
-	t1 = new(big.Int).Add(t1, gamma)
+	t1 = t1.Add(t1, gamma)
 
 	// 17.
 	t2 := new(big.Int).Mul(e, sigma)
-	t2 = new(big.Int).Add(t2, tau)
+	t2 = t2.Add(t2, tau)
 
 	// the regular Bob proof ("without check") is extracted and returned by ProveBob
 	pf := &ProofBob{Z: z, ZPrm: zPrm, T: t, V: v, W: w, S: s, S1: s1, S2: s2, T1: t1, T2: t2}
