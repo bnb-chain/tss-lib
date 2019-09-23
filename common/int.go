@@ -8,7 +8,7 @@ import (
 type modInt big.Int
 
 func ModInt(mod *big.Int) *modInt {
-	return (*modInt)(new(big.Int).Set(mod))
+	return (*modInt)(mod)
 }
 
 func (mi *modInt) Add(x, y *big.Int) *big.Int {

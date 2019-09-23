@@ -69,7 +69,7 @@ func (share *Share) Verify(threshold int, vs Vs) bool {
 	}
 	var err error
 	modQ := common.ModInt(tss.EC().Params().N)
-	v, t := vs[0], new(big.Int).SetInt64(int64(1)) // YRO : we need to have our accumulator outside of the loop
+	v, t := vs[0], one // YRO : we need to have our accumulator outside of the loop
 	for j := 1; j <= threshold; j++ {
 		// t = ki^j
 		t = modQ.Mul(t, share.ID)
