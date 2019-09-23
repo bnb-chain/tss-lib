@@ -13,8 +13,11 @@ var (
 	two  = big.NewInt(2)
 )
 
-// MustGetRandomInt panics if it is unable to gather entropy in `rand.Reader`
+// MustGetRandomInt panics if it is unable to gather entropy from `rand.Reader` or when `bits` is <= 0
 func MustGetRandomInt(bits int) *big.Int {
+	if bits <= 0 {
+		panic(errors.New("MustGetRandomInt: bits should be positive and non-zero"))
+	}
 	// Max random value e.g. 2^256 - 1
 	max := new(big.Int)
 	max = max.Exp(two, big.NewInt(int64(bits)), nil).Sub(max, one)
@@ -22,13 +25,15 @@ func MustGetRandomInt(bits int) *big.Int {
 	// Generate cryptographically strong pseudo-random int between 0 - max
 	n, err := rand.Int(rand.Reader, max)
 	if err != nil {
-		// TODO bubble err up
 		panic(errors.Wrap(err, "rand.Int failure in MustGetRandomInt!"))
 	}
 	return n
 }
 
 func GetRandomPositiveInt(lessThan *big.Int) *big.Int {
+	if lessThan == nil || zero.Cmp(lessThan) != -1 {
+		return nil
+	}
 	var try *big.Int
 	for {
 		try = MustGetRandomInt(lessThan.BitLen())
@@ -57,6 +62,9 @@ func GetRandomPrimeInt(bits int) *big.Int {
 // Generate a random element in the group of all the elements in Z/nZ that
 // has a multiplicative inverse.
 func GetRandomPositiveRelativelyPrimeInt(n *big.Int) *big.Int {
+	if n == nil || zero.Cmp(n) != -1 {
+		return nil
+	}
 	var try *big.Int
 	for {
 		try = MustGetRandomInt(n.BitLen())
@@ -68,6 +76,9 @@ func GetRandomPositiveRelativelyPrimeInt(n *big.Int) *big.Int {
 }
 
 func IsNumberInMultiplicativeGroup(n, v *big.Int) bool {
+	if n == nil || v == nil || zero.Cmp(n) != -1 {
+		return false
+	}
 	gcd := big.NewInt(0)
 	return v.Cmp(n) < 0 && v.Cmp(one) >= 0 &&
 		gcd.GCD(nil, nil, v, n).Cmp(one) == 0
