@@ -2,9 +2,14 @@ package random
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 
 	"github.com/pkg/errors"
+)
+
+const (
+	mustGetRandomIntMaxBits = 5000
 )
 
 var (
@@ -15,8 +20,8 @@ var (
 
 // MustGetRandomInt panics if it is unable to gather entropy from `rand.Reader` or when `bits` is <= 0
 func MustGetRandomInt(bits int) *big.Int {
-	if bits <= 0 {
-		panic(errors.New("MustGetRandomInt: bits should be positive and non-zero"))
+	if bits <= 0 || mustGetRandomIntMaxBits < bits {
+		panic(fmt.Errorf("MustGetRandomInt: bits should be positive, non-zero and less than %d", mustGetRandomIntMaxBits))
 	}
 	// Max random value e.g. 2^256 - 1
 	max := new(big.Int)
@@ -45,6 +50,9 @@ func GetRandomPositiveInt(lessThan *big.Int) *big.Int {
 }
 
 func GetRandomPrimeInt(bits int) *big.Int {
+	if bits <= 0 {
+		return nil
+	}
 	try, err := rand.Prime(rand.Reader, bits)
 	if err != nil ||
 		try.Cmp(zero) == 0 {
