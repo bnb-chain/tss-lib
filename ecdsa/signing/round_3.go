@@ -116,7 +116,7 @@ func (round *round3) Start() *tss.Error {
 
 func (round *round3) Update() (bool, *tss.Error) {
 	for j, msg := range round.temp.signRound3Messages {
-		if round.ok[j] {
+		if msg == nil || round.ok[j] {
 			continue
 		}
 		if !round.CanAccept(msg) {
@@ -131,7 +131,7 @@ func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*SignRound3Message); ok {
 		return msg.IsBroadcast()
 	}
-	return true
+	return false
 }
 
 func (round *round3) NextRound() tss.Round {
