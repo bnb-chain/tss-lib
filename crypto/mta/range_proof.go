@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -38,15 +37,15 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
 	// 1.
-	alpha := random.GetRandomPositiveInt(q3)
+	alpha := common.GetRandomPositiveInt(q3)
 	// 2.
-	beta := random.GetRandomPositiveRelativelyPrimeInt(pk.N)
+	beta := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
 
 	// 3.
-	gamma := random.GetRandomPositiveInt(q3NTilde)
+	gamma := common.GetRandomPositiveInt(q3NTilde)
 
 	// 4.
-	rho := random.GetRandomPositiveInt(qNTilde)
+	rho := common.GetRandomPositiveInt(qNTilde)
 
 	// 5.
 	modNTilde := common.ModInt(NTilde)

@@ -4,10 +4,6 @@ import (
 	"math/big"
 )
 
-var (
-	zero = big.NewInt(0)
-)
-
 // RejectionSample implements the rejection sample logic in GG18Spec (6) Fig. 12.
 // An error may be thrown if writing to the SHA512/256 hash fails.
 func RejectionSample(q *big.Int, eHash *big.Int) *big.Int { // e' = eHash

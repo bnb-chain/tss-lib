@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/common"
 	. "github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -14,11 +14,11 @@ import (
 func TestCreate(t *testing.T) {
 	num, threshold := 5, 3
 
-	secret := random.GetRandomPositiveInt(tss.EC().Params().N)
+	secret := common.GetRandomPositiveInt(tss.EC().Params().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, random.GetRandomPositiveInt(tss.EC().Params().N))
+		ids = append(ids, common.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
 	vs, _, err := Create(threshold, secret, ids)
@@ -42,11 +42,11 @@ func TestCreate(t *testing.T) {
 func TestVerify(t *testing.T) {
 	num, threshold := 5, 3
 
-	secret := random.GetRandomPositiveInt(tss.EC().Params().N)
+	secret := common.GetRandomPositiveInt(tss.EC().Params().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, random.GetRandomPositiveInt(tss.EC().Params().N))
+		ids = append(ids, common.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
 	vs, shares, err := Create(threshold, secret, ids)
@@ -60,11 +60,11 @@ func TestVerify(t *testing.T) {
 func TestReconstruct(t *testing.T) {
 	num, threshold := 5, 3
 
-	secret := random.GetRandomPositiveInt(tss.EC().Params().N)
+	secret := common.GetRandomPositiveInt(tss.EC().Params().N)
 
 	ids := make([]*big.Int, 0)
 	for i := 0; i < num; i++ {
-		ids = append(ids, random.GetRandomPositiveInt(tss.EC().Params().N))
+		ids = append(ids, common.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
 	_, shares, err := Create(threshold, secret, ids)

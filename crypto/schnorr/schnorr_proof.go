@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -31,7 +30,7 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 	q := ecParams.N
 	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy) // already on the curve.
 
-	a := random.GetRandomPositiveInt(q)
+	a := common.GetRandomPositiveInt(q)
 	alpha := crypto.ScalarBaseMult(tss.EC(), a)
 
 	var c *big.Int
@@ -84,7 +83,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	q := ecParams.N
 	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
-	a, b := random.GetRandomPositiveInt(q), random.GetRandomPositiveInt(q)
+	a, b := common.GetRandomPositiveInt(q), common.GetRandomPositiveInt(q)
 	aR := R.ScalarMult(a)
 	bG := crypto.ScalarBaseMult(tss.EC(), b)
 	alpha, _ := aR.Add(bG) // already on the curve.

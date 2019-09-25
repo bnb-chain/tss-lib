@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	. "github.com/binance-chain/tss-lib/crypto/schnorr"
 	"github.com/binance-chain/tss-lib/tss"
@@ -13,7 +13,7 @@ import (
 
 func TestSchnorrProof(t *testing.T) {
 	q := tss.EC().Params().N
-	u := random.GetRandomPositiveInt(q)
+	u := common.GetRandomPositiveInt(q)
 	uG := crypto.ScalarBaseMult(tss.EC(), u)
 	proof, _ := NewZKProof(u, uG)
 
@@ -25,7 +25,7 @@ func TestSchnorrProof(t *testing.T) {
 
 func TestSchnorrProofVerify(t *testing.T) {
 	q := tss.EC().Params().N
-	u := random.GetRandomPositiveInt(q)
+	u := common.GetRandomPositiveInt(q)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 
 	proof, _ := NewZKProof(u, X)
@@ -36,8 +36,8 @@ func TestSchnorrProofVerify(t *testing.T) {
 
 func TestSchnorrProofVerifyBadX(t *testing.T) {
 	q := tss.EC().Params().N
-	u := random.GetRandomPositiveInt(q)
-	u2 := random.GetRandomPositiveInt(q)
+	u := common.GetRandomPositiveInt(q)
+	u2 := common.GetRandomPositiveInt(q)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 	X2 := crypto.ScalarBaseMult(tss.EC(), u2)
 
@@ -49,9 +49,9 @@ func TestSchnorrProofVerifyBadX(t *testing.T) {
 
 func TestSchnorrVProofVerify(t *testing.T) {
 	q := tss.EC().Params().N
-	k := random.GetRandomPositiveInt(q)
-	s := random.GetRandomPositiveInt(q)
-	l := random.GetRandomPositiveInt(q)
+	k := common.GetRandomPositiveInt(q)
+	s := common.GetRandomPositiveInt(q)
+	l := common.GetRandomPositiveInt(q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
@@ -65,9 +65,9 @@ func TestSchnorrVProofVerify(t *testing.T) {
 
 func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 	q := tss.EC().Params().N
-	k := random.GetRandomPositiveInt(q)
-	s := random.GetRandomPositiveInt(q)
-	l := random.GetRandomPositiveInt(q)
+	k := common.GetRandomPositiveInt(q)
+	s := common.GetRandomPositiveInt(q)
+	l := common.GetRandomPositiveInt(q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	V := Rs
@@ -80,10 +80,10 @@ func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 
 func TestSchnorrVProofVerifyBadS(t *testing.T) {
 	q := tss.EC().Params().N
-	k := random.GetRandomPositiveInt(q)
-	s := random.GetRandomPositiveInt(q)
-	s2 := random.GetRandomPositiveInt(q)
-	l := random.GetRandomPositiveInt(q)
+	k := common.GetRandomPositiveInt(q)
+	s := common.GetRandomPositiveInt(q)
+	s2 := common.GetRandomPositiveInt(q)
+	l := common.GetRandomPositiveInt(q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)

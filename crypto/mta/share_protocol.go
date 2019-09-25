@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
@@ -34,7 +33,7 @@ func BobMid(
 		return
 	}
 	q := tss.EC().Params().N
-	betaPrm = random.GetRandomPositiveInt(pkA.N)
+	betaPrm = common.GetRandomPositiveInt(pkA.N)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
 	if err != nil {
 		return
@@ -63,7 +62,7 @@ func BobMidWC(
 		return
 	}
 	q := tss.EC().Params().N
-	betaPrm = random.GetRandomPositiveInt(pkA.N)
+	betaPrm = common.GetRandomPositiveInt(pkA.N)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
 	if err != nil {
 		return

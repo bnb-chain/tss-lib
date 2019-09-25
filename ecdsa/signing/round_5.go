@@ -6,7 +6,6 @@ import (
 	errors2 "github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/tss"
@@ -59,8 +58,8 @@ func (round *round5) Start() *tss.Error {
 	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(rx, round.temp.sigma))
 	// TODO: clear temp.k, temp.w
 
-	li := random.GetRandomPositiveInt(N)  // li
-	roI := random.GetRandomPositiveInt(N) // pi
+	li := common.GetRandomPositiveInt(N)  // li
+	roI := common.GetRandomPositiveInt(N) // pi
 	rToSi := R.ScalarMult(si)
 	liPoint := crypto.ScalarBaseMult(tss.EC(), li)
 	bigAi := crypto.ScalarBaseMult(tss.EC(), roI)

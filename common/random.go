@@ -1,4 +1,4 @@
-package random
+package common
 
 import (
 	"crypto/rand"
@@ -10,12 +10,6 @@ import (
 
 const (
 	mustGetRandomIntMaxBits = 5000
-)
-
-var (
-	zero = big.NewInt(0)
-	one  = big.NewInt(1)
-	two  = big.NewInt(2)
 )
 
 // MustGetRandomInt panics if it is unable to gather entropy from `rand.Reader` or when `bits` is <= 0

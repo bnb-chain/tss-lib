@@ -7,6 +7,12 @@ import (
 // modInt is a *big.Int that performs all of its arithmetic with modular reduction.
 type modInt big.Int
 
+var (
+	zero  = big.NewInt(0)
+	one  = big.NewInt(1)
+	two  = big.NewInt(2)
+)
+
 func ModInt(mod *big.Int) *modInt {
 	return (*modInt)(mod)
 }

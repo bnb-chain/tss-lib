@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -121,7 +120,7 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 	v := make([]*big.Int, threshold+1)
 	v[0] = secret
 	for i := 1; i <= threshold; i++ {
-		ai := random.GetRandomPositiveInt(q)
+		ai := common.GetRandomPositiveInt(q)
 		v[i] = ai
 	}
 	return v

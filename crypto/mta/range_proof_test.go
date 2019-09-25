@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
@@ -21,12 +21,12 @@ func TestProveRangeAlice(t *testing.T) {
 	q := tss.EC().Params().N
 
 	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
-	m := random.GetRandomPositiveInt(q)
+	m := common.GetRandomPositiveInt(q)
 
 	c, r, err := sk.EncryptAndReturnRandomness(m)
 	assert.NoError(t, err)
 
-	primes := [2]*big.Int{random.GetRandomPrimeInt(testRSAPrimeBits), random.GetRandomPrimeInt(testRSAPrimeBits)}
+	primes := [2]*big.Int{common.GetRandomPrimeInt(testRSAPrimeBits), common.GetRandomPrimeInt(testRSAPrimeBits)}
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(primes)
 	assert.NoError(t, err)
 	proof, err := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)

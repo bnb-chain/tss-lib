@@ -19,7 +19,6 @@ import (
 	"github.com/otiai10/primes"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	crypto2 "github.com/binance-chain/tss-lib/crypto"
 )
 
@@ -57,7 +56,7 @@ func init() {
 
 // len is the length of the modulus (each prime = len / 2)
 func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
-	P, Q := random.GetRandomPrimeInt(len/2), random.GetRandomPrimeInt(len/2)
+	P, Q := common.GetRandomPrimeInt(len/2), common.GetRandomPrimeInt(len/2)
 	N := new(big.Int).Mul(P, Q)
 	// phiN = P-1 * Q-1
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
@@ -78,7 +77,7 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
 		return nil, nil, ErrMessageTooLong
 	}
-	x = random.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
+	x = common.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
 	N2 := publicKey.NSquare()
 	// 1. gamma^m mod N2
 	Gm := new(big.Int).Exp(publicKey.Gamma(), m, N2)
@@ -243,7 +242,7 @@ func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 			xi = append(xi, rx...) // xi1||···||xib
 		}
 		ret[i] = new(big.Int).SetBytes(xi)
-		if random.IsNumberInMultiplicativeGroup(N, ret[i]) {
+		if common.IsNumberInMultiplicativeGroup(N, ret[i]) {
 			i++
 		} else {
 			n++

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/mta"
@@ -28,8 +28,8 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	k := random.GetRandomPositiveInt(tss.EC().Params().N)
-	gamma := random.GetRandomPositiveInt(tss.EC().Params().N)
+	k := common.GetRandomPositiveInt(tss.EC().Params().N)
+	gamma := common.GetRandomPositiveInt(tss.EC().Params().N)
 
 	pointGamma := crypto.ScalarBaseMult(tss.EC(), gamma)
 	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())

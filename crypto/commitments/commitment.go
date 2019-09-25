@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 )
 
 const (
@@ -40,7 +39,7 @@ func NewHashCommitmentWithRandomness(r *big.Int, secrets ...*big.Int) *HashCommi
 }
 
 func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
-	r := random.MustGetRandomInt(HashLength) // r
+	r := common.MustGetRandomInt(HashLength) // r
 	return NewHashCommitmentWithRandomness(r, secrets...)
 }
 

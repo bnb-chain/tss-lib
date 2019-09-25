@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
@@ -45,19 +44,19 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 
 	// steps are numbered as shown in Fig. 10, but diverge slightly for Fig. 11
 	// 1.
-	alpha := random.GetRandomPositiveInt(q3)
+	alpha := common.GetRandomPositiveInt(q3)
 
 	// 2.
-	rho := random.GetRandomPositiveInt(qNTilde)
-	sigma := random.GetRandomPositiveInt(qNTilde)
-	tau := random.GetRandomPositiveInt(qNTilde)
+	rho := common.GetRandomPositiveInt(qNTilde)
+	sigma := common.GetRandomPositiveInt(qNTilde)
+	tau := common.GetRandomPositiveInt(qNTilde)
 
 	// 3.
-	rhoPrm := random.GetRandomPositiveInt(q3NTilde)
+	rhoPrm := common.GetRandomPositiveInt(q3NTilde)
 
 	// 4.
-	beta := random.GetRandomPositiveRelativelyPrimeInt(pk.N)
-	gamma := random.GetRandomPositiveRelativelyPrimeInt(pk.N)
+	beta := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
+	gamma := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
 
 	// 5.
 	u := crypto.NewECPointNoCurveCheck(tss.EC(), zero, zero) // initialization suppresses an IDE warning

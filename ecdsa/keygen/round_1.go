@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/common/random"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
@@ -69,7 +68,7 @@ func (round *round1) Start() *tss.Error {
 	}(rsaCh)
 
 	// 1. calculate "partial" key share ui, make commitment -> (C, D)
-	ui := random.GetRandomPositiveInt(tss.EC().Params().N)
+	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
 	round.temp.ui = ui
 
 	// errors can be thrown in the following code; consume chans to end goroutines here

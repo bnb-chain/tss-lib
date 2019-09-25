@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
@@ -25,8 +25,8 @@ func TestShareProtocol(t *testing.T) {
 
 	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
 
-	a := random.GetRandomPositiveInt(q)
-	b := random.GetRandomPositiveInt(q)
+	a := common.GetRandomPositiveInt(q)
+	b := common.GetRandomPositiveInt(q)
 
 	rsaSK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
 	assert.NoError(t, err)
@@ -56,8 +56,8 @@ func TestShareProtocolWC(t *testing.T) {
 
 	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
 
-	a := random.GetRandomPositiveInt(q)
-	b := random.GetRandomPositiveInt(q)
+	a := common.GetRandomPositiveInt(q)
+	b := common.GetRandomPositiveInt(q)
 
 	gBX, gBY := tss.EC().ScalarBaseMult(b.Bytes())
 	rsaSK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)

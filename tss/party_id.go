@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/binance-chain/tss-lib/common/random"
+	"github.com/binance-chain/tss-lib/common"
 )
 
 type (
@@ -58,7 +58,7 @@ func SortPartyIDs(ids UnSortedPartyIDs, startAt ...int) SortedPartyIDs {
 
 func GenerateTestPartyIDs(count int, startAt ...int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
-	key := random.MustGetRandomInt(256)
+	key := common.MustGetRandomInt(256)
 	frm := 0
 	i := 0 // default `i`
 	if len(startAt) > 0 {
