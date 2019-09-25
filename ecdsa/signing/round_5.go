@@ -48,8 +48,9 @@ func (round *round5) Start() *tss.Error {
 	R = R.ScalarMult(round.temp.thelta_inverse)
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
-	r := R.X()
-	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(r, round.temp.sigma))
+	rx := R.X()
+	ry := R.Y()
+	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(rx, round.temp.sigma))
 	// TODO: clear temp.k, temp.w
 
 	li := random.GetRandomPositiveInt(N)  // li
@@ -73,7 +74,8 @@ func (round *round5) Start() *tss.Error {
 	round.temp.roi = roI
 	round.temp.DPower = cmt.D
 	round.temp.si = si
-	round.temp.r = r
+	round.temp.rx = rx
+	round.temp.ry = ry
 	round.temp.bigR = R
 
 	return nil

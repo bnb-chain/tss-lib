@@ -58,7 +58,7 @@ func (round *round7) Start() *tss.Error {
 	AX, AY := round.temp.bigAi.X(), round.temp.bigAi.Y()
 	minusM := modN.Sub(big.NewInt(0), round.temp.m)
 	gToMInvX, gToMInvY := tss.EC().ScalarBaseMult(minusM.Bytes())
-	minusR := modN.Sub(big.NewInt(0), round.temp.r)
+	minusR := modN.Sub(big.NewInt(0), round.temp.rx)
 	yToRInvX, yToRInvY := tss.EC().ScalarMult(round.key.ECDSAPub.X(), round.key.ECDSAPub.Y(), minusR.Bytes())
 	VX, VY := tss.EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
 	VX, VY = tss.EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())

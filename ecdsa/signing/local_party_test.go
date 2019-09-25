@@ -97,7 +97,7 @@ signing:
 			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
 				t.Logf("Done. Received save data from %d participants", ended)
 				R := parties[0].temp.bigR
-				r := parties[0].temp.r
+				r := parties[0].temp.rx
 				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
 
 				modN := common.ModInt(tss.EC().Params().N)

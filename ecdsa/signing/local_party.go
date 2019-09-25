@@ -72,7 +72,8 @@ type (
 		// round 5
 		li,
 		si,
-		r,
+		rx,
+		ry,
 		roi *big.Int
 		bigR,
 		bigAi,
@@ -89,10 +90,11 @@ type (
 	}
 
 	LocalPartySignData struct {
-		Transaction []byte
-		Signature   []byte
-		R           *big.Int
-		S           *big.Int
+		Transaction       []byte
+		Signature         []byte
+		SignatureRecovery byte
+		R                 *big.Int
+		S                 *big.Int
 	}
 )
 
