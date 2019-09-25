@@ -77,12 +77,12 @@ func (mm *MessageImpl) Content() MessageContent {
 	return mm.content
 }
 
-func (mm *MessageImpl) WireMsg() *protob.Message {
-	return mm.wire
-}
-
 func (mm *MessageImpl) WireBytes() ([]byte, error) {
 	return proto.Marshal(mm.wire)
+}
+
+func (mm *MessageImpl) WireMsg() *protob.Message {
+	return mm.wire
 }
 
 func (mm *MessageImpl) IsBroadcast() bool {
