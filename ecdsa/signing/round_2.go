@@ -2,6 +2,7 @@ package signing
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/tss"
@@ -16,31 +17,19 @@ func (round *round2) Start() *tss.Error {
 	round.resetOK()
 
 	i := round.PartyID().Index
+	round.ok[i] = true
 
 	// it's concurrency time...
-	errChs1 := make([]chan *tss.Error, len(round.Parties().IDs()))
-	for j := range errChs1 {
-		if j == i {
-			errChs1[j] = nil
-			continue
-		}
-		errChs1[j] = make(chan *tss.Error)
-	}
-	errChs2 := make([]chan *tss.Error, len(round.Parties().IDs()))
-	for j := range errChs2 {
-		if j == i {
-			errChs2[j] = nil
-			continue
-		}
-		errChs2[j] = make(chan *tss.Error)
-	}
-
+	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
+	wg := sync.WaitGroup{}
+	wg.Add((len(round.Parties().IDs()) - 1) * 2)
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
 		// Bob_mid
 		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
 				round.key.PaillierPks[j],
 				round.temp.signRound1MtAInitMessages[j].Pi,
@@ -56,14 +45,13 @@ func (round *round2) Start() *tss.Error {
 			round.temp.betas[j] = beta
 			round.temp.c1jis[j] = c1ji
 			round.temp.pi1jis[j] = pi1ji
-			if err == nil {
-				errChs1[j] <- nil
-				return
+			if err != nil {
+				errChs <- round.WrapError(err, Pj)
 			}
-			errChs1[j] <- round.WrapError(err, Pj)
 		}(j, Pj)
 		// Bob_mid_wc
 		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
 				round.key.PaillierPks[j],
 				round.temp.signRound1MtAInitMessages[j].Pi,
@@ -79,32 +67,28 @@ func (round *round2) Start() *tss.Error {
 			round.temp.vs[j] = v
 			round.temp.c2jis[j] = c2ji
 			round.temp.pi2jis[j] = pi2ji
-			if err == nil {
-				errChs2[j] <- nil
-				return
+			if err != nil {
+				errChs <- round.WrapError(err, Pj)
 			}
-			errChs2[j] <- round.WrapError(err, Pj)
 		}(j, Pj)
 	}
 	// consume error channels; wait for goroutines
+	wg.Wait()
+	close(errChs)
 	culprits := make([]*tss.PartyID, 0, len(round.Parties().IDs()))
-	for _, errCh := range append(errChs1, errChs2...) {
-		if errCh == nil { continue }
-		if err := <-errCh; err != nil {
-			culprits = append(culprits, err.Culprits()...)
-		}
+	for err := range errChs {
+		culprits = append(culprits, err.Culprits()...)
 	}
 	if len(culprits) > 0 {
 		return round.WrapError(errors.New("failed to calculate Bob_mid or Bob_mid_wc"), culprits...)
 	}
 	// create and send messages
 	for j, Pj := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
+		if j == i {
 			continue
 		}
 		r2msg := NewSignRound2MtAMidMessage(
 			Pj, round.PartyID(), round.temp.c1jis[j], round.temp.pi1jis[j], round.temp.c2jis[j], round.temp.pi2jis[j])
-		round.temp.signRound2MtAMidMessages[round.PartyID().Index] = &r2msg
 		round.out <- r2msg
 	}
 	return nil

@@ -39,16 +39,17 @@ func (round *round1) Start() *tss.Error {
 	round.temp.deCommit = cmt.D
 
 	i := round.PartyID().Index
+	round.ok[i] = true
+
 	for j, Pj := range round.Parties().IDs() {
 		c, pi, err := mta.AliceInit(round.key.PaillierPks[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
-		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), c, pi)
 		if j == i {
-			round.temp.signRound1MtAInitMessages[j] = &r1msg1
 			continue
 		}
+		r1msg1 := NewSignRound1MtAInitMessage(Pj, round.PartyID(), c, pi)
 		round.temp.signRound1SentMtaInitMessages[j] = &r1msg1
 		round.out <- r1msg1
 	}
@@ -100,7 +101,11 @@ func (round *round1) prepare() {
 	xi := round.key.Xi
 	ks := round.key.Ks
 	bigXs := round.key.BigXj
-	wi, bigWs := PrepareForSigning(i, round.Threshold()+1, xi, ks, bigXs)
+
+	if round.Threshold()+1 > len(ks) {
+		panic(fmt.Errorf("threshold is not consistent with "))
+	}
+	wi, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
 
 	round.temp.w = wi
 	round.temp.bigWs = bigWs
