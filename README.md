@@ -53,9 +53,20 @@ In a typical use case, it is expected that a transport implementation will **con
 
 This way, there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
 
-Please note that such a transport should employ suitable end-to-end encryption to ensure that a party can only read the messages intended for it.
+Transport Considerations
+-------------------
+
+When you build a transport, it should should offer a broadcast channel as well as point-to-point channels connecting every pair of parties.
+
+Your transport should also employ suitable end-to-end encryption to ensure that a party can only read the messages intended for it.
+
+Additionally, there should be a mechanism in your transport to allow for "reliable broadcasts", meaning players can broadcast a message to all other players such that it's guaranteed that every player receives the same message. There are several examples of algorithms online that do this by sharing and comparing hashes of received messages.
+
+Timeouts and errors should be handled by the transport. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
 
 Resources
 -------------------
 
 GG18: https://eprint.iacr.org/2019/114.pdf
+
+
