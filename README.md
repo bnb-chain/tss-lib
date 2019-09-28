@@ -1,11 +1,11 @@
 Multi-party ECDSA
 =====================================
 
-This project is a Go implementation of {t,n}-threshold ECDSA (elliptic curve digital signature algorithm) based on GG18.
+This is a Go implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on GG18.
 
 This library includes three protocols:
 
-* Key Generation for creating secret shares ("keygen").
+* Key Generation for creating secret shares with no trusted dealer ("keygen").
 * Signing for using the secret shares to generate a signature ("signing").
 * Dynamic Groups to change the group of participants while keeping the secret ("regroup").
 
