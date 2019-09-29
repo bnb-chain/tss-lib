@@ -18,6 +18,7 @@ vendor
 # IDE
 .idea/*
 !.idea/copyright/
+!.idea/codeStyles/
 *.swp
 .vscode/*.json
 
