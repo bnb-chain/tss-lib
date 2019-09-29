@@ -15,8 +15,9 @@ vendor
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# ide files and temp files
-.idea/
+# IDE
+.idea/*
+!.idea/copyright/
 *.swp
 .vscode/*.json
 
