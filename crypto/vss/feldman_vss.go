@@ -1,3 +1,9 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
 // Feldman VSS, based on Paul Feldman, 1987., A practical scheme for non-interactive verifiable secret sharing.
 // In Foundations of Computer Science, 1987., 28th Annual Symposium on. IEEE, 427–43
 //
