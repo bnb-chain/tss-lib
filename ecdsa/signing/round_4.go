@@ -13,7 +13,6 @@ import (
 	errors2 "github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/schnorr"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -42,8 +41,7 @@ func (round *round4) Start() *tss.Error {
 
 	// compute the multiplicative inverse thelta mod q
 	thetaInverse = modN.ModInverse(thetaInverse)
-	bigGamma := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
-	piGamma, err := schnorr.NewZKProof(round.temp.gamma, bigGamma)
+	piGamma, err := schnorr.NewZKProof(round.temp.gamma, round.temp.pointGamma)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(gamma, bigGamma)"))
 	}

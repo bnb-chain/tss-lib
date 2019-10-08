@@ -63,7 +63,7 @@ type (
 		gamma *big.Int
 		cis      []*big.Int
 		bigWs    []*crypto.ECPoint
-		point    *crypto.ECPoint
+		pointGamma    *crypto.ECPoint
 		deCommit cmt.HashDeCommitment
 
 		// round 2

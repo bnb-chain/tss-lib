@@ -48,7 +48,7 @@ func (round *round1) Start() *tss.Error {
 	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
 	round.temp.k = k
 	round.temp.gamma = gamma
-	round.temp.point = pointGamma
+	round.temp.pointGamma = pointGamma
 	round.temp.deCommit = cmt.D
 
 	i := round.PartyID().Index
