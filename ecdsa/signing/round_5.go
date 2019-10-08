@@ -25,7 +25,7 @@ func (round *round5) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	R := crypto.ScalarBaseMult(tss.EC(), round.temp.gamma)
+	R := round.temp.pointGamma
 	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
