@@ -24,12 +24,19 @@ func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *Loc
 		&base{params, key, data, temp, out, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
-// missing:
-// line1: m = H(M) belongs to Zq
 func (round *round1) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
+
+	// Spec requires calculate H(M) here,
+	// but considered different blockchain use different hash function we accept the converted big.Int
+	// if this big.Int is not belongs to Zq, the client might not comply with common rule (for ECDSA):
+	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L263
+	if round.temp.m.Cmp(tss.EC().Params().N) >= 0 {
+		return round.WrapError(errors.New("hashed message is not valid"))
+	}
+
 	round.number = 1
 	round.started = true
 	round.resetOK()
