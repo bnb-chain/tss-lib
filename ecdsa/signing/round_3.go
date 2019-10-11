@@ -31,7 +31,6 @@ func (round *round3) Start() *tss.Error {
 
 	i := round.PartyID().Index
 
-	// it's concurrency time...
 	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
 	wg := sync.WaitGroup{}
 	wg.Add((len(round.Parties().IDs()) - 1) * 2)
@@ -49,14 +48,14 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			alphaIj, err := mta.AliceEnd(
-				round.key.PaillierPks[i],
+				round.key.PaillierPKs[i],
 				proofBob,
 				round.key.H1j[i],
 				round.key.H2j[i],
 				round.temp.cis[j],
 				new(big.Int).SetBytes(r2msg.GetC1()),
 				round.key.NTildej[i],
-				round.key.PaillierSk)
+				round.key.PaillierSK)
 			alphas[j] = alphaIj
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
@@ -72,7 +71,7 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			uIj, err := mta.AliceEndWC(
-				round.key.PaillierPks[i],
+				round.key.PaillierPKs[i],
 				proofBobWC,
 				round.temp.bigWs[j],
 				round.temp.cis[j],
@@ -80,7 +79,7 @@ func (round *round3) Start() *tss.Error {
 				round.key.NTildej[i],
 				round.key.H1j[i],
 				round.key.H2j[i],
-				round.key.PaillierSk)
+				round.key.PaillierSK)
 			us[j] = uIj
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)

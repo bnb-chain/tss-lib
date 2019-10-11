@@ -178,7 +178,7 @@ func (round *round4) Start() *tss.Error {
 			continue
 		}
 		r2msg1 := msg.Content().(*DGRound2Message1)
-		round.save.PaillierPks[j] = r2msg1.UnmarshalPaillierPK()
+		round.save.PaillierPKs[j] = r2msg1.UnmarshalPaillierPK()
 	}
 	return nil
 }

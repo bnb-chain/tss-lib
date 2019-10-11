@@ -14,7 +14,7 @@ import (
 type modInt big.Int
 
 var (
-	zero  = big.NewInt(0)
+	zero = big.NewInt(0)
 	one  = big.NewInt(1)
 	two  = big.NewInt(2)
 )

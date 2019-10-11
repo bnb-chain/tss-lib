@@ -46,16 +46,23 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 				j, fixtureFilePath)
 		}
 		keys[j] = LocalPartySaveData{
-			key.Xi,
-			key.ShareID,
-			key.PaillierSk,
-			key.BigXj[:count],
-			key.PaillierPks[:count],
-			key.NTildej[:count],
-			key.H1j[:count],
-			key.H2j[:count],
-			key.Ks[:count],
-			key.ECDSAPub,
+			LocalPreParams: LocalPreParams{
+				PaillierSK: key.PaillierSK,
+				NTildei:    key.NTildei,
+				H1i:        key.H1i,
+				H2i:        key.H2i,
+			},
+			LocalSecrets: LocalSecrets{
+				Xi:      key.Xi,
+				ShareID: key.ShareID,
+			},
+			Ks:          key.Ks[:count],
+			NTildej:     key.NTildej[:count],
+			H1j:         key.H1j[:count],
+			H2j:         key.H2j[:count],
+			BigXj:       key.BigXj[:count],
+			PaillierPKs: key.PaillierPKs[:count],
+			ECDSAPub:    key.ECDSAPub,
 		}
 	}
 	return keys, nil

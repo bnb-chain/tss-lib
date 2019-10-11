@@ -10,12 +10,14 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 )
 
 const (
 	mustGetRandomIntMaxBits = 5000
+	primeTestN              = 30
 )
 
 // MustGetRandomInt panics if it is unable to gather entropy from `rand.Reader` or when `bits` is <= 0
@@ -59,12 +61,51 @@ func GetRandomPrimeInt(bits int) *big.Int {
 		// fallback to older method
 		for {
 			try = MustGetRandomInt(bits)
-			if try.ProbablyPrime(50) {
+			if probablyPrime(try) {
 				break
 			}
 		}
 	}
 	return try
+}
+
+func GetRandomSophieGermainPrime(bits int) *SophieGermainPrime {
+	var sgp *SophieGermainPrime
+	var prime *big.Int
+	for sgp == nil {
+		prime = GetRandomPrimeInt(bits)
+		sgp, _ = TrySophieGermainPrime(prime)
+	}
+	return sgp
+}
+
+func GetRandomSophieGermainPrimesConcurrent(bits, num, concurrency int) []*SophieGermainPrime {
+	var found int32
+	num32 := int32(num)
+	ch := make(chan *SophieGermainPrime)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			var sgp *SophieGermainPrime
+			var prime *big.Int
+			for sgp == nil {
+				if num32 <= atomic.LoadInt32(&found) {
+					break
+				}
+				prime = GetRandomPrimeInt(bits)
+				sgp, _ = TrySophieGermainPrime(prime)
+			}
+			if sgp != nil && atomic.AddInt32(&found, 1) <= num32 {
+				ch <- sgp
+			}
+		}()
+	}
+	primes := make([]*SophieGermainPrime, num)
+	for i := 0; i < num; i++ {
+		sgp := <-ch
+		primes[i] = sgp
+	}
+	close(ch)
+	return primes
 }
 
 // Generate a random element in the group of all the elements in Z/nZ that
@@ -92,8 +133,8 @@ func IsNumberInMultiplicativeGroup(n, v *big.Int) bool {
 		gcd.GCD(nil, nil, v, n).Cmp(one) == 0
 }
 
-//  Return a random generator of RQn with high probability.  THIS METHOD
-//  ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES!
+//  Return a random generator of RQn with high probability.
+//  THIS METHOD ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES!
 // https://github.com/didiercrunch/paillier/blob/d03e8850a8e4c53d04e8016a2ce8762af3278b71/utils.go#L39
 func GetRandomGeneratorOfTheQuadraticResidue(n *big.Int) *big.Int {
 	r := GetRandomPositiveRelativelyPrimeInt(n)

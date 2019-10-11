@@ -29,15 +29,15 @@ type (
 		*tss.BaseParty
 		params *tss.Parameters
 
-		temp LocalPartyTempData
+		temp LocalTempData
 		keys keygen.LocalPartySaveData
-		data LocalPartySignData
+		data LocalSignData
 
 		// outbound messaging
-		end chan<- LocalPartySignData
+		end chan<- LocalSignData
 	}
 
-	LocalPartyMessageStore struct {
+	LocalMessageStore struct {
 		signRound1Message1s,
 		signRound1Message2s,
 		signRound2Messages,
@@ -50,8 +50,8 @@ type (
 		signRound9Messages []tss.ParsedMessage
 	}
 
-	LocalPartyTempData struct {
-		LocalPartyMessageStore
+	LocalTempData struct {
+		LocalMessageStore
 
 		// temp data (thrown away after sign) / round 1
 		w,
@@ -61,10 +61,10 @@ type (
 		thetaInverse,
 		sigma,
 		gamma *big.Int
-		cis      []*big.Int
-		bigWs    []*crypto.ECPoint
-		pointGamma    *crypto.ECPoint
-		deCommit cmt.HashDeCommitment
+		cis        []*big.Int
+		bigWs      []*crypto.ECPoint
+		pointGamma *crypto.ECPoint
+		deCommit   cmt.HashDeCommitment
 
 		// round 2
 		betas, // return value of Bob_mid
@@ -94,12 +94,11 @@ type (
 		VVV *crypto.ECPoint
 	}
 
-	LocalPartySignData struct {
+	LocalSignData struct {
 		Transaction       []byte
 		Signature         []byte
 		SignatureRecovery byte
-		R                 *big.Int
-		S                 *big.Int
+		R, S              *big.Int
 	}
 )
 
@@ -108,7 +107,7 @@ func NewLocalParty(
 	params *tss.Parameters,
 	keys keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- LocalPartySignData,
+	end chan<- LocalSignData,
 ) *LocalParty {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -116,8 +115,8 @@ func NewLocalParty(
 			Out: out,
 		},
 		params: params,
-		temp:   LocalPartyTempData{},
-		data:   LocalPartySignData{},
+		temp:   LocalTempData{},
+		data:   LocalSignData{},
 		end:    end,
 	}
 	// msgs init

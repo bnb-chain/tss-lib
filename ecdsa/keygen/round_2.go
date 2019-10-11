@@ -25,7 +25,7 @@ func (round *round2) Start() *tss.Error {
 	// 4. store r1 message pieces
 	for j, msg := range round.temp.kgRound1Messages {
 		r1msg := msg.Content().(*KGRound1Message)
-		round.save.PaillierPks[j] = r1msg.UnmarshalPaillierPK() // used in round 4
+		round.save.PaillierPKs[j] = r1msg.UnmarshalPaillierPK() // used in round 4
 		round.save.NTildej[j] = r1msg.UnmarshalNTilde()
 		round.save.H1j[j], round.save.H2j[j] = r1msg.UnmarshalH1(), r1msg.UnmarshalH2()
 		round.temp.KGCs[j] = r1msg.UnmarshalCommitment()

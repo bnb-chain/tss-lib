@@ -19,7 +19,7 @@ import (
 )
 
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *LocalPartySignData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
+func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *LocalSignData, temp *LocalTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
 		&base{params, key, data, temp, out, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
@@ -58,7 +58,7 @@ func (round *round1) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		cA, pi, err := mta.AliceInit(round.key.PaillierPks[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		cA, pi, err := mta.AliceInit(round.key.PaillierPKs[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}

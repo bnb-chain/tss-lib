@@ -56,8 +56,8 @@ func TestStartRound1Paillier(t *testing.T) {
 
 	// Paillier modulus 2048 (two 1024-bit primes)
 	// TODO: flaky assertion, sometimes comes back with 1 byte less
-	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.LambdaN.Bytes()))
-	assert.Equal(t, 2048/8, len(lp.data.PaillierSk.PublicKey.N.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSK.LambdaN.Bytes()))
+	assert.Equal(t, 2048/8, len(lp.data.PaillierSK.PublicKey.N.Bytes()))
 }
 
 func TestStartRound1RSA(t *testing.T) {
@@ -179,7 +179,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	// PHASE: keygen
 	var ended int32
-	datas := make([]LocalPartyTempData, 0, len(pIDs))
+	datas := make([]LocalTempData, 0, len(pIDs))
 	dmtx := sync.Mutex{}
 keygen:
 	for {

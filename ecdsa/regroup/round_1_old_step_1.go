@@ -18,7 +18,7 @@ import (
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.ReGroupParameters, key, save *keygen.LocalPartySaveData, temp *LocalPartyTempData, out chan<- tss.Message) tss.Round {
+func newRound1(params *tss.ReGroupParameters, key, save *keygen.LocalPartySaveData, temp *LocalTempData, out chan<- tss.Message) tss.Round {
 	return &round1{
 		&base{params, key, save, temp, out, make([]bool, params.Threshold()+1), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }

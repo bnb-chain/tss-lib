@@ -27,7 +27,6 @@ func (round *round2) Start() *tss.Error {
 	i := round.PartyID().Index
 	round.ok[i] = true
 
-	// it's concurrency time...
 	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
 	wg := sync.WaitGroup{}
 	wg.Add((len(round.Parties().IDs()) - 1) * 2)
@@ -45,7 +44,7 @@ func (round *round2) Start() *tss.Error {
 				return
 			}
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
-				round.key.PaillierPks[j],
+				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
 				round.temp.gamma,
 				r1msg.UnmarshalC(),
@@ -73,7 +72,7 @@ func (round *round2) Start() *tss.Error {
 				return
 			}
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
-				round.key.PaillierPks[j],
+				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
 				round.temp.w,
 				r1msg.UnmarshalC(),
