@@ -80,16 +80,23 @@ func TestE2EConcurrent(t *testing.T) {
 	for i, pID := range pIDs {
 		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		keyI := keygen.LocalPartySaveData{
-			keys[i].Xi,
-			keys[i].ShareID,
-			keys[i].PaillierSk,
-			keys[i].BigXj[:testThreshold+1],
-			keys[i].PaillierPks[:testThreshold+1],
-			keys[i].NTildej[:testThreshold+1],
-			keys[i].H1j[:testThreshold+1],
-			keys[i].H2j[:testThreshold+1],
-			keys[i].Ks[:testThreshold+1],
-			keys[i].ECDSAPub,
+			LocalPreParams: keygen.LocalPreParams{
+				PaillierSK: keys[i].PaillierSK,
+				NTildei:    keys[i].NTildei,
+				H1i:        keys[i].H1i,
+				H2i:        keys[i].H2i,
+			},
+			LocalSecrets: keygen.LocalSecrets{
+				Xi:      keys[i].Xi,
+				ShareID: keys[i].ShareID,
+			},
+			BigXj:       keys[i].BigXj[:testThreshold+1],
+			PaillierPKs: keys[i].PaillierPKs[:testThreshold+1],
+			NTildej:     keys[i].NTildej[:testThreshold+1],
+			H1j:         keys[i].H1j[:testThreshold+1],
+			H2j:         keys[i].H2j[:testThreshold+1],
+			Ks:          keys[i].Ks[:testThreshold+1],
+			ECDSAPub:    keys[i].ECDSAPub,
 		}
 		P := NewLocalParty(params, keyI, outCh, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
@@ -100,7 +107,7 @@ func TestE2EConcurrent(t *testing.T) {
 		// TODO do this better!
 		save := keygen.LocalPartySaveData{
 			BigXj:       make([]*crypto.ECPoint, newPCount),
-			PaillierPks: make([]*paillier.PublicKey, newPCount),
+			PaillierPKs: make([]*paillier.PublicKey, newPCount),
 			NTildej:     make([]*big.Int, newPCount),
 			H1j:         make([]*big.Int, newPCount),
 			H2j:         make([]*big.Int, newPCount),
@@ -182,7 +189,7 @@ signing:
 
 	signErrCh := make(chan *tss.Error, len(signPIDs))
 	signOutCh := make(chan tss.Message, len(signPIDs))
-	signEndCh := make(chan signing.LocalPartySignData, len(signPIDs))
+	signEndCh := make(chan signing.LocalSignData, len(signPIDs))
 
 	for i, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)

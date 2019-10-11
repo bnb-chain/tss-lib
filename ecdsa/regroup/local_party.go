@@ -29,14 +29,14 @@ type (
 		*tss.BaseParty
 		params *tss.ReGroupParameters
 
-		temp LocalPartyTempData
+		temp LocalTempData
 		key  keygen.LocalPartySaveData // we save straight back into here
 
 		// outbound messaging
 		end chan<- keygen.LocalPartySaveData
 	}
 
-	LocalPartyMessageStore struct {
+	LocalMessageStore struct {
 		dgRound1Messages,
 		dgRound2Message1s,
 		dgRound2Message2s,
@@ -44,8 +44,8 @@ type (
 		dgRound3Message2s []tss.ParsedMessage
 	}
 
-	LocalPartyTempData struct {
-		LocalPartyMessageStore
+	LocalTempData struct {
+		LocalMessageStore
 
 		// temp data (thrown away after rounds)
 		OldBigXj  []*crypto.ECPoint
@@ -69,7 +69,7 @@ func NewLocalParty(
 			Out: out,
 		},
 		params: params,
-		temp:   LocalPartyTempData{},
+		temp:   LocalTempData{},
 		key:    key,
 		end:    end,
 	}

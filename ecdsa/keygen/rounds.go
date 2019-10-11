@@ -18,7 +18,7 @@ type (
 	base struct {
 		*tss.Parameters
 		save    *LocalPartySaveData
-		temp    *LocalPartyTempData
+		temp    *LocalTempData
 		out     chan<- tss.Message
 		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool

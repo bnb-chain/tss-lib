@@ -20,7 +20,7 @@ import (
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
 const (
-	testRSAPrimeBits = 1024
+	testSafePrimeBits = 1024
 )
 
 func TestProveRangeAlice(t *testing.T) {
@@ -32,7 +32,7 @@ func TestProveRangeAlice(t *testing.T) {
 	c, r, err := sk.EncryptAndReturnRandomness(m)
 	assert.NoError(t, err)
 
-	primes := [2]*big.Int{common.GetRandomPrimeInt(testRSAPrimeBits), common.GetRandomPrimeInt(testRSAPrimeBits)}
+	primes := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(primes)
 	assert.NoError(t, err)
 	proof, err := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)

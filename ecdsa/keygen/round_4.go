@@ -40,7 +40,7 @@ func (round *round4) Start() *tss.Error {
 		}
 		r3msg := msg.Content().(*KGRound3Message)
 		go func(prf paillier.Proof, j int, ch chan<- bool) {
-			ppk := round.save.PaillierPks[j]
+			ppk := round.save.PaillierPKs[j]
 			ok, err := prf.Verify(ppk.N, PIDs[j], ecdsaPub)
 			if err != nil {
 				common.Logger.Error(round.WrapError(err, Ps[j]).Error())

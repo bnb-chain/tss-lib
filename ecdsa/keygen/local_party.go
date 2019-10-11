@@ -29,22 +29,22 @@ type (
 		*tss.BaseParty
 		params *tss.Parameters
 
-		temp LocalPartyTempData
+		temp LocalTempData
 		data LocalPartySaveData
 
 		// outbound messaging
 		end chan<- LocalPartySaveData
 	}
 
-	LocalPartyMessageStore struct {
+	LocalMessageStore struct {
 		kgRound1Messages,
 		kgRound2Message1s,
 		kgRound2Message2s,
 		kgRound3Messages []tss.ParsedMessage
 	}
 
-	LocalPartyTempData struct {
-		LocalPartyMessageStore
+	LocalTempData struct {
+		LocalMessageStore
 
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
@@ -54,21 +54,30 @@ type (
 		deCommitPolyG cmt.HashDeCommitment
 	}
 
+	LocalPreParams struct {
+		PaillierSK        *paillier.PrivateKey // ski
+		NTildei, H1i, H2i *big.Int             // n-tilde, h1, h2
+	}
+
+	LocalSecrets struct {
+		// secret fields (not shared, but stored locally)
+		Xi, ShareID *big.Int // xi, kj
+	}
+
 	// Everything in LocalPartySaveData is saved locally to user's HD when done
 	LocalPartySaveData struct {
-		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int             // xi, kj
-		PaillierSk  *paillier.PrivateKey // ski
-
-		// public keys (Xj = uj*G for each Pj)
-		BigXj       []*crypto.ECPoint     // Xj
-		PaillierPks []*paillier.PublicKey // pkj
-
-		// h1, h2 for range proofs
-		NTildej, H1j, H2j []*big.Int
+		LocalPreParams
+		LocalSecrets
 
 		// original indexes (ki in signing preparation phase)
 		Ks []*big.Int
+
+		// n-tilde, h1, h2 for range proofs
+		NTildej, H1j, H2j []*big.Int
+
+		// public keys (Xj = uj*G for each Pj)
+		BigXj       []*crypto.ECPoint     // Xj
+		PaillierPKs []*paillier.PublicKey // pkj
 
 		// used for test assertions (may be discarded)
 		ECDSAPub *crypto.ECPoint // y
@@ -87,7 +96,7 @@ func NewLocalParty(
 			Out: out,
 		},
 		params: params,
-		temp:   LocalPartyTempData{},
+		temp:   LocalTempData{},
 		data:   LocalPartySaveData{},
 		end:    end,
 	}
@@ -99,7 +108,7 @@ func NewLocalParty(
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
 	// data init
 	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
-	p.data.PaillierPks = make([]*paillier.PublicKey, partyCount)
+	p.data.PaillierPKs = make([]*paillier.PublicKey, partyCount)
 	p.data.NTildej = make([]*big.Int, partyCount)
 	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	// round init
