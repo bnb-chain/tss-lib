@@ -63,10 +63,6 @@ func (round *round1) Start() *tss.Error {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
 		r1msg1 := NewSignRound1Message1(Pj, round.PartyID(), cA, pi)
-		round.temp.signRound1Message1s[j] = r1msg1
-		if j == i {
-			continue
-		}
 		round.temp.cis[j] = cA
 		round.out <- r1msg1
 	}
