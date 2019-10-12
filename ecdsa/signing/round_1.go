@@ -80,10 +80,10 @@ func (round *round1) Start() *tss.Error {
 
 func (round *round1) Update() (bool, *tss.Error) {
 	for j, msg1 := range round.temp.signRound1Message1s {
-		if msg1 == nil || round.ok[j] {
+		if round.ok[j] {
 			continue
 		}
-		if !round.CanAccept(msg1) {
+		if msg1 == nil || !round.CanAccept(msg1) {
 			return false, nil
 		}
 		msg2 := round.temp.signRound1Message2s[j]

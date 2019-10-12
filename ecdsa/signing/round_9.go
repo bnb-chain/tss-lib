@@ -52,10 +52,10 @@ func (round *round9) Start() *tss.Error {
 
 func (round *round9) Update() (bool, *tss.Error) {
 	for j, msg := range round.temp.signRound9Messages {
-		if msg == nil || round.ok[j] {
+		if round.ok[j] {
 			continue
 		}
-		if !round.CanAccept(msg) {
+		if msg == nil || !round.CanAccept(msg) {
 			return false, nil
 		}
 		round.ok[j] = true
