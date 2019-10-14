@@ -28,13 +28,13 @@ func Test_getSafePrime_Bad(t *testing.T) {
 func Test_Validate(t *testing.T) {
 	prime := new(big.Int).SetInt64(5)
 	sPrime := getSafePrime(prime)
-	sgp := &SophieGermainPrime{prime, sPrime}
+	sgp := &GermainPrime{prime, sPrime}
 	assert.True(t, sgp.Validate())
 }
 
 func Test_Validate_Bad(t *testing.T) {
 	prime := new(big.Int).SetInt64(12)
 	sPrime := getSafePrime(prime)
-	sgp := &SophieGermainPrime{prime, sPrime}
+	sgp := &GermainPrime{prime, sPrime}
 	assert.False(t, sgp.Validate())
 }

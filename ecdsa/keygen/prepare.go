@@ -19,7 +19,7 @@ import (
 func GeneratePreParams() (*LocalPreParams, error) {
 	// prepare for concurrent Paillier and safe prime generation
 	paiCh := make(chan *paillier.PrivateKey)
-	sgpCh := make(chan []*common.SophieGermainPrime)
+	sgpCh := make(chan []*common.GermainPrime)
 
 	// 4. generate Paillier public key "Ei", private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
@@ -30,9 +30,9 @@ func GeneratePreParams() (*LocalPreParams, error) {
 	}(paiCh)
 
 	// 5-7. generate safe primes for ZKPs used later on
-	go func(ch chan<- []*common.SophieGermainPrime) {
+	go func(ch chan<- []*common.GermainPrime) {
 		start := time.Now()
-		sgps := common.GetRandomSophieGermainPrimesConcurrent(SafePrimeBitLen, 2, runtime.NumCPU())
+		sgps := common.GetRandomGermainPrimesConcurrent(SafePrimeBitLen, 2, runtime.NumCPU())
 		common.Logger.Debugf("safe primes generated. took %s\n", time.Since(start))
 		ch <- sgps
 	}(sgpCh)
