@@ -36,12 +36,19 @@ func (round *round2) Start() *tss.Error {
 	round.out <- r2msg1
 
 	// 1.
-	// generate Paillier public key "Ei", private key and proof
+	// generate Paillier public key E_i, private key and proof
 	// generate safe primes for ZKPs later on
 	// compute ntilde, h1, h2 (uses safe primes)
-	preParams, err := keygen.GeneratePreParams()
-	if err != nil {
-		return round.WrapError(errors.New("pre-params generation failed"), Pi)
+	// use the pre-params if they were provided to the LocalParty constructor
+	var preParams *keygen.LocalPreParams
+	if round.save.LocalPreParams.Validate() {
+		preParams = &round.save.LocalPreParams
+	} else {
+		var err error
+		preParams, err = keygen.GeneratePreParams()
+		if err != nil {
+			return round.WrapError(errors.New("pre-params generation failed"), Pi)
+		}
 	}
 	round.save.LocalPreParams = *preParams
 	round.save.NTildej[i] = preParams.NTildei

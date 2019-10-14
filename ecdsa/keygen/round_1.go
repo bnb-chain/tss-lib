@@ -57,7 +57,7 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.save.Ks = ids
 
-	// security: the original ui may be discarded
+	// security: the original u_i may be discarded
 	ui = zero
 
 	// make commitment -> (C, D)
@@ -67,9 +67,10 @@ func (round *round1) Start() *tss.Error {
 	}
 	cmt := cmts.NewHashCommitment(pGFlat...)
 
-	// 4. generate Paillier public key "Ei", private key and proof
+	// 4. generate Paillier public key E_i, private key and proof
 	// 5-7. generate safe primes for ZKPs used later on
 	// 9-11. compute ntilde, h1, h2 (uses safe primes)
+	// use the pre-params if they were provided to the LocalParty constructor
 	var preParams *LocalPreParams
 	if round.save.LocalPreParams.Validate() {
 		preParams = &round.save.LocalPreParams

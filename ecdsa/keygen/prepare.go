@@ -35,7 +35,7 @@ func GeneratePreParams(optionalConcurrency ...int) (*LocalPreParams, error) {
 	paiCh := make(chan *paillier.PrivateKey)
 	sgpCh := make(chan []*common.GermainPrime)
 
-	// 4. generate Paillier public key "Ei", private key and proof
+	// 4. generate Paillier public key E_i, private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
 		start := time.Now()
 		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk

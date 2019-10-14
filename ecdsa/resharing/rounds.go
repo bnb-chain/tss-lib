@@ -18,8 +18,7 @@ const (
 type (
 	base struct {
 		*tss.ReSharingParameters
-		key,
-		save *keygen.LocalPartySaveData
+		save   *keygen.LocalPartySaveData
 		temp   *LocalTempData
 		out    chan<- tss.Message
 		oldOK, // old committee "ok" tracker
