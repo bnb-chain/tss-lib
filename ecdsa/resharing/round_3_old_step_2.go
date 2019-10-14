@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"errors"
@@ -21,7 +21,7 @@ func (round *round3) Start() *tss.Error {
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allNewOK()
 
-	if !round.ReGroupParams().IsOldCommittee() {
+	if !round.ReSharingParams().IsOldCommittee() {
 		return nil
 	}
 	round.allOldOK()
@@ -60,7 +60,7 @@ func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round3) Update() (bool, *tss.Error) {
 	// only the new committee receive in this round
-	if !round.ReGroupParams().IsNewCommittee() {
+	if !round.ReSharingParams().IsNewCommittee() {
 		return true, nil
 	}
 	// accept messages from old -> new committee

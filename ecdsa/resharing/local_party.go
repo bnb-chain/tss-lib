@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ var _ fmt.Stringer = (*LocalParty)(nil)
 type (
 	LocalParty struct {
 		*tss.BaseParty
-		params *tss.ReGroupParameters
+		params *tss.ReSharingParameters
 
 		temp LocalTempData
 		key  keygen.LocalPartySaveData // we save straight back into here
@@ -59,7 +59,7 @@ type (
 
 // Exported, used in `tss` client
 func NewLocalParty(
-	params *tss.ReGroupParameters,
+	params *tss.ReSharingParameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- keygen.LocalPartySaveData,
@@ -103,7 +103,7 @@ func (p *LocalParty) Start() *tss.Error {
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
-	return tss.BaseUpdate(p, msg, "regroup")
+	return tss.BaseUpdate(p, msg, "resharing")
 }
 
 func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, to []*tss.PartyID) (bool, *tss.Error) {

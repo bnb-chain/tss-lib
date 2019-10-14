@@ -14,7 +14,7 @@ type (
 		threshold int
 	}
 
-	ReGroupParameters struct {
+	ReSharingParameters struct {
 		*Parameters
 		newParties *PeerContext
 		newPartyCount,
@@ -51,9 +51,9 @@ func (params *Parameters) Threshold() int {
 // ----- //
 
 // Exported, used in `tss` client
-func NewReGroupParameters(ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReGroupParameters {
+func NewReSharingParameters(ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
 	params := NewParameters(ctx, partyID, partyCount, threshold)
-	return &ReGroupParameters{
+	return &ReSharingParameters{
 		Parameters:    params,
 		newParties:    newCtx,
 		newPartyCount: newPartyCount,
@@ -61,23 +61,23 @@ func NewReGroupParameters(ctx, newCtx *PeerContext, partyID *PartyID, partyCount
 	}
 }
 
-func (rgParams *ReGroupParameters) OldParties() *PeerContext {
+func (rgParams *ReSharingParameters) OldParties() *PeerContext {
 	return rgParams.Parties() // wr use the original method for old parties
 }
 
-func (rgParams *ReGroupParameters) NewParties() *PeerContext {
+func (rgParams *ReSharingParameters) NewParties() *PeerContext {
 	return rgParams.newParties
 }
 
-func (rgParams *ReGroupParameters) NewPartyCount() int {
+func (rgParams *ReSharingParameters) NewPartyCount() int {
 	return rgParams.newPartyCount
 }
 
-func (rgParams *ReGroupParameters) NewThreshold() int {
+func (rgParams *ReSharingParameters) NewThreshold() int {
 	return rgParams.newThreshold
 }
 
-func (rgParams *ReGroupParameters) IsOldCommittee() bool {
+func (rgParams *ReSharingParameters) IsOldCommittee() bool {
 	partyID := rgParams.partyID
 	for _, Pj := range rgParams.parties.IDs() {
 		if partyID.Key.Cmp(Pj.Key) == 0 {
@@ -87,7 +87,7 @@ func (rgParams *ReGroupParameters) IsOldCommittee() bool {
 	return false
 }
 
-func (rgParams *ReGroupParameters) IsNewCommittee() bool {
+func (rgParams *ReSharingParameters) IsNewCommittee() bool {
 	partyID := rgParams.partyID
 	for _, Pj := range rgParams.newParties.IDs() {
 		if partyID.Key.Cmp(Pj.Key) == 0 {

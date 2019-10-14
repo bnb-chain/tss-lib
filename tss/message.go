@@ -95,7 +95,7 @@ func (mm *MessageImpl) IsBroadcast() bool {
 	return mm.wire.IsBroadcast
 }
 
-// only `true` in DGRound2NewCommitteeACKMessage (regroup)
+// only `true` in DGRound2NewCommitteeACKMessage (resharing)
 func (mm *MessageImpl) IsToOldCommittee() bool {
 	return mm.wire.IsToOldCommittee
 }

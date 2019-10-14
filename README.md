@@ -28,7 +28,7 @@ Usage
 ------------------
 You should start by creating an instance of a `LocalParty` and giving it the initialization arguments that it needs.
 
-The `LocalParty` that you use should be from the `keygen`, `signing` or `regroup` package, depending on what you want to do.
+The `LocalParty` that you use should be from the `keygen`, `signing` or `resharing` package, depending on what you want to do.
 
 ```go
 // When using the keygen party, it is recommended to pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.

@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ func (round *round2) Start() *tss.Error {
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allOldOK()
 
-	if !round.ReGroupParams().IsNewCommittee() {
+	if !round.ReSharingParams().IsNewCommittee() {
 		return nil
 	}
 
@@ -64,12 +64,12 @@ func (round *round2) Start() *tss.Error {
 }
 
 func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
-	if round.ReGroupParams().IsNewCommittee() {
+	if round.ReSharingParams().IsNewCommittee() {
 		if _, ok := msg.Content().(*DGRound2Message1); ok {
 			return msg.IsBroadcast()
 		}
 	}
-	if round.ReGroupParams().IsOldCommittee() {
+	if round.ReSharingParams().IsOldCommittee() {
 		if _, ok := msg.Content().(*DGRound2Message2); ok {
 			return msg.IsBroadcast() && msg.IsToOldCommittee()
 		}
@@ -78,7 +78,7 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	if round.ReGroupParams().IsOldCommittee() && round.ReGroupParameters.IsNewCommittee() {
+	if round.ReSharingParams().IsOldCommittee() && round.ReSharingParameters.IsNewCommittee() {
 		// accept messages from new -> old committee
 		for j, msg1 := range round.temp.dgRound2Message2s {
 			if round.newOK[j] {
@@ -94,7 +94,7 @@ func (round *round2) Update() (bool, *tss.Error) {
 			}
 			round.newOK[j] = true
 		}
-	} else if round.ReGroupParams().IsOldCommittee() {
+	} else if round.ReSharingParams().IsOldCommittee() {
 		// accept messages from new -> old committee
 		for j, msg := range round.temp.dgRound2Message2s {
 			if round.newOK[j] {
@@ -105,7 +105,7 @@ func (round *round2) Update() (bool, *tss.Error) {
 			}
 			round.newOK[j] = true
 		}
-	} else if round.ReGroupParams().IsNewCommittee() {
+	} else if round.ReSharingParams().IsNewCommittee() {
 		// accept messages from new -> new committee
 		for j, msg := range round.temp.dgRound2Message1s {
 			if round.newOK[j] {

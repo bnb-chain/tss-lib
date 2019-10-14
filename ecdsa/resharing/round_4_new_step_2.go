@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ func (round *round4) Start() *tss.Error {
 	round.allOldOK()
 	round.allNewOK()
 
-	if !round.ReGroupParams().IsNewCommittee() {
+	if !round.ReSharingParams().IsNewCommittee() {
 		return nil // old committee finished!
 	}
 
