@@ -7,8 +7,6 @@
 package mta
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"math/big"
 	"testing"
 
@@ -17,6 +15,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -34,11 +33,9 @@ func TestShareProtocol(t *testing.T) {
 	a := common.GetRandomPositiveInt(q)
 	b := common.GetRandomPositiveInt(q)
 
-	rsaSK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
+	NTildei, h1i, h2i, err := keygen.LoadNTildeH1H2FromTestFixture(0)
 	assert.NoError(t, err)
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
-	assert.NoError(t, err)
-	NTildej, h1j, h2j, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
+	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
@@ -64,13 +61,11 @@ func TestShareProtocolWC(t *testing.T) {
 
 	a := common.GetRandomPositiveInt(q)
 	b := common.GetRandomPositiveInt(q)
-
 	gBX, gBY := tss.EC().ScalarBaseMult(b.Bytes())
-	rsaSK, err := rsa.GenerateMultiPrimeKey(rand.Reader, 2, testRSAModulusLen)
+
+	NTildei, h1i, h2i, err := keygen.LoadNTildeH1H2FromTestFixture(0)
 	assert.NoError(t, err)
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
-	assert.NoError(t, err)
-	NTildej, h1j, h2j, err := crypto.GenerateNTildei([2]*big.Int{rsaSK.Primes[0], rsaSK.Primes[1]})
+	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
 	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"path/filepath"
 	"runtime"
 
@@ -64,4 +65,14 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 		})
 	}
 	return keys, nil
+}
+
+func LoadNTildeH1H2FromTestFixture(idx int) (NTildei, h1i, h2i *big.Int, err error) {
+	fixtures, err := LoadKeygenTestFixtures(idx + 1)
+	if err != nil {
+		return
+	}
+	fixture := fixtures[idx]
+	NTildei, h1i, h2i = fixture.NTildei, fixture.H1i, fixture.H2i
+	return
 }
