@@ -19,10 +19,16 @@ You should start by creating an instance of a `LocalParty` and giving it the ini
 The `LocalParty` that you use should be from the `keygen`, `signing` or `regroup` package, depending on what you want to do.
 
 ```go
+// When using the keygen party, it is recommended to pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
+// This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
+preParams, err := keygen.GeneratePreParams()
+// ... handle err ...
+
+// Create the LocalParty and start it:
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
 ctx := tss.NewPeerContext(tss.SortPartyIDs(allParties))
 params := tss.NewParameters(p2pCtx, thisParty, len(allParties), threshold)
-party := keygen.NewLocalParty(params, outCh, endCh)
+party := keygen.NewLocalParty(params, outCh, endCh, preParams) // Omit the last arg to compute the pre-params in round 1
 go func() {
     err := party.Start()
     // handle err ...
