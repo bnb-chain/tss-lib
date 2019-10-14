@@ -101,8 +101,12 @@ func TestE2EConcurrent(t *testing.T) {
 		P := NewLocalParty(params, keyI, outCh, nil) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
-	// init the new parties
-	for _, pID := range newPIDs {
+	// init the new parties; re-use the fixture pre-params for speed
+	fixtures, err := keygen.LoadKeygenTestFixtures(len(newPIDs))
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+	}
+	for i, pID := range newPIDs {
 		params := tss.NewReSharingParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		// TODO do this better!
 		save := keygen.LocalPartySaveData{
@@ -111,6 +115,9 @@ func TestE2EConcurrent(t *testing.T) {
 			NTildej:     make([]*big.Int, newPCount),
 			H1j:         make([]*big.Int, newPCount),
 			H2j:         make([]*big.Int, newPCount),
+		}
+		if i < len(fixtures) && len(newPIDs) <= len(fixtures) {
+			save.LocalPreParams = fixtures[i].LocalPreParams
 		}
 		P := NewLocalParty(params, save, outCh, endCh)
 		newCommittee = append(newCommittee, P)

@@ -58,6 +58,9 @@ type (
 )
 
 // Exported, used in `tss` client
+// The `key` is read from and/or written to depending on whether this party is part of the old or the new committee.
+// You may optionally generate and set the LocalPreParams if you would like to use pre-generated safe primes and Paillier secret.
+// (This is similar to providing the `optionalPreParams` to `keygen.LocalParty`).
 func NewLocalParty(
 	params *tss.ReSharingParameters,
 	key keygen.LocalPartySaveData,
@@ -80,7 +83,7 @@ func NewLocalParty(
 	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)   // "
 	// round init
-	round := newRound1(params, &p.key, &p.key, &p.temp, out)
+	round := newRound1(params, &p.key, &p.temp, out)
 	p.Round = round
 	return p
 }
