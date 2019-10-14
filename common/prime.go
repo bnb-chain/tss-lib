@@ -11,28 +11,28 @@ import (
 	"math/big"
 )
 
-type SophieGermainPrime struct {
-	sophiePrime,
+type GermainPrime struct {
+	germainPrime,
 	safePrime *big.Int
 }
 
-func (sgp *SophieGermainPrime) Prime() *big.Int {
-	return sgp.sophiePrime
+func (sgp *GermainPrime) Prime() *big.Int {
+	return sgp.germainPrime
 }
 
-func (sgp *SophieGermainPrime) SafePrime() *big.Int {
+func (sgp *GermainPrime) SafePrime() *big.Int {
 	return sgp.safePrime
 }
 
-func (sgp *SophieGermainPrime) Validate() bool {
-	return probablyPrime(sgp.sophiePrime) &&
-		getSafePrime(sgp.sophiePrime).Cmp(sgp.safePrime) == 0 &&
+func (sgp *GermainPrime) Validate() bool {
+	return probablyPrime(sgp.germainPrime) &&
+		getSafePrime(sgp.germainPrime).Cmp(sgp.safePrime) == 0 &&
 		probablyPrime(sgp.safePrime)
 }
 
 // ----- //
 
-func TrySophieGermainPrime(prime *big.Int) (*SophieGermainPrime, error) {
+func TryGermainPrime(prime *big.Int) (*GermainPrime, error) {
 	if prime == nil {
 		return nil, errors.New("the prime is nil")
 	}
@@ -43,7 +43,7 @@ func TrySophieGermainPrime(prime *big.Int) (*SophieGermainPrime, error) {
 	if !probablyPrime(sPrime) {
 		return nil, errors.New("the prime is not a Sophie Germain prime")
 	}
-	return &SophieGermainPrime{prime, sPrime}, nil
+	return &GermainPrime{prime, sPrime}, nil
 }
 
 func getSafePrime(p *big.Int) *big.Int {

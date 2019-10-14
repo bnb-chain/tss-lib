@@ -47,15 +47,15 @@ func TestGetRandomPrimeInt(t *testing.T) {
 	assert.True(t, prime.ProbablyPrime(50), "rand prime should be prime")
 }
 
-func TestGetRandomSophieAndSafePrimes(t *testing.T) {
-	sgp := common.GetRandomSophieGermainPrime(randomIntBitLen)
+func TestGetRandomGermainAndSafePrimes(t *testing.T) {
+	sgp := common.GetRandomGermainPrime(randomIntBitLen)
 	t.Logf("p1: %+v", sgp.Prime())
 	t.Logf("p2: %+v", sgp.SafePrime())
 	assert.True(t, sgp.Validate())
 }
 
-func TestGetRandomSophieGermainPrimesConcurrent(t *testing.T) {
-	sgps := common.GetRandomSophieGermainPrimesConcurrent(randomIntBitLen, 2, runtime.NumCPU())
+func TestGetRandomGermainPrimesConcurrent(t *testing.T) {
+	sgps := common.GetRandomGermainPrimesConcurrent(randomIntBitLen, 2, runtime.NumCPU())
 	assert.NotNil(t, sgps)
 	assert.Equal(t, 2, len(sgps))
 	for _, sgp := range sgps {
