@@ -1,13 +1,25 @@
-Multi-party ECDSA
-=====================================
+# Multi-Party Threshold Signature Scheme
 
-This is a Go implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on GG18.
+[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Go Report Card][5]][6] [![Coverage Status][7]][8]
+
+[1]: https://godoc.org/github.com/binance-chain/tss-lib?status.svg
+[2]: https://godoc.org/github.com/binance-chain/tss-lib
+[3]: https://img.shields.io/badge/license-MIT-blue.svg
+[4]: LICENSE
+[5]: https://goreportcard.com/badge/github.com/binance-chain/tss-lib
+[6]: https://goreportcard.com/report/github.com/binance-chain/tss-lib
+[7]: https://codecov.io/gh/binance-chain/tss-lib/branch/master/graph/badge.svg
+[8]: https://codecov.io/gh/binance-chain/tss-lib
+
+## ECDSA
+
+This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on GG18.
 
 This library includes three protocols:
 
 * Key Generation for creating secret shares with no trusted dealer ("keygen").
 * Signing for using the secret shares to generate a signature ("signing").
-* Dynamic Groups to change the group of participants while keeping the secret ("regroup").
+* Dynamic Groups to change the group of participants while keeping the secret ("resharing").
 
 ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and much more. 
 This library can be used to create MultiSig and ThresholdSig crypto wallets.
