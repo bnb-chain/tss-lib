@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"crypto/ecdsa"
@@ -49,8 +49,8 @@ func TestE2EConcurrent(t *testing.T) {
 	keys, err := keygen.LoadKeygenTestFixtures(testParticipants)
 	assert.NoError(t, err, "should load keygen fixtures")
 
-	// PHASE: regroup
-	pIDs = pIDs[:threshold+1] // always regroup with old_t+1
+	// PHASE: resharing
+	pIDs = pIDs[:threshold+1] // always resharing with old_t+1
 	p2pCtx := tss.NewPeerContext(pIDs)
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
@@ -78,7 +78,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// init the old parties first
 	for i, pID := range pIDs {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		keyI := keygen.LocalPartySaveData{
 			LocalPreParams: keygen.LocalPreParams{
 				PaillierSK: keys[i].PaillierSK,
@@ -103,7 +103,7 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 	// init the new parties
 	for _, pID := range newPIDs {
-		params := tss.NewReGroupParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		// TODO do this better!
 		save := keygen.LocalPartySaveData{
 			BigXj:       make([]*crypto.ECPoint, newPCount),
@@ -133,7 +133,7 @@ func TestE2EConcurrent(t *testing.T) {
 		}(P)
 	}
 
-	var regroupEnded int32
+	var reSharingEnded int32
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -149,7 +149,7 @@ func TestE2EConcurrent(t *testing.T) {
 				destParties = oldCommittee
 			}
 			if dest == nil {
-				t.Fatal("did not expect a msg to have a nil destination during regroup")
+				t.Fatal("did not expect a msg to have a nil destination during resharing")
 			}
 			for _, destP := range dest {
 				go updater(destParties[destP.Index], msg, errCh)
@@ -159,9 +159,9 @@ func TestE2EConcurrent(t *testing.T) {
 			index, err := save.OriginalIndex()
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
 			keys[index] = save
-			atomic.AddInt32(&regroupEnded, 1)
-			if atomic.LoadInt32(&regroupEnded) == int32(len(newCommittee)) {
-				t.Logf("Regroup done. Regrouped %d participants", regroupEnded)
+			atomic.AddInt32(&reSharingEnded, 1)
+			if atomic.LoadInt32(&reSharingEnded) == int32(len(newCommittee)) {
+				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
 
 				// xj tests: BigXj == xj*G
 				for j, key := range keys {

@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	TaskName = "regroup"
+	TaskName = "resharing"
 )
 
 type (
 	base struct {
-		*tss.ReGroupParameters
+		*tss.ReSharingParameters
 		key,
 		save *keygen.LocalPartySaveData
 		temp   *LocalTempData
@@ -51,11 +51,11 @@ var (
 // ----- //
 
 func (round *base) Params() *tss.Parameters {
-	return round.ReGroupParameters.Parameters
+	return round.ReSharingParameters.Parameters
 }
 
-func (round *base) ReGroupParams() *tss.ReGroupParameters {
-	return round.ReGroupParameters
+func (round *base) ReSharingParams() *tss.ReSharingParameters {
+	return round.ReSharingParameters
 }
 
 func (round *base) RoundNumber() int {

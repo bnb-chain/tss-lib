@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "ecdsa/regroup";
+option go_package = "ecdsa/resharing";
 
 /*
  * The Round 1 data is broadcast to peers of the New Committee in this message.

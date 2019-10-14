@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package regroup
+package resharing
 
 import (
 	"math/big"
@@ -21,7 +21,7 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-// These messages were generated from Protocol Buffers definitions into ecdsa-regroup.pb.go
+// These messages were generated from Protocol Buffers definitions into ecdsa-resharing.pb.go
 
 var (
 	// Ensure that signing messages implement ValidateBasic
@@ -35,11 +35,11 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"regroup.DGRound1Message")
-	proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"regroup.DGRound2Message1")
-	proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"regroup.DGRound2Message2")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"regroup.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"regroup.DGRound3Message2")
+	proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"resharing.DGRound1Message")
+	proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message1")
+	proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message2")
+	proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message1")
+	proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message2")
 }
 
 // ----- //
