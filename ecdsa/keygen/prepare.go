@@ -7,6 +7,7 @@
 package keygen
 
 import (
+	"errors"
 	"math/big"
 	"runtime"
 	"time"
@@ -16,7 +17,20 @@ import (
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 )
 
-func GeneratePreParams() (*LocalPreParams, error) {
+// GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.
+// This can be a time consuming process so it is recommended to do it out-of-band.
+// If not specified, a concurrency value equal to the number of available CPU cores will be used.
+func GeneratePreParams(optionalConcurrency ...int) (*LocalPreParams, error) {
+	var concurrency int
+	if 0 < len(optionalConcurrency) {
+		if 1 < len(optionalConcurrency) {
+			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalConcurrency`"))
+		}
+		concurrency = optionalConcurrency[0]
+	} else {
+		concurrency = runtime.NumCPU()
+	}
+
 	// prepare for concurrent Paillier and safe prime generation
 	paiCh := make(chan *paillier.PrivateKey)
 	sgpCh := make(chan []*common.GermainPrime)
@@ -32,7 +46,7 @@ func GeneratePreParams() (*LocalPreParams, error) {
 	// 5-7. generate safe primes for ZKPs used later on
 	go func(ch chan<- []*common.GermainPrime) {
 		start := time.Now()
-		sgps := common.GetRandomGermainPrimesConcurrent(SafePrimeBitLen, 2, runtime.NumCPU())
+		sgps := common.GetRandomGermainPrimesConcurrent(SafePrimeBitLen, 2, concurrency)
 		common.Logger.Debugf("safe primes generated. took %s\n", time.Since(start))
 		ch <- sgps
 	}(sgpCh)
