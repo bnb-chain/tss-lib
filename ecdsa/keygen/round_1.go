@@ -70,9 +70,14 @@ func (round *round1) Start() *tss.Error {
 	// 4. generate Paillier public key "Ei", private key and proof
 	// 5-7. generate safe primes for ZKPs used later on
 	// 9-11. compute ntilde, h1, h2 (uses safe primes)
-	preParams, err := GeneratePreParams()
-	if err != nil {
-		return round.WrapError(errors.New("pre-params generation failed"), Pi)
+	var preParams *LocalPreParams
+	if round.save.LocalPreParams.Validate() {
+		preParams = &round.save.LocalPreParams
+	} else {
+		preParams, err = GeneratePreParams()
+		if err != nil {
+			return round.WrapError(errors.New("pre-params generation failed"), Pi)
+		}
 	}
 	round.save.LocalPreParams = *preParams
 	round.save.NTildej[i] = preParams.NTildei

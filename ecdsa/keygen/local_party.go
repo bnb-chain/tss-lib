@@ -84,20 +84,36 @@ type (
 	}
 )
 
+func (preParams LocalPreParams) Validate() bool {
+	return preParams.PaillierSK != nil && preParams.NTildei != nil && preParams.H1i != nil && preParams.H2i != nil
+}
+
 // Exported, used in `tss` client
 func NewLocalParty(
 	params *tss.Parameters,
 	out chan<- tss.Message,
 	end chan<- LocalPartySaveData,
+	preParams ...LocalPreParams, // optional
 ) *LocalParty {
 	partyCount := params.PartyCount()
+	data := LocalPartySaveData{}
+	// when `preParams` is provided we'll use the pre-computed primes instead of generating them from scratch
+	if 0 < len(preParams) {
+		if 1 < len(preParams) {
+			panic(errors.New("keygen.NewLocalParty expected 0 or 1 item in `preParams`"))
+		}
+		if !preParams[0].Validate() {
+			panic(errors.New("keygen.NewLocalParty: `preParams` failed to validate"))
+		}
+		data.LocalPreParams = preParams[0]
+	}
 	p := &LocalParty{
 		BaseParty: &tss.BaseParty{
 			Out: out,
 		},
 		params: params,
 		temp:   LocalTempData{},
-		data:   LocalPartySaveData{},
+		data:   data,
 		end:    end,
 	}
 	// msgs init

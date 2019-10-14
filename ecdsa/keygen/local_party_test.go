@@ -166,9 +166,18 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	}
 
 	// init the parties
+	fixtures, err := LoadKeygenTestFixtures(len(pIDs))
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+	}
 	for i := 0; i < len(pIDs); i++ {
+		var P *LocalParty
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
-		P := NewLocalParty(params, outCh, endCh)
+		if i < len(fixtures) {
+			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams)
+		} else {
+			P = NewLocalParty(params, outCh, endCh)
+		}
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
