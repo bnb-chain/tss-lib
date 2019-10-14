@@ -28,7 +28,7 @@ func MakeTestFixtureFilePath(partyIndex int) string {
 }
 
 func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
-	keys := make([]LocalPartySaveData, count, count)
+	keys := make([]LocalPartySaveData, 0, count)
 	for j := 0; j < count; j++ {
 		fixtureFilePath := MakeTestFixtureFilePath(j)
 		bz, err := ioutil.ReadFile(fixtureFilePath)
@@ -38,14 +38,12 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 				j, fixtureFilePath)
 		}
 		var key LocalPartySaveData
-		err = json.Unmarshal(bz, &key)
-
-		if err != nil {
+		if err = json.Unmarshal(bz, &key); err != nil {
 			return nil, errors.Wrapf(err,
 				"could not unmarshal fixture data for party %d located at: %s",
 				j, fixtureFilePath)
 		}
-		keys[j] = LocalPartySaveData{
+		keys = append(keys, LocalPartySaveData{
 			LocalPreParams: LocalPreParams{
 				PaillierSK: key.PaillierSK,
 				NTildei:    key.NTildei,
@@ -63,7 +61,7 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 			BigXj:       key.BigXj[:count],
 			PaillierPKs: key.PaillierPKs[:count],
 			ECDSAPub:    key.ECDSAPub,
-		}
+		})
 	}
 	return keys, nil
 }
