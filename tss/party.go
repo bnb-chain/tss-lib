@@ -18,7 +18,7 @@ type Party interface {
 	PartyID() *PartyID
 	Start() *Error
 	// The main entry point when updating a party's state from the wire
-	UpdateFromBytes(wireBytes []byte, from *PartyID, to []*PartyID) (ok bool, err *Error)
+	UpdateFromBytes(wireBytes []byte, from *PartyID) (ok bool, err *Error)
 	// You may use this entry point to update a party's state when running locally or in tests
 	Update(msg ParsedMessage) (ok bool, err *Error)
 	ValidateMessage(msg ParsedMessage) (bool, *Error)

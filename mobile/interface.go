@@ -190,7 +190,7 @@ func UpdateSession(sessionID, fromPartyIdx int, wireMsg []byte) (ok bool, err er
 	if fromPartyIdx > 0 {
 		from = parties[fromPartyIdx]
 	}
-	return session.party.UpdateFromBytes(wireMsg, from, nil)
+	return session.party.UpdateFromBytes(wireMsg, from)
 }
 
 // ----- //

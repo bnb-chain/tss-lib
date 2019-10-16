@@ -149,7 +149,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	// the Party updater (async)
 	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
-		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom(), msg.GetTo())
+		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom())
 		if err != nil {
 			errCh <- P.WrapError(err)
 			return
