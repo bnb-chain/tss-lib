@@ -77,8 +77,8 @@ func GenerateLocalSaveData() (jsonSaveData []byte, err error) {
 // ----- //
 
 func InitParamsBuilder(ourID, ourMoniker string, ourKey int64, partyCount, threshold int) (paramsID int) {
-	peerCtx := tss.NewPeerContext(make(tss.SortedPartyIDs, 0))
 	partyID := tss.NewPartyID(ourID, ourMoniker, new(big.Int).SetInt64(ourKey))
+	peerCtx := tss.NewPeerContext(tss.SortedPartyIDs{partyID})
 	params = append(params, tss.NewParameters(peerCtx, partyID, partyCount, threshold))
 	return len(params) - 1
 }
