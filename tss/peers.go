@@ -8,7 +8,7 @@ package tss
 
 type (
 	PeerContext struct {
-		partyIDs SortedPartyIDs
+		partyIDs SortedPartyIDs `json:"ids"`
 	}
 )
 
@@ -18,4 +18,8 @@ func NewPeerContext(parties SortedPartyIDs) *PeerContext {
 
 func (p2pCtx *PeerContext) IDs() SortedPartyIDs {
 	return p2pCtx.partyIDs
+}
+
+func (p2pCtx *PeerContext) SetIDs(ids SortedPartyIDs) {
+	p2pCtx.partyIDs = ids
 }
