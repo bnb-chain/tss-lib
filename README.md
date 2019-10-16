@@ -54,7 +54,7 @@ During the protocol, you should provide the party with updates received from oth
 A `Party` has two thread-safe methods on it for receiving updates:
 ```go
 // The main entry point when updating a party's state from the wire
-UpdateFromBytes(wireBytes []byte, from *tss.PartyID, to []*tss.PartyID) (ok bool, err *tss.Error)
+UpdateFromBytes(wireBytes []byte, from *tss.PartyID) (ok bool, err *tss.Error)
 // You may use this entry point to update a party's state when running locally or in tests
 Update(msg tss.ParsedMessage) (ok bool, err *tss.Error)
 ```

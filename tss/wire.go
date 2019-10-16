@@ -19,11 +19,10 @@ const (
 	ProtoNamePrefix = "binance.tss-lib.ecdsa."
 )
 
-func ParseMessageFromProtoB(wire *protob.Message, from *PartyID, to []*PartyID) (ParsedMessage, error) {
+func ParseMessageFromProtoB(wire *protob.Message, from *PartyID) (ParsedMessage, error) {
 	var any ptypes.DynamicAny
 	meta := MessageMetadata{
 		From: from,
-		To:   to,
 	}
 	if err := ptypes.UnmarshalAny(wire.Message, &any); err != nil {
 		return nil, err
@@ -35,10 +34,10 @@ func ParseMessageFromProtoB(wire *protob.Message, from *PartyID, to []*PartyID) 
 }
 
 // Used externally to update a LocalParty with a valid ParsedMessage
-func ParseMessage(wireBytes []byte, from *PartyID, to []*PartyID) (ParsedMessage, error) {
+func ParseMessage(wireBytes []byte, from *PartyID) (ParsedMessage, error) {
 	wire := new(protob.Message)
 	if err := proto.Unmarshal(wireBytes, wire); err != nil {
 		return nil, err
 	}
-	return ParseMessageFromProtoB(wire, from, to)
+	return ParseMessageFromProtoB(wire, from)
 }
