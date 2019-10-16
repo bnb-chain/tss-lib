@@ -164,8 +164,8 @@ func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
 	return tss.BaseUpdate(p, msg, "signing")
 }
 
-func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, to []*tss.PartyID) (bool, *tss.Error) {
-	msg, err := tss.ParseMessage(wireBytes, from, to)
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID) (bool, *tss.Error) {
+	msg, err := tss.ParseMessage(wireBytes, from)
 	if err != nil {
 		return false, p.WrapError(err)
 	}
