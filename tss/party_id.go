@@ -16,10 +16,10 @@ import (
 
 type (
 	PartyID struct {
-		ID      string
-		Moniker string
-		Index   int
-		Key     *big.Int // used in crypto and for sorting parties
+		ID      string   `json:"id"`
+		Moniker string   `json:"moniker"`
+		Index   int      `json:"index"`
+		Key     *big.Int `json:"key"` // used in crypto and for sorting parties
 	}
 
 	UnSortedPartyIDs []*PartyID
