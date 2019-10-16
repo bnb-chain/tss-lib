@@ -85,16 +85,23 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	// round up to 256
 	len1 := len(lp.data.H1j[0].Bytes())
 	len2 := len(lp.data.H2j[0].Bytes())
+	len3 := len(lp.data.NTildej[0].Bytes())
 	if len1%2 != 0 {
 		len1 = len1 + (256 - (len1 % 256))
 	}
 	if len2%2 != 0 {
 		len2 = len2 + (256 - (len2 % 256))
 	}
+	if len3%2 != 0 {
+		len3 = len3 + (256 - (len3 % 256))
+	}
+	// 256 bytes = 2048 bits
 	assert.Equal(t, 256, len1, "h1 should be correct len")
 	assert.Equal(t, 256, len2, "h2 should be correct len")
-	assert.NotZero(t, lp.data.H1j, "h1 should be non-zero")
-	assert.NotZero(t, lp.data.H2j, "h2 should be non-zero")
+	assert.Equal(t, 256, len3, "n-tilde should be correct len")
+	assert.NotZero(t, lp.data.H1i, "h1 should be non-zero")
+	assert.NotZero(t, lp.data.H2i, "h2 should be non-zero")
+	assert.NotZero(t, lp.data.NTildei, "n-tilde should be non-zero")
 }
 
 func TestBadMessageCulprits(t *testing.T) {
