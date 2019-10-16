@@ -97,6 +97,7 @@ func IsNumberInMultiplicativeGroup(n, v *big.Int) bool {
 //  THIS METHOD ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES!
 // https://github.com/didiercrunch/paillier/blob/d03e8850a8e4c53d04e8016a2ce8762af3278b71/utils.go#L39
 func GetRandomGeneratorOfTheQuadraticResidue(n *big.Int) *big.Int {
-	r := GetRandomPositiveRelativelyPrimeInt(n)
-	return new(big.Int).Mod(new(big.Int).Mul(r, r), n)
+	f := GetRandomPositiveRelativelyPrimeInt(n)
+	fSq := new(big.Int).Mul(f, f)
+	return fSq.Mod(fSq, n)
 }
