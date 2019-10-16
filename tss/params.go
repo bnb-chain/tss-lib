@@ -13,18 +13,18 @@ import (
 
 type (
 	Parameters struct {
-		partyID *PartyID
-		parties *PeerContext
-		partyCount,
-		threshold int
-		safePrimeGenTimeout time.Duration
+		partyID             *PartyID      `json:"p_id"`
+		parties             *PeerContext  `json:"ps"`
+		partyCount          int           `json:"n"`
+		threshold           int           `json:"t"`
+		safePrimeGenTimeout time.Duration `json:"sp_timeout"`
 	}
 
 	ReSharingParameters struct {
 		*Parameters
-		newParties *PeerContext
-		newPartyCount,
-		newThreshold int
+		newParties    *PeerContext `json:"new_ps"`
+		newPartyCount int          `json:"new_n"`
+		newThreshold  int          `json:"new_t"`
 	}
 )
 
