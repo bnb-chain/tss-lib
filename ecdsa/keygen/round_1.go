@@ -58,7 +58,8 @@ func (round *round1) Start() *tss.Error {
 	round.save.Ks = ids
 
 	// security: the original u_i may be discarded
-	ui = zero // clears the secret data from memory, lint ignore
+	ui = zero // clears the secret data from memory
+	_ = ui // silences a linter warning
 
 	// make commitment -> (C, D)
 	pGFlat, err := crypto.FlattenECPoints(vs)
