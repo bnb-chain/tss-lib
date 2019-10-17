@@ -22,9 +22,9 @@ type (
 
 	ReSharingParameters struct {
 		*Parameters
-		newParties    *PeerContext `json:"new_ps"`
-		newPartyCount int          `json:"new_n"`
-		newThreshold  int          `json:"new_t"`
+		newParties    *PeerContext
+		newPartyCount int
+		newThreshold  int
 	}
 )
 

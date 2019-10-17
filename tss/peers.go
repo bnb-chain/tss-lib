@@ -8,7 +8,7 @@ package tss
 
 type (
 	PeerContext struct {
-		partyIDs SortedPartyIDs `json:"ids"`
+		partyIDs SortedPartyIDs
 	}
 )
 
