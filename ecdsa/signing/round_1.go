@@ -9,6 +9,7 @@ package signing
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -16,6 +17,10 @@ import (
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
+)
+
+var (
+	zero = big.NewInt(0)
 )
 
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)

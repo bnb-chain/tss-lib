@@ -153,16 +153,6 @@ signing:
 				t.Log("ECDSA signing test done.")
 				// END ECDSA verify
 
-				// BEGIN VVV verify
-				sumL := big.NewInt(0)
-				for _, p := range parties {
-					sumL = modN.Add(sumL, p.temp.li)
-				}
-				VVVX, VVVY := tss.EC().ScalarBaseMult(sumL.Bytes())
-				assert.Equal(t, VVVX, parties[0].temp.VVV.X())
-				assert.Equal(t, VVVY, parties[0].temp.VVV.Y())
-				// END VVV verify
-
 				break signing
 			}
 		}

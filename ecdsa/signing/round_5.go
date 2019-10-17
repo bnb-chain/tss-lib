@@ -62,7 +62,9 @@ func (round *round5) Start() *tss.Error {
 	rx := R.X()
 	ry := R.Y()
 	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(rx, round.temp.sigma))
-	// TODO: clear temp.k, temp.w
+
+	// clear temp.w (temp.k is kept for unit-testing)
+	round.temp.w = zero
 
 	li := common.GetRandomPositiveInt(N)  // li
 	roI := common.GetRandomPositiveInt(N) // pi

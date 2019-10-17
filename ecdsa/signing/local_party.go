@@ -89,9 +89,6 @@ type (
 		Ui,
 		Ti *crypto.ECPoint
 		DTelda cmt.HashDeCommitment
-
-		// TODO: delete, for testing
-		VVV *crypto.ECPoint
 	}
 
 	LocalSignData struct {

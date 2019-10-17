@@ -78,11 +78,6 @@ func (round *round7) Start() *tss.Error {
 		AX, AY = tss.EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
 	}
 
-	var err error
-	round.temp.VVV, err = crypto.NewECPoint(tss.EC(), VX, VY)
-	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewECPoint(V)"))
-	}
 	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.roi.Bytes())
 	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
 	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)

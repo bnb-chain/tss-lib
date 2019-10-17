@@ -94,19 +94,6 @@ func TestHomoAdd(t *testing.T) {
 	assert.Equal(t, new(big.Int).Add(num1, num2), plain)
 }
 
-func TestProof(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
-	ki := common.MustGetRandomInt(256)                     // index
-	ui := common.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
-	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public
-	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
-	for _, yi := range proof {
-		// TODO add a better assertion
-		assert.NotZero(t, yi)
-	}
-	t.Log(proof)
-}
-
 func TestProofVerify(t *testing.T) {
 	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
 	ki := common.MustGetRandomInt(256)                     // index
