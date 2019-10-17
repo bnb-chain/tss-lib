@@ -7,7 +7,6 @@
 package mobile
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -24,45 +23,61 @@ const (
 	testThreshold    = 2
 )
 
-func setupParams() (int, *tss.Parameters, []int64, error) {
-	keys := make([]int64, 4)
+func setupParams(pax int) (paramsID int, params *tss.Parameters, keys []int64, sortedKeys []int64, err error) {
+	keys = make([]int64, pax)
+	sortedKeys = make([]int64, pax)
+
 	for i := range keys {
 		keyBI := common.MustGetRandomInt(64)
 		key := keyBI.Int64()
 		keys[i] = key
 	}
-	paramsID := InitParamsBuilder("id_0", "moniker_0", keys[0], testParticipants, testThreshold)
-	for i, key := range keys {
-		if i == 0 {
+
+	paramsID = InitParamsBuilder("id_0", "moniker_0", keys[0], testParticipants, testThreshold)
+	for j, key := range keys {
+		if j == 0 {
 			continue
 		}
-		n, err := AddPartyToParams(paramsID, fmt.Sprintf("id_%d", i), fmt.Sprintf("moniker_%d", i), key)
-		if err != nil {
-			return -1, nil, nil, err
-		}
-		if n != i+1 {
-			panic(errors.New("expected n == i + 1 in loop"))
+		if _, err := AddPartyToParams(paramsID, fmt.Sprintf("id_%d", j), fmt.Sprintf("moniker_%d", j), key); err != nil {
+			return -1, nil, nil, nil, err
 		}
 	}
-	params, err := getParams(paramsID)
-	return paramsID, params, keys, err
+	params, err = getParams(paramsID)
+	if err != nil {
+		return -1, nil, nil, nil, err
+	}
+
+	for i, partyID := range params.Parties().IDs() {
+		sortedKeys[i] = partyID.Key.Int64()
+	}
+	sort.Sort(sortkeys.Int64Slice(sortedKeys))
+	return
 }
 
 func TestParamsBuilder(t *testing.T) {
-	_, params, keys, err := setupParams()
+	_, params, keys, sortedKeys, err := setupParams(3)
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(params.Parties().IDs()))
+	assert.Equal(t, 3, len(params.Parties().IDs()))
 	assert.Equal(t, keys[0], params.PartyID().Key.Int64())
 	assert.Equal(t, params.PartyCount(), testParticipants)
 	assert.Equal(t, params.Threshold(), testThreshold)
 	assert.Equal(t, "id_0", params.PartyID().ID)
 	assert.Equal(t, "moniker_0", params.PartyID().Moniker)
-	keyI64s := make([]int64, 4)
 	for i, partyID := range params.Parties().IDs() {
-		keyI64s[i] = partyID.Key.Int64()
+		assert.Equal(t, sortedKeys[i], partyID.Key.Int64())
 	}
-	sort.Sort(sortkeys.Int64Slice(keyI64s))
-	for i, partyID := range params.Parties().IDs() {
-		assert.Equal(t, keyI64s[i], partyID.Key.Int64())
-	}
+}
+
+func TestKeygenSession(t *testing.T) {
+	paramsID, _, _, _, err := setupParams(3)
+	assert.NoError(t, err)
+	jsonPreParams1, err := GeneratePreParams()
+	assert.NoError(t, err)
+
+	// party 1
+	sessionID1, err := InitKeygenSession(paramsID, AlgorithmECDSA, jsonPreParams1)
+	assert.NoError(t, err)
+	msg1, err := PollKeygenSession(sessionID1)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, msg1)
 }
