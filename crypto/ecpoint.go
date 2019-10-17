@@ -114,7 +114,7 @@ func UnFlattenECPoints(curve elliptic.Curve, in []*big.Int, noCurveCheck ...bool
 	var err error
 	unFlat := make([]*ECPoint, len(in)/2)
 	for i, j := 0, 0; i < len(in); i, j = i+2, j+1 {
-		if len(noCurveCheck) == 0 || noCurveCheck[0] == false {
+		if len(noCurveCheck) == 0 || !noCurveCheck[0] {
 			unFlat[j], err = NewECPoint(curve, in[i], in[i+1])
 			if err != nil {
 				return nil, err

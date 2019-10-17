@@ -81,9 +81,6 @@ func TestHomoAdd(t *testing.T) {
 	num1 := big.NewInt(10)
 	num2 := big.NewInt(32)
 
-	sum := new(big.Int).Add(num1, num2)
-	sum = new(big.Int).Mod(sum, publicKey.N)
-
 	one, _ := publicKey.Encrypt(num1)
 	two, _ := publicKey.Encrypt(num2)
 
