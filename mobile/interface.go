@@ -112,13 +112,17 @@ func InitKeygenSession(paramsID, algorithm int, jsonPreParams []byte) (sessionID
 		return -1, err
 	}
 	party := keygen.NewLocalParty(params, sessionOutCh, sessionKeyEndCh, preParams)
+	sessionID = len(sessions)
 	sessions = append(sessions, &session{
 		paramsID:  paramsID,
 		algorithm: algorithm,
 		protocol:  ProtocolKeygen,
 		party:     party,
 	})
-	return len(sessions) - 1, nil
+	if err := party.Start(); err != nil {
+		return sessionID, err
+	}
+	return sessionID, nil
 }
 
 func InitSigningSession(paramsID, algorithm int, msg, jsonKeyData []byte) (sessionID int, err error) {
@@ -137,13 +141,17 @@ func InitSigningSession(paramsID, algorithm int, msg, jsonKeyData []byte) (sessi
 		return -1, err
 	}
 	party := signing.NewLocalParty(msgInt, params, keyData, sessionOutCh, sessionSigEndCh)
+	sessionID = len(sessions)
 	sessions = append(sessions, &session{
 		paramsID:  paramsID,
 		algorithm: algorithm,
 		protocol:  ProtocolKeygen,
 		party:     party,
 	})
-	return len(sessions) - 1, nil
+	if err := party.Start(); err != nil {
+		return sessionID, err
+	}
+	return sessionID, nil
 }
 
 // ----- //
