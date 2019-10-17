@@ -113,26 +113,6 @@ signing:
 
 				modN := common.ModInt(tss.EC().Params().N)
 
-				// BEGIN check R correctness
-				sumK := big.NewInt(0)
-				for _, p := range parties {
-					sumK = modN.Add(sumK, p.temp.k)
-				}
-				sumGamma := big.NewInt(0)
-				for _, p := range parties {
-					sumGamma = modN.Add(sumGamma, p.temp.gamma)
-				}
-				sumTheta := big.NewInt(0)
-				for _, p := range parties {
-					sumTheta = modN.Add(sumTheta, p.temp.theta)
-				}
-				assert.Equal(t, sumTheta, modN.Mul(sumGamma, sumK))
-				sumKInverse := modN.ModInverse(sumK)
-				rx, ry := tss.EC().ScalarBaseMult(sumKInverse.Bytes())
-				assert.Equal(t, rx, R.X())
-				assert.Equal(t, ry, R.Y())
-				// END check R correctness
-
 				// BEGIN check s correctness
 				sumS := big.NewInt(0)
 				for _, p := range parties {
