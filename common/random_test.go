@@ -8,7 +8,6 @@ package common_test
 
 import (
 	"math/big"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,21 +44,4 @@ func TestGetRandomPrimeInt(t *testing.T) {
 	prime := common.GetRandomPrimeInt(randomIntBitLen)
 	assert.NotZero(t, prime, "rand prime should not be zero")
 	assert.True(t, prime.ProbablyPrime(50), "rand prime should be prime")
-}
-
-func TestGetRandomGermainAndSafePrimes(t *testing.T) {
-	sgp := common.GetRandomGermainPrime(randomIntBitLen)
-	t.Logf("p1: %+v", sgp.Prime())
-	t.Logf("p2: %+v", sgp.SafePrime())
-	assert.True(t, sgp.Validate())
-}
-
-func TestGetRandomGermainPrimesConcurrent(t *testing.T) {
-	sgps := common.GetRandomGermainPrimesConcurrent(randomIntBitLen, 2, runtime.NumCPU())
-	assert.NotNil(t, sgps)
-	assert.Equal(t, 2, len(sgps))
-	for _, sgp := range sgps {
-		assert.NotNil(t, sgp)
-		assert.True(t, sgp.Validate())
-	}
 }

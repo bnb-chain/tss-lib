@@ -62,6 +62,12 @@ func init() {
 
 // len is the length of the modulus (each prime = len / 2)
 func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
+	// // KS-BTL-F-03: check that p-q is also very large (1023 bits) in order to avoid square-root attacks
+	// sgp, err := common.GetRandomGermainPrimeConcurrent(len/2, runtime.NumCPU(), 5 * time.Minute)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// P, Q := sgp.Prime(), sgp.SafePrime()
 	P, Q := common.GetRandomPrimeInt(len/2), common.GetRandomPrimeInt(len/2)
 	N := new(big.Int).Mul(P, Q)
 	// phiN = P-1 * Q-1

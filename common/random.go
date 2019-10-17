@@ -10,7 +10,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	"sync/atomic"
 
 	"github.com/pkg/errors"
 )
@@ -67,45 +66,6 @@ func GetRandomPrimeInt(bits int) *big.Int {
 		}
 	}
 	return try
-}
-
-func GetRandomGermainPrime(bits int) *GermainPrime {
-	var sgp *GermainPrime
-	var prime *big.Int
-	for sgp == nil {
-		prime = GetRandomPrimeInt(bits)
-		sgp, _ = TryGermainPrime(prime)
-	}
-	return sgp
-}
-
-func GetRandomGermainPrimesConcurrent(bits, num, concurrency int) []*GermainPrime {
-	var found int32
-	num32 := int32(num)
-	ch := make(chan *GermainPrime)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			var sgp *GermainPrime
-			var prime *big.Int
-			for sgp == nil {
-				if num32 <= atomic.LoadInt32(&found) {
-					break
-				}
-				prime = GetRandomPrimeInt(bits)
-				sgp, _ = TryGermainPrime(prime)
-			}
-			if sgp != nil && atomic.AddInt32(&found, 1) <= num32 {
-				ch <- sgp
-			}
-		}()
-	}
-	primes := make([]*GermainPrime, num)
-	for i := 0; i < num; i++ {
-		sgp := <-ch
-		primes[i] = sgp
-	}
-	close(ch)
-	return primes
 }
 
 // Generate a random element in the group of all the elements in Z/nZ that

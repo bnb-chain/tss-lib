@@ -8,7 +8,9 @@ package common
 
 import (
 	"math/big"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -28,13 +30,20 @@ func Test_getSafePrime_Bad(t *testing.T) {
 func Test_Validate(t *testing.T) {
 	prime := new(big.Int).SetInt64(5)
 	sPrime := getSafePrime(prime)
-	sgp := &GermainPrime{prime, sPrime}
+	sgp := &GermainSafePrime{prime, sPrime}
 	assert.True(t, sgp.Validate())
 }
 
 func Test_Validate_Bad(t *testing.T) {
 	prime := new(big.Int).SetInt64(12)
 	sPrime := getSafePrime(prime)
-	sgp := &GermainPrime{prime, sPrime}
+	sgp := &GermainSafePrime{prime, sPrime}
 	assert.False(t, sgp.Validate())
+}
+
+func TestGetRandomGermainPrimeConcurrent(t *testing.T) {
+	sgp, err := GetRandomGermainPrimeConcurrent(1024, runtime.NumCPU(), 30*time.Second)
+	assert.NoError(t, err)
+	assert.NotNil(t, sgp)
+	assert.True(t, sgp.Validate())
 }
