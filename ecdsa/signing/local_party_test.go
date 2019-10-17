@@ -53,6 +53,10 @@ func TestE2EConcurrent(t *testing.T) {
 	outCh := make(chan tss.Message, len(signPIDs))
 	endCh := make(chan LocalSignData, len(signPIDs))
 
+	// q := tss.EC().Params().N
+	// msg := new(big.Int).Add(q, new(big.Int).SetInt64(1))
+	msg := new(big.Int).SetInt64(42)
+
 	// the Party updater (async)
 	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
 		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom())
@@ -68,7 +72,7 @@ func TestE2EConcurrent(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
-		P := NewLocalParty(big.NewInt(42), params, keys[i], outCh, endCh)
+		P := NewLocalParty(msg, params, keys[i], outCh, endCh)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
