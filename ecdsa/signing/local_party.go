@@ -30,7 +30,6 @@ type (
 		params *tss.Parameters
 
 		temp LocalTempData
-		keys keygen.LocalPartySaveData
 		data LocalSignData
 
 		// outbound messaging
