@@ -114,7 +114,6 @@ func (round *round1) Update() (bool, *tss.Error) {
 		round.oldOK[j] = true
 
 		// save the ecdsa pub received from the old committee
-		// TODO improve this ecdsa pubkey consistency check
 		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
 		candidate, err := r1msg.UnmarshalECDSAPub()
 		if err != nil {

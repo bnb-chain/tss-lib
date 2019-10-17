@@ -24,7 +24,6 @@ type (
 	HashDeCommitment = []*big.Int
 
 	HashCommitDecommit struct {
-		// TODO include 256-bit random component R in D, written to C digest
 		C HashCommitment
 		D HashDeCommitment
 	}

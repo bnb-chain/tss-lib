@@ -83,12 +83,12 @@ type (
 		bigR,
 		bigAi,
 		bigVi *crypto.ECPoint
-		DPower cmt.HashDeCommitment // TODO: bad name :(
+		DPower cmt.HashDeCommitment
 
 		// round 7
 		Ui,
 		Ti *crypto.ECPoint
-		DTelda cmt.HashDeCommitment // TODO: bad name :(
+		DTelda cmt.HashDeCommitment
 
 		// TODO: delete, for testing
 		VVV *crypto.ECPoint
@@ -131,7 +131,6 @@ func NewLocalParty(
 	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
 	// data init
-	// TODO: later on, the message bytes should be passed in rather than hashed to big.Int
 	p.temp.m = msg
 	p.temp.cis = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)

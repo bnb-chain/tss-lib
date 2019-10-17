@@ -85,6 +85,9 @@ func (round *round4) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(err, round.Parties().IDs()[j])
 		}
+		if !ok {
+			return round.WrapError(errors.New("commitment de-commit verify failed"), round.Parties().IDs()[j])
+		}
 		if len(parsed) < 2 {
 			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("malformed second commitment; expected two parts"), round.Parties().IDs()[j])

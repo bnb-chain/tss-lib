@@ -101,8 +101,8 @@ func TestProof(t *testing.T) {
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public
 	proof := privateKey.Proof(ki, crypto.NewECPointNoCurveCheck(tss.EC(), yX, yY))
 	for _, yi := range proof {
-		assert.NotZero(t, yi)
 		// TODO add a better assertion
+		assert.NotZero(t, yi)
 	}
 	t.Log(proof)
 }

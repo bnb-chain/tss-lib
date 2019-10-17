@@ -22,7 +22,6 @@ import (
 // Using a modulus length of 2048 is recommended in the GG18 spec
 const (
 	testPaillierKeyLength = 2048
-	testRSAModulusLen     = 2048
 )
 
 func TestShareProtocol(t *testing.T) {

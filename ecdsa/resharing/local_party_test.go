@@ -43,7 +43,6 @@ func TestE2EConcurrent(t *testing.T) {
 
 	threshold, newThreshold := testThreshold, testThreshold
 	pIDs := tss.GenerateTestPartyIDs(testParticipants)
-	keys := make([]keygen.LocalPartySaveData, len(pIDs), len(pIDs))
 
 	// PHASE: load keygen fixtures
 	keys, err := keygen.LoadKeygenTestFixtures(testParticipants)
@@ -108,7 +107,6 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 	for i, pID := range newPIDs {
 		params := tss.NewReSharingParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		// TODO do this better!
 		save := keygen.LocalPartySaveData{
 			BigXj:       make([]*crypto.ECPoint, newPCount),
 			PaillierPKs: make([]*paillier.PublicKey, newPCount),
@@ -188,6 +186,7 @@ func TestE2EConcurrent(t *testing.T) {
 signing:
 	// PHASE: signing
 	keys, err = keygen.LoadKeygenTestFixtures(testThreshold + 1)
+	assert.NoError(t, err)
 
 	signPIDs := newPIDs[:threshold+1]
 

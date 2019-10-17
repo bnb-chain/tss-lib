@@ -20,7 +20,6 @@ func AliceInit(
 	pkA *paillier.PublicKey,
 	a, NTildeB, h1B, h2B *big.Int,
 ) (cA *big.Int, pf *RangeProofAlice, err error) {
-	// TODO: add call to ProveRangeAlice, return proof `piA`
 	cA, rA, err := pkA.EncryptAndReturnRandomness(a)
 	if err != nil {
 		return nil, nil, err
