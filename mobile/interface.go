@@ -236,6 +236,15 @@ func DestroySession(sessionID int) error {
 		return err
 	}
 	sessions[sessionID] = nil
+	if sessionOutChs[sessionID] != nil {
+		sessionOutChs[sessionID] = nil
+	}
+	if sessionKeyEndChs[sessionID] != nil {
+		sessionKeyEndChs[sessionID] = nil
+	}
+	if sessionSigEndChs[sessionID] != nil {
+		sessionSigEndChs[sessionID] = nil
+	}
 	return nil
 }
 
