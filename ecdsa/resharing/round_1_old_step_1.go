@@ -43,7 +43,6 @@ func (round *round1) Start() *tss.Error {
 	// 1. PrepareForSigning() -> w_i
 	xi := round.save.Xi
 	ks := round.save.Ks
-	bigXs := round.save.BigXj
 	newKs := round.NewParties().IDs().Keys()
 	wi, _ := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks, round.save.BigXj)
 
@@ -58,32 +57,16 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
-
-	// include "Big X's" and list of indexes (k_j) known by this party in the commitment
-	flatBigXs, err := crypto.FlattenECPoints(bigXs)
-	if err != nil {
-		return round.WrapError(err, round.PartyID())
-	}
-
-	cBuilder := commitments.NewBuilder()
-	secrets, err := cBuilder.AddPart(flatBigXs).AddPart(round.save.Ks).Secrets()
-	if err != nil {
-		return round.WrapError(err, round.PartyID())
-	}
-	cmtR := round.save.ECDSAPub.X()
-	xAndKCmt := commitments.NewHashCommitmentWithRandomness(cmtR, secrets...)
-
 	vCmt := commitments.NewHashCommitment(flatVis...)
 
 	// 4. populate temp data
 	round.temp.VD = vCmt.D
-	round.temp.XAndKD = xAndKCmt.D
 	round.temp.NewShares = shares
 
 	// 5. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1Message(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		round.save.ECDSAPub, vCmt.C, xAndKCmt.C)
+		round.save.ECDSAPub, vCmt.C)
 	round.temp.dgRound1Messages[i] = r1msg
 	round.out <- r1msg
 
