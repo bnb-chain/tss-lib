@@ -76,27 +76,6 @@ func (round *round4) Start() *tss.Error {
 		r3msg2 := round.temp.dgRound3Message2s[j].Content().(*DGRound3Message2)
 
 		vCj, vDj := r1msg.UnmarshalVCommitment(), r3msg2.UnmarshalVDeCommitment()
-		xAndKCj, xAndKDj := r1msg.UnmarshalXAndKCommitment(), r3msg2.UnmarshalXAndKDeCommitment()
-
-		// unpack compound commitment content (points are flattened and everything from round 1 was serialized together)
-		xAndKCmtDeCmt := commitments.HashCommitDecommit{C: xAndKCj, D: xAndKDj}
-		ok, serialized := xAndKCmtDeCmt.DeCommit()
-		parsed, err := commitments.ParseSecrets(serialized)
-		if err != nil {
-			return round.WrapError(err, round.Parties().IDs()[j])
-		}
-		if !ok {
-			return round.WrapError(errors.New("commitment de-commit verify failed"), round.Parties().IDs()[j])
-		}
-		if len(parsed) < 2 {
-			// TODO collect culprits and return a list of them as per convention
-			return round.WrapError(errors.New("malformed second commitment; expected two parts"), round.Parties().IDs()[j])
-		}
-		round.temp.OldBigXj, err = crypto.UnFlattenECPoints(tss.EC(), parsed[0])
-		if err != nil {
-			return round.WrapError(err, round.Parties().IDs()[j])
-		}
-		round.temp.OldKs = parsed[1]
 
 		// 6. unpack flat "v" commitment content
 		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}

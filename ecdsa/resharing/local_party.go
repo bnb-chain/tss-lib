@@ -9,10 +9,8 @@ package resharing
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
@@ -48,12 +46,9 @@ type (
 		LocalMessageStore
 
 		// temp data (thrown away after rounds)
-		OldBigXj  []*crypto.ECPoint
-		OldKs     []*big.Int
 		NewVs     vss.Vs
 		NewShares vss.Shares
-		VD,
-		XAndKD cmt.HashDeCommitment
+		VD        cmt.HashDeCommitment
 	}
 )
 

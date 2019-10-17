@@ -48,17 +48,16 @@ func NewDGRound1Message(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	ecdsaPub *crypto.ECPoint,
-	vct, xkct cmt.HashCommitment,
+	vct cmt.HashCommitment,
 ) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
 		From: from,
 		To:   to,
 	}
 	content := &DGRound1Message{
-		EcdsaPubX:       ecdsaPub.X().Bytes(),
-		EcdsaPubY:       ecdsaPub.Y().Bytes(),
-		VCommitment:     vct.Bytes(),
-		XAndKCommitment: xkct.Bytes(),
+		EcdsaPubX:   ecdsaPub.X().Bytes(),
+		EcdsaPubY:   ecdsaPub.Y().Bytes(),
+		VCommitment: vct.Bytes(),
 	}
 	any, _ := ptypes.MarshalAny(content)
 	msg := &protob.Message{
@@ -73,8 +72,7 @@ func (m *DGRound1Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyBytes(m.EcdsaPubX) &&
 		common.NonEmptyBytes(m.EcdsaPubY) &&
-		common.NonEmptyBytes(m.VCommitment) &&
-		common.NonEmptyBytes(m.XAndKCommitment)
+		common.NonEmptyBytes(m.VCommitment)
 }
 
 func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
@@ -86,10 +84,6 @@ func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
 
 func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {
 	return new(big.Int).SetBytes(m.GetVCommitment())
-}
-
-func (m *DGRound1Message) UnmarshalXAndKCommitment() *big.Int {
-	return new(big.Int).SetBytes(m.GetXAndKCommitment())
 }
 
 // ----- //
@@ -200,17 +194,15 @@ func (m *DGRound3Message1) ValidateBasic() bool {
 func NewDGRound3Message2(
 	to []*tss.PartyID,
 	from *tss.PartyID,
-	vdct, xkdct cmt.HashDeCommitment,
+	vdct cmt.HashDeCommitment,
 ) tss.ParsedMessage {
 	meta := tss.MessageMetadata{
 		From: from,
 		To:   to,
 	}
 	vDctBzs := common.BigIntsToBytes(vdct)
-	xAndKDctBzs := common.BigIntsToBytes(xkdct)
 	content := &DGRound3Message2{
-		VDecommitment:     vDctBzs,
-		XAndKDecommitment: xAndKDctBzs,
+		VDecommitment: vDctBzs,
 	}
 	any, _ := ptypes.MarshalAny(content)
 	msg := &protob.Message{
@@ -223,16 +215,10 @@ func NewDGRound3Message2(
 
 func (m *DGRound3Message2) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyMultiBytes(m.VDecommitment) &&
-		common.NonEmptyMultiBytes(m.XAndKDecommitment)
+		common.NonEmptyMultiBytes(m.VDecommitment)
 }
 
 func (m *DGRound3Message2) UnmarshalVDeCommitment() cmt.HashDeCommitment {
 	deComBzs := m.GetVDecommitment()
-	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
-}
-
-func (m *DGRound3Message2) UnmarshalXAndKDeCommitment() cmt.HashDeCommitment {
-	deComBzs := m.GetXAndKDecommitment()
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }

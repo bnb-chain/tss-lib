@@ -9,7 +9,6 @@ message DGRound1Message {
     bytes ecdsa_pub_x = 1;
     bytes ecdsa_pub_y = 2;
     bytes v_commitment = 3;
-    bytes x_and_k_commitment = 4;
 }
 
 /*
@@ -41,5 +40,4 @@ message DGRound3Message1 {
  */
 message DGRound3Message2 {
     repeated bytes v_decommitment = 1;
-    repeated bytes x_and_k_decommitment = 2;
 }
