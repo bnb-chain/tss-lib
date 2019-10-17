@@ -7,7 +7,9 @@
 package signing
 
 import (
+	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -58,6 +60,16 @@ func (round *finalization) Start() *tss.Error {
 	round.data.S = sumS
 	round.data.SignatureRecovery = byte(recid)
 	round.data.Signature = append(round.temp.rx.Bytes(), sumS.Bytes()...)
+
+	pk := ecdsa.PublicKey{
+		Curve: tss.EC(),
+		X:     round.key.ECDSAPub.X(),
+		Y:     round.key.ECDSAPub.Y(),
+	}
+	ok := ecdsa.Verify(&pk, round.temp.m.Bytes(), round.temp.rx, sumS)
+	if !ok {
+		return round.WrapError(fmt.Errorf("signature verification failed"))
+	}
 
 	return nil
 }
