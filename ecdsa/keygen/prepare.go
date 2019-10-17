@@ -20,7 +20,7 @@ import (
 // GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.
 // This can be a time consuming process so it is recommended to do it out-of-band.
 // If not specified, a concurrency value equal to the number of available CPU cores will be used.
-func GeneratePreParams(optionalConcurrency ...int) (*LocalPreParams, error) {
+func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*LocalPreParams, error) {
 	var concurrency int
 	if 0 < len(optionalConcurrency) {
 		if 1 < len(optionalConcurrency) {
@@ -33,7 +33,7 @@ func GeneratePreParams(optionalConcurrency ...int) (*LocalPreParams, error) {
 
 	// prepare for concurrent Paillier and safe prime generation
 	paiCh := make(chan *paillier.PrivateKey)
-	sgpCh := make(chan []*common.GermainPrime)
+	sgpCh := make(chan []*common.GermainSafePrime)
 
 	// 4. generate Paillier public key E_i, private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
@@ -44,15 +44,26 @@ func GeneratePreParams(optionalConcurrency ...int) (*LocalPreParams, error) {
 	}(paiCh)
 
 	// 5-7. generate safe primes for ZKPs used later on
-	go func(ch chan<- []*common.GermainPrime) {
+	go func(ch chan<- []*common.GermainSafePrime) {
+		var err error
+		sgps := make([]*common.GermainSafePrime, 2)
 		start := time.Now()
-		sgps := common.GetRandomGermainPrimesConcurrent(SafePrimeBitLen, 2, concurrency)
+		for i := 0; i < len(sgps); i++ {
+			sgps[i], err = common.GetRandomGermainPrimeConcurrent(SafePrimeBitLen, concurrency, timeout)
+			if err != nil {
+				ch <- nil
+				return
+			}
+		}
 		common.Logger.Debugf("safe primes generated. took %s\n", time.Since(start))
 		ch <- sgps
 	}(sgpCh)
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	sgps, paiSK := <-sgpCh, <-paiCh
+	if sgps == nil || sgps[0] == nil || sgps[1] == nil || !sgps[0].Validate() || !sgps[1].Validate() {
+		return nil, errors.New("timeout or error while generating the 2 safe primes")
+	}
 
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{sgps[0].SafePrime(), sgps[1].SafePrime()})
 	if err != nil {
