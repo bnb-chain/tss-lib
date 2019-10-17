@@ -14,7 +14,6 @@ import (
 	"math/big"
 	"os"
 	"runtime"
-	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -29,8 +28,8 @@ import (
 )
 
 const (
-	testParticipants = 20
-	testThreshold    = testParticipants / 2
+	testParticipants = TestParticipants
+	testThreshold    = TestThreshold
 )
 
 func setUp(level string) {
@@ -52,7 +51,7 @@ func TestStartRound1Paillier(t *testing.T) {
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
-	_ = <-out
+	<-out
 
 	// Paillier modulus 2048 (two 1024-bit primes)
 	// TODO: flaky assertion, sometimes comes back with 1 byte less
@@ -188,8 +187,6 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	// PHASE: keygen
 	var ended int32
-	datas := make([]LocalTempData, 0, len(pIDs))
-	dmtx := sync.Mutex{}
 keygen:
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
@@ -217,12 +214,6 @@ keygen:
 			}
 
 		case save := <-endCh:
-			dmtx.Lock()
-			for _, P := range parties {
-				datas = append(datas, P.temp)
-			}
-			dmtx.Unlock()
-
 			// SAVE a test fixture file for this P (if it doesn't already exist)
 			// .. here comes a workaround to recover this party's index (it was removed from save data)
 			index, err := save.OriginalIndex()
