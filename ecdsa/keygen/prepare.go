@@ -65,7 +65,7 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	sgps, paiSK := <-sgpCh, <-paiCh
-	if sgps == nil || sgps[0] == nil || sgps[1] == nil || !sgps[0].Validate() || !sgps[1].Validate() {
+	if sgps == nil || sgps[0] == nil || sgps[1] == nil {
 		return nil, errors.New("timeout or error while generating the 2 safe primes")
 	}
 
