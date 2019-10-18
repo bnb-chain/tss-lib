@@ -77,7 +77,7 @@ func TestKeygenSession(t *testing.T) {
 	// party 1
 	sessionID1, err := InitKeygenSession(paramsID, AlgorithmECDSA, jsonPreParams1)
 	assert.NoError(t, err)
-	msg1, err := PollKeygenSession(sessionID1)
+	msg1, err := PollKeygenOrReSharingSession(sessionID1)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, msg1)
 }
