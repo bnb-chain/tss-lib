@@ -42,8 +42,11 @@ func Test_Validate_Bad(t *testing.T) {
 }
 
 func TestGetRandomGermainPrimeConcurrent(t *testing.T) {
-	sgp, err := GetRandomGermainPrimeConcurrent(1024, runtime.NumCPU(), 30*time.Second)
+	sgps, err := GetRandomSafePrimesConcurrent(1024, 2, 20*time.Minute, runtime.NumCPU())
 	assert.NoError(t, err)
-	assert.NotNil(t, sgp)
-	assert.True(t, sgp.Validate())
+	assert.Equal(t, 2, len(sgps))
+	for _, sgp := range sgps {
+		assert.NotNil(t, sgp)
+		assert.True(t, sgp.Validate())
+	}
 }

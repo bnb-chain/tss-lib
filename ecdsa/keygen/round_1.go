@@ -9,20 +9,12 @@ package keygen
 import (
 	"errors"
 	"math/big"
-	"time"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
-)
-
-const (
-	// Using a modulus length of 2048 is recommended in the GG18 spec
-	PaillierModulusLen = 2048
-	// RSA also 2048-bit modulus; two 1024-bit primes
-	SafePrimeBitLen = 1024
 )
 
 var (
@@ -77,7 +69,7 @@ func (round *round1) Start() *tss.Error {
 	if round.save.LocalPreParams.Validate() {
 		preParams = &round.save.LocalPreParams
 	} else {
-		preParams, err = GeneratePreParams(2 * time.Minute)
+		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout(), 3)
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}

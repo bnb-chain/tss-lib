@@ -17,6 +17,13 @@ import (
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 )
 
+const (
+	// Using a modulus length of 2048 is recommended in the GG18 spec
+	paillierModulusLen = 2048
+	// Two 1024-bit safe primes to produce NTilde
+	safePrimeBitLen = 1024
+)
+
 // GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.
 // This can be a time consuming process so it is recommended to do it out-of-band.
 // If not specified, a concurrency value equal to the number of available CPU cores will be used.
@@ -38,7 +45,7 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 	// 4. generate Paillier public key E_i, private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
 		start := time.Now()
-		PiPaillierSk, _ := paillier.GenerateKeyPair(PaillierModulusLen) // sk contains pk
+		PiPaillierSk, _ := paillier.GenerateKeyPair(paillierModulusLen, timeout, concurrency/2) // sk contains pk
 		common.Logger.Debugf("paillier keygen done. took %s\n", time.Since(start))
 		ch <- PiPaillierSk
 	}(paiCh)
@@ -46,14 +53,11 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 	// 5-7. generate safe primes for ZKPs used later on
 	go func(ch chan<- []*common.GermainSafePrime) {
 		var err error
-		sgps := make([]*common.GermainSafePrime, 2)
 		start := time.Now()
-		for i := 0; i < len(sgps); i++ {
-			sgps[i], err = common.GetRandomGermainPrimeConcurrent(SafePrimeBitLen, concurrency, timeout)
-			if err != nil {
-				ch <- nil
-				return
-			}
+		sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency/2)
+		if err != nil {
+			ch <- nil
+			return
 		}
 		common.Logger.Debugf("safe primes generated. took %s\n", time.Since(start))
 		ch <- sgps

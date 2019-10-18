@@ -9,6 +9,7 @@ package mta
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -26,7 +27,7 @@ const (
 func TestProveRangeAlice(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
+	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
 	m := common.GetRandomPositiveInt(q)
 
 	c, r, err := sk.EncryptAndReturnRandomness(m)

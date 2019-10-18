@@ -18,6 +18,7 @@ import (
 	"io"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -56,6 +57,7 @@ func probablyPrime(prime *big.Int) bool {
 // ----- //
 
 // The following code is a modified copy of: https://github.com/didiercrunch/paillier/blob/753322e473bf8ee20267c7824e68ae47360cc69b/safe_prime_generator.go
+// It is an implementation of the algorithm described in "Safe Prime Generation with a Combined Sieve" https://eprint.iacr.org/2003/186.pdf
 
 // The code is the original Go implementation of rand.Prime optimized for
 // generating safe (Sophie Germain) primes.
@@ -92,8 +94,8 @@ var smallPrimes = []uint8{
 // operations.
 var smallPrimesProduct = new(big.Int).SetUint64(16294579238595022365)
 
-// GenerateSafePrime tries to find a safe prime concurrently.
-// The returned result is a safe prime `p` and prime `q` such that `p=2q+1`.
+// GetRandomSafePrimesConcurrent tries to find safe primes concurrently.
+// The returned results are safe primes `p` and prime `q` such that `p=2q+1`.
 // Concurrency level can be controlled with the `concurrencyLevel` parameter.
 // If a safe prime could not be found in the specified `timeout`, the error
 // is returned. Also, if at least one search process failed, error is returned
@@ -101,7 +103,7 @@ var smallPrimesProduct = new(big.Int).SetUint64(16294579238595022365)
 //
 // How fast we generate a prime number is mostly a matter of luck and it depends
 // on how lucky we are with drawing the first bytes.
-// With today's multicore processors, we can execute the process on multiple
+// With today's multi-core processors, we can execute the process on multiple
 // cores concurrently, accept the first valid result and cancel the rest of
 // work. This way, with the same finding algorithm, we can get the result
 // faster.
@@ -117,17 +119,17 @@ var smallPrimesProduct = new(big.Int).SetUint64(16294579238595022365)
 // This function generates safe primes of at least 6 `bitLen`. For every
 // generated safe prime, the two most significant bits are always set to `1`
 // - we don't want the generated number to be too small.
-func GetRandomGermainPrimeConcurrent(
-	bitLen,
-	concurrencyLevel int,
-	timeout time.Duration,
-) (*GermainSafePrime, error) {
+func GetRandomSafePrimesConcurrent(bitLen, numPrimes int, timeout time.Duration, concurrency int) ([]*GermainSafePrime, error) {
 	if bitLen < 6 {
 		return nil, errors.New("safe prime size must be at least 6 bits")
 	}
+	if numPrimes < 1 {
+		return nil, errors.New("numPrimes should be > 0")
+	}
 
-	primeChan := make(chan *GermainSafePrime, concurrencyLevel)
-	errChan := make(chan error, concurrencyLevel)
+	primeChan := make(chan *GermainSafePrime, concurrency*numPrimes)
+	errChan := make(chan error, concurrency*numPrimes)
+	primes := make([]*GermainSafePrime, 0, numPrimes)
 
 	waitGroup := &sync.WaitGroup{}
 
@@ -137,7 +139,7 @@ func GetRandomGermainPrimeConcurrent(
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	for i := 0; i < concurrencyLevel; i++ {
+	for i := 0; i < concurrency; i++ {
 		waitGroup.Add(1)
 		runGenPrimeRoutine(
 			ctx, primeChan, errChan, waitGroup, rand.Reader, bitLen,
@@ -150,15 +152,21 @@ func GetRandomGermainPrimeConcurrent(
 		cancel()
 	}()
 
-	select {
-	case result := <-primeChan:
-		cancel()
-		return result, nil
-	case err := <-errChan:
-		cancel()
-		return nil, err
-	case <-ctx.Done():
-		return nil, fmt.Errorf("generator timed out after %v", timeout)
+	needed := int32(numPrimes)
+	for {
+		select {
+		case result := <-primeChan:
+			primes = append(primes, result)
+			if atomic.AddInt32(&needed, -1) <= 0 {
+				cancel()
+				return primes[:numPrimes], nil
+			}
+		case err := <-errChan:
+			cancel()
+			return nil, err
+		case <-ctx.Done():
+			return nil, fmt.Errorf("generator timed out after %v", timeout)
+		}
 	}
 }
 
@@ -199,8 +207,8 @@ func GetRandomGermainPrimeConcurrent(
 //    back to the point 1.
 func runGenPrimeRoutine(
 	ctx context.Context,
-	primeChan chan *GermainSafePrime,
-	errChan chan error,
+	primeChan chan<- *GermainSafePrime,
+	errChan chan<- error,
 	waitGroup *sync.WaitGroup,
 	rand io.Reader,
 	pBitLen int,
@@ -310,8 +318,10 @@ func runGenPrimeRoutine(
 					isPocklingtonCriterionSatisfied(p) &&
 					q.BitLen() == qBitLen {
 
-					primeChan <- &GermainSafePrime{p: p, q: q}
-					return
+					if sgp := (&GermainSafePrime{p: p, q: q}); sgp.Validate() {
+						primeChan <- &GermainSafePrime{p: p, q: q}
+					}
+					p, q = new(big.Int), new(big.Int)
 				}
 			}
 		}
@@ -332,12 +342,10 @@ func isPocklingtonCriterionSatisfied(p *big.Int) bool {
 
 func isPrimeCandidate(number *big.Int) bool {
 	m := new(big.Int).Mod(number, smallPrimesProduct).Uint64()
-
 	for _, prime := range smallPrimes {
 		if m%uint64(prime) == 0 && m != uint64(prime) {
 			return false
 		}
 	}
-
 	return true
 }

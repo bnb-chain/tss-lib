@@ -9,6 +9,7 @@ package paillier_test
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -23,42 +24,48 @@ const (
 	testPaillierKeyLength = 2048
 )
 
-func TestGenerateKeyPair(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
+var (
+	privateKey *PrivateKey
+	publicKey  *PublicKey
+)
 
+func setUp() {
+	if privateKey != nil && publicKey != nil {
+		return
+	}
+	privateKey, publicKey = GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+}
+
+func TestGenerateKeyPair(t *testing.T) {
+	setUp()
 	assert.NotZero(t, publicKey)
 	assert.NotZero(t, privateKey)
 	t.Log(privateKey)
 }
 
 func TestEncrypt(t *testing.T) {
-	_, publicKey := GenerateKeyPair(testPaillierKeyLength)
+	setUp()
 	cipher, err := publicKey.Encrypt(big.NewInt(1))
-
 	assert.NoError(t, err, "must not error")
 	assert.NotZero(t, cipher)
 	t.Log(cipher)
 }
 
 func TestEncryptDecrypt(t *testing.T) {
-	for i := 1; i < 10; i++ {
-		privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
-
-		exp := big.NewInt(100)
-		cypher, err := privateKey.Encrypt(exp)
-		if err != nil {
-			t.Error(err)
-		}
-		ret, err := privateKey.Decrypt(cypher)
-		assert.NoError(t, err)
-		assert.Equal(t, 0, exp.Cmp(ret),
-			"wrong decryption ", ret, " is not ", exp)
+	setUp()
+	exp := big.NewInt(100)
+	cypher, err := privateKey.Encrypt(exp)
+	if err != nil {
+		t.Error(err)
 	}
+	ret, err := privateKey.Decrypt(cypher)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exp.Cmp(ret),
+		"wrong decryption ", ret, " is not ", exp)
 }
 
 func TestHomoMul(t *testing.T) {
-	privateKey, _ := GenerateKeyPair(testPaillierKeyLength)
-
+	setUp()
 	three, err := privateKey.Encrypt(big.NewInt(3))
 	assert.NoError(t, err)
 
@@ -76,8 +83,7 @@ func TestHomoMul(t *testing.T) {
 }
 
 func TestHomoAdd(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
-
+	setUp()
 	num1 := big.NewInt(10)
 	num2 := big.NewInt(32)
 
@@ -92,7 +98,7 @@ func TestHomoAdd(t *testing.T) {
 }
 
 func TestProofVerify(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
+	setUp()
 	ki := common.MustGetRandomInt(256)                     // index
 	ui := common.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public
@@ -103,7 +109,7 @@ func TestProofVerify(t *testing.T) {
 }
 
 func TestProofVerifyFail(t *testing.T) {
-	privateKey, publicKey := GenerateKeyPair(testPaillierKeyLength)
+	setUp()
 	ki := common.MustGetRandomInt(256)                     // index
 	ui := common.GetRandomPositiveInt(tss.EC().Params().N) // ECDSA private
 	yX, yY := tss.EC().ScalarBaseMult(ui.Bytes())          // ECDSA public

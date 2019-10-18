@@ -9,6 +9,7 @@ package mta
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -27,7 +28,7 @@ const (
 func TestShareProtocol(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
+	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
 
 	a := common.GetRandomPositiveInt(q)
 	b := common.GetRandomPositiveInt(q)
@@ -56,7 +57,7 @@ func TestShareProtocol(t *testing.T) {
 func TestShareProtocolWC(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength)
+	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
 
 	a := common.GetRandomPositiveInt(q)
 	b := common.GetRandomPositiveInt(q)

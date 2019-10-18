@@ -20,17 +20,14 @@ import (
 	"fmt"
 	gmath "math"
 	"math/big"
+	"runtime"
 	"strconv"
+	"time"
 
 	"github.com/otiai10/primes"
 
 	"github.com/binance-chain/tss-lib/common"
 	crypto2 "github.com/binance-chain/tss-lib/crypto"
-)
-
-const (
-	ProofIters        = 13
-	verifyPrimesUntil = 1000 // Verify uses primes <1000
 )
 
 type (
@@ -48,6 +45,12 @@ type (
 	Proof []*big.Int
 )
 
+const (
+	proofIters            = 13
+	verifyPrimesUntil     = 1000 // Verify uses primes <1000
+	pQDifferenceBitLenSub = 2    // >=1022-bit P-Q
+)
+
 var (
 	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
 
@@ -61,15 +64,32 @@ func init() {
 }
 
 // len is the length of the modulus (each prime = len / 2)
-func GenerateKeyPair(len int) (privateKey *PrivateKey, publicKey *PublicKey) {
-	// // KS-BTL-F-03: check that p-q is also very large (1023 bits) in order to avoid square-root attacks
-	// sgp, err := common.GetRandomGermainPrimeConcurrent(len/2, runtime.NumCPU(), 5 * time.Minute)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// P, Q := sgp.Prime(), sgp.SafePrime()
-	P, Q := common.GetRandomPrimeInt(len/2), common.GetRandomPrimeInt(len/2)
+func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey) {
+	var concurrency int
+	if 0 < len(optionalConcurrency) {
+		if 1 < len(optionalConcurrency) {
+			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalConcurrency`"))
+		}
+		concurrency = optionalConcurrency[0]
+	} else {
+		concurrency = runtime.NumCPU()
+	}
+
+	// KS-BTL-F-03: use two safe primes for P, Q
+	var P, Q *big.Int
+	for {
+		sgps, err := common.GetRandomSafePrimesConcurrent(modulusBitLen/2, 2, timeout, concurrency)
+		if err != nil {
+			panic(err)
+		}
+		P, Q = sgps[0].SafePrime(), sgps[1].SafePrime()
+		// KS-BTL-F-03: check that p-q is also very large in order to avoid square-root attacks
+		if new(big.Int).Sub(P, Q).BitLen() >= (modulusBitLen/2)-pQDifferenceBitLenSub {
+			break
+		}
+	}
 	N := new(big.Int).Mul(P, Q)
+
 	// phiN = P-1 * Q-1
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
 	phiN := new(big.Int).Mul(PMinus1, QMinus1)
@@ -167,7 +187,7 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 // In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
 
 func (privateKey *PrivateKey) Proof(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof {
-	iters := ProofIters
+	iters := proofIters
 	pi := make(Proof, iters)
 	xs := GenerateXs(iters, k, privateKey.N, ecdsaPub)
 	for i := 0; i < iters; i++ {
@@ -178,7 +198,7 @@ func (privateKey *PrivateKey) Proof(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof
 }
 
 func (pf Proof) Verify(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
-	iters := ProofIters
+	iters := proofIters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	prms := primes.Until(verifyPrimesUntil).List()           // uses cache primed in init()
 	go func(ch chan<- bool) {
