@@ -6,12 +6,18 @@
 
 package tss
 
+import (
+	"errors"
+	"time"
+)
+
 type (
 	Parameters struct {
 		partyID *PartyID
 		parties *PeerContext
 		partyCount,
 		threshold int
+		safePrimeGenTimeout time.Duration
 	}
 
 	ReSharingParameters struct {
@@ -22,13 +28,27 @@ type (
 	}
 )
 
+const (
+	defaultSafePrimeGenTimeout = 5 * time.Minute
+)
+
 // Exported, used in `tss` client
-func NewParameters(ctx *PeerContext, partyID *PartyID, partyCount, threshold int) *Parameters {
+func NewParameters(ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
+	var safePrimeGenTimeout time.Duration
+	if 0 < len(optionalSafePrimeGenTimeout) {
+		if 1 < len(optionalSafePrimeGenTimeout) {
+			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalSafePrimeGenTimeout`"))
+		}
+		safePrimeGenTimeout = optionalSafePrimeGenTimeout[0]
+	} else {
+		safePrimeGenTimeout = defaultSafePrimeGenTimeout
+	}
 	return &Parameters{
-		parties:    ctx,
-		partyID:    partyID,
-		partyCount: partyCount,
-		threshold:  threshold,
+		parties:             ctx,
+		partyID:             partyID,
+		partyCount:          partyCount,
+		threshold:           threshold,
+		safePrimeGenTimeout: safePrimeGenTimeout,
 	}
 }
 
@@ -46,6 +66,10 @@ func (params *Parameters) PartyCount() int {
 
 func (params *Parameters) Threshold() int {
 	return params.threshold
+}
+
+func (params *Parameters) SafePrimeGenTimeout() time.Duration {
+	return params.safePrimeGenTimeout
 }
 
 // ----- //
