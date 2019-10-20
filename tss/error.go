@@ -23,6 +23,8 @@ func NewError(err error, task string, round int, victim *PartyID, culprits ...*P
 	return &Error{cause: err, task: task, round: round, victim: victim, culprits: culprits}
 }
 
+func (err *Error) Unwrap() error { return err.cause }
+
 func (err *Error) Cause() error { return err.cause }
 
 func (err *Error) Task() string { return err.task }
