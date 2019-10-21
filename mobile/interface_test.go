@@ -68,6 +68,11 @@ func TestParamsBuilder(t *testing.T) {
 	}
 }
 
+func TestGeneratePreParams_Timeout(t *testing.T) {
+	_, err := GeneratePreParams(int64(0))
+	assert.Error(t, err)
+}
+
 func TestKeygenSession(t *testing.T) {
 	paramsID, _, _, _, err := setupParams(3)
 	assert.NoError(t, err)
