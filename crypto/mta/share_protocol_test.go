@@ -28,7 +28,8 @@ const (
 func TestShareProtocol(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	assert.NoError(t, err)
 
 	a := common.GetRandomPositiveInt(q)
 	b := common.GetRandomPositiveInt(q)
@@ -57,7 +58,8 @@ func TestShareProtocol(t *testing.T) {
 func TestShareProtocolWC(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	assert.NoError(t, err)
 
 	a := common.GetRandomPositiveInt(q)
 	b := common.GetRandomPositiveInt(q)

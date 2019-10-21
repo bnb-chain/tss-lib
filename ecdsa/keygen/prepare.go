@@ -44,8 +44,13 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 
 	// 4. generate Paillier public key E_i, private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
+		defer close(ch)
 		start := time.Now()
-		PiPaillierSk, _ := paillier.GenerateKeyPair(paillierModulusLen, timeout, concurrency/2) // sk contains pk
+		PiPaillierSk, _, err := paillier.GenerateKeyPair(paillierModulusLen, timeout, concurrency/2) // sk contains pk
+		if err != nil {
+			ch <- nil
+			return
+		}
 		common.Logger.Debugf("paillier keygen done. took %s\n", time.Since(start))
 		ch <- PiPaillierSk
 	}(paiCh)
@@ -53,6 +58,7 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 	// 5-7. generate safe primes for ZKPs used later on
 	go func(ch chan<- []*common.GermainSafePrime) {
 		var err error
+		defer close(ch)
 		start := time.Now()
 		sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency/2)
 		if err != nil {
@@ -65,6 +71,9 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 
 	// errors can be thrown in the following code; consume chans to end goroutines here
 	sgps, paiSK := <-sgpCh, <-paiCh
+	if paiSK == nil {
+		return nil, errors.New("timeout or error while generating the Paillier secret key")
+	}
 	if sgps == nil || sgps[0] == nil || sgps[1] == nil {
 		return nil, errors.New("timeout or error while generating the 2 safe primes")
 	}
