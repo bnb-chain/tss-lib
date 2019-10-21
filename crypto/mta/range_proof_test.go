@@ -27,9 +27,10 @@ const (
 func TestProveRangeAlice(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
-	m := common.GetRandomPositiveInt(q)
+	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	assert.NoError(t, err)
 
+	m := common.GetRandomPositiveInt(q)
 	c, r, err := sk.EncryptAndReturnRandomness(m)
 	assert.NoError(t, err)
 
