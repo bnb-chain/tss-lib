@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/sortkeys"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -51,7 +50,7 @@ func setupParams(pax int) (paramsID int, params *tss.Parameters, keys []int64, s
 	for i, partyID := range params.Parties().IDs() {
 		sortedKeys[i] = partyID.Key.Int64()
 	}
-	sort.Sort(sortkeys.Int64Slice(sortedKeys))
+	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
 	return
 }
 
