@@ -64,7 +64,7 @@ func init() {
 }
 
 // len is the length of the modulus (each prime = len / 2)
-func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey) {
+func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey, err error) {
 	var concurrency int
 	if 0 < len(optionalConcurrency) {
 		if 1 < len(optionalConcurrency) {
@@ -80,7 +80,7 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 	for {
 		sgps, err := common.GetRandomSafePrimesConcurrent(modulusBitLen/2, 2, timeout, concurrency)
 		if err != nil {
-			panic(err)
+			return nil, nil, err
 		}
 		P, Q = sgps[0].SafePrime(), sgps[1].SafePrime()
 		// KS-BTL-F-03: check that p-q is also very large in order to avoid square-root attacks
