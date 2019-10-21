@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/ecdsa/resharing"
@@ -57,8 +58,8 @@ func init() {
 // ----- //
 
 // GeneratePreParams generates pre-parameters like the Paillier keys and NTilde, H1, H2
-func GeneratePreParams() (jsonPreParams []byte, err error) {
-	preParams, err := keygen.GeneratePreParams()
+func GeneratePreParams(timeoutDuration int64) (jsonPreParams []byte, err error) {
+	preParams, err := keygen.GeneratePreParams(time.Duration(timeoutDuration))
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +67,8 @@ func GeneratePreParams() (jsonPreParams []byte, err error) {
 }
 
 // GenerateLocalSaveData generates pre-parameters like the Paillier keys and NTilde, H1, H2 in a full local save data object
-func GenerateLocalSaveData() (jsonSaveData []byte, err error) {
-	preParams, err := keygen.GeneratePreParams()
+func GenerateLocalSaveData(timeoutDuration int64) (jsonSaveData []byte, err error) {
+	preParams, err := keygen.GeneratePreParams(time.Duration(timeoutDuration))
 	if err != nil {
 		return nil, err
 	}
