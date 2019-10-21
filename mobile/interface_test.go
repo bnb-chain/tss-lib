@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +72,7 @@ func TestParamsBuilder(t *testing.T) {
 func TestKeygenSession(t *testing.T) {
 	paramsID, _, _, _, err := setupParams(3)
 	assert.NoError(t, err)
-	jsonPreParams1, err := GeneratePreParams()
+	jsonPreParams1, err := GeneratePreParams(int64(5 * time.Minute))
 	assert.NoError(t, err)
 
 	// party 1
