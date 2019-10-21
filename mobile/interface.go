@@ -22,6 +22,8 @@ import (
 
 const (
 	AlgorithmECDSA = iota
+)
+const (
 	ProtocolKeygen = iota
 	ProtocolSigning
 	ProtocolReSharing
