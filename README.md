@@ -62,7 +62,7 @@ Update(msg tss.ParsedMessage) (ok bool, err *tss.Error)
 And a `tss.Message` has the following two methods for converting messages to data for the wire:
 ```go
 // Returns the encoded message bytes to send over the wire along with routing information
-WireBytes() ([]byte, *MessageRouting, error)
+WireBytes() ([]byte, *tss.MessageRouting, error)
 // Returns the protobuf wrapper message struct, used only in some exceptional scenarios (i.e. mobile apps)
 WireMsg() *tss.MessageWrapper
 ```
