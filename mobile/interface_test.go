@@ -28,7 +28,7 @@ func setupParams(pax int) (paramsID int, params *tss.Parameters, keys []int64, s
 	sortedKeys = make([]int64, pax)
 
 	for i := range keys {
-		keyBI := common.MustGetRandomInt(64)
+		keyBI := common.MustGetRandomInt(63) // w/o sign bit
 		key := keyBI.Int64()
 		keys[i] = key
 	}
@@ -48,7 +48,7 @@ func setupParams(pax int) (paramsID int, params *tss.Parameters, keys []int64, s
 	}
 
 	for i, partyID := range params.Parties().IDs() {
-		sortedKeys[i] = partyID.Key.Int64()
+		sortedKeys[i] = partyID.KeyInt().Int64()
 	}
 	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
 	return
@@ -58,13 +58,13 @@ func TestParamsBuilder(t *testing.T) {
 	_, params, keys, sortedKeys, err := setupParams(3)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(params.Parties().IDs()))
-	assert.Equal(t, keys[0], params.PartyID().Key.Int64())
+	assert.Equal(t, keys[0], params.PartyID().KeyInt().Int64())
 	assert.Equal(t, params.PartyCount(), testParticipants)
 	assert.Equal(t, params.Threshold(), testThreshold)
-	assert.Equal(t, "id_0", params.PartyID().ID)
+	assert.Equal(t, "id_0", params.PartyID().Id)
 	assert.Equal(t, "moniker_0", params.PartyID().Moniker)
 	for i, partyID := range params.Parties().IDs() {
-		assert.Equal(t, sortedKeys[i], partyID.Key.Int64())
+		assert.Equal(t, sortedKeys[i], partyID.KeyInt().Int64())
 	}
 }
 

@@ -14,6 +14,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/ecdsa/resharing"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
@@ -233,7 +235,9 @@ func PollKeygenOrReSharingSession(sessionID int) (data []byte, err error) {
 	outCh, endCh := sessionOutChs[sessionID], sessionKeyEndChs[sessionID]
 	select {
 	case msg := <-outCh:
-		return msg.WireBytes()
+		// we expect the metadata to be un-marshalled in the mobile app and used for routing
+		wrapper := msg.WireMsg()
+		return proto.Marshal(wrapper)
 	case save := <-endCh:
 		return json.Marshal(&save)
 	}
@@ -247,7 +251,9 @@ func PollSigningSession(sessionID int) (data []byte, err error) {
 	outCh, endCh := sessionOutChs[sessionID], sessionSigEndChs[sessionID]
 	select {
 	case msg := <-outCh:
-		return msg.WireBytes()
+		// we expect the metadata to be un-marshalled in the mobile app and used for routing
+		wrapper := msg.WireMsg()
+		return proto.Marshal(wrapper)
 	case sigData := <-endCh:
 		return json.Marshal(&sigData)
 	}
@@ -256,7 +262,7 @@ func PollSigningSession(sessionID int) (data []byte, err error) {
 // ----- //
 
 // UpdateSession updates an active session's LocalParty with an incoming message from the wire
-func UpdateSession(sessionID, fromPartyIdx int, wireMsg []byte) (ok bool, err error) {
+func UpdateSession(wireMsg []byte, sessionID, fromPartyIdx int, isBroadcast, isToOldCommittee bool) (ok bool, err error) {
 	session, err := getSession(sessionID)
 	if err != nil {
 		return false, err
@@ -270,7 +276,7 @@ func UpdateSession(sessionID, fromPartyIdx int, wireMsg []byte) (ok bool, err er
 	if fromPartyIdx > 0 {
 		from = parties[fromPartyIdx]
 	}
-	return session.party.UpdateFromBytes(wireMsg, from)
+	return session.party.UpdateFromBytes(wireMsg, from, isBroadcast, isToOldCommittee)
 }
 
 // ----- //
