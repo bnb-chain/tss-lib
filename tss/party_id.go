@@ -15,6 +15,9 @@ import (
 )
 
 type (
+	// PartyID represents a participant in the TSS protocol rounds.
+	// Note: The `id` and `moniker` are provided for convenience to allow you to track participants easier.
+	// The `id` is intended to be a unique string representation of `key` and `moniker` can be anything (even left blank).
 	PartyID struct {
 		*MessageWrapper_PartyID
 		Index int `json:"index"`
@@ -32,6 +35,7 @@ func (mpid *MessageWrapper_PartyID) KeyInt() *big.Int {
 
 // ----- //
 
+// NewPartyID constructs a new PartyID
 // Exported, used in `tss` client. `key` should remain consistent between runs for each party.
 func NewPartyID(id string, moniker string, key *big.Int) *PartyID {
 	return &PartyID{
@@ -50,6 +54,7 @@ func (pid PartyID) String() string {
 
 // ----- //
 
+// SortPartyIDs sorts a list of []*PartyID by their keys in ascending order
 // Exported, used in `tss` client
 func SortPartyIDs(ids UnSortedPartyIDs, startAt ...int) SortedPartyIDs {
 	sorted := make(SortedPartyIDs, 0, len(ids))
@@ -68,6 +73,7 @@ func SortPartyIDs(ids UnSortedPartyIDs, startAt ...int) SortedPartyIDs {
 	return sorted
 }
 
+// GenerateTestPartyIDs generates a list of mock PartyIDs for tests
 func GenerateTestPartyIDs(count int, startAt ...int) SortedPartyIDs {
 	ids := make(UnSortedPartyIDs, 0, count)
 	key := common.MustGetRandomInt(256)
