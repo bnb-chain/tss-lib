@@ -54,7 +54,7 @@ func (round *round2) Start() *tss.Error {
 	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
-	paillierPf := preParams.PaillierSK.Proof(Pi.Key, round.save.ECDSAPub)
+	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
 	r2msg2 := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
 		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i)

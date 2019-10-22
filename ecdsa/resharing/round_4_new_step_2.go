@@ -42,7 +42,7 @@ func (round *round4) Start() *tss.Error {
 	for _, msg := range round.temp.dgRound2Message1s {
 		r2msg1 := msg.Content().(*DGRound2Message1)
 		paiPK, proof := r2msg1.UnmarshalPaillierPK(), r2msg1.UnmarshalPaillierProof()
-		if ok, err := proof.Verify(paiPK.N, msg.GetFrom().Key, round.save.ECDSAPub); !ok || err != nil {
+		if ok, err := proof.Verify(paiPK.N, msg.GetFrom().KeyInt(), round.save.ECDSAPub); !ok || err != nil {
 			culprits = append(culprits, msg.GetFrom())
 			common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom())
 			continue
@@ -94,7 +94,7 @@ func (round *round4) Start() *tss.Error {
 		r3msg1 := round.temp.dgRound3Message1s[j].Content().(*DGRound3Message1)
 		sharej := &vss.Share{
 			Threshold: round.NewThreshold(),
-			ID:        round.PartyID().Key,
+			ID:        round.PartyID().KeyInt(),
 			Share:     new(big.Int).SetBytes(r3msg1.Share),
 		}
 		if ok := sharej.Verify(round.NewThreshold(), vj); !ok {
@@ -130,7 +130,7 @@ func (round *round4) Start() *tss.Error {
 	culprits = make([]*tss.PartyID, 0, round.NewPartyCount()) // who caused the error(s)
 	for j := 0; j < round.NewPartyCount(); j++ {
 		Pj := round.NewParties().IDs()[j]
-		kj := Pj.Key
+		kj := Pj.KeyInt()
 		newBigXj := Vc[0]
 		newKs = append(newKs, kj)
 		z := new(big.Int).SetInt64(int64(1))
@@ -150,7 +150,7 @@ func (round *round4) Start() *tss.Error {
 
 	// 21.
 	// for this P: SAVE other data
-	round.save.ShareID = round.PartyID().Key
+	round.save.ShareID = round.PartyID().KeyInt()
 	round.save.Xi = newXi
 	round.save.Ks = newKs
 

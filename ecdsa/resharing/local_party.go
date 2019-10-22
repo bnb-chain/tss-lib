@@ -104,8 +104,8 @@ func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
 	return tss.BaseUpdate(p, msg, "resharing")
 }
 
-func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID) (bool, *tss.Error) {
-	msg, err := tss.ParseMessage(wireBytes, from)
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast, isToOldCommittee bool) (bool, *tss.Error) {
+	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast, isToOldCommittee)
 	if err != nil {
 		return false, p.WrapError(err)
 	}

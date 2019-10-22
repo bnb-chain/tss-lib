@@ -11,17 +11,29 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-
-	"github.com/binance-chain/tss-lib/protob"
+	"github.com/golang/protobuf/ptypes/any"
 )
 
 const (
 	ProtoNamePrefix = "binance.tss-lib.ecdsa."
 )
 
-func ParseMessageFromProtoB(wire *protob.Message, from *PartyID) (ParsedMessage, error) {
+// Used externally to update a LocalParty with a valid ParsedMessage
+func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast, isToOldCommittee bool) (ParsedMessage, error) {
+	wire := new(MessageWrapper)
+	wire.Message = new(any.Any)
+	wire.From = from.MessageWrapper_PartyID
+	wire.IsBroadcast = isBroadcast
+	wire.IsToOldCommittee = isToOldCommittee
+	if err := proto.Unmarshal(wireBytes, wire.Message); err != nil {
+		return nil, err
+	}
+	return parseWrappedMessage(wire, from)
+}
+
+func parseWrappedMessage(wire *MessageWrapper, from *PartyID) (ParsedMessage, error) {
 	var any ptypes.DynamicAny
-	meta := MessageMetadata{
+	meta := MessageRouting{
 		From: from,
 	}
 	if err := ptypes.UnmarshalAny(wire.Message, &any); err != nil {
@@ -30,14 +42,5 @@ func ParseMessageFromProtoB(wire *protob.Message, from *PartyID) (ParsedMessage,
 	if content, ok := any.Message.(MessageContent); ok {
 		return NewMessage(meta, content, wire), nil
 	}
-	return nil, errors.New("ParseMessage: the message contained unknown content")
-}
-
-// Used externally to update a LocalParty with a valid ParsedMessage
-func ParseMessage(wireBytes []byte, from *PartyID) (ParsedMessage, error) {
-	wire := new(protob.Message)
-	if err := proto.Unmarshal(wireBytes, wire); err != nil {
-		return nil, err
-	}
-	return ParseMessageFromProtoB(wire, from)
+	return nil, errors.New("ParseWireMessage: the message contained unknown content")
 }

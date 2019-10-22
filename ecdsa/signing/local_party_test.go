@@ -19,6 +19,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	"github.com/binance-chain/tss-lib/test"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -53,17 +54,7 @@ func TestE2EConcurrent(t *testing.T) {
 	outCh := make(chan tss.Message, len(signPIDs))
 	endCh := make(chan LocalSignData, len(signPIDs))
 
-	// the Party updater (async)
-	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
-		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom())
-		if err != nil {
-			errCh <- P.WrapError(err)
-			return
-		}
-		if _, err := P.Update(pMsg); err != nil {
-			errCh <- err
-		}
-	}
+	updater := test.SharedPartyUpdater
 
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {

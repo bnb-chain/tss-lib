@@ -104,7 +104,7 @@ func (rgParams *ReSharingParameters) NewThreshold() int {
 func (rgParams *ReSharingParameters) IsOldCommittee() bool {
 	partyID := rgParams.partyID
 	for _, Pj := range rgParams.parties.IDs() {
-		if partyID.Key.Cmp(Pj.Key) == 0 {
+		if partyID.KeyInt().Cmp(Pj.KeyInt()) == 0 {
 			return true
 		}
 	}
@@ -114,7 +114,7 @@ func (rgParams *ReSharingParameters) IsOldCommittee() bool {
 func (rgParams *ReSharingParameters) IsNewCommittee() bool {
 	partyID := rgParams.partyID
 	for _, Pj := range rgParams.newParties.IDs() {
-		if partyID.Key.Cmp(Pj.Key) == 0 {
+		if partyID.KeyInt().Cmp(Pj.KeyInt()) == 0 {
 			return true
 		}
 	}

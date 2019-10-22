@@ -24,6 +24,7 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/test"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -145,19 +146,9 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	outCh := make(chan tss.Message, len(pIDs))
 	endCh := make(chan LocalPartySaveData, len(pIDs))
 
-	startGR := runtime.NumGoroutine()
+	updater := test.SharedPartyUpdater
 
-	// the Party updater (async)
-	updater := func(P tss.Party, msg tss.Message, errCh chan<- *tss.Error) {
-		pMsg, err := tss.ParseMessageFromProtoB(msg.WireMsg(), msg.GetFrom())
-		if err != nil {
-			errCh <- P.WrapError(err)
-			return
-		}
-		if _, err := P.Update(pMsg); err != nil {
-			errCh <- err
-		}
-	}
+	startGR := runtime.NumGoroutine()
 
 	// init the parties
 	fixtures, err := LoadKeygenTestFixtures(len(pIDs))
@@ -231,7 +222,7 @@ keygen:
 						share := vssMsgs[j].Content().(*KGRound2Message1).Share
 						shareStruct := &vss.Share{
 							Threshold: threshold,
-							ID:        P.PartyID().Key,
+							ID:        P.PartyID().KeyInt(),
 							Share:     new(big.Int).SetBytes(share),
 						}
 						pShares = append(pShares, shareStruct)

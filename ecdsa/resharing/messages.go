@@ -10,14 +10,12 @@ import (
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/protob"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -50,21 +48,18 @@ func NewDGRound1Message(
 	ecdsaPub *crypto.ECPoint,
 	vct cmt.HashCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   to,
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               to,
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
 	}
 	content := &DGRound1Message{
 		EcdsaPubX:   ecdsaPub.X().Bytes(),
 		EcdsaPubY:   ecdsaPub.Y().Bytes(),
 		VCommitment: vct.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast:      true,
-		IsToOldCommittee: false,
-		Message:          any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -97,9 +92,11 @@ func NewDGRound2Message1(
 	H1i,
 	H2i *big.Int,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   to,
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               to,
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
 	}
 	paiPfBzs := common.BigIntsToBytes(paillierPf)
 	content := &DGRound2Message1{
@@ -109,12 +106,7 @@ func NewDGRound2Message1(
 		H1:            H1i.Bytes(),
 		H2:            H2i.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast:      true,
-		IsToOldCommittee: false,
-		Message:          any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -143,17 +135,14 @@ func NewDGRound2Message2(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   to,
-	}
-	content := &DGRound2Message2{}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               to,
 		IsBroadcast:      true,
 		IsToOldCommittee: true,
-		Message:          any,
 	}
+	content := &DGRound2Message2{}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -168,19 +157,16 @@ func NewDGRound3Message1(
 	from *tss.PartyID,
 	share *vss.Share,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   []*tss.PartyID{to},
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               []*tss.PartyID{to},
+		IsBroadcast:      false,
+		IsToOldCommittee: false,
 	}
 	content := &DGRound3Message1{
 		Share: share.Share.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast:      false,
-		IsToOldCommittee: false,
-		Message:          any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -196,20 +182,17 @@ func NewDGRound3Message2(
 	from *tss.PartyID,
 	vdct cmt.HashDeCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   to,
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               to,
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
 	}
 	vDctBzs := common.BigIntsToBytes(vdct)
 	content := &DGRound3Message2{
 		VDecommitment: vDctBzs,
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast:      true,
-		IsToOldCommittee: false,
-		Message:          any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 

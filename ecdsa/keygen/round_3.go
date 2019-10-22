@@ -84,7 +84,7 @@ func (round *round3) Start() *tss.Error {
 			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
 			PjShare := vss.Share{
 				Threshold: round.Threshold(),
-				ID:        round.PartyID().Key,
+				ID:        round.PartyID().KeyInt(),
 				Share:     r2msg1.UnmarshalShare(),
 			}
 			if ok = PjShare.Verify(round.Threshold(), PjVs); !ok {
@@ -143,7 +143,7 @@ func (round *round3) Start() *tss.Error {
 		bigXj := round.save.BigXj
 		for j := 0; j < round.PartyCount(); j++ {
 			Pj := round.Parties().IDs()[j]
-			kj := Pj.Key
+			kj := Pj.KeyInt()
 			BigXj := Vc[0]
 			z := new(big.Int).SetInt64(int64(1))
 			for c := 1; c <= round.Threshold(); c++ {
@@ -172,7 +172,7 @@ func (round *round3) Start() *tss.Error {
 	common.Logger.Debugf("%s public key: %x", round.PartyID(), ecdsaPubKey)
 
 	// BROADCAST paillier proof for Pi
-	ki := round.PartyID().Key
+	ki := round.PartyID().KeyInt()
 	proof := round.save.PaillierSK.Proof(ki, ecdsaPubKey)
 	r3msg := NewKGRound3Message(round.PartyID(), proof)
 	round.temp.kgRound3Messages[PIdx] = r3msg

@@ -16,25 +16,31 @@ import (
 
 type (
 	PartyID struct {
-		ID      string   `json:"id"`
-		Moniker string   `json:"moniker"`
-		Index   int      `json:"index"`
-		Key     *big.Int `json:"key"` // used in crypto and for sorting parties
+		*MessageWrapper_PartyID
+		Index int `json:"index"`
 	}
 
 	UnSortedPartyIDs []*PartyID
 	SortedPartyIDs   []*PartyID
 )
 
+// --- ProtoBuf Extensions
+
+func (mpid *MessageWrapper_PartyID) KeyInt() *big.Int {
+	return new(big.Int).SetBytes(mpid.Key)
+}
+
 // ----- //
 
 // Exported, used in `tss` client. `key` should remain consistent between runs for each party.
 func NewPartyID(id string, moniker string, key *big.Int) *PartyID {
 	return &PartyID{
-		Index:   -1, // not known until sorted
-		ID:      id,
-		Moniker: moniker,
-		Key:     key,
+		MessageWrapper_PartyID: &MessageWrapper_PartyID{
+			Id:      id,
+			Moniker: moniker,
+			Key:     key.Bytes(),
+		},
+		Index: -1, // not known until sorted
 	}
 }
 
@@ -73,11 +79,13 @@ func GenerateTestPartyIDs(count int, startAt ...int) SortedPartyIDs {
 	}
 	for ; i < count+frm; i++ {
 		ids = append(ids, &PartyID{
-			ID:      fmt.Sprintf("%d", i+1),
-			Moniker: fmt.Sprintf("P[%d]", i+1),
-			Index:   i,
+			MessageWrapper_PartyID: &MessageWrapper_PartyID{
+				Id:      fmt.Sprintf("%d", i+1),
+				Moniker: fmt.Sprintf("P[%d]", i+1),
+				Key:     new(big.Int).Sub(key, big.NewInt(int64(count)-int64(i))).Bytes(),
+			},
+			Index: i,
 			// this key makes tests more deterministic
-			Key: new(big.Int).Sub(key, big.NewInt(int64(count)-int64(i))),
 		})
 	}
 	return SortPartyIDs(ids, startAt...)
@@ -86,7 +94,7 @@ func GenerateTestPartyIDs(count int, startAt ...int) SortedPartyIDs {
 func (spids SortedPartyIDs) Keys() []*big.Int {
 	ids := make([]*big.Int, spids.Len())
 	for i, pid := range spids {
-		ids[i] = pid.Key
+		ids[i] = pid.KeyInt()
 	}
 	return ids
 }
@@ -97,7 +105,7 @@ func (spids SortedPartyIDs) ToUnSorted() UnSortedPartyIDs {
 
 func (spids SortedPartyIDs) FindByKey(key *big.Int) *PartyID {
 	for _, pid := range spids {
-		if pid.Key.Cmp(key) == 0 {
+		if pid.KeyInt().Cmp(key) == 0 {
 			return pid
 		}
 	}
@@ -107,7 +115,7 @@ func (spids SortedPartyIDs) FindByKey(key *big.Int) *PartyID {
 func (spids SortedPartyIDs) Exclude(exclude *PartyID) SortedPartyIDs {
 	newSpIDs := make(SortedPartyIDs, 0, len(spids))
 	for _, pid := range spids {
-		if pid.Key.Cmp(exclude.Key) == 0 {
+		if pid.KeyInt().Cmp(exclude.KeyInt()) == 0 {
 			continue // exclude
 		}
 		newSpIDs = append(newSpIDs, pid)
@@ -122,7 +130,7 @@ func (spids SortedPartyIDs) Len() int {
 }
 
 func (spids SortedPartyIDs) Less(a, b int) bool {
-	return spids[a].Key.Cmp(spids[b].Key) <= 0
+	return spids[a].KeyInt().Cmp(spids[b].KeyInt()) <= 0
 }
 
 func (spids SortedPartyIDs) Swap(a, b int) {
