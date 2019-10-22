@@ -33,7 +33,7 @@ The `LocalParty` that you use should be from the `keygen`, `signing` or `reshari
 ```go
 // When using the keygen party, it is recommended to pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
 // This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
-preParams, err := keygen.GeneratePreParams()
+preParams, err := keygen.GeneratePreParams(1 * time.Minute)
 // ... handle err ...
 
 // Create the LocalParty and start it:
@@ -54,17 +54,17 @@ During the protocol, you should provide the party with updates received from oth
 A `Party` has two thread-safe methods on it for receiving updates:
 ```go
 // The main entry point when updating a party's state from the wire
-UpdateFromBytes(wireBytes []byte, from *tss.PartyID) (ok bool, err *tss.Error)
+UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast, isToOldCommittee bool) (ok bool, err *tss.Error)
 // You may use this entry point to update a party's state when running locally or in tests
 Update(msg tss.ParsedMessage) (ok bool, err *tss.Error)
 ```
 
 And a `tss.Message` has the following two methods for converting messages to data for the wire:
 ```go
-// Returns the encoded bytes to send over the wire
-WireBytes() ([]byte, error)
-// Returns the protobuf message struct to send over the wire
-WireMsg() *protob.Message
+// Returns the encoded message bytes to send over the wire along with routing information
+WireBytes() ([]byte, *MessageRouting, error)
+// Returns the protobuf wrapper message struct, used only in some exceptional scenarios (i.e. mobile apps)
+WireMsg() *tss.MessageWrapper
 ```
 
 In a typical use case, it is expected that a transport implementation will **consume** message bytes via the `out` channel of the local `Party`, send them to the destination(s) specified in the result of `msg.GetTo()`, and **pass** them to `UpdateFromBytes` on the receiving end.
