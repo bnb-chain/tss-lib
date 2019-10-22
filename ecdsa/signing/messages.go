@@ -10,14 +10,12 @@ import (
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/crypto/schnorr"
-	"github.com/binance-chain/tss-lib/protob"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -60,20 +58,17 @@ func NewSignRound1Message1(
 	c *big.Int,
 	proof *mta.RangeProofAlice,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   []*tss.PartyID{to},
+	meta := tss.MessageRouting{
+		From:        from,
+		To:          []*tss.PartyID{to},
+		IsBroadcast: false,
 	}
 	pfBz := proof.Bytes()
 	content := &SignRound1Message1{
 		C:               c.Bytes(),
 		RangeProofAlice: pfBz[:],
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: false,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -97,17 +92,14 @@ func NewSignRound1Message2(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	content := &SignRound1Message2{
 		Commitment: commitment.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -129,9 +121,10 @@ func NewSignRound2Message(
 	c2Ji *big.Int,
 	pi2Ji *mta.ProofBobWC,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   []*tss.PartyID{to},
+	meta := tss.MessageRouting{
+		From:        from,
+		To:          []*tss.PartyID{to},
+		IsBroadcast: false,
 	}
 	pfBob := pi1Ji.Bytes()
 	pfBobWC := pi2Ji.Bytes()
@@ -141,11 +134,7 @@ func NewSignRound2Message(
 		ProofBob:   pfBob[:],
 		ProofBobWc: pfBobWC[:],
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: false,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -171,17 +160,14 @@ func NewSignRound3Message(
 	from *tss.PartyID,
 	theta *big.Int,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	content := &SignRound3Message{
 		Theta: theta.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -197,8 +183,9 @@ func NewSignRound4Message(
 	deCommitment cmt.HashDeCommitment,
 	proof *schnorr.ZKProof,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
 	content := &SignRound4Message{
@@ -207,11 +194,7 @@ func NewSignRound4Message(
 		ProofAlphaY:  proof.Alpha.Y().Bytes(),
 		ProofT:       proof.T.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -248,17 +231,14 @@ func NewSignRound5Message(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	content := &SignRound5Message{
 		Commitment: commitment.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -279,8 +259,9 @@ func NewSignRound6Message(
 	proof *schnorr.ZKProof,
 	vProof *schnorr.ZKVProof,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
 	content := &SignRound6Message{
@@ -293,11 +274,7 @@ func NewSignRound6Message(
 		VProofT:      vProof.T.Bytes(),
 		VProofU:      vProof.U.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -353,17 +330,14 @@ func NewSignRound7Message(
 	from *tss.PartyID,
 	commitment cmt.HashCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	content := &SignRound7Message{
 		Commitment: commitment.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -382,18 +356,15 @@ func NewSignRound8Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
 	content := &SignRound8Message{
 		DeCommitment: dcBzs,
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -413,17 +384,14 @@ func NewSignRound9Message(
 	from *tss.PartyID,
 	si *big.Int,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	content := &SignRound9Message{
 		S: si.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 

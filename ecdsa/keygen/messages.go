@@ -10,13 +10,11 @@ import (
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/protob"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -48,8 +46,9 @@ func NewKGRound1Message(
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	content := &KGRound1Message{
 		Commitment: ct.Bytes(),
@@ -58,11 +57,7 @@ func NewKGRound1Message(
 		H1:         h1I.Bytes(),
 		H2:         h2I.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -101,18 +96,15 @@ func NewKGRound2Message1(
 	to, from *tss.PartyID,
 	share *vss.Share,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
-		To:   []*tss.PartyID{to},
+	meta := tss.MessageRouting{
+		From:        from,
+		To:          []*tss.PartyID{to},
+		IsBroadcast: false,
 	}
 	content := &KGRound2Message1{
 		Share: share.Share.Bytes(),
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: false,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -131,18 +123,15 @@ func NewKGRound2Message2(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
 	content := &KGRound2Message2{
 		DeCommitment: dcBzs,
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
@@ -162,8 +151,9 @@ func NewKGRound3Message(
 	from *tss.PartyID,
 	proof paillier.Proof,
 ) tss.ParsedMessage {
-	meta := tss.MessageMetadata{
-		From: from,
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
 	pfBzs := make([][]byte, len(proof))
 	for i := range pfBzs {
@@ -175,11 +165,7 @@ func NewKGRound3Message(
 	content := &KGRound3Message{
 		PaillierProof: pfBzs,
 	}
-	any, _ := ptypes.MarshalAny(content)
-	msg := &protob.Message{
-		IsBroadcast: true,
-		Message:     any,
-	}
+	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
