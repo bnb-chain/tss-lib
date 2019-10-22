@@ -37,6 +37,7 @@ preParams, err := keygen.GeneratePreParams(1 * time.Minute)
 // ... handle err ...
 
 // Create the LocalParty and start it:
+// Note: The `id` and `moniker` are provided for convenience to allow you to track participants easier. The `id` is intended to be a unique string representation of `key` and `moniker` can be anything (even left blank).
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
 ctx := tss.NewPeerContext(tss.SortPartyIDs(allParties))
 params := tss.NewParameters(p2pCtx, thisParty, len(allParties), threshold)
