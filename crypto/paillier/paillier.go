@@ -46,9 +46,9 @@ type (
 )
 
 const (
-	proofIters            = 13
-	verifyPrimesUntil     = 1000 // Verify uses primes <1000
-	pQDifferenceBitLenSub = 2    // >=1022-bit P-Q
+	proofIters         = 13
+	verifyPrimesUntil  = 1000 // Verify uses primes <1000
+	pQBitLenDifference = 3    // >1020-bit P-Q
 )
 
 var (
@@ -76,19 +76,22 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 	}
 
 	// KS-BTL-F-03: use two safe primes for P, Q
-	var P, Q *big.Int
-	for {
-		sgps, err := common.GetRandomSafePrimesConcurrent(modulusBitLen/2, 2, timeout, concurrency)
-		if err != nil {
-			return nil, nil, err
+	var P, Q, N *big.Int
+	{
+		tmp := new(big.Int)
+		for {
+			sgps, err := common.GetRandomSafePrimesConcurrent(modulusBitLen/2, 2, timeout, concurrency)
+			if err != nil {
+				return nil, nil, err
+			}
+			P, Q = sgps[0].SafePrime(), sgps[1].SafePrime()
+			// KS-BTL-F-03: check that p-q is also very large in order to avoid square-root attacks
+			if tmp.Sub(P, Q).BitLen() >= (modulusBitLen/2)-pQBitLenDifference {
+				break
+			}
 		}
-		P, Q = sgps[0].SafePrime(), sgps[1].SafePrime()
-		// KS-BTL-F-03: check that p-q is also very large in order to avoid square-root attacks
-		if new(big.Int).Sub(P, Q).BitLen() >= (modulusBitLen/2)-pQDifferenceBitLenSub {
-			break
-		}
+		N = tmp.Mul(P, Q)
 	}
-	N := new(big.Int).Mul(P, Q)
 
 	// phiN = P-1 * Q-1
 	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)

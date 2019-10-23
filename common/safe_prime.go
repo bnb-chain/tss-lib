@@ -123,14 +123,14 @@ func GetRandomSafePrimesConcurrent(bitLen, numPrimes int, timeout time.Duration,
 		return nil, errors.New("numPrimes should be > 0")
 	}
 
-	primeChan := make(chan *GermainSafePrime, concurrency*numPrimes)
-	errChan := make(chan error, concurrency*numPrimes)
+	primeCh := make(chan *GermainSafePrime, concurrency*numPrimes)
+	errCh := make(chan error, concurrency*numPrimes)
 	primes := make([]*GermainSafePrime, 0, numPrimes)
 
 	waitGroup := &sync.WaitGroup{}
 
-	defer close(primeChan)
-	defer close(errChan)
+	defer close(primeCh)
+	defer close(errCh)
 	defer waitGroup.Wait()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -138,7 +138,7 @@ func GetRandomSafePrimesConcurrent(bitLen, numPrimes int, timeout time.Duration,
 	for i := 0; i < concurrency; i++ {
 		waitGroup.Add(1)
 		runGenPrimeRoutine(
-			ctx, primeChan, errChan, waitGroup, rand.Reader, bitLen,
+			ctx, primeCh, errCh, waitGroup, rand.Reader, bitLen,
 		)
 	}
 
@@ -151,13 +151,13 @@ func GetRandomSafePrimesConcurrent(bitLen, numPrimes int, timeout time.Duration,
 	needed := int32(numPrimes)
 	for {
 		select {
-		case result := <-primeChan:
+		case result := <-primeCh:
 			primes = append(primes, result)
 			if atomic.AddInt32(&needed, -1) <= 0 {
 				cancel()
 				return primes[:numPrimes], nil
 			}
-		case err := <-errChan:
+		case err := <-errCh:
 			cancel()
 			return nil, err
 		case <-ctx.Done():
@@ -168,7 +168,7 @@ func GetRandomSafePrimesConcurrent(bitLen, numPrimes int, timeout time.Duration,
 
 // Starts a Goroutine searching for a safe prime of the specified `pBitLen`.
 // If succeeds, writes prime `p` and prime `q` such that `p = 2q+1` to the
-// `primeChan`. Prime `p` has a bit length equal to `pBitLen` and prime `q` has
+// `primeCh`. Prime `p` has a bit length equal to `pBitLen` and prime `q` has
 // a bit length equal to `pBitLen-1`.
 //
 // The algorithm is as follows:
@@ -203,8 +203,8 @@ func GetRandomSafePrimesConcurrent(bitLen, numPrimes int, timeout time.Duration,
 //    back to the point 1.
 func runGenPrimeRoutine(
 	ctx context.Context,
-	primeChan chan<- *GermainSafePrime,
-	errChan chan<- error,
+	primeCh chan<- *GermainSafePrime,
+	errCh chan<- error,
 	waitGroup *sync.WaitGroup,
 	rand io.Reader,
 	pBitLen int,
@@ -231,7 +231,7 @@ func runGenPrimeRoutine(
 			default:
 				_, err := io.ReadFull(rand, bytes)
 				if err != nil {
-					errChan <- err
+					errCh <- err
 					return
 				}
 
@@ -315,7 +315,7 @@ func runGenPrimeRoutine(
 					q.BitLen() == qBitLen {
 
 					if sgp := (&GermainSafePrime{p: p, q: q}); sgp.Validate() {
-						primeChan <- &GermainSafePrime{p: p, q: q}
+						primeCh <- &GermainSafePrime{p: p, q: q}
 					}
 					p, q = new(big.Int), new(big.Int)
 				}
