@@ -114,7 +114,7 @@ func (round *round1) NextRound() tss.Round {
 // ----- //
 
 // helper to call into PrepareForSigning()
-func (round *round1) prepare() {
+func (round *round1) prepare() error {
 	i := round.PartyID().Index
 
 	xi := round.key.Xi
@@ -122,10 +122,12 @@ func (round *round1) prepare() {
 	bigXs := round.key.BigXj
 
 	if round.Threshold()+1 > len(ks) {
-		panic(fmt.Errorf("threshold is not consistent with "))
+		// TODO: this should not panic
+		return fmt.Errorf("t+1=%d is not consistent with the key count %d", round.Threshold()+1, len(ks))
 	}
 	wi, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
 
 	round.temp.w = wi
 	round.temp.bigWs = bigWs
+	return nil
 }
