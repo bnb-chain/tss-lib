@@ -7,7 +7,9 @@
 package mobile
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/big"
 	"sort"
 	"testing"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -22,6 +25,21 @@ const (
 	testParticipants = 3
 	testThreshold    = 2
 )
+
+var (
+	cachedPreParams []byte
+)
+
+func setupPreParams(timeout time.Duration) (jsonPreParams []byte, err error) {
+	if cachedPreParams == nil {
+		cachedPreParams, err = GeneratePreParams(int64(timeout))
+		if err != nil {
+			return
+		}
+	}
+	jsonPreParams = cachedPreParams
+	return
+}
 
 func setupParams(pax int) (paramsID int, params *tss.Parameters, keys []int64, sortedKeys []int64, err error) {
 	keys = make([]int64, pax)
@@ -75,14 +93,65 @@ func TestGeneratePreParams_Timeout(t *testing.T) {
 
 func TestKeygenSession(t *testing.T) {
 	paramsID, _, _, _, err := setupParams(3)
-	assert.NoError(t, err)
-	jsonPreParams1, err := GeneratePreParams(int64(5 * time.Minute))
-	assert.NoError(t, err)
-
-	// party 1
-	sessionID1, err := InitKeygenSession(paramsID, AlgorithmECDSA, jsonPreParams1)
-	assert.NoError(t, err)
-	msg1, err := PollKeygenOrReSharingSession(sessionID1)
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
+	jsonPreParams, err := setupPreParams(5 * time.Minute)
+	if !assert.NoError(t, err) {
+		return
+	}
+	sessionID, err := InitKeygenSession(paramsID, AlgorithmECDSA, jsonPreParams)
+	if !assert.NoError(t, err) {
+		return
+	}
+	msg1, err := PollKeygenOrReSharingSession(sessionID)
+	if !assert.NoError(t, err) {
+		return
+	}
 	assert.NotEmpty(t, msg1)
+}
+
+func TestSigningSession(t *testing.T) {
+	paramsID, _, _, _, err := setupParams(3)
+	if !assert.NoError(t, err) {
+		return
+	}
+	keyData, err := keygen.LoadKeygenTestFixtures(3)
+	if !assert.NoError(t, err) {
+		return
+	}
+	jsonKeyData, err := json.Marshal(&keyData[0])
+	if !assert.NoError(t, err) {
+		return
+	}
+	msg := common.SHA512_256i(big.NewInt(42)).Bytes()
+	sessionID, err := InitSigningSession(paramsID, AlgorithmECDSA, msg, jsonKeyData)
+	if !assert.NoError(t, err) {
+		return
+	}
+	msg1, err := PollSigningSession(sessionID)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NotEmpty(t, msg1)
+}
+
+func TestSigningSession_FailSmallKs(t *testing.T) {
+	paramsID, _, _, _, err := setupParams(3)
+	if !assert.NoError(t, err) {
+		return
+	}
+	keyData, err := keygen.LoadKeygenTestFixtures(2)
+	if !assert.NoError(t, err) {
+		return
+	}
+	jsonKeyData, err := json.Marshal(&keyData[0])
+	if !assert.NoError(t, err) {
+		return
+	}
+	msg := common.SHA512_256i(big.NewInt(42)).Bytes()
+	_, err = InitSigningSession(paramsID, AlgorithmECDSA, msg, jsonKeyData)
+	if !assert.Error(t, err) {
+		return
+	}
 }
