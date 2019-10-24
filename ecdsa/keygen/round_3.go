@@ -10,6 +10,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/hashicorp/go-multierror"
 	errors2 "github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -110,8 +111,15 @@ func (round *round3) Start() *tss.Error {
 				culprits = append(culprits, Pj)
 			}
 		}
+		var multiErr error
 		if len(culprits) > 0 {
-			return round.WrapError(vssResults[0].unWrappedErr, culprits...)
+			for _, vssResult := range vssResults {
+				if vssResult.unWrappedErr == nil {
+					continue
+				}
+				multiErr = multierror.Append(multiErr, vssResult.unWrappedErr)
+			}
+			return round.WrapError(multiErr, culprits...)
 		}
 	}
 	{
