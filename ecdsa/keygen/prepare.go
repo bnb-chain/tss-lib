@@ -22,6 +22,8 @@ const (
 	paillierModulusLen = 2048
 	// Two 1024-bit safe primes to produce NTilde
 	safePrimeBitLen = 1024
+	// Ticker for printing log statements while generating primes/modulus
+	logProgressTickInterval = 8 * time.Second
 )
 
 // GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.
@@ -39,44 +41,64 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 	}
 
 	// prepare for concurrent Paillier and safe prime generation
-	paiCh := make(chan *paillier.PrivateKey)
-	sgpCh := make(chan []*common.GermainSafePrime)
+	paiCh := make(chan *paillier.PrivateKey, 1)
+	sgpCh := make(chan []*common.GermainSafePrime, 1)
 
 	// 4. generate Paillier public key E_i, private key and proof
 	go func(ch chan<- *paillier.PrivateKey) {
-		defer close(ch)
+		common.Logger.Info("generating the Paillier modulus, please wait...")
 		start := time.Now()
 		PiPaillierSk, _, err := paillier.GenerateKeyPair(paillierModulusLen, timeout, concurrency/2) // sk contains pk
 		if err != nil {
 			ch <- nil
 			return
 		}
-		common.Logger.Debugf("paillier keygen done. took %s\n", time.Since(start))
+		common.Logger.Infof("paillier modulus generated. took %s\n", time.Since(start))
 		ch <- PiPaillierSk
 	}(paiCh)
 
 	// 5-7. generate safe primes for ZKPs used later on
 	go func(ch chan<- []*common.GermainSafePrime) {
 		var err error
-		defer close(ch)
+		common.Logger.Info("generating the safe primes for the signing proofs, please wait...")
 		start := time.Now()
 		sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency/2)
 		if err != nil {
 			ch <- nil
 			return
 		}
-		common.Logger.Debugf("safe primes generated. took %s\n", time.Since(start))
+		common.Logger.Infof("safe primes generated. took %s\n", time.Since(start))
 		ch <- sgps
 	}(sgpCh)
 
+	// this ticker will print a log statement while the generating is still in progress
+	logProgressTicker := time.NewTicker(logProgressTickInterval)
+
 	// errors can be thrown in the following code; consume chans to end goroutines here
-	sgps, paiSK := <-sgpCh, <-paiCh
-	if paiSK == nil {
-		return nil, errors.New("timeout or error while generating the Paillier secret key")
+	var sgps []*common.GermainSafePrime
+	var paiSK *paillier.PrivateKey
+consumer:
+	for {
+		select {
+		case <-logProgressTicker.C:
+			common.Logger.Info("still generating primes...")
+		case sgps = <-sgpCh:
+			if sgps == nil || sgps[0] == nil || sgps[1] == nil {
+				return nil, errors.New("timeout or error while generating the 2 safe primes")
+			}
+			if paiSK != nil {
+				break consumer
+			}
+		case paiSK = <-paiCh:
+			if paiSK == nil {
+				return nil, errors.New("timeout or error while generating the Paillier secret key")
+			}
+			if sgps != nil {
+				break consumer
+			}
+		}
 	}
-	if sgps == nil || sgps[0] == nil || sgps[1] == nil {
-		return nil, errors.New("timeout or error while generating the 2 safe primes")
-	}
+	logProgressTicker.Stop()
 
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{sgps[0].SafePrime(), sgps[1].SafePrime()})
 	if err != nil {
