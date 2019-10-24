@@ -1,3 +1,4 @@
+MODULE = github.com/binance-chain/tss-lib
 PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 
 all: protob test
@@ -14,6 +15,15 @@ protob:
 
 build: protob
 	go fmt ./...
+
+########################################
+### Mobile
+
+android:
+	gomobile bind -target=android -ldflags '-s -w' -trimpath "$(MODULE)/mobile"
+
+ios:
+	gomobile bind -target=ios/arm64,ios/amd64 -ldflags '-s -w' -trimpath "$(MODULE)/mobile"
 
 ########################################
 ### Testing
@@ -41,4 +51,5 @@ pre_commit: build test
 # To avoid unintended conflicts with file names, always add to .PHONY
 # # unless there is a reason not to.
 # # https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-.PHONY: protob build test test_unit test_unit_race
+.PHONY: protob build android ios test_unit test_unit_race test
+
