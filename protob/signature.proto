@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "ecdsa/signing";
+
+/*
+ * Container for output signatures, mostly used for marshalling this data structure to a mobile app
+ */
+message SignatureData {
+    bytes signature = 1;
+
+    // Ethereum-style recovery byte; only the first byte is relevant
+    bytes signature_recovery = 2;
+
+    // Signature components R, S
+    bytes r = 3;
+    bytes s = 4;
+
+    // M represents the original message digest that was signed M
+    bytes m = 5;
+}

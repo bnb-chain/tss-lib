@@ -102,6 +102,8 @@ func (m *MessageWrapper) GetMessage() *any.Any {
 }
 
 // PartyID represents a participant in the TSS protocol rounds.
+// Note: The `id` and `moniker` are provided for convenience to allow you to track participants easier.
+// The `id` is intended to be a unique string representation of `key` and `moniker` can be anything (even left blank).
 type MessageWrapper_PartyID struct {
 	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Moniker              string   `protobuf:"bytes,2,opt,name=moniker,proto3" json:"moniker,omitempty"`

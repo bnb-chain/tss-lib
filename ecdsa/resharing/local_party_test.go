@@ -186,7 +186,7 @@ signing:
 
 	signErrCh := make(chan *tss.Error, len(signPIDs))
 	signOutCh := make(chan tss.Message, len(signPIDs))
-	signEndCh := make(chan signing.LocalSignData, len(signPIDs))
+	signEndCh := make(chan signing.SignatureData, len(signPIDs))
 
 	for i, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
@@ -236,7 +236,9 @@ signing:
 					X:     pkX,
 					Y:     pkY,
 				}
-				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), signData.R, signData.S)
+				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(),
+					new(big.Int).SetBytes(signData.R),
+					new(big.Int).SetBytes(signData.S))
 
 				assert.True(t, ok, "ecdsa verify must pass")
 				t.Log("ECDSA signing test done.")

@@ -56,10 +56,11 @@ func (round *finalization) Start() *tss.Error {
 	}
 
 	// save the signature for final output
-	round.data.R = round.temp.rx
-	round.data.S = sumS
-	round.data.SignatureRecovery = byte(recid)
 	round.data.Signature = append(round.temp.rx.Bytes(), sumS.Bytes()...)
+	round.data.SignatureRecovery = []byte{byte(recid)}
+	round.data.R = round.temp.rx.Bytes()
+	round.data.S = sumS.Bytes()
+	round.data.M = round.temp.m.Bytes()
 
 	pk := ecdsa.PublicKey{
 		Curve: tss.EC(),

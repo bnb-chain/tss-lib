@@ -30,10 +30,10 @@ type (
 		params *tss.Parameters
 
 		temp LocalTempData
-		data LocalSignData
+		data SignatureData
 
 		// outbound messaging
-		end chan<- LocalSignData
+		end chan<- SignatureData
 	}
 
 	LocalMessageStore struct {
@@ -89,13 +89,6 @@ type (
 		Ti *crypto.ECPoint
 		DTelda cmt.HashDeCommitment
 	}
-
-	LocalSignData struct {
-		Transaction       []byte
-		Signature         []byte
-		SignatureRecovery byte
-		R, S              *big.Int
-	}
 )
 
 func NewLocalParty(
@@ -103,7 +96,7 @@ func NewLocalParty(
 	params *tss.Parameters,
 	keys keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- LocalSignData,
+	end chan<- SignatureData,
 ) *LocalParty {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -112,7 +105,7 @@ func NewLocalParty(
 		},
 		params: params,
 		temp:   LocalTempData{},
-		data:   LocalSignData{},
+		data:   SignatureData{},
 		end:    end,
 	}
 	// msgs init
