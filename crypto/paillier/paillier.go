@@ -30,6 +30,12 @@ import (
 	crypto2 "github.com/binance-chain/tss-lib/crypto"
 )
 
+const (
+	ProofIters         = 13
+	verifyPrimesUntil  = 1000 // Verify uses primes <1000
+	pQBitLenDifference = 3    // >1020-bit P-Q
+)
+
 type (
 	PublicKey struct {
 		N *big.Int
@@ -42,13 +48,7 @@ type (
 	}
 
 	// Proof uses the new GenerateXs method in GG18Spec (6)
-	Proof []*big.Int
-)
-
-const (
-	proofIters         = 13
-	verifyPrimesUntil  = 1000 // Verify uses primes <1000
-	pQBitLenDifference = 3    // >1020-bit P-Q
+	Proof [ProofIters]*big.Int
 )
 
 var (
@@ -190,8 +190,8 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 // In: In Proc. of the 5th ACM Conference on Computer and Communications Security (CCS-98. Citeseer (1998)
 
 func (privateKey *PrivateKey) Proof(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof {
-	iters := proofIters
-	pi := make(Proof, iters)
+	var pi Proof
+	iters := ProofIters
 	xs := GenerateXs(iters, k, privateKey.N, ecdsaPub)
 	for i := 0; i < iters; i++ {
 		M := new(big.Int).ModInverse(privateKey.N, privateKey.PhiN)
@@ -201,7 +201,7 @@ func (privateKey *PrivateKey) Proof(k *big.Int, ecdsaPub *crypto2.ECPoint) Proof
 }
 
 func (pf Proof) Verify(pkN, k *big.Int, ecdsaPub *crypto2.ECPoint) (bool, error) {
-	iters := proofIters
+	iters := ProofIters
 	pch, xch := make(chan bool, 1), make(chan []*big.Int, 1) // buffered to allow early exit
 	prms := primes.Until(verifyPrimesUntil).List()           // uses cache primed in init()
 	go func(ch chan<- bool) {

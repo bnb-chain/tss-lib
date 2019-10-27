@@ -72,6 +72,9 @@ func (round *round4) Start() *tss.Error {
 	if len(culprits) > 0 {
 		return round.WrapError(errors.New("paillier verify failed"), culprits...)
 	}
+
+	round.end <- *round.save
+
 	return nil
 }
 

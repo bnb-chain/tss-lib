@@ -98,7 +98,7 @@ func NewDGRound2Message1(
 		IsBroadcast:      true,
 		IsToOldCommittee: false,
 	}
-	paiPfBzs := common.BigIntsToBytes(paillierPf)
+	paiPfBzs := common.BigIntsToBytes(paillierPf[:])
 	content := &DGRound2Message1{
 		PaillierN:     paillierPK.N.Bytes(),
 		PaillierProof: paiPfBzs,
@@ -126,7 +126,10 @@ func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
 }
 
 func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
-	return common.MultiBytesToBigInts(m.PaillierProof)
+	var pf paillier.Proof
+	ints := common.MultiBytesToBigInts(m.PaillierProof)
+	copy(pf[:], ints[:paillier.ProofIters])
+	return pf
 }
 
 // ----- //

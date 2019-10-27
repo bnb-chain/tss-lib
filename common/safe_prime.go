@@ -18,10 +18,16 @@ import (
 	"time"
 )
 
-type GermainSafePrime struct {
-	q,
-	p *big.Int // p = 2q + 1
-}
+const (
+	primeTestN = 30
+)
+
+type (
+	GermainSafePrime struct {
+		q,
+		p *big.Int // p = 2q + 1
+	}
+)
 
 func (sgp *GermainSafePrime) Prime() *big.Int {
 	return sgp.q

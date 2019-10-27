@@ -7,7 +7,6 @@
 package resharing
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -27,14 +26,15 @@ type (
 		*tss.BaseParty
 		params *tss.ReSharingParameters
 
-		temp LocalTempData
+		temp localTempData
 		key  keygen.LocalPartySaveData // we save straight back into here
 
 		// outbound messaging
+		out chan<- tss.Message
 		end chan<- keygen.LocalPartySaveData
 	}
 
-	LocalMessageStore struct {
+	localMessageStore struct {
 		dgRound1Messages,
 		dgRound2Message1s,
 		dgRound2Message2s,
@@ -42,8 +42,8 @@ type (
 		dgRound3Message2s []tss.ParsedMessage
 	}
 
-	LocalTempData struct {
-		LocalMessageStore
+	localTempData struct {
+		localMessageStore
 
 		// temp data (thrown away after rounds)
 		NewVs     vss.Vs
@@ -61,15 +61,14 @@ func NewLocalParty(
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- keygen.LocalPartySaveData,
-) *LocalParty {
+) tss.Party {
 	p := &LocalParty{
-		BaseParty: &tss.BaseParty{
-			Out: out,
-		},
-		params: params,
-		temp:   LocalTempData{},
-		key:    key,
-		end:    end,
+		BaseParty: new(tss.BaseParty),
+		params:    params,
+		temp:      localTempData{},
+		key:       key,
+		out:       out,
+		end:       end,
 	}
 	// msgs init
 	p.temp.dgRound1Messages = make([]tss.ParsedMessage, params.Threshold()+1)    // from t+1 of Old Committee
@@ -77,27 +76,15 @@ func NewLocalParty(
 	p.temp.dgRound2Message2s = make([]tss.ParsedMessage, params.NewPartyCount()) // "
 	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)   // "
-	// round init
-	round := newRound1(params, &p.key, &p.temp, out)
-	p.Round = round
 	return p
 }
 
-func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.params.PartyID()
+func (p *LocalParty) FirstRound() tss.Round {
+	return newRound1(p.params, &p.key, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	p.Lock()
-	defer p.Unlock()
-	if round, ok := p.Round.(*round1); !ok || round == nil {
-		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
-	}
-	common.Logger.Infof("party %s: %s round %d starting", p.Round.Params().PartyID(), TaskName, 1)
-	defer func() {
-		common.Logger.Debugf("party %s: %s round %d finished", p.Round.Params().PartyID(), TaskName, 1)
-	}()
-	return p.Round.Start()
+	return tss.BaseStart(p, "resharing")
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
@@ -113,6 +100,10 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 }
 
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	// ValidateBasic is cheap; double-check the message here in case the public StoreMessage was called externally
+	if ok, err := p.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -140,10 +131,10 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	return true, nil
 }
 
-func (p *LocalParty) Finish() {
-	p.end <- p.key
+func (p *LocalParty) PartyID() *tss.PartyID {
+	return p.params.PartyID()
 }
 
 func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
+	return fmt.Sprintf("id: %s, %s", p.PartyID(), p.BaseParty.String())
 }

@@ -88,7 +88,7 @@ func TestE2EConcurrent(t *testing.T) {
 			Ks:          keys[i].Ks[:testThreshold+1],
 			ECDSAPub:    keys[i].ECDSAPub,
 		}
-		P := NewLocalParty(params, keyI, outCh, nil) // discard old key data
+		P := NewLocalParty(params, keyI, outCh, nil).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties; re-use the fixture pre-params for speed
@@ -108,7 +108,7 @@ func TestE2EConcurrent(t *testing.T) {
 		if i < len(fixtures) && len(newPIDs) <= len(fixtures) {
 			save.LocalPreParams = fixtures[i].LocalPreParams
 		}
-		P := NewLocalParty(params, save, outCh, endCh)
+		P := NewLocalParty(params, save, outCh, endCh).(*LocalParty)
 		newCommittee = append(newCommittee, P)
 	}
 
@@ -190,7 +190,7 @@ signing:
 
 	for i, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
-		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOutCh, signEndCh)
+		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
 			if err := P.Start(); err != nil {

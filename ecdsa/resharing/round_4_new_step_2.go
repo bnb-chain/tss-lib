@@ -31,6 +31,7 @@ func (round *round4) Start() *tss.Error {
 	round.allNewOK()
 
 	if !round.ReSharingParams().IsNewCommittee() {
+		round.end <- *round.save
 		return nil // old committee finished!
 	}
 
@@ -162,6 +163,9 @@ func (round *round4) Start() *tss.Error {
 		r2msg1 := msg.Content().(*DGRound2Message1)
 		round.save.PaillierPKs[j] = r2msg1.UnmarshalPaillierPK()
 	}
+
+	round.end <- *round.save
+
 	return nil
 }
 

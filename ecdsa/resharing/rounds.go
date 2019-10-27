@@ -19,8 +19,9 @@ type (
 	base struct {
 		*tss.ReSharingParameters
 		save   *keygen.LocalPartySaveData
-		temp   *LocalTempData
+		temp   *localTempData
 		out    chan<- tss.Message
+		end    chan<- keygen.LocalPartySaveData
 		oldOK, // old committee "ok" tracker
 		newOK []bool // `ok` tracks parties which have been verified by Update(); this one is for the new committee
 		started bool

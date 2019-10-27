@@ -48,7 +48,7 @@ func TestStartRound1Paillier(t *testing.T) {
 	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
+	lp := NewLocalParty(params, out, nil).(*LocalParty)
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -77,7 +77,7 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
+	lp := NewLocalParty(params, out, nil).(*LocalParty)
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -110,8 +110,7 @@ func TestBadMessageCulprits(t *testing.T) {
 
 	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
-	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), 1)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
@@ -159,9 +158,9 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 		var P *LocalParty
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		if i < len(fixtures) {
-			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams)
+			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
 		} else {
-			P = NewLocalParty(params, outCh, endCh)
+			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
 		}
 		parties = append(parties, P)
 		go func(P *LocalParty) {
@@ -303,7 +302,7 @@ keygen:
 }
 
 func tryWriteTestFixtureFile(t *testing.T, index int, data LocalPartySaveData) {
-	fixtureFileName := MakeTestFixtureFilePath(index)
+	fixtureFileName := makeTestFixtureFilePath(index)
 
 	// fixture file does not already exist?
 	// if it does, we won't re-create it here

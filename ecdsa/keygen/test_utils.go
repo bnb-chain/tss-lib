@@ -22,21 +22,16 @@ const (
 	// Then the signing and resharing tests will work with the new n, t configuration using the newly written fixture files.
 	TestParticipants = 20
 	TestThreshold    = TestParticipants / 2
-
+)
+const (
+	testFixtureDirFormat  = "%s/../../test/_fixtures"
 	testFixtureFileFormat = "keygen_data_%d.json"
 )
-
-func MakeTestFixtureFilePath(partyIndex int) string {
-	_, callerFileName, _, _ := runtime.Caller(0)
-	srcDirName := filepath.Dir(callerFileName)
-	fixtureDirName := fmt.Sprintf("%s/../../test/_fixtures", srcDirName)
-	return fmt.Sprintf("%s/"+testFixtureFileFormat, fixtureDirName, partyIndex)
-}
 
 func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 	keys := make([]LocalPartySaveData, 0, count)
 	for j := 0; j < count; j++ {
-		fixtureFilePath := MakeTestFixtureFilePath(j)
+		fixtureFilePath := makeTestFixtureFilePath(j)
 		bz, err := ioutil.ReadFile(fixtureFilePath)
 		if err != nil {
 			return nil, errors.Wrapf(err,
@@ -80,4 +75,11 @@ func LoadNTildeH1H2FromTestFixture(idx int) (NTildei, h1i, h2i *big.Int, err err
 	fixture := fixtures[idx]
 	NTildei, h1i, h2i = fixture.NTildei, fixture.H1i, fixture.H2i
 	return
+}
+
+func makeTestFixtureFilePath(partyIndex int) string {
+	_, callerFileName, _, _ := runtime.Caller(0)
+	srcDirName := filepath.Dir(callerFileName)
+	fixtureDirName := fmt.Sprintf(testFixtureDirFormat, srcDirName)
+	return fmt.Sprintf("%s/"+testFixtureFileFormat, fixtureDirName, partyIndex)
 }

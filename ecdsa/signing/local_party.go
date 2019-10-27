@@ -29,14 +29,16 @@ type (
 		*tss.BaseParty
 		params *tss.Parameters
 
-		temp LocalTempData
+		keys keygen.LocalPartySaveData
+		temp localTempData
 		data SignatureData
 
 		// outbound messaging
+		out chan<- tss.Message
 		end chan<- SignatureData
 	}
 
-	LocalMessageStore struct {
+	localMessageStore struct {
 		signRound1Message1s,
 		signRound1Message2s,
 		signRound2Messages,
@@ -49,8 +51,8 @@ type (
 		signRound9Messages []tss.ParsedMessage
 	}
 
-	LocalTempData struct {
-		LocalMessageStore
+	localTempData struct {
+		localMessageStore
 
 		// temp data (thrown away after sign) / round 1
 		w,
@@ -97,16 +99,16 @@ func NewLocalParty(
 	keys keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- SignatureData,
-) *LocalParty {
+) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
-		BaseParty: &tss.BaseParty{
-			Out: out,
-		},
-		params: params,
-		temp:   LocalTempData{},
-		data:   SignatureData{},
-		end:    end,
+		BaseParty: new(tss.BaseParty),
+		params:    params,
+		keys:      keys,
+		temp:      localTempData{},
+		data:      SignatureData{},
+		out:       out,
+		end:       end,
 	}
 	// msgs init
 	p.temp.signRound1Message1s = make([]tss.ParsedMessage, partyCount)
@@ -129,30 +131,24 @@ func NewLocalParty(
 	p.temp.pi1jis = make([]*mta.ProofBob, partyCount)
 	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
 	p.temp.vs = make([]*big.Int, partyCount)
-	// round init
-	round := newRound1(params, &keys, &p.data, &p.temp, out)
-	p.Round = round
 	return p
 }
 
-func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.params.PartyID()
+func (p *LocalParty) FirstRound() tss.Round {
+	return newRound1(p.params, &p.keys, &p.data, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	p.Lock()
-	defer p.Unlock()
-	if round, ok := p.Round.(*round1); !ok || round == nil {
-		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
-	} else {
-		common.Logger.Infof("party %s: %s round preparing", p.Round.Params().PartyID(), TaskName)
-		if err := round.prepare(); err != nil {
+	return tss.BaseStart(p, "signing", func(round tss.Round) *tss.Error {
+		round1, ok := round.(*round1)
+		if !ok {
+			return round.WrapError(errors.New("unable to Start(). party is in an unexpected round"))
+		}
+		if err := round1.prepare(); err != nil {
 			return round.WrapError(err)
 		}
-	}
-
-	common.Logger.Infof("party %s: %s round %d starting", p.Round.Params().PartyID(), TaskName, 1)
-	return p.Round.Start()
+		return nil
+	})
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
@@ -168,6 +164,10 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 }
 
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	// ValidateBasic is cheap; double-check the message here in case the public StoreMessage was called externally
+	if ok, err := p.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -210,10 +210,10 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	return true, nil
 }
 
-func (p *LocalParty) Finish() {
-	p.end <- p.data
+func (p *LocalParty) PartyID() *tss.PartyID {
+	return p.params.PartyID()
 }
 
 func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
+	return fmt.Sprintf("id: %s, %s", p.PartyID(), p.BaseParty.String())
 }

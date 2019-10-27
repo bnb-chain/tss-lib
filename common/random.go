@@ -16,7 +16,6 @@ import (
 
 const (
 	mustGetRandomIntMaxBits = 5000
-	primeTestN              = 30
 )
 
 // MustGetRandomInt panics if it is unable to gather entropy from `rand.Reader` or when `bits` is <= 0

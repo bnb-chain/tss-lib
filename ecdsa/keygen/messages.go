@@ -171,14 +171,14 @@ func NewKGRound3Message(
 
 func (m *KGRound3Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyMultiBytes(m.GetPaillierProof())
+		common.NonEmptyMultiBytes(m.GetPaillierProof(), paillier.ProofIters)
 }
 
-func (m *KGRound3Message) UnmarshalProofInts() []*big.Int {
+func (m *KGRound3Message) UnmarshalProofInts() paillier.Proof {
+	var pf paillier.Proof
 	proofBzs := m.GetPaillierProof()
-	ints := make([]*big.Int, len(proofBzs))
-	for i := range ints {
-		ints[i] = new(big.Int).SetBytes(proofBzs[i])
+	for i := range pf {
+		pf[i] = new(big.Int).SetBytes(proofBzs[i])
 	}
-	return ints
+	return pf
 }

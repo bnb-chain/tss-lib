@@ -29,22 +29,23 @@ type (
 		*tss.BaseParty
 		params *tss.Parameters
 
-		temp LocalTempData
+		temp localTempData
 		data LocalPartySaveData
 
 		// outbound messaging
+		out chan<- tss.Message
 		end chan<- LocalPartySaveData
 	}
 
-	LocalMessageStore struct {
+	localMessageStore struct {
 		kgRound1Messages,
 		kgRound2Message1s,
 		kgRound2Message2s,
 		kgRound3Messages []tss.ParsedMessage
 	}
 
-	LocalTempData struct {
-		LocalMessageStore
+	localTempData struct {
+		localMessageStore
 
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
@@ -94,7 +95,7 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- LocalPartySaveData,
 	optionalPreParams ...LocalPreParams,
-) *LocalParty {
+) tss.Party {
 	partyCount := params.PartyCount()
 	data := LocalPartySaveData{}
 	// when `optionalPreParams` is provided we'll use the pre-computed primes instead of generating them from scratch
@@ -108,13 +109,12 @@ func NewLocalParty(
 		data.LocalPreParams = optionalPreParams[0]
 	}
 	p := &LocalParty{
-		BaseParty: &tss.BaseParty{
-			Out: out,
-		},
-		params: params,
-		temp:   LocalTempData{},
-		data:   data,
-		end:    end,
+		BaseParty: new(tss.BaseParty),
+		params:    params,
+		temp:      localTempData{},
+		data:      data,
+		out:       out,
+		end:       end,
 	}
 	// msgs init
 	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
@@ -127,24 +127,15 @@ func NewLocalParty(
 	p.data.PaillierPKs = make([]*paillier.PublicKey, partyCount)
 	p.data.NTildej = make([]*big.Int, partyCount)
 	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
-	// round init
-	round := newRound1(params, &p.data, &p.temp, out)
-	p.Round = round
 	return p
 }
 
-func (p *LocalParty) PartyID() *tss.PartyID {
-	return p.params.PartyID()
+func (p *LocalParty) FirstRound() tss.Round {
+	return newRound1(p.params, &p.data, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	p.Lock()
-	defer p.Unlock()
-	if round, ok := p.Round.(*round1); !ok || round == nil {
-		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
-	}
-	common.Logger.Infof("party %s: %s round %d starting", p.Round.Params().PartyID(), TaskName, 1)
-	return p.Round.Start()
+	return tss.BaseStart(p, "keygen")
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
@@ -160,6 +151,10 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 }
 
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	// ValidateBasic is cheap; double-check the message here in case the public StoreMessage was called externally
+	if ok, err := p.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
 	fromPIdx := msg.GetFrom().Index
 
 	// switch/case is necessary to store any messages beyond current round
@@ -185,10 +180,6 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	return true, nil
 }
 
-func (p *LocalParty) Finish() {
-	p.end <- p.data
-}
-
 // recovers a party's original index in the set of parties during keygen
 func (save LocalPartySaveData) OriginalIndex() (int, error) {
 	index := -1
@@ -206,6 +197,10 @@ func (save LocalPartySaveData) OriginalIndex() (int, error) {
 	return index, nil
 }
 
+func (p *LocalParty) PartyID() *tss.PartyID {
+	return p.params.PartyID()
+}
+
 func (p *LocalParty) String() string {
-	return fmt.Sprintf("id: %s, round: %d", p.PartyID(), p.Round.RoundNumber())
+	return fmt.Sprintf("id: %s, %s", p.PartyID(), p.BaseParty.String())
 }
