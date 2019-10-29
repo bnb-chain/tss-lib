@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Test
     runs-on: macOS-latest
     steps:
 
