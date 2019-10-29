@@ -1,5 +1,4 @@
 # Multi-Party Threshold Signature Scheme
-
 [![GoDoc][1]][2] [![MIT licensed][3]][4] [![Go Report Card][5]][6] [![Coverage Status][7]][8]
 
 [1]: https://godoc.org/github.com/binance-chain/tss-lib?status.svg
@@ -12,7 +11,6 @@
 [8]: https://codecov.io/gh/binance-chain/tss-lib
 
 ## ECDSA
-
 This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on GG18.
 
 This library includes three protocols:
@@ -24,8 +22,7 @@ This library includes three protocols:
 ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and much more. 
 This library can be used to create MultiSig and ThresholdSig crypto wallets.
 
-Usage
-------------------
+## Usage
 You should start by creating an instance of a `LocalParty` and giving it the initialization arguments that it needs.
 
 The `LocalParty` that you use should be from the `keygen`, `signing` or `resharing` package, depending on what you want to do.
@@ -72,9 +69,7 @@ In a typical use case, it is expected that a transport implementation will **con
 
 This way, there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
 
-Transport Considerations
--------------------
-
+## Transport Considerations
 When you build a transport, it should should offer a broadcast channel as well as point-to-point channels connecting every pair of parties.
 
 Your transport should also employ suitable end-to-end encryption to ensure that a party can only read the messages intended for it.
@@ -83,9 +78,9 @@ Additionally, there should be a mechanism in your transport to allow for "reliab
 
 Timeouts and errors should be handled by the transport. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
 
-Resources
--------------------
+## Security Audit
+A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report named `audit-binance-tss-lib-final-20191018.pdf` may be found in this repository.
 
+## Resources
 GG18: https://eprint.iacr.org/2019/114.pdf
-
 
