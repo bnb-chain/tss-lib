@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	testParticipants = keygen.TestParticipants
-	testThreshold    = keygen.TestThreshold
+	testParticipants = test.TestParticipants
+	testThreshold    = test.TestThreshold
 )
 
 func setUp(level string) {
