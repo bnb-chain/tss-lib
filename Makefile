@@ -17,15 +17,6 @@ build: protob
 	go fmt ./...
 
 ########################################
-### Mobile
-
-android:
-	gomobile bind -target=android -ldflags '-s -w' -trimpath "$(MODULE)/mobile"
-
-ios:
-	gomobile bind -target=ios/arm64,ios/amd64 -ldflags '-s -w' -trimpath "$(MODULE)/mobile"
-
-########################################
 ### Testing
 
 test_unit:
@@ -51,5 +42,5 @@ pre_commit: build test
 # To avoid unintended conflicts with file names, always add to .PHONY
 # # unless there is a reason not to.
 # # https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-.PHONY: protob build android ios test_unit test_unit_race test
+.PHONY: protob build test_unit test_unit_race test
 
