@@ -79,7 +79,7 @@ Additionally, there should be a mechanism in your transport to allow for "reliab
 Timeouts and errors should be handled by the transport. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
 
 ## Security Audit
-A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report named `audit-binance-tss-lib-final-20191018.pdf` may be found in this repository.
+A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report [`audit-binance-tss-lib-final-20191018.pdf`](https://github.com/binance-chain/tss-lib/releases/download/v1.0.0/audit-binance-tss-lib-final-20191018.pdf) may be found in the v1.0.0 release notes of this repository.
 
 ## Resources
 GG18: https://eprint.iacr.org/2019/114.pdf
