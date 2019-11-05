@@ -1,5 +1,5 @@
 # Multi-Party Threshold Signature Scheme
-[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Go Report Card][5]][6] [![Coverage Status][7]][8]
+[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Go Report Card][5]][6]
 
 [1]: https://godoc.org/github.com/binance-chain/tss-lib?status.svg
 [2]: https://godoc.org/github.com/binance-chain/tss-lib
@@ -7,11 +7,11 @@
 [4]: LICENSE
 [5]: https://goreportcard.com/badge/github.com/binance-chain/tss-lib
 [6]: https://goreportcard.com/report/github.com/binance-chain/tss-lib
-[7]: https://codecov.io/gh/binance-chain/tss-lib/branch/master/graph/badge.svg
-[8]: https://codecov.io/gh/binance-chain/tss-lib
 
-## ECDSA
-This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on GG18.
+Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
+
+## Introduction
+This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on [GG18](https://eprint.iacr.org/2019/114.pdf).
 
 This library includes three protocols:
 
@@ -19,25 +19,49 @@ This library includes three protocols:
 * Signing for using the secret shares to generate a signature ("signing").
 * Dynamic Groups to change the group of participants while keeping the secret ("resharing").
 
-ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and much more. 
-This library can be used to create MultiSig and ThresholdSig crypto wallets.
+## Rationale
+ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and many more. 
+For such currencies this technique may be used to create crypto wallets where multiple participants must collaborate to sign transactions. See [MultiSig Use Cases](https://en.bitcoin.it/wiki/Multisignature#Multisignature_Applications)
+
+One secret share per key/address is stored locally by each participant and these are kept safe by the protocol – they are never revealed to others at any time. Moreover, there is no trusted dealer of the shares.
+
+In contrast to MultiSig solutions, transactions produced by TSS preserve the privacy of the signers by not revealing which `t+1` participants were involved in their signing.
+
+There is also a performance bonus in that blockchain nodes may check the validity of a signature without any extra MultiSig logic or processing.
 
 ## Usage
-You should start by creating an instance of a `LocalParty` and giving it the initialization arguments that it needs.
+You should start by creating an instance of a `LocalParty` and giving it the arguments that it needs.
 
-The `LocalParty` that you use should be from the `keygen`, `signing` or `resharing` package, depending on what you want to do.
+The `LocalParty` that you use should be from the `keygen`, `signing` or `resharing` package depending on what you want to do.
+
+### Setup
+```go
+// When using the keygen party it is recommended that you pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
+// This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
+preParams, _ := keygen.GeneratePreParams(1 * time.Minute)
+
+// Create a `*PartyID` for each participating peer on the network (you should call `tss.NewPartyID` for each one)
+parties := getParticipantPartyIDs()
+
+// Set up the parameters
+// Note: The `id` and `moniker` fields are for convenience to allow you to easily track participants.
+// The `id` should be a unique string representing this party in the network and `moniker` can be anything (even left blank).
+// The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
+thisParty := tss.NewPartyID(id, moniker, uniqueKey)
+ctx := tss.NewPeerContext(tss.SortPartyIDs(parties))
+params := tss.NewParameters(p2pCtx, thisParty, len(parties), threshold)
+
+// You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
+partyIDMap := make(map[string]*PartyID)
+for _, id := range parties {
+    partyIDMap[id.Id] = id
+}
+```
+
+### Keygen
+Use the `keygen.LocalParty` for the keygen protocol. The save data you receive through the `endCh` upon completion of the protocol should be persisted to secure storage.
 
 ```go
-// When using the keygen party, it is recommended to pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
-// This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
-preParams, err := keygen.GeneratePreParams(1 * time.Minute)
-// ... handle err ...
-
-// Create the LocalParty and start it:
-// Note: The `id` and `moniker` are provided for convenience to allow you to track participants easier. The `id` is intended to be a unique string representation of `key` and `moniker` can be anything (even left blank).
-thisParty := tss.NewPartyID(id, moniker, uniqueKey)
-ctx := tss.NewPeerContext(tss.SortPartyIDs(allParties))
-params := tss.NewParameters(p2pCtx, thisParty, len(allParties), threshold)
 party := keygen.NewLocalParty(params, outCh, endCh, preParams) // Omit the last arg to compute the pre-params in round 1
 go func() {
     err := party.Start()
@@ -45,9 +69,36 @@ go func() {
 }()
 ```
 
-In this example, the `outCh` will receive outgoing messages from this party, and the `endCh` will receive a message when the protocol is complete.
+### Signing
+Use the `signing.LocalParty` for signing and provide it with a `message` to sign. It requires the key data obtained from the keygen protocol. The signature will be sent through the `endCh` once completed.
 
-During the protocol, you should provide the party with updates received from other parties over the network (implementing the network transport is left to you):
+Please note that `t+1` signers are required to sign a message and for optimal usage no more than this should be involved. Each signer should have the same view of who the `t+1` signers are.
+
+```go
+party := signing.NewLocalParty(message, params, ourKeyData, outCh, endCh)
+go func() {
+    err := party.Start()
+    // handle err ...
+}()
+```
+
+### Re-Sharing
+Use the `resharing.LocalParty` to re-distribute the secret shares. The save data received through the `endCh` should overwrite the existing key data in storage, or write new data if the party is receiving a new share.
+
+Please note that `ReSharingParameters` is used to give this Party more context about the re-sharing that should be carried out.
+
+```go
+party := resharing.NewLocalParty(params, ourKeyData, outCh, endCh)
+go func() {
+    err := party.Start()
+    // handle err ...
+}()
+```
+
+## Messaging
+In these examples the `outCh` will collect outgoing messages from the party and the `endCh` will receive save data or a signature when the protocol is complete.
+
+During the protocol you should provide the party with updates received from other participating parties on the network.
 
 A `Party` has two thread-safe methods on it for receiving updates:
 ```go
@@ -67,12 +118,14 @@ WireMsg() *tss.MessageWrapper
 
 In a typical use case, it is expected that a transport implementation will **consume** message bytes via the `out` channel of the local `Party`, send them to the destination(s) specified in the result of `msg.GetTo()`, and **pass** them to `UpdateFromBytes` on the receiving end.
 
-This way, there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
+This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
 
-## Transport Considerations
+⚠️ Implementing a transport is left to the application layer and is not covered by this library.
+
+## The Transport
 When you build a transport, it should should offer a broadcast channel as well as point-to-point channels connecting every pair of parties.
 
-Your transport should also employ suitable end-to-end encryption to ensure that a party can only read the messages intended for it.
+Your transport should also employ suitable end-to-end encryption to ensure that a party can only read the messages sent to it.
 
 Additionally, there should be a mechanism in your transport to allow for "reliable broadcasts", meaning players can broadcast a message to all other players such that it's guaranteed that every player receives the same message. There are several examples of algorithms online that do this by sharing and comparing hashes of received messages.
 
