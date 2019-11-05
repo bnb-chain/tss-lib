@@ -61,6 +61,9 @@ func (p *BaseParty) ValidateMessage(msg ParsedMessage) (bool, *Error) {
 	if msg.GetFrom() == nil {
 		return false, p.WrapError(fmt.Errorf("received msg with nil sender: %s", msg))
 	}
+	if !msg.GetFrom().ValidateBasic() {
+		return false, p.WrapError(fmt.Errorf("received msg with an invalid sender: %+v", msg.GetFrom()))
+	}
 	if !msg.ValidateBasic() {
 		return false, p.WrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
 	}
@@ -103,6 +106,9 @@ func (p *BaseParty) unlock() {
 func BaseStart(p Party, task string, prepare ...func(Round) *Error) *Error {
 	p.lock()
 	defer p.unlock()
+	if p.PartyID() == nil || !p.PartyID().ValidateBasic() {
+		return p.WrapError(fmt.Errorf("could not start. this party has an invalid PartyID: %+v", p.PartyID()))
+	}
 	if p.round() != nil {
 		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
 	}

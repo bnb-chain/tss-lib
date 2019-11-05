@@ -27,6 +27,10 @@ type (
 	SortedPartyIDs   []*PartyID
 )
 
+func (pid *PartyID) ValidateBasic() bool {
+	return pid != nil && pid.Key != nil && 0 <= pid.Index
+}
+
 // --- ProtoBuf Extensions
 
 func (mpid *MessageWrapper_PartyID) KeyInt() *big.Int {
