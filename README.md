@@ -1,23 +1,27 @@
 # Multi-Party Threshold Signature Scheme
-[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Go Report Card][5]][6]
+[![MIT licensed][1]][2] [![GoDoc][3]][4] [![Go Report Card][5]][6]
 
-[1]: https://godoc.org/github.com/binance-chain/tss-lib?status.svg
-[2]: https://godoc.org/github.com/binance-chain/tss-lib
-[3]: https://img.shields.io/badge/license-MIT-blue.svg
-[4]: LICENSE
+[1]: https://img.shields.io/badge/license-MIT-blue.svg
+[2]: LICENSE
+[3]: https://godoc.org/github.com/binance-chain/tss-lib?status.svg
+[4]: https://godoc.org/github.com/binance-chain/tss-lib
 [5]: https://goreportcard.com/badge/github.com/binance-chain/tss-lib
 [6]: https://goreportcard.com/report/github.com/binance-chain/tss-lib
+
+Permissively MIT Licensed.
 
 Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
 
 ## Introduction
-This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on [GG18](https://eprint.iacr.org/2019/114.pdf).
+This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on Gennaro and Goldfeder CCS 2018 protocol [\[1\]](#references)
 
 This library includes three protocols:
 
 * Key Generation for creating secret shares with no trusted dealer ("keygen").
 * Signing for using the secret shares to generate a signature ("signing").
 * Dynamic Groups to change the group of participants while keeping the secret ("resharing").
+
+⚠️ Do not miss [these important notes](#how-to-use-this-securely) on implementing this library securely
 
 ## Rationale
 ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and many more. 
@@ -116,24 +120,27 @@ WireBytes() ([]byte, *tss.MessageRouting, error)
 WireMsg() *tss.MessageWrapper
 ```
 
-In a typical use case, it is expected that a transport implementation will **consume** message bytes via the `out` channel of the local `Party`, send them to the destination(s) specified in the result of `msg.GetTo()`, and **pass** them to `UpdateFromBytes` on the receiving end.
+In a typical use case, it is expected that a transport implementation will consume message bytes via the `out` channel of the local `Party`, send them to the destination(s) specified in the result of `msg.GetTo()`, and pass them to `UpdateFromBytes` on the receiving end.
 
 This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
 
-⚠️ Implementing a transport is left to the application layer and is not covered by this library.
+## How to use this securely
 
-## The Transport
-When you build a transport, it should should offer a broadcast channel as well as point-to-point channels connecting every pair of parties.
+⚠️ This section is important. Be sure to read it!
 
-Your transport should also employ suitable end-to-end encryption to ensure that a party can only read the messages sent to it.
+The transport for messaging is left to the application layer and is not provided by this library. Each one of the following paragraphs should be read and followed carefully as it is crucial that you implement a secure transport to ensure safety of the protocol.
 
-Additionally, there should be a mechanism in your transport to allow for "reliable broadcasts", meaning players can broadcast a message to all other players such that it's guaranteed that every player receives the same message. There are several examples of algorithms online that do this by sharing and comparing hashes of received messages.
+When you build a transport, it should should offer a broadcast channel as well as point-to-point channels connecting every pair of parties. Your transport should also employ suitable end-to-end encryption (TLS with an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)) is recommended) between parties to ensure that a party can only read the messages sent to it.
 
-Timeouts and errors should be handled by the transport. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
+Within your transport, each message should be wrapped with a **session ID** that is unique to a single run of the keygen, signing or re-sharing rounds. This session ID should be agreed upon out-of-band and known only by the participating parties before the rounds begin. Upon receiving any message, your program should make sure that the received session ID matches the one that was agreed upon at the start.
+
+Additionally, there should be a mechanism in your transport to allow for "reliable broadcasts", meaning parties can broadcast a message to other parties such that it's guaranteed that each one receives the same message. There are several examples of algorithms online that do this by sharing and comparing hashes of received messages.
+
+Timeouts and errors should be handled by your application. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
 
 ## Security Audit
 A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report [`audit-binance-tss-lib-final-20191018.pdf`](https://github.com/binance-chain/tss-lib/releases/download/v1.0.0/audit-binance-tss-lib-final-20191018.pdf) may be found in the v1.0.0 release notes of this repository.
 
-## Resources
-GG18: https://eprint.iacr.org/2019/114.pdf
+## References
+\[1\] https://eprint.iacr.org/2019/114.pdf
 
