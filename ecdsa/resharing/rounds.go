@@ -39,6 +39,9 @@ type (
 	round4 struct {
 		*round3
 	}
+	round5 struct {
+		*round4
+	}
 )
 
 var (
@@ -46,6 +49,7 @@ var (
 	_ tss.Round = (*round2)(nil)
 	_ tss.Round = (*round3)(nil)
 	_ tss.Round = (*round4)(nil)
+	_ tss.Round = (*round5)(nil)
 )
 
 // ----- //

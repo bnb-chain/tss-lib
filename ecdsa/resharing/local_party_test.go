@@ -43,32 +43,32 @@ func TestE2EConcurrent(t *testing.T) {
 	// tss.SetCurve(elliptic.P256())
 
 	threshold, newThreshold := testThreshold, testThreshold
-	pIDs := tss.GenerateTestPartyIDs(testParticipants)
+	oldPIDs := tss.GenerateTestPartyIDs(testParticipants)
 
 	// PHASE: load keygen fixtures
 	keys, err := keygen.LoadKeygenTestFixtures(testParticipants)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: resharing
-	pIDs = pIDs[:threshold+1] // always resharing with old_t+1
-	p2pCtx := tss.NewPeerContext(pIDs)
-	newPIDs := tss.GenerateTestPartyIDs(testParticipants) // new group (start from new index)
+	oldPIDs = oldPIDs[:threshold+1] // always resharing with old_t+1
+	oldP2PCtx := tss.NewPeerContext(oldPIDs)
+	newPIDs := tss.GenerateTestPartyIDs(testParticipants)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
 
-	oldCommittee := make([]*LocalParty, 0, len(pIDs))
+	oldCommittee := make([]*LocalParty, 0, len(oldPIDs))
 	newCommittee := make([]*LocalParty, 0, newPCount)
 	bothCommitteesPax := len(oldCommittee) + len(newCommittee)
 
 	errCh := make(chan *tss.Error, bothCommitteesPax)
 	outCh := make(chan tss.Message, bothCommitteesPax)
-	endCh := make(chan keygen.LocalPartySaveData, len(newCommittee))
+	endCh := make(chan keygen.LocalPartySaveData, bothCommitteesPax)
 
 	updater := test.SharedPartyUpdater
 
 	// init the old parties first
-	for i, pID := range pIDs {
-		params := tss.NewReSharingParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+	for i, pID := range oldPIDs {
+		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		keyI := keygen.LocalPartySaveData{
 			LocalPreParams: keygen.LocalPreParams{
 				PaillierSK: keys[i].PaillierSK,
@@ -88,7 +88,7 @@ func TestE2EConcurrent(t *testing.T) {
 			Ks:          keys[i].Ks[:testThreshold+1],
 			ECDSAPub:    keys[i].ECDSAPub,
 		}
-		P := NewLocalParty(params, keyI, outCh, nil).(*LocalParty) // discard old key data
+		P := NewLocalParty(params, keyI, outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties; re-use the fixture pre-params for speed
@@ -97,7 +97,7 @@ func TestE2EConcurrent(t *testing.T) {
 		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
 	}
 	for i, pID := range newPIDs {
-		params := tss.NewReSharingParameters(p2pCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		save := keygen.LocalPartySaveData{
 			BigXj:       make([]*crypto.ECPoint, newPCount),
 			PaillierPKs: make([]*paillier.PublicKey, newPCount),
@@ -140,23 +140,29 @@ func TestE2EConcurrent(t *testing.T) {
 
 		case msg := <-outCh:
 			dest := msg.GetTo()
-			destParties := newCommittee
-			if msg.IsToOldCommittee() {
-				destParties = oldCommittee
-			}
 			if dest == nil {
 				t.Fatal("did not expect a msg to have a nil destination during resharing")
 			}
-			for _, destP := range dest {
-				go updater(destParties[destP.Index], msg, errCh)
+			if msg.IsToOldCommittee() || msg.IsToOldAndNewCommittees() {
+				for _, destP := range dest[:len(oldCommittee)] {
+					go updater(oldCommittee[destP.Index], msg, errCh)
+				}
+			}
+			if !msg.IsToOldCommittee() || msg.IsToOldAndNewCommittees() {
+				for _, destP := range dest {
+					go updater(newCommittee[destP.Index], msg, errCh)
+				}
 			}
 
 		case save := <-endCh:
 			index, err := save.OriginalIndex()
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-			keys[index] = save
+			// old committee members that aren't receiving a share have their Xi zeroed
+			if save.Xi.Cmp(big.NewInt(0)) != 0 {
+				keys[index] = save
+			}
 			atomic.AddInt32(&reSharingEnded, 1)
-			if atomic.LoadInt32(&reSharingEnded) == int32(len(newCommittee)) {
+			if atomic.LoadInt32(&reSharingEnded) == int32(len(oldCommittee)+len(newCommittee)) {
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
 
 				// xj tests: BigXj == xj*G

@@ -121,7 +121,7 @@ func NewLocalParty(
 	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
-	// data init
+	// temp data init
 	p.temp.m = msg
 	p.temp.cis = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
@@ -155,8 +155,8 @@ func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
 	return tss.BaseUpdate(p, msg, "signing")
 }
 
-func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast, isToOldCommittee bool) (bool, *tss.Error) {
-	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast, isToOldCommittee)
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (bool, *tss.Error) {
+	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast)
 	if err != nil {
 		return false, p.WrapError(err)
 	}

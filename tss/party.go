@@ -17,8 +17,8 @@ import (
 type Party interface {
 	Start() *Error
 	// The main entry point when updating a party's state from the wire.
-	// isBroadcast should represent whether the message was received via broadcast, and isToOldCommittee should only be true during re-sharing when a message was sent to the old committee.
-	UpdateFromBytes(wireBytes []byte, from *PartyID, isBroadcast, isToOldCommittee bool) (ok bool, err *Error)
+	// isBroadcast should represent whether the message was received via a reliable broadcast
+	UpdateFromBytes(wireBytes []byte, from *PartyID, isBroadcast bool) (ok bool, err *Error)
 	// You may use this entry point to update a party's state when running locally or in tests
 	Update(msg ParsedMessage) (ok bool, err *Error)
 	WaitingFor() []*PartyID
@@ -58,11 +58,8 @@ func (p *BaseParty) ValidateMessage(msg ParsedMessage) (bool, *Error) {
 	if msg == nil || msg.Content() == nil {
 		return false, p.WrapError(fmt.Errorf("received nil msg: %s", msg))
 	}
-	if msg.GetFrom() == nil {
-		return false, p.WrapError(fmt.Errorf("received msg with nil sender: %s", msg))
-	}
-	if !msg.GetFrom().ValidateBasic() {
-		return false, p.WrapError(fmt.Errorf("received msg with an invalid sender: %+v", msg.GetFrom()))
+	if msg.GetFrom() == nil || !msg.GetFrom().ValidateBasic() {
+		return false, p.WrapError(fmt.Errorf("received msg with an invalid sender: %s", msg))
 	}
 	if !msg.ValidateBasic() {
 		return false, p.WrapError(fmt.Errorf("message failed ValidateBasic: %s", msg), msg.GetFrom())
@@ -162,13 +159,14 @@ func BaseUpdate(p Party, msg ParsedMessage, task string) (ok bool, err *Error) {
 				}
 				rndNum := p.round().RoundNumber()
 				common.Logger.Infof("party %s: %s round %d started", p.round().Params().PartyID(), task, rndNum)
+			} else {
+				// finished! the round implementation will have sent the data through the `end` channel.
+				common.Logger.Infof("party %s: %s finished!", p.PartyID(), task)
 			}
 			p.unlock()                      // recursive so can't defer after return
 			return BaseUpdate(p, msg, task) // re-run round update or finish)
 		}
 		return r(true, nil)
 	}
-	// finished! the round implementation will have sent the data through the `end` channel.
-	common.Logger.Infof("party %s: %s finished!", p.PartyID(), task)
 	return r(true, nil)
 }

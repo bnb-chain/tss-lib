@@ -28,11 +28,10 @@ func (round *round4) Start() *tss.Error {
 	round.resetOK() // resets both round.oldOK and round.newOK
 
 	round.allOldOK()
-	round.allNewOK()
 
 	if !round.ReSharingParams().IsNewCommittee() {
-		round.end <- *round.save
-		return nil // old committee finished!
+		// both committees proceed to round 5 after receiving "ACK" messages from the new committee
+		return nil
 	}
 
 	Pi := round.PartyID()
@@ -127,7 +126,7 @@ func (round *round4) Start() *tss.Error {
 
 	// 15-19.
 	newKs := make([]*big.Int, 0, round.NewPartyCount())
-	NewBigXj := make([]*crypto.ECPoint, round.NewPartyCount())
+	newBigXjs := make([]*crypto.ECPoint, round.NewPartyCount())
 	culprits = make([]*tss.PartyID, 0, round.NewPartyCount()) // who caused the error(s)
 	for j := 0; j < round.NewPartyCount(); j++ {
 		Pj := round.NewParties().IDs()[j]
@@ -142,41 +141,46 @@ func (round *round4) Start() *tss.Error {
 				culprits = append(culprits, Pj)
 			}
 		}
-		NewBigXj[j] = newBigXj
+		newBigXjs[j] = newBigXj
 	}
 	if len(culprits) > 0 {
 		return round.WrapError(errors2.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"), culprits...)
 	}
-	round.save.BigXj = NewBigXj
 
-	// 21.
-	// for this P: SAVE other data
-	round.save.ShareID = round.PartyID().KeyInt()
-	round.save.Xi = newXi
-	round.save.Ks = newKs
+	round.temp.newXi = newXi
+	round.temp.newKs = newKs
+	round.temp.newBigXjs = newBigXjs
 
-	// misc: build list of paillier public keys to save
-	for j, msg := range round.temp.dgRound2Message1s {
-		if j == i {
-			continue
-		}
-		r2msg1 := msg.Content().(*DGRound2Message1)
-		round.save.PaillierPKs[j] = r2msg1.UnmarshalPaillierPK()
-	}
-
-	round.end <- *round.save
+	// Send an "ACK" message to both committees to signal that we're ready to save our data
+	r4msg := NewDGRound4Message(round.OldAndNewParties(), Pi)
+	round.temp.dgRound4Messages[i] = r4msg
+	round.out <- r4msg
 
 	return nil
 }
 
 func (round *round4) CanAccept(msg tss.ParsedMessage) bool {
+	if _, ok := msg.Content().(*DGRound4Message); ok {
+		return msg.IsBroadcast()
+	}
 	return false
 }
 
 func (round *round4) Update() (bool, *tss.Error) {
-	return false, nil
+	// accept messages from new -> old&new committees
+	for j, msg := range round.temp.dgRound4Messages {
+		if round.newOK[j] {
+			continue
+		}
+		if msg == nil || !round.CanAccept(msg) {
+			return false, nil
+		}
+		round.newOK[j] = true
+	}
+	return true, nil
 }
 
 func (round *round4) NextRound() tss.Round {
-	return nil // finished!
+	round.started = false
+	return &round5{round}
 }

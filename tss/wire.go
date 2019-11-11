@@ -19,12 +19,11 @@ const (
 )
 
 // Used externally to update a LocalParty with a valid ParsedMessage
-func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast, isToOldCommittee bool) (ParsedMessage, error) {
+func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast bool) (ParsedMessage, error) {
 	wire := new(MessageWrapper)
 	wire.Message = new(any.Any)
 	wire.From = from.MessageWrapper_PartyID
 	wire.IsBroadcast = isBroadcast
-	wire.IsToOldCommittee = isToOldCommittee
 	if err := proto.Unmarshal(wireBytes, wire.Message); err != nil {
 		return nil, err
 	}
@@ -34,7 +33,8 @@ func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast, isToOldCommi
 func parseWrappedMessage(wire *MessageWrapper, from *PartyID) (ParsedMessage, error) {
 	var any ptypes.DynamicAny
 	meta := MessageRouting{
-		From: from,
+		From:        from,
+		IsBroadcast: wire.IsBroadcast,
 	}
 	if err := ptypes.UnmarshalAny(wire.Message, &any); err != nil {
 		return nil, err

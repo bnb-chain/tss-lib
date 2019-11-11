@@ -47,3 +47,9 @@ message DGRound3Message1 {
 message DGRound3Message2 {
     repeated bytes v_decommitment = 1;
 }
+
+/*
+ * The Round 4 "ACK" is broadcast to peers of the Old and New Committees from the New Committee in this message.
+ */
+message DGRound4Message {
+}
