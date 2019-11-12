@@ -130,6 +130,7 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 	var reSharingEnded int32
+	var reSharingZeroedShares int32
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
@@ -160,10 +161,14 @@ func TestE2EConcurrent(t *testing.T) {
 			// old committee members that aren't receiving a share have their Xi zeroed
 			if save.Xi.Cmp(big.NewInt(0)) != 0 {
 				keys[index] = save
+			} else {
+				atomic.AddInt32(&reSharingZeroedShares, 1)
 			}
 			atomic.AddInt32(&reSharingEnded, 1)
 			if atomic.LoadInt32(&reSharingEnded) == int32(len(oldCommittee)+len(newCommittee)) {
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
+
+				assert.Equal(t, int32(threshold+1), reSharingZeroedShares)
 
 				// xj tests: BigXj == xj*G
 				for j, key := range keys {
