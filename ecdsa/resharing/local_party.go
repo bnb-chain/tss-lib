@@ -8,8 +8,10 @@ package resharing
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
@@ -39,7 +41,8 @@ type (
 		dgRound2Message1s,
 		dgRound2Message2s,
 		dgRound3Message1s,
-		dgRound3Message2s []tss.ParsedMessage
+		dgRound3Message2s,
+		dgRound4Messages []tss.ParsedMessage
 	}
 
 	localTempData struct {
@@ -49,6 +52,11 @@ type (
 		NewVs     vss.Vs
 		NewShares vss.Shares
 		VD        cmt.HashDeCommitment
+
+		// temporary storage of data that is persisted by the new party in round 5 if all "ACK" messages are received
+		newXi     *big.Int
+		newKs     []*big.Int
+		newBigXjs []*crypto.ECPoint // Xj to save in round 5
 	}
 )
 
@@ -76,6 +84,7 @@ func NewLocalParty(
 	p.temp.dgRound2Message2s = make([]tss.ParsedMessage, params.NewPartyCount()) // "
 	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)   // "
+	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())  // from n of New Committee
 	return p
 }
 
@@ -91,8 +100,8 @@ func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
 	return tss.BaseUpdate(p, msg, "resharing")
 }
 
-func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast, isToOldCommittee bool) (bool, *tss.Error) {
-	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast, isToOldCommittee)
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (bool, *tss.Error) {
+	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast)
 	if err != nil {
 		return false, p.WrapError(err)
 	}
@@ -123,6 +132,9 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 
 	case *DGRound3Message2:
 		p.temp.dgRound3Message2s[fromPIdx] = msg
+
+	case *DGRound4Message:
+		p.temp.dgRound4Messages[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

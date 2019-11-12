@@ -18,10 +18,16 @@ type (
 	Message interface {
 		// Type is encoded in the protobuf Any structure
 		Type() string
+		// The set of parties that this message should be sent to
 		GetTo() []*PartyID
+		// The party that this message is from
 		GetFrom() *PartyID
+		// Indicates whether the message should be broadcast to other participants
 		IsBroadcast() bool
+		// Indicates whether the message is to the old committee during re-sharing; used mainly in tests
 		IsToOldCommittee() bool
+		// Indicates whether the message is to both committees during re-sharing; used mainly in tests
+		IsToOldAndNewCommittees() bool
 		// Returns the encoded inner message bytes to send over the wire along with metadata about how the message should be delivered
 		WireBytes() ([]byte, *MessageRouting, error)
 		// Returns the protobuf message wrapper struct
@@ -53,6 +59,8 @@ type (
 		IsBroadcast bool
 		// whether the message should be sent to old committee participants rather than the new committee
 		IsToOldCommittee bool
+		// whether the message should be sent to both old and new committee participants
+		IsToOldAndNewCommittees bool
 	}
 
 	// Implements ParsedMessage; this is a concrete implementation of what messages produced by a LocalParty look like
@@ -83,11 +91,12 @@ func NewMessageWrapper(routing MessageRouting, content MessageContent) *MessageW
 		}
 	}
 	return &MessageWrapper{
-		IsBroadcast:      routing.IsBroadcast,
-		IsToOldCommittee: routing.IsToOldCommittee,
-		From:             routing.From.MessageWrapper_PartyID,
-		To:               to,
-		Message:          any,
+		IsBroadcast:             routing.IsBroadcast,
+		IsToOldCommittee:        routing.IsToOldCommittee,
+		IsToOldAndNewCommittees: routing.IsToOldAndNewCommittees,
+		From:                    routing.From.MessageWrapper_PartyID,
+		To:                      to,
+		Message:                 any,
 	}
 }
 
@@ -117,9 +126,14 @@ func (mm *MessageImpl) IsBroadcast() bool {
 	return mm.wire.IsBroadcast
 }
 
-// only `true` in DGRound2NewCommitteeACKMessage (resharing)
+// only `true` in DGRound2Message (resharing)
 func (mm *MessageImpl) IsToOldCommittee() bool {
 	return mm.wire.IsToOldCommittee
+}
+
+// only `true` in DGRound4Message (resharing)
+func (mm *MessageImpl) IsToOldAndNewCommittees() bool {
+	return mm.wire.IsToOldAndNewCommittees
 }
 
 func (mm *MessageImpl) WireBytes() ([]byte, *MessageRouting, error) {

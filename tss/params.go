@@ -89,6 +89,10 @@ func (rgParams *ReSharingParameters) OldParties() *PeerContext {
 	return rgParams.Parties() // wr use the original method for old parties
 }
 
+func (rgParams *ReSharingParameters) OldPartyCount() int {
+	return rgParams.partyCount
+}
+
 func (rgParams *ReSharingParameters) NewParties() *PeerContext {
 	return rgParams.newParties
 }
@@ -99,6 +103,14 @@ func (rgParams *ReSharingParameters) NewPartyCount() int {
 
 func (rgParams *ReSharingParameters) NewThreshold() int {
 	return rgParams.newThreshold
+}
+
+func (rgParams *ReSharingParameters) OldAndNewParties() []*PartyID {
+	return append(rgParams.OldParties().IDs(), rgParams.NewParties().IDs()...)
+}
+
+func (rgParams *ReSharingParameters) OldAndNewPartyCount() int {
+	return rgParams.OldPartyCount() + rgParams.NewPartyCount()
 }
 
 func (rgParams *ReSharingParameters) IsOldCommittee() bool {

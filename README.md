@@ -13,7 +13,7 @@ Permissively MIT Licensed.
 Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
 
 ## Introduction
-This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on Gennaro and Goldfeder CCS 2018 protocol [\[1\]](#references)
+This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on Gennaro and Goldfeder CCS 2018 [\[1\]](#references)
 
 This library includes three protocols:
 
@@ -25,7 +25,7 @@ This library includes three protocols:
 
 ## Rationale
 ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and many more. 
-For such currencies this technique may be used to create crypto wallets where multiple participants must collaborate to sign transactions. See [MultiSig Use Cases](https://en.bitcoin.it/wiki/Multisignature#Multisignature_Applications)
+For such currencies this technique may be used to create crypto wallets where multiple parties must collaborate to sign transactions. See [MultiSig Use Cases](https://en.bitcoin.it/wiki/Multisignature#Multisignature_Applications)
 
 One secret share per key/address is stored locally by each participant and these are kept safe by the protocol – they are never revealed to others at any time. Moreover, there is no trusted dealer of the shares.
 
@@ -99,15 +99,17 @@ go func() {
 }()
 ```
 
+⚠️ During re-sharing the key data may be modified during the rounds. Do not ever overwrite any data saved on disk until the final struct has been received through the `end` channel.
+
 ## Messaging
 In these examples the `outCh` will collect outgoing messages from the party and the `endCh` will receive save data or a signature when the protocol is complete.
 
 During the protocol you should provide the party with updates received from other participating parties on the network.
 
-A `Party` has two thread-safe methods on it for receiving updates:
+A `Party` has two thread-safe methods on it for receiving updates. Note that the last two booleans are only used in re-sharing.
 ```go
 // The main entry point when updating a party's state from the wire
-UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast, isToOldCommittee bool) (ok bool, err *tss.Error)
+UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (ok bool, err *tss.Error)
 // You may use this entry point to update a party's state when running locally or in tests
 Update(msg tss.ParsedMessage) (ok bool, err *tss.Error)
 ```

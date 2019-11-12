@@ -208,3 +208,24 @@ func (m *DGRound3Message2) UnmarshalVDeCommitment() cmt.HashDeCommitment {
 	deComBzs := m.GetVDecommitment()
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
+
+// ----- //
+
+func NewDGRound4Message(
+	to []*tss.PartyID,
+	from *tss.PartyID,
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:                    from,
+		To:                      to,
+		IsBroadcast:             true,
+		IsToOldAndNewCommittees: true,
+	}
+	content := &DGRound4Message{}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
+}
+
+func (m *DGRound4Message) ValidateBasic() bool {
+	return true
+}

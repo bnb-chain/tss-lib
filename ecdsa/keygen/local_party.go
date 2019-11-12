@@ -117,12 +117,13 @@ func NewLocalParty(
 		end:       end,
 	}
 	// msgs init
-	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
 	p.temp.kgRound1Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound2Message1s = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound2Message2s = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
-	// data init
+	// temp data init
+	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
+	// save data init
 	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
 	p.data.PaillierPKs = make([]*paillier.PublicKey, partyCount)
 	p.data.NTildej = make([]*big.Int, partyCount)
@@ -142,8 +143,8 @@ func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
 	return tss.BaseUpdate(p, msg, "keygen")
 }
 
-func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast, isToOldCommittee bool) (bool, *tss.Error) {
-	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast, isToOldCommittee)
+func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (bool, *tss.Error) {
+	msg, err := tss.ParseWireMessage(wireBytes, from, isBroadcast)
 	if err != nil {
 		return false, p.WrapError(err)
 	}
