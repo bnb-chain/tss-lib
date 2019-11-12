@@ -18,7 +18,6 @@ func (round *round5) Start() *tss.Error {
 	}
 	round.number = 5
 	round.started = true
-	round.resetOK() // resets both round.oldOK and round.newOK
 
 	round.allOldOK()
 	round.allNewOK()
