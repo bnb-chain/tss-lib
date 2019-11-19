@@ -45,14 +45,14 @@ The `LocalParty` that you use should be from the `keygen`, `signing` or `reshari
 preParams, _ := keygen.GeneratePreParams(1 * time.Minute)
 
 // Create a `*PartyID` for each participating peer on the network (you should call `tss.NewPartyID` for each one)
-parties := getParticipantPartyIDs()
+parties := tss.SortPartyIDs(getParticipantPartyIDs())
 
 // Set up the parameters
 // Note: The `id` and `moniker` fields are for convenience to allow you to easily track participants.
 // The `id` should be a unique string representing this party in the network and `moniker` can be anything (even left blank).
 // The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
-ctx := tss.NewPeerContext(tss.SortPartyIDs(parties))
+ctx := tss.NewPeerContext(parties)
 params := tss.NewParameters(p2pCtx, thisParty, len(parties), threshold)
 
 // You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
@@ -106,7 +106,7 @@ In these examples the `outCh` will collect outgoing messages from the party and 
 
 During the protocol you should provide the party with updates received from other participating parties on the network.
 
-A `Party` has two thread-safe methods on it for receiving updates. Note that the last two booleans are only used in re-sharing.
+A `Party` has two thread-safe methods on it for receiving updates.
 ```go
 // The main entry point when updating a party's state from the wire
 UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (ok bool, err *tss.Error)
