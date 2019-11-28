@@ -53,7 +53,7 @@ parties := tss.SortPartyIDs(getParticipantPartyIDs())
 // The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
 ctx := tss.NewPeerContext(parties)
-params := tss.NewParameters(p2pCtx, thisParty, len(parties), threshold)
+params := tss.NewParameters(ctx, thisParty, len(parties), threshold)
 
 // You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
 partyIDMap := make(map[string]*PartyID)
@@ -132,7 +132,7 @@ This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to
 
 The transport for messaging is left to the application layer and is not provided by this library. Each one of the following paragraphs should be read and followed carefully as it is crucial that you implement a secure transport to ensure safety of the protocol.
 
-When you build a transport, it should should offer a broadcast channel as well as point-to-point channels connecting every pair of parties. Your transport should also employ suitable end-to-end encryption (TLS with an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)) is recommended) between parties to ensure that a party can only read the messages sent to it.
+When you build a transport, it should offer a broadcast channel as well as point-to-point channels connecting every pair of parties. Your transport should also employ suitable end-to-end encryption (TLS with an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)) is recommended) between parties to ensure that a party can only read the messages sent to it.
 
 Within your transport, each message should be wrapped with a **session ID** that is unique to a single run of the keygen, signing or re-sharing rounds. This session ID should be agreed upon out-of-band and known only by the participating parties before the rounds begin. Upon receiving any message, your program should make sure that the received session ID matches the one that was agreed upon at the start.
 
