@@ -53,7 +53,7 @@ parties := tss.SortPartyIDs(getParticipantPartyIDs())
 // The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
 ctx := tss.NewPeerContext(parties)
-params := tss.NewParameters(p2pCtx, thisParty, len(parties), threshold)
+params := tss.NewParameters(ctx, thisParty, len(parties), threshold)
 
 // You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
 partyIDMap := make(map[string]*PartyID)
