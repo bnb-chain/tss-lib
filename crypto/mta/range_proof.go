@@ -70,7 +70,7 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (
 	// 8-9. e'
 	var e *big.Int
 	{ // must use RejectionSample
-		eHash := common.SHA512_256i(append(pk.AsInts(), c, z, u, w)...)
+		eHash := common.SHA256i(append(pk.AsInts(), c, z, u, w)...)
 		e = common.RejectionSample(q, eHash)
 	}
 
@@ -121,7 +121,7 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	// 1-2. e'
 	var e *big.Int
 	{ // must use RejectionSample
-		eHash := common.SHA512_256i(append(pk.AsInts(), c, pf.Z, pf.U, pf.W)...)
+		eHash := common.SHA256i(append(pk.AsInts(), c, pf.Z, pf.U, pf.W)...)
 		e = common.RejectionSample(q, eHash)
 	}
 

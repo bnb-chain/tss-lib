@@ -11,7 +11,7 @@ import (
 )
 
 // RejectionSample implements the rejection sampling logic for converting a
-// SHA512/256 hash to a value between 0-q from GG18Spec (6) Fig. 12.
+// SHA256 hash to a value between 0-q from GG18Spec (6) Fig. 12.
 func RejectionSample(q *big.Int, eHash *big.Int) *big.Int { // e' = eHash
 	qGTZero := zero.Cmp(q) == -1
 	// e = the first |q| bits of e'
@@ -19,7 +19,7 @@ func RejectionSample(q *big.Int, eHash *big.Int) *big.Int { // e' = eHash
 	e := firstBitsOf(qBits, eHash)
 	// while e is not between 0-q
 	for !(qGTZero && e.Cmp(q) == -1) {
-		eHash := SHA512_256iOne(eHash)
+		eHash := SHA256iOne(eHash)
 		e = firstBitsOf(qBits, eHash)
 	}
 	return e

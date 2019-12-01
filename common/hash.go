@@ -7,10 +7,10 @@
 package common
 
 import (
-	"crypto"
-	_ "crypto/sha512"
 	"encoding/binary"
 	"math/big"
+
+	"github.com/minio/sha256-simd"
 )
 
 const (
@@ -19,9 +19,9 @@ const (
 
 // SHA-512/256 is protected against length extension attacks and is more performant than SHA-256 on 64-bit architectures.
 // https://en.wikipedia.org/wiki/Template:Comparison_of_SHA_functions
-func SHA512_256(in ...[]byte) []byte {
+func SHA256(in ...[]byte) []byte {
 	var data []byte
-	state := crypto.SHA512_256.New()
+	state := sha256.New()
 	inLen := len(in)
 	if inLen == 0 {
 		return nil
@@ -44,15 +44,15 @@ func SHA512_256(in ...[]byte) []byte {
 	// n < len(data) or an error will never happen.
 	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
 	if _, err := state.Write(data); err != nil {
-		Logger.Errorf("SHA512_256 Write() failed: %v", err)
+		Logger.Errorf("SHA256 Write() failed: %v", err)
 		return nil
 	}
 	return state.Sum(nil)
 }
 
-func SHA512_256i(in ...*big.Int) *big.Int {
+func SHA256i(in ...*big.Int) *big.Int {
 	var data []byte
-	state := crypto.SHA512_256.New()
+	state := sha256.New()
 	inLen := len(in)
 	if inLen == 0 {
 		return nil
@@ -77,15 +77,15 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 	// n < len(data) or an error will never happen.
 	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
 	if _, err := state.Write(data); err != nil {
-		Logger.Errorf("SHA512_256i Write() failed: %v", err)
+		Logger.Errorf("SHA256i Write() failed: %v", err)
 		return nil
 	}
 	return new(big.Int).SetBytes(state.Sum(nil))
 }
 
-func SHA512_256iOne(in *big.Int) *big.Int {
+func SHA256iOne(in *big.Int) *big.Int {
 	var data []byte
-	state := crypto.SHA512_256.New()
+	state := sha256.New()
 	if in == nil {
 		return nil
 	}
@@ -93,7 +93,7 @@ func SHA512_256iOne(in *big.Int) *big.Int {
 	// n < len(data) or an error will never happen.
 	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
 	if _, err := state.Write(data); err != nil {
-		Logger.Errorf("SHA512_256iOne Write() failed: %v", err)
+		Logger.Errorf("SHA256iOne Write() failed: %v", err)
 		return nil
 	}
 	return new(big.Int).SetBytes(state.Sum(nil))

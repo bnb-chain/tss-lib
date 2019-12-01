@@ -41,7 +41,7 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 
 	var c *big.Int
 	{ // must use RejectionSample
-		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+		cHash := common.SHA256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	t := new(big.Int).Mul(c, x)
@@ -61,7 +61,7 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 
 	var c *big.Int
 	{ // must use RejectionSample
-		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+		cHash := common.SHA256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	tG := crypto.ScalarBaseMult(tss.EC(), pf.T)
@@ -96,7 +96,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 
 	var c *big.Int
 	{ // must use RejectionSample
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+		cHash := common.SHA256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	modQ := common.ModInt(q)
@@ -116,7 +116,7 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 
 	var c *big.Int
 	{ // must use RejectionSample
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+		cHash := common.SHA256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	tR := R.ScalarMult(pf.T)

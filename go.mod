@@ -9,6 +9,7 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/ipfs/go-log v0.0.1
 	github.com/mattn/go-colorable v0.1.2 // indirect
+	github.com/minio/sha256-simd v0.1.1
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/otiai10/mint v1.2.4 // indirect
 	github.com/otiai10/primes v0.0.0-20180210170552-f6d2a1ba97c4

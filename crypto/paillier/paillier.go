@@ -265,7 +265,7 @@ func GenerateXs(m int, k, N *big.Int, ecdsaPub *crypto2.ECPoint) []*big.Int {
 		for j := 0; j < blocks; j++ {
 			go func(j int) {
 				jBz := []byte(strconv.Itoa(j))
-				hash := common.SHA512_256(ib, jBz, nb, kb, sXb, sYb, Nb)
+				hash := common.SHA256(ib, jBz, nb, kb, sXb, sYb, Nb)
 				chs[j] <- hash
 			}(j)
 		}

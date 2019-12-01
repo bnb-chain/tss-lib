@@ -35,7 +35,7 @@ func NewHashCommitmentWithRandomness(r *big.Int, secrets ...*big.Int) *HashCommi
 	for i := 1; i < len(parts); i++ {
 		parts[i] = secrets[i-1]
 	}
-	hash := common.SHA512_256i(parts...)
+	hash := common.SHA256i(parts...)
 
 	cmt := &HashCommitDecommit{}
 	cmt.C = hash
@@ -57,7 +57,7 @@ func (cmt *HashCommitDecommit) Verify() bool {
 	if C == nil || D == nil {
 		return false
 	}
-	hash := common.SHA512_256i(D...)
+	hash := common.SHA256i(D...)
 	if hash.Cmp(C) == 0 {
 		return true
 	} else {
