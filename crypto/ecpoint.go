@@ -18,7 +18,9 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-var big0 = big.NewInt(0)
+var (
+	zero = big.NewInt(0)
+)
 
 // ECPoint convenience helper
 type ECPoint struct {
@@ -93,7 +95,7 @@ func (p *ECPoint) Add(p1 *ECPoint) (*ECPoint, error) {
 }
 
 func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
-	if new(big.Int).Mod(k, p.curve.Params().N).Cmp(big0) == 0 {
+	if new(big.Int).Mod(k, p.curve.Params().N).Cmp(zero) == 0 {
 		identity, _ := NewECPoint(p.curve, nil, nil)
 		return identity
 	}
@@ -124,7 +126,7 @@ func (p *ECPoint) ValidateBasic() bool {
 }
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
-	if new(big.Int).Mod(k, curve.Params().N).Cmp(big0) == 0 {
+	if new(big.Int).Mod(k, curve.Params().N).Cmp(zero) == 0 {
 		p, _ := NewECPoint(curve, nil, nil)
 		return p
 	}
