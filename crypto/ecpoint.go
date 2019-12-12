@@ -19,7 +19,6 @@ import (
 )
 
 var big0 = big.NewInt(0)
-var big2 = big.NewInt(2)
 
 // ECPoint convenience helper
 type ECPoint struct {
