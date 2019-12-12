@@ -7,6 +7,7 @@
 package crypto_test
 
 import (
+	"crypto/elliptic"
 	"math/big"
 	"reflect"
 	"testing"
@@ -111,5 +112,106 @@ func TestUnFlattenECPoints(t *testing.T) {
 				t.Errorf("UnFlattenECPoints() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestAddECPoints(t *testing.T) {
+
+	curveList := []*elliptic.CurveParams{elliptic.P224().Params(), elliptic.P256().Params(), elliptic.P384().Params()}
+
+	// Check 2 + (N-2) = identity element, where N is the order of a given elliptic curve group
+	for i := 0; i < len(curveList); i++ {
+		minus2 := big.NewInt(-2)
+		ECPoint1 := ScalarBaseMult(curveList[i], new(big.Int).Mod(minus2, curveList[i].N))
+		ECPoint2 := ScalarBaseMult(curveList[i], big.NewInt(2))
+
+		result, err := ECPoint1.Add(ECPoint2)
+
+		if err != nil {
+			t.Errorf("Add() error = %v", err)
+		}
+
+		if result.X() != nil || result.Y() != nil {
+			t.Errorf("Add() expect = nil,nil, got X = %v, Y=%v", result.X(), result.Y())
+		}
+	}
+
+	// Check identity + 5566*G = 5566G
+	for i := 0; i < len(curveList); i++ {
+		ECPoint1 := ScalarBaseMult(curveList[i], big.NewInt(0))
+		ECPoint2 := ScalarBaseMult(curveList[i], big.NewInt(5566))
+
+		result, err := ECPoint1.Add(ECPoint2)
+
+		if err != nil {
+			t.Errorf("Add() error = %v", err)
+		}
+
+		expect := ScalarBaseMult(curveList[i], big.NewInt(5566))
+
+		if result.X().Cmp(expect.X()) != 0 || result.Y().Cmp(expect.Y()) != 0 {
+			t.Errorf("Add() error = Two points not the same, result X = %v, Y=%v, expect X = %v, Y=%v", result.X(), result.Y(), expect.X(), expect.Y())
+		}
+	}
+
+	// Check 5566*G + identity = 5566G
+	for i := 0; i < len(curveList); i++ {
+		ECPoint1 := ScalarBaseMult(curveList[i], big.NewInt(5566))
+		ECPoint2 := ScalarBaseMult(curveList[i], big.NewInt(0))
+
+		result, err := ECPoint1.Add(ECPoint2)
+
+		if err != nil {
+			t.Errorf("Add() error = %v", err)
+		}
+
+		expect := ScalarBaseMult(curveList[i], big.NewInt(5566))
+
+		if result.X().Cmp(expect.X()) != 0 || result.Y().Cmp(expect.Y()) != 0 {
+			t.Errorf("Add() error = Two points not the same, result X = %v, Y=%v, expect X = %v, Y=%v", result.X(), result.Y(), expect.X(), expect.Y())
+		}
+	}
+
+	// Check 5*G +5*G = 10*G
+	for i := 0; i < len(curveList); i++ {
+		ECPoint1 := ScalarBaseMult(curveList[i], big.NewInt(5))
+		ECPoint2 := ScalarBaseMult(curveList[i], big.NewInt(5))
+
+		result, err := ECPoint1.Add(ECPoint2)
+
+		if err != nil {
+			t.Errorf("Add() error = %v", err)
+		}
+
+		expect := ScalarBaseMult(curveList[i], big.NewInt(10))
+
+		if result.X().Cmp(expect.X()) != 0 || result.Y().Cmp(expect.Y()) != 0 {
+			t.Errorf("Add() error = Two points not the same, result X = %v, Y=%v, expect X = %v, Y=%v", result.X(), result.Y(), expect.X(), expect.Y())
+		}
+	}
+}
+
+func TestScalarMult(t *testing.T) {
+	curveList := []*elliptic.CurveParams{elliptic.P224().Params(), elliptic.P256().Params(), elliptic.P384().Params()}
+
+	for i := 0; i < len(curveList); i++ {
+		ECPoint1 := ScalarBaseMult(curveList[i], big.NewInt(5))
+		result := ECPoint1.ScalarMult(curveList[i].N)
+
+		if result.X() != nil || result.Y() != nil {
+			t.Errorf("Add() expect = nil,nil, got X = %v, Y=%v", result.X(), result.Y())
+		}
+	}
+}
+
+func TestScalarBaseMult(t *testing.T) {
+	curveList := []*elliptic.CurveParams{elliptic.P224().Params(), elliptic.P256().Params(), elliptic.P384().Params()}
+
+	for i := 0; i < len(curveList); i++ {
+		result := ScalarBaseMult(curveList[i], big.NewInt(0))
+
+		if result.X() != nil || result.Y() != nil {
+			t.Errorf("Add() expect = nil,nil, got X = %v, Y=%v", result.X(), result.Y())
+		}
 	}
 }

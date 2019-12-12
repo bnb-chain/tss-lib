@@ -18,6 +18,9 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
+var big0 = big.NewInt(0)
+var big2 = big.NewInt(2)
+
 // ECPoint convenience helper
 type ECPoint struct {
 	curve  elliptic.Curve
@@ -39,19 +42,63 @@ func NewECPointNoCurveCheck(curve elliptic.Curve, X, Y *big.Int) *ECPoint {
 }
 
 func (p *ECPoint) X() *big.Int {
+	if p.coords[0] == nil {
+		return nil
+	}
 	return new(big.Int).Set(p.coords[0])
 }
 
 func (p *ECPoint) Y() *big.Int {
+	if p.coords[1] == nil {
+		return nil
+	}
 	return new(big.Int).Set(p.coords[1])
 }
 
 func (p *ECPoint) Add(p1 *ECPoint) (*ECPoint, error) {
+	if p.X() == nil {
+		if p.Y() != nil {
+			return nil, fmt.Errorf("Add: the format of the point is wrong")
+		}
+		if p1.X() == nil {
+			if p1.Y() == nil {
+				return NewECPoint(p.curve, nil, nil)
+			}
+			return nil, fmt.Errorf("Add: the format of the point is wrong")
+		}
+		if p1.Y() == nil {
+			return nil, fmt.Errorf("Add: the format of the point is wrong")
+		}
+		return NewECPoint(p.curve, new(big.Int).Set(p1.X()), new(big.Int).Set(p1.Y()))
+	}
+	if p.Y() == nil {
+		return nil, fmt.Errorf("Add: the format of the point is wrong")
+	}
+	if p1.X() == nil {
+		if p1.X() != nil {
+			return nil, fmt.Errorf("Add: the format of the point is wrong")
+		}
+		return NewECPoint(p.curve, new(big.Int).Set(p.X()), new(big.Int).Set(p.Y()))
+	}
+
+	// The case : aG+(-a)G
+	tempNegative := new(big.Int).Neg(p1.Y())
+	tempNegative.Mod(tempNegative, p.curve.Params().P)
+	if tempNegative.Cmp(p.Y()) == 0 {
+		return NewECPoint(p.curve, nil, nil)
+	}
+
+	// The sum of the other cases
 	x, y := p.curve.Add(p.X(), p.Y(), p1.X(), p1.Y())
 	return NewECPoint(p.curve, x, y)
 }
 
 func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
+	if new(big.Int).Mod(k, p.curve.Params().N).Cmp(big0) == 0 {
+		identity, _ := NewECPoint(p.curve, nil, nil)
+		return identity
+	}
+
 	x, y := p.curve.ScalarMult(p.X(), p.Y(), k.Bytes())
 	newP, _ := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
 	return newP
@@ -78,12 +125,22 @@ func (p *ECPoint) ValidateBasic() bool {
 }
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
+	if new(big.Int).Mod(k, curve.Params().N).Cmp(big0) == 0 {
+		p, _ := NewECPoint(curve, nil, nil)
+		return p
+	}
+
 	x, y := curve.ScalarBaseMult(k.Bytes())
 	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
 	return p
 }
 
 func isOnCurve(c elliptic.Curve, x, y *big.Int) bool {
+	// identity elemenet in the elliptic curve group
+	if x == nil && y == nil {
+		return true
+
+	}
 	if x == nil || y == nil {
 		return false
 	}
