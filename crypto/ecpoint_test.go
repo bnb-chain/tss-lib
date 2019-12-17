@@ -215,3 +215,18 @@ func TestScalarBaseMult(t *testing.T) {
 		}
 	}
 }
+
+func TestEqual(t *testing.T) {
+	curveList := []*elliptic.CurveParams{elliptic.P224().Params(), elliptic.P256().Params(), elliptic.P384().Params()}
+
+	for i := 0; i < len(curveList); i++ {
+		zeroPoint1,_ := NewECPoint(curveList[i], nil, nil)
+		zeroPoint2,_ := NewECPoint(curveList[i], nil, nil)
+
+		got := zeroPoint1.Equals(zeroPoint2)
+
+		if got == false {
+			t.Errorf("Expect: true, Got: false")
+		}
+	}
+}
