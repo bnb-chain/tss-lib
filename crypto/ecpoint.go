@@ -113,6 +113,15 @@ func (p *ECPoint) Equals(p2 *ECPoint) bool {
 	if p == nil || p2 == nil {
 		return false
 	}
+	if p.X() == nil && p2.X() == nil {
+		if p.Y() == nil && p2.Y() == nil {
+			return true
+		}
+		return false
+	}
+	if p.X() == nil || p2.X() == nil {
+		return false
+	}
 	return p.X().Cmp(p2.X()) == 0 && p.Y().Cmp(p2.Y()) == 0
 }
 
@@ -122,7 +131,10 @@ func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
 }
 
 func (p *ECPoint) ValidateBasic() bool {
-	return p != nil && p.coords[0] != nil && p.coords[1] != nil && p.IsOnCurve()
+	if p == nil {
+		return false
+	}
+	return p.IsOnCurve()
 }
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
