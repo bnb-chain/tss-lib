@@ -22,7 +22,7 @@ func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.E
 		panic(fmt.Errorf("indices and bigX are not same length"))
 	}
 	if len(ks) != pax {
-		panic(fmt.Errorf("indices is not in pax size"))
+		panic(fmt.Errorf("indices is not equal to the number of participants"))
 	}
 
 	// 2-4.

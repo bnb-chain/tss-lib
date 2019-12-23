@@ -96,7 +96,7 @@ type (
 func NewLocalParty(
 	msg *big.Int,
 	params *tss.Parameters,
-	keys keygen.LocalPartySaveData,
+	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- SignatureData,
 ) tss.Party {
@@ -104,7 +104,7 @@ func NewLocalParty(
 	p := &LocalParty{
 		BaseParty: new(tss.BaseParty),
 		params:    params,
-		keys:      keys,
+		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
 		temp:      localTempData{},
 		data:      SignatureData{},
 		out:       out,

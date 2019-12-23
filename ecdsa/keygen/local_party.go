@@ -12,9 +12,7 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -54,40 +52,7 @@ type (
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}
-
-	LocalPreParams struct {
-		PaillierSK        *paillier.PrivateKey // ski
-		NTildei, H1i, H2i *big.Int             // n-tilde, h1, h2
-	}
-
-	LocalSecrets struct {
-		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int // xi, kj
-	}
-
-	// Everything in LocalPartySaveData is saved locally to user's HD when done
-	LocalPartySaveData struct {
-		LocalPreParams
-		LocalSecrets
-
-		// original indexes (ki in signing preparation phase)
-		Ks []*big.Int
-
-		// n-tilde, h1, h2 for range proofs
-		NTildej, H1j, H2j []*big.Int
-
-		// public keys (Xj = uj*G for each Pj)
-		BigXj       []*crypto.ECPoint     // Xj
-		PaillierPKs []*paillier.PublicKey // pkj
-
-		// used for test assertions (may be discarded)
-		ECDSAPub *crypto.ECPoint // y
-	}
 )
-
-func (preParams LocalPreParams) Validate() bool {
-	return preParams.PaillierSK != nil && preParams.NTildei != nil && preParams.H1i != nil && preParams.H2i != nil
-}
 
 // Exported, used in `tss` client
 func NewLocalParty(
@@ -97,7 +62,7 @@ func NewLocalParty(
 	optionalPreParams ...LocalPreParams,
 ) tss.Party {
 	partyCount := params.PartyCount()
-	data := LocalPartySaveData{}
+	data := NewLocalPartySaveData(partyCount)
 	// when `optionalPreParams` is provided we'll use the pre-computed primes instead of generating them from scratch
 	if 0 < len(optionalPreParams) {
 		if 1 < len(optionalPreParams) {
@@ -123,11 +88,6 @@ func NewLocalParty(
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
-	// save data init
-	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
-	p.data.PaillierPKs = make([]*paillier.PublicKey, partyCount)
-	p.data.NTildej = make([]*big.Int, partyCount)
-	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	return p
 }
 
