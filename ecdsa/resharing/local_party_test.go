@@ -19,7 +19,6 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/binance-chain/tss-lib/test"
@@ -43,15 +42,20 @@ func TestE2EConcurrent(t *testing.T) {
 	// tss.SetCurve(elliptic.P256())
 
 	threshold, newThreshold := testThreshold, testThreshold
-	oldPIDs := tss.GenerateTestPartyIDs(testParticipants)
 
 	// PHASE: load keygen fixtures
-	keys, err := keygen.LoadKeygenTestFixtures(testParticipants)
+	firstPartyIdx := 5
+	keys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: resharing
-	oldPIDs = oldPIDs[:threshold+1] // always resharing with old_t+1
 	oldP2PCtx := tss.NewPeerContext(oldPIDs)
+
+	// init the new parties; re-use the fixture pre-params for speed
+	fixtures, _, err := keygen.LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+	}
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
@@ -67,46 +71,17 @@ func TestE2EConcurrent(t *testing.T) {
 	updater := test.SharedPartyUpdater
 
 	// init the old parties first
-	for i, pID := range oldPIDs {
+	for j, pID := range oldPIDs {
 		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		keyI := keygen.LocalPartySaveData{
-			LocalPreParams: keygen.LocalPreParams{
-				PaillierSK: keys[i].PaillierSK,
-				NTildei:    keys[i].NTildei,
-				H1i:        keys[i].H1i,
-				H2i:        keys[i].H2i,
-			},
-			LocalSecrets: keygen.LocalSecrets{
-				Xi:      keys[i].Xi,
-				ShareID: keys[i].ShareID,
-			},
-			BigXj:       keys[i].BigXj[:testThreshold+1],
-			PaillierPKs: keys[i].PaillierPKs[:testThreshold+1],
-			NTildej:     keys[i].NTildej[:testThreshold+1],
-			H1j:         keys[i].H1j[:testThreshold+1],
-			H2j:         keys[i].H2j[:testThreshold+1],
-			Ks:          keys[i].Ks[:testThreshold+1],
-			ECDSAPub:    keys[i].ECDSAPub,
-		}
-		P := NewLocalParty(params, keyI, outCh, endCh).(*LocalParty) // discard old key data
+		P := NewLocalParty(params, keys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
-	// init the new parties; re-use the fixture pre-params for speed
-	fixtures, err := keygen.LoadKeygenTestFixtures(len(newPIDs))
-	if err != nil {
-		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
-	}
-	for i, pID := range newPIDs {
+	// init the new parties
+	for j, pID := range newPIDs {
 		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		save := keygen.LocalPartySaveData{
-			BigXj:       make([]*crypto.ECPoint, newPCount),
-			PaillierPKs: make([]*paillier.PublicKey, newPCount),
-			NTildej:     make([]*big.Int, newPCount),
-			H1j:         make([]*big.Int, newPCount),
-			H2j:         make([]*big.Int, newPCount),
-		}
-		if i < len(fixtures) && len(newPIDs) <= len(fixtures) {
-			save.LocalPreParams = fixtures[i].LocalPreParams
+		save := keygen.NewLocalPartySaveData(newPCount)
+		if j < len(fixtures) && len(newPIDs) <= len(fixtures) {
+			save.LocalPreParams = fixtures[j].LocalPreParams
 		}
 		P := NewLocalParty(params, save, outCh, endCh).(*LocalParty)
 		newCommittee = append(newCommittee, P)
@@ -129,6 +104,7 @@ func TestE2EConcurrent(t *testing.T) {
 		}(P)
 	}
 
+	newKeys := make([]keygen.LocalPartySaveData, len(newCommittee))
 	var reSharingEnded int32
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
@@ -159,14 +135,14 @@ func TestE2EConcurrent(t *testing.T) {
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
 			// old committee members that aren't receiving a share have their Xi zeroed
 			if save.Xi.Cmp(big.NewInt(0)) != 0 {
-				keys[index] = save
+				newKeys[index] = save
 			}
 			atomic.AddInt32(&reSharingEnded, 1)
 			if atomic.LoadInt32(&reSharingEnded) == int32(len(oldCommittee)+len(newCommittee)) {
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
 
 				// xj tests: BigXj == xj*G
-				for j, key := range keys {
+				for j, key := range newKeys {
 					// xj test: BigXj == xj*G
 					xj := key.Xi
 					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
@@ -182,10 +158,9 @@ func TestE2EConcurrent(t *testing.T) {
 
 signing:
 	// PHASE: signing
-	keys, err = keygen.LoadKeygenTestFixtures(testThreshold + 1)
+	var signPIDs tss.SortedPartyIDs
+	keys, signPIDs, err = keygen.LoadKeygenTestFixtures(testThreshold + 1)
 	assert.NoError(t, err)
-
-	signPIDs := newPIDs[:threshold+1]
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
@@ -194,9 +169,9 @@ signing:
 	signOutCh := make(chan tss.Message, len(signPIDs))
 	signEndCh := make(chan signing.SignatureData, len(signPIDs))
 
-	for i, signPID := range signPIDs {
+	for j, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
-		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOutCh, signEndCh).(*signing.LocalParty)
+		P := signing.NewLocalParty(big.NewInt(42), params, keys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
 			if err := P.Start(); err != nil {

@@ -136,7 +136,10 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	// tss.SetCurve(elliptic.P256())
 
 	threshold := testThreshold
-	pIDs := tss.GenerateTestPartyIDs(testParticipants)
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+	}
 
 	p2pCtx := tss.NewPeerContext(pIDs)
 	parties := make([]*LocalParty, 0, len(pIDs))
@@ -150,10 +153,6 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	startGR := runtime.NumGoroutine()
 
 	// init the parties
-	fixtures, err := LoadKeygenTestFixtures(len(pIDs))
-	if err != nil {
-		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
-	}
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)

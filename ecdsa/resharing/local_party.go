@@ -70,11 +70,17 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- keygen.LocalPartySaveData,
 ) tss.Party {
+	subset := key
+	if params.IsOldCommittee() {
+		subset = keygen.BuildLocalSaveDataSubset(key, params.OldParties().IDs())
+	} else if params.IsNewCommittee() {
+		subset = key
+	}
 	p := &LocalParty{
 		BaseParty: new(tss.BaseParty),
 		params:    params,
 		temp:      localTempData{},
-		key:       key,
+		key:       subset,
 		out:       out,
 		end:       end,
 	}

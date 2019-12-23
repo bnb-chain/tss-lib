@@ -24,8 +24,7 @@ import (
 )
 
 const (
-	testParticipants = test.TestParticipants
-	testThreshold    = test.TestThreshold
+	testThreshold = test.TestThreshold
 )
 
 func setUp(level string) {
@@ -38,15 +37,14 @@ func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 
 	threshold := testThreshold
-	pIDs := tss.GenerateTestPartyIDs(testParticipants)
 
 	// PHASE: load keygen fixtures
-	keys, err := keygen.LoadKeygenTestFixtures(testThreshold + 1)
+	firstPartyIdx := 5
+	keys, signPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: signing
-	signPIDs := pIDs[:threshold+1]
-
+	// use a shuffled selection of the list of parties for this test
 	p2pCtx := tss.NewPeerContext(signPIDs)
 	parties := make([]*LocalParty, 0, len(signPIDs))
 

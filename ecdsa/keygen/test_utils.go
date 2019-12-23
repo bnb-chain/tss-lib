@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/test"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -30,19 +31,23 @@ const (
 	testFixtureFileFormat = "keygen_data_%d.json"
 )
 
-func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
+func LoadKeygenTestFixtures(count int, optionalStart ...int) ([]LocalPartySaveData, tss.SortedPartyIDs, error) {
 	keys := make([]LocalPartySaveData, 0, count)
-	for j := 0; j < count; j++ {
+	start := 0
+	if 0 < len(optionalStart) {
+		start = optionalStart[0]
+	}
+	for j := start; j < count; j++ {
 		fixtureFilePath := makeTestFixtureFilePath(j)
 		bz, err := ioutil.ReadFile(fixtureFilePath)
 		if err != nil {
-			return nil, errors.Wrapf(err,
+			return nil, nil, errors.Wrapf(err,
 				"could not open the test fixture for party %d in the expected location: %s. run keygen tests first.",
 				j, fixtureFilePath)
 		}
 		var key LocalPartySaveData
 		if err = json.Unmarshal(bz, &key); err != nil {
-			return nil, errors.Wrapf(err,
+			return nil, nil, errors.Wrapf(err,
 				"could not unmarshal fixture data for party %d located at: %s",
 				j, fixtureFilePath)
 		}
@@ -57,20 +62,26 @@ func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
 				Xi:      key.Xi,
 				ShareID: key.ShareID,
 			},
-			Ks:          key.Ks[:count],
-			NTildej:     key.NTildej[:count],
-			H1j:         key.H1j[:count],
-			H2j:         key.H2j[:count],
-			BigXj:       key.BigXj[:count],
-			PaillierPKs: key.PaillierPKs[:count],
+			Ks:          key.Ks,
+			NTildej:     key.NTildej,
+			H1j:         key.H1j,
+			H2j:         key.H2j,
+			BigXj:       key.BigXj,
+			PaillierPKs: key.PaillierPKs,
 			ECDSAPub:    key.ECDSAPub,
 		})
 	}
-	return keys, nil
+	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
+	for j, key := range keys {
+		pMoniker := fmt.Sprintf("%d", j+start+1)
+		partyIDs[j] = tss.NewPartyID(pMoniker, pMoniker, key.ShareID)
+	}
+	sortedPIDs := tss.SortPartyIDs(partyIDs)
+	return keys, sortedPIDs, nil
 }
 
 func LoadNTildeH1H2FromTestFixture(idx int) (NTildei, h1i, h2i *big.Int, err error) {
-	fixtures, err := LoadKeygenTestFixtures(idx + 1)
+	fixtures, _, err := LoadKeygenTestFixtures(idx + 1)
 	if err != nil {
 		return
 	}
