@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"math/rand"
 	"path/filepath"
 	"runtime"
+	"sort"
 
 	"github.com/pkg/errors"
 
@@ -31,52 +33,72 @@ const (
 	testFixtureFileFormat = "keygen_data_%d.json"
 )
 
-func LoadKeygenTestFixtures(count int, optionalStart ...int) ([]LocalPartySaveData, tss.SortedPartyIDs, error) {
-	keys := make([]LocalPartySaveData, 0, count)
+func LoadKeygenTestFixtures(qty int, optionalStart ...int) ([]LocalPartySaveData, tss.SortedPartyIDs, error) {
+	keys := make([]LocalPartySaveData, 0, qty)
 	start := 0
 	if 0 < len(optionalStart) {
 		start = optionalStart[0]
 	}
-	for j := start; j < count; j++ {
-		fixtureFilePath := makeTestFixtureFilePath(j)
+	for i := start; i < qty; i++ {
+		fixtureFilePath := makeTestFixtureFilePath(i)
 		bz, err := ioutil.ReadFile(fixtureFilePath)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err,
 				"could not open the test fixture for party %d in the expected location: %s. run keygen tests first.",
-				j, fixtureFilePath)
+				i, fixtureFilePath)
 		}
 		var key LocalPartySaveData
 		if err = json.Unmarshal(bz, &key); err != nil {
 			return nil, nil, errors.Wrapf(err,
 				"could not unmarshal fixture data for party %d located at: %s",
-				j, fixtureFilePath)
+				i, fixtureFilePath)
 		}
-		keys = append(keys, LocalPartySaveData{
-			LocalPreParams: LocalPreParams{
-				PaillierSK: key.PaillierSK,
-				NTildei:    key.NTildei,
-				H1i:        key.H1i,
-				H2i:        key.H2i,
-			},
-			LocalSecrets: LocalSecrets{
-				Xi:      key.Xi,
-				ShareID: key.ShareID,
-			},
-			Ks:          key.Ks,
-			NTildej:     key.NTildej,
-			H1j:         key.H1j,
-			H2j:         key.H2j,
-			BigXj:       key.BigXj,
-			PaillierPKs: key.PaillierPKs,
-			ECDSAPub:    key.ECDSAPub,
-		})
+		keys = append(keys, key)
 	}
 	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
-	for j, key := range keys {
-		pMoniker := fmt.Sprintf("%d", j+start+1)
-		partyIDs[j] = tss.NewPartyID(pMoniker, pMoniker, key.ShareID)
+	for i, key := range keys {
+		pMoniker := fmt.Sprintf("%d", i+start+1)
+		partyIDs[i] = tss.NewPartyID(pMoniker, pMoniker, key.ShareID)
 	}
 	sortedPIDs := tss.SortPartyIDs(partyIDs)
+	return keys, sortedPIDs, nil
+}
+
+func LoadKeygenTestFixturesRandomSet(qty, fixtureCount int) ([]LocalPartySaveData, tss.SortedPartyIDs, error) {
+	keys := make([]LocalPartySaveData, 0, qty)
+	plucked := make(map[int]interface{}, qty)
+	for i := 0; len(plucked) < qty; i = (i + 1) % fixtureCount {
+		_, have := plucked[i]
+		if pluck := rand.Float32() < 0.5; !have && pluck {
+			plucked[i] = new(struct{})
+		}
+	}
+	for i := range plucked {
+		fixtureFilePath := makeTestFixtureFilePath(i)
+		bz, err := ioutil.ReadFile(fixtureFilePath)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err,
+				"could not open the test fixture for party %d in the expected location: %s. run keygen tests first.",
+				i, fixtureFilePath)
+		}
+		var key LocalPartySaveData
+		if err = json.Unmarshal(bz, &key); err != nil {
+			return nil, nil, errors.Wrapf(err,
+				"could not unmarshal fixture data for party %d located at: %s",
+				i, fixtureFilePath)
+		}
+		keys = append(keys, key)
+	}
+	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
+	j := 0
+	for i := range plucked {
+		key := keys[j]
+		pMoniker := fmt.Sprintf("%d", i+1)
+		partyIDs[j] = tss.NewPartyID(pMoniker, pMoniker, key.ShareID)
+		j++
+	}
+	sortedPIDs := tss.SortPartyIDs(partyIDs)
+	sort.Slice(keys, func(i, j int) bool { return keys[i].ShareID.Cmp(keys[j].ShareID) == -1 })
 	return keys, sortedPIDs, nil
 }
 

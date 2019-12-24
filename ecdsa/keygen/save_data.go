@@ -61,26 +61,26 @@ func (preParams LocalPreParams) Validate() bool {
 }
 
 // BuildLocalSaveDataSubset re-creates the LocalPartySaveData to contain data for only the list of signing parties.
-func BuildLocalSaveDataSubset(result LocalPartySaveData, sortedIDs tss.SortedPartyIDs) LocalPartySaveData {
-	keysToIndices := make(map[string]int, len(result.Ks))
-	for j, kj := range result.Ks {
+func BuildLocalSaveDataSubset(sourceData LocalPartySaveData, sortedIDs tss.SortedPartyIDs) LocalPartySaveData {
+	keysToIndices := make(map[string]int, len(sourceData.Ks))
+	for j, kj := range sourceData.Ks {
 		keysToIndices[hex.EncodeToString(kj.Bytes())] = j
 	}
-	newSaveData := NewLocalPartySaveData(sortedIDs.Len())
-	newSaveData.LocalPreParams = result.LocalPreParams
-	newSaveData.LocalSecrets = result.LocalSecrets
-	newSaveData.ECDSAPub = result.ECDSAPub
+	newData := NewLocalPartySaveData(sortedIDs.Len())
+	newData.LocalPreParams = sourceData.LocalPreParams
+	newData.LocalSecrets = sourceData.LocalSecrets
+	newData.ECDSAPub = sourceData.ECDSAPub
 	for j, id := range sortedIDs {
 		savedIdx, ok := keysToIndices[hex.EncodeToString(id.Key)]
 		if !ok {
 			common.Logger.Warning("BuildLocalSaveDataSubset: unable to find a signer party in the local save data", id)
 		}
-		newSaveData.Ks[j] = result.Ks[savedIdx]
-		newSaveData.NTildej[j] = result.NTildej[savedIdx]
-		newSaveData.H1j[j] = result.H1j[savedIdx]
-		newSaveData.H2j[j] = result.H2j[savedIdx]
-		newSaveData.BigXj[j] = result.BigXj[savedIdx]
-		newSaveData.PaillierPKs[j] = result.PaillierPKs[savedIdx]
+		newData.Ks[j] = sourceData.Ks[savedIdx]
+		newData.NTildej[j] = sourceData.NTildej[savedIdx]
+		newData.H1j[j] = sourceData.H1j[savedIdx]
+		newData.H2j[j] = sourceData.H2j[savedIdx]
+		newData.BigXj[j] = sourceData.BigXj[savedIdx]
+		newData.PaillierPKs[j] = sourceData.PaillierPKs[savedIdx]
 	}
-	return newSaveData
+	return newData
 }

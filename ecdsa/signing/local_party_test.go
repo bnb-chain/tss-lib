@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	testThreshold = test.TestThreshold
+	testParticipants = test.TestParticipants
+	testThreshold    = test.TestThreshold
 )
 
 func setUp(level string) {
@@ -35,13 +36,13 @@ func setUp(level string) {
 
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
-
 	threshold := testThreshold
 
 	// PHASE: load keygen fixtures
-	firstPartyIdx := 5
-	keys, signPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+firstPartyIdx, firstPartyIdx)
+	keys, signPIDs, err := keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
 	assert.NoError(t, err, "should load keygen fixtures")
+	assert.Equal(t, testThreshold+1, len(keys))
+	assert.Equal(t, testThreshold+1, len(signPIDs))
 
 	// PHASE: signing
 	// use a shuffled selection of the list of parties for this test
