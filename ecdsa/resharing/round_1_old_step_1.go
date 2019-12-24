@@ -18,9 +18,9 @@ import (
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.ReSharingParameters, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- keygen.LocalPartySaveData) tss.Round {
+func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- keygen.LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, end, make([]bool, params.Threshold()+1), make([]bool, len(params.NewParties().IDs())), false, 1}}
+		&base{params, temp, input, save, out, end, make([]bool, params.Threshold()+1), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -41,10 +41,9 @@ func (round *round1) Start() *tss.Error {
 	i := Pi.Index
 
 	// 1. PrepareForSigning() -> w_i
-	xi := round.save.Xi
-	ks := round.save.Ks
+	xi, ks, bigXj := round.input.Xi, round.input.Ks, round.input.BigXj
 	newKs := round.NewParties().IDs().Keys()
-	wi, _ := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks, round.save.BigXj)
+	wi, _ := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks, bigXj)
 
 	// 2.
 	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
@@ -66,7 +65,7 @@ func (round *round1) Start() *tss.Error {
 	// 5. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1Message(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		round.save.ECDSAPub, vCmt.C)
+		round.input.ECDSAPub, vCmt.C)
 	round.temp.dgRound1Messages[i] = r1msg
 	round.out <- r1msg
 
