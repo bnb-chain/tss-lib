@@ -42,7 +42,7 @@ func (round *round5) Start() *tss.Error {
 			round.save.PaillierPKs[j] = r2msg1.UnmarshalPaillierPK()
 		}
 	} else if round.IsOldCommittee() {
-		round.save.Xi.SetInt64(0)
+		round.input.Xi.SetInt64(0)
 	}
 
 	round.end <- *round.save

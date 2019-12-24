@@ -28,8 +28,8 @@ type (
 		*tss.BaseParty
 		params *tss.ReSharingParameters
 
-		temp localTempData
-		key  keygen.LocalPartySaveData // we save straight back into here
+		temp        localTempData
+		input, save keygen.LocalPartySaveData
 
 		// outbound messaging
 		out chan<- tss.Message
@@ -73,14 +73,13 @@ func NewLocalParty(
 	subset := key
 	if params.IsOldCommittee() {
 		subset = keygen.BuildLocalSaveDataSubset(key, params.OldParties().IDs())
-	} else if params.IsNewCommittee() {
-		subset = key
 	}
 	p := &LocalParty{
 		BaseParty: new(tss.BaseParty),
 		params:    params,
 		temp:      localTempData{},
-		key:       subset,
+		input:     subset,
+		save:      keygen.NewLocalPartySaveData(params.NewPartyCount()),
 		out:       out,
 		end:       end,
 	}
@@ -91,11 +90,15 @@ func NewLocalParty(
 	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)   // "
 	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())  // from n of New Committee
+	// save data init
+	if key.LocalPreParams.Validate() {
+		p.save.LocalPreParams = key.LocalPreParams
+	}
 	return p
 }
 
 func (p *LocalParty) FirstRound() tss.Round {
-	return newRound1(p.params, &p.key, &p.temp, p.out, p.end)
+	return newRound1(p.params, &p.input, &p.save, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {

@@ -46,7 +46,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// PHASE: load keygen fixtures
 	firstPartyIdx := 5
-	keys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+firstPartyIdx, firstPartyIdx)
+	oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: resharing
@@ -73,7 +73,7 @@ func TestE2EConcurrent(t *testing.T) {
 	// init the old parties first
 	for j, pID := range oldPIDs {
 		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		P := NewLocalParty(params, keys[j], outCh, endCh).(*LocalParty) // discard old key data
+		P := NewLocalParty(params, oldKeys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties
@@ -105,6 +105,7 @@ func TestE2EConcurrent(t *testing.T) {
 	}
 
 	newKeys := make([]keygen.LocalPartySaveData, len(newCommittee))
+	endedOldCommittee := 0
 	var reSharingEnded int32
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
@@ -131,14 +132,17 @@ func TestE2EConcurrent(t *testing.T) {
 			}
 
 		case save := <-endCh:
-			index, err := save.OriginalIndex()
-			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
 			// old committee members that aren't receiving a share have their Xi zeroed
-			if save.Xi.Cmp(big.NewInt(0)) != 0 {
+			if save.Xi != nil {
+				index, err := save.OriginalIndex()
+				assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
 				newKeys[index] = save
+			} else {
+				endedOldCommittee++
 			}
 			atomic.AddInt32(&reSharingEnded, 1)
 			if atomic.LoadInt32(&reSharingEnded) == int32(len(oldCommittee)+len(newCommittee)) {
+				assert.Equal(t, len(oldCommittee), endedOldCommittee)
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
 
 				// xj tests: BigXj == xj*G
@@ -158,10 +162,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 signing:
 	// PHASE: signing
-	var signPIDs tss.SortedPartyIDs
-	keys, signPIDs, err = keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
-	assert.NoError(t, err)
-
+	signKeys, signPIDs := newKeys, newPIDs
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
 
@@ -171,7 +172,7 @@ signing:
 
 	for j, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
-		P := signing.NewLocalParty(big.NewInt(42), params, keys[j], signOutCh, signEndCh).(*signing.LocalParty)
+		P := signing.NewLocalParty(big.NewInt(42), params, signKeys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
 			if err := P.Start(); err != nil {
@@ -211,7 +212,7 @@ signing:
 				t.Logf("Signing done. Received sign data from %d participants", signEnded)
 
 				// BEGIN ECDSA verify
-				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
+				pkX, pkY := signKeys[0].ECDSAPub.X(), signKeys[0].ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
 					Curve: tss.EC(),
 					X:     pkX,
