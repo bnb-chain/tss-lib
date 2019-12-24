@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package resharing
+package resharing_test
 
 import (
 	"crypto/ecdsa"
@@ -20,6 +20,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	. "github.com/binance-chain/tss-lib/ecdsa/resharing"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/binance-chain/tss-lib/test"
 	"github.com/binance-chain/tss-lib/tss"
@@ -50,7 +51,6 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// PHASE: resharing
 	oldP2PCtx := tss.NewPeerContext(oldPIDs)
-
 	// init the new parties; re-use the fixture pre-params for speed
 	fixtures, _, err := keygen.LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -159,7 +159,7 @@ func TestE2EConcurrent(t *testing.T) {
 signing:
 	// PHASE: signing
 	var signPIDs tss.SortedPartyIDs
-	keys, signPIDs, err = keygen.LoadKeygenTestFixtures(testThreshold + 1)
+	keys, signPIDs, err = keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
 	assert.NoError(t, err)
 
 	signP2pCtx := tss.NewPeerContext(signPIDs)

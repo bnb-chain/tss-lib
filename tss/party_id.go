@@ -41,7 +41,7 @@ func (mpid *MessageWrapper_PartyID) KeyInt() *big.Int {
 
 // NewPartyID constructs a new PartyID
 // Exported, used in `tss` client. `key` should remain consistent between runs for each party.
-func NewPartyID(id string, moniker string, key *big.Int) *PartyID {
+func NewPartyID(id, moniker string, key *big.Int) *PartyID {
 	return &PartyID{
 		MessageWrapper_PartyID: &MessageWrapper_PartyID{
 			Id:      id,
