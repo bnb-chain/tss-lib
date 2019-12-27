@@ -117,9 +117,11 @@ func (p *ECPoint) Equals(p2 *ECPoint) bool {
 		if p.Y() == nil && p2.Y() == nil {
 			return true
 		}
+	}
+	if p.X() == nil || p.Y() == nil {
 		return false
 	}
-	if p.X() == nil || p2.X() == nil {
+	if p2.X() == nil || p2.Y() == nil {
 		return false
 	}
 	return p.X().Cmp(p2.X()) == 0 && p.Y().Cmp(p2.Y()) == 0
