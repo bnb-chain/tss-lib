@@ -21,6 +21,7 @@ type Party interface {
 	UpdateFromBytes(wireBytes []byte, from *PartyID, isBroadcast bool) (ok bool, err *Error)
 	// You may use this entry point to update a party's state when running locally or in tests
 	Update(msg ParsedMessage) (ok bool, err *Error)
+	Running() bool
 	WaitingFor() []*PartyID
 	ValidateMessage(msg ParsedMessage) (bool, *Error)
 	StoreMessage(msg ParsedMessage) (bool, *Error)
@@ -43,13 +44,23 @@ type BaseParty struct {
 	FirstRound Round
 }
 
+func (p *BaseParty) Running() bool {
+	return p.rnd != nil
+}
+
 func (p *BaseParty) WaitingFor() []*PartyID {
 	p.lock()
 	defer p.unlock()
+	if p.rnd == nil {
+		return []*PartyID{}
+	}
 	return p.rnd.WaitingFor()
 }
 
 func (p *BaseParty) WrapError(err error, culprits ...*PartyID) *Error {
+	if p.rnd == nil {
+		return NewError(err, "", -1, nil, culprits...)
+	}
 	return p.rnd.WrapError(err, culprits...)
 }
 
