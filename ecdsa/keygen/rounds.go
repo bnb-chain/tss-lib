@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	TaskName = "keygen"
+	TaskName = "ecdsa-keygen"
 )
 
 type (

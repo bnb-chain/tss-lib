@@ -34,11 +34,11 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message1")
-	proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message2")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message2")
+	proto.RegisterType((*DGRound1Message)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound1Message")
+	proto.RegisterType((*DGRound2Message1)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound2Message1")
+	proto.RegisterType((*DGRound2Message2)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound2Message2")
+	proto.RegisterType((*DGRound3Message1)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound3Message1")
+	proto.RegisterType((*DGRound3Message2)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound3Message2")
 }
 
 // ----- //

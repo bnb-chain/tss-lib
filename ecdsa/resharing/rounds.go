@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	TaskName = "resharing"
+	TaskName = "ecdsa-resharing"
 )
 
 type (
