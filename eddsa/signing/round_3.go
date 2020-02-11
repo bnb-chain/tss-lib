@@ -78,14 +78,14 @@ func (round *round3) Start() *tss.Error {
 	h.Write(encodedPubKey[:])
 	h.Write(round.temp.m.Bytes())
 
-	var hramDigest [64]byte
-	h.Sum(hramDigest[:0])
-	var hramDigestReduced [32]byte
-	edwards25519.ScReduce(&hramDigestReduced, &hramDigest)
+	var lambda [64]byte
+	h.Sum(lambda[:0])
+	var lambdaReduced [32]byte
+	edwards25519.ScReduce(&lambdaReduced, &lambda)
 
 	// 8. compute si
 	var localS [32]byte
-	edwards25519.ScMulAdd(&localS, &hramDigestReduced, bigIntToEncodedBytes(round.temp.wi), riBytes)
+	edwards25519.ScMulAdd(&localS, &lambdaReduced, bigIntToEncodedBytes(round.temp.wi), riBytes)
 
 	// 9. store r3 message pieces
 	round.temp.si = &localS
