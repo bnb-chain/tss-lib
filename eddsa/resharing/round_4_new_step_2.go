@@ -7,7 +7,6 @@
 package resharing
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -122,7 +121,6 @@ func (round *round4) Start() *tss.Error {
 
 	// 21. Send an "ACK" message to both committees to signal that we're ready to save our data
 	r4msg := NewDGRound4Message(round.OldAndNewParties(), Pi)
-	fmt.Printf("send ack: %d \n", i)
 	round.temp.dgRound4Messages[i] = r4msg
 	round.out <- r4msg
 
