@@ -14,6 +14,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/dlnproof"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
@@ -88,10 +89,9 @@ func NewDGRound2Message1(
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
 	paillierPf paillier.Proof,
-	NTildei,
-	H1i,
-	H2i *big.Int,
-) tss.ParsedMessage {
+	NTildei, H1i, H2i *big.Int,
+	dlnProof1, dlnProof2 *dlnproof.Proof,
+) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:             from,
 		To:               to,
@@ -99,15 +99,25 @@ func NewDGRound2Message1(
 		IsToOldCommittee: false,
 	}
 	paiPfBzs := common.BigIntsToBytes(paillierPf[:])
+	dlnProof1Bz, err := dlnProof1.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	dlnProof2Bz, err := dlnProof2.Serialize()
+	if err != nil {
+		return nil, err
+	}
 	content := &DGRound2Message1{
 		PaillierN:     paillierPK.N.Bytes(),
 		PaillierProof: paiPfBzs,
 		NTilde:        NTildei.Bytes(),
 		H1:            H1i.Bytes(),
 		H2:            H2i.Bytes(),
+		Dlnproof_1:    dlnProof1Bz,
+		Dlnproof_2:    dlnProof2Bz,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
-	return tss.NewMessage(meta, content, msg)
+	return tss.NewMessage(meta, content, msg), nil
 }
 
 func (m *DGRound2Message1) ValidateBasic() bool {
@@ -116,7 +126,10 @@ func (m *DGRound2Message1) ValidateBasic() bool {
 		common.NonEmptyBytes(m.PaillierN) &&
 		common.NonEmptyBytes(m.NTilde) &&
 		common.NonEmptyBytes(m.H1) &&
-		common.NonEmptyBytes(m.H2)
+		common.NonEmptyBytes(m.H2) &&
+		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
+		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnproof.Iterations*2)) &&
+		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnproof.Iterations*2))
 }
 
 func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
@@ -125,11 +138,31 @@ func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
 	}
 }
 
+func (m *DGRound2Message1) UnmarshalNTilde() *big.Int {
+	return new(big.Int).SetBytes(m.GetNTilde())
+}
+
+func (m *DGRound2Message1) UnmarshalH1() *big.Int {
+	return new(big.Int).SetBytes(m.GetH1())
+}
+
+func (m *DGRound2Message1) UnmarshalH2() *big.Int {
+	return new(big.Int).SetBytes(m.GetH2())
+}
+
 func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
 	var pf paillier.Proof
 	ints := common.MultiBytesToBigInts(m.PaillierProof)
 	copy(pf[:], ints[:paillier.ProofIters])
 	return pf
+}
+
+func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnproof.Proof, error) {
+	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_1())
+}
+
+func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnproof.Proof, error) {
+	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_2())
 }
 
 // ----- //

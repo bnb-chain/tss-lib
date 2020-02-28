@@ -68,8 +68,8 @@ func NewLocalParty(
 		if 1 < len(optionalPreParams) {
 			panic(errors.New("keygen.NewLocalParty expected 0 or 1 item in `optionalPreParams`"))
 		}
-		if !optionalPreParams[0].Validate() {
-			panic(errors.New("keygen.NewLocalParty: `optionalPreParams` failed to validate"))
+		if !optionalPreParams[0].ValidateWithProof() {
+			panic(errors.New("`optionalPreParams` failed to validate; it might have been generated with an older version of tss-lib"))
 		}
 		data.LocalPreParams = optionalPreParams[0]
 	}

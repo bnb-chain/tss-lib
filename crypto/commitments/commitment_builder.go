@@ -1,4 +1,4 @@
-// Copyright © 2019 Binance
+// Copyright © 2019-2020 Binance
 //
 // This file is part of Binance. The full Binance copyright notice, including
 // terms governing use, modification, and redistribution, is contained in the
@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	MaxParts    = 3
+	PartsCap    = 3
 	MaxPartSize = int64(1 * 1024 * 1024) // 1 MB - rather liberal
 )
 
@@ -23,7 +23,7 @@ type builder struct {
 
 func NewBuilder() *builder {
 	b := new(builder)
-	b.parts = make([][]*big.Int, 0, MaxParts)
+	b.parts = make([][]*big.Int, 0, PartsCap)
 	return b
 }
 
@@ -38,8 +38,8 @@ func (b *builder) AddPart(part []*big.Int) *builder {
 
 func (b *builder) Secrets() ([]*big.Int, error) {
 	secretsLen := 0
-	if len(b.parts) > MaxParts {
-		return nil, fmt.Errorf("builder.Secrets: too many commitment parts provided: got %d, max %d", len(b.parts), MaxParts)
+	if len(b.parts) > PartsCap {
+		return nil, fmt.Errorf("builder.Secrets: too many commitment parts provided: got %d, max %d", len(b.parts), PartsCap)
 	}
 	for _, p := range b.parts {
 		secretsLen += 1 + len(p) // +1 to accommodate length prefix element
@@ -61,7 +61,7 @@ func ParseSecrets(secrets []*big.Int) ([][]*big.Int, error) {
 		return nil, errors.New("ParseSecrets: secrets == nil or is too small")
 	}
 	var el, nextPartLen int64
-	parts := make([][]*big.Int, 0, MaxParts)
+	parts := make([][]*big.Int, 0, PartsCap)
 	isLenEl := true // are we looking at a length prefix element? (first one is)
 	inLen := int64(len(secrets))
 	for el < inLen {
@@ -75,8 +75,8 @@ func ParseSecrets(secrets []*big.Int) ([][]*big.Int, error) {
 			}
 			el += 1
 		} else {
-			if MaxParts <= len(parts) {
-				return nil, fmt.Errorf("ParseSecrets: commitment has too many parts: part %d, max %d", len(parts), MaxParts)
+			if PartsCap <= len(parts) {
+				return nil, fmt.Errorf("ParseSecrets: commitment has too many parts: part %d, max %d", len(parts), PartsCap)
 			}
 			if inLen < el+nextPartLen {
 				return nil, errors.New("ParseSecrets: not enough data to consume stated data length")
