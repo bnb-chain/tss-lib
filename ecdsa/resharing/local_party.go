@@ -91,7 +91,7 @@ func NewLocalParty(
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)   // "
 	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())  // from n of New Committee
 	// save data init
-	if key.LocalPreParams.Validate() {
+	if key.LocalPreParams.ValidateWithProof() {
 		p.save.LocalPreParams = key.LocalPreParams
 	}
 	return p

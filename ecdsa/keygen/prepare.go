@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 )
 
@@ -84,8 +83,11 @@ consumer:
 		case <-logProgressTicker.C:
 			common.Logger.Info("still generating primes...")
 		case sgps = <-sgpCh:
-			if sgps == nil || sgps[0] == nil || sgps[1] == nil {
-				return nil, errors.New("timeout or error while generating the 2 safe primes")
+			if sgps == nil ||
+				sgps[0] == nil || sgps[1] == nil ||
+				!sgps[0].Prime().ProbablyPrime(30) || !sgps[1].Prime().ProbablyPrime(30) ||
+				!sgps[0].SafePrime().ProbablyPrime(30) || !sgps[1].SafePrime().ProbablyPrime(30) {
+				return nil, errors.New("timeout or error while generating the safe primes")
 			}
 			if paiSK != nil {
 				break consumer
@@ -101,16 +103,27 @@ consumer:
 	}
 	logProgressTicker.Stop()
 
-	NTildei, h1i, h2i, err := crypto.GenerateNTildei([2]*big.Int{sgps[0].SafePrime(), sgps[1].SafePrime()})
-	if err != nil {
-		return nil, err
-	}
+	P, Q := sgps[0].SafePrime(), sgps[1].SafePrime()
+	NTildei := new(big.Int).Mul(P, Q)
+	modNTildeI := common.ModInt(NTildei)
+
+	p, q := sgps[0].Prime(), sgps[1].Prime()
+	modPQ := common.ModInt(new(big.Int).Mul(p, q))
+	f1 := common.GetRandomPositiveRelativelyPrimeInt(NTildei)
+	alpha := common.GetRandomPositiveRelativelyPrimeInt(NTildei)
+	beta := modPQ.ModInverse(alpha)
+	h1i := modNTildeI.Mul(f1, f1)
+	h2i := modNTildeI.Exp(h1i, alpha)
 
 	preParams := &LocalPreParams{
 		PaillierSK: paiSK,
 		NTildei:    NTildei,
 		H1i:        h1i,
 		H2i:        h2i,
+		Alpha:      alpha,
+		Beta:       beta,
+		P:          p,
+		Q:          q,
 	}
 	return preParams, nil
 }

@@ -9,6 +9,7 @@ package resharing
 import (
 	"errors"
 
+	"github.com/binance-chain/tss-lib/crypto/dlnproof"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -41,7 +42,10 @@ func (round *round2) Start() *tss.Error {
 	// compute ntilde, h1, h2 (uses safe primes)
 	// use the pre-params if they were provided to the LocalParty constructor
 	var preParams *keygen.LocalPreParams
-	if round.save.LocalPreParams.Validate() {
+	if round.save.LocalPreParams.Validate() && !round.save.LocalPreParams.ValidateWithProof() {
+		return round.WrapError(
+			errors.New("`optionalPreParams` failed to validate; it might have been generated with an older version of tss-lib"))
+	} else if round.save.LocalPreParams.ValidateWithProof() {
 		preParams = &round.save.LocalPreParams
 	} else {
 		var err error
@@ -54,10 +58,25 @@ func (round *round2) Start() *tss.Error {
 	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
+	// generate the dlnproofs for resharing
+	h1i, h2i, alpha, beta, p, q, NTildei :=
+		preParams.H1i,
+		preParams.H2i,
+		preParams.Alpha,
+		preParams.Beta,
+		preParams.P,
+		preParams.Q,
+		preParams.NTildei
+	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
+	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
+
 	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
-	r2msg2 := NewDGRound2Message1(
+	r2msg2, err := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i)
+		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
 	round.temp.dgRound2Message1s[i] = r2msg2
 	round.out <- r2msg2
 

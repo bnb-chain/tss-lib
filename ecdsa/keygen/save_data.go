@@ -18,8 +18,11 @@ import (
 
 type (
 	LocalPreParams struct {
-		PaillierSK        *paillier.PrivateKey // ski
-		NTildei, H1i, H2i *big.Int             // n-tilde, h1, h2
+		PaillierSK *paillier.PrivateKey // ski
+		NTildei,
+		H1i, H2i,
+		Alpha, Beta,
+		P, Q *big.Int
 	}
 
 	LocalSecrets struct {
@@ -57,7 +60,18 @@ func NewLocalPartySaveData(partyCount int) (saveData LocalPartySaveData) {
 }
 
 func (preParams LocalPreParams) Validate() bool {
-	return preParams.PaillierSK != nil && preParams.NTildei != nil && preParams.H1i != nil && preParams.H2i != nil
+	return preParams.PaillierSK != nil &&
+		preParams.NTildei != nil &&
+		preParams.H1i != nil &&
+		preParams.H2i != nil
+}
+
+func (preParams LocalPreParams) ValidateWithProof() bool {
+	return preParams.Validate() &&
+		preParams.Alpha != nil &&
+		preParams.Beta != nil &&
+		preParams.P != nil &&
+		preParams.Q != nil
 }
 
 // BuildLocalSaveDataSubset re-creates the LocalPartySaveData to contain data for only the list of signing parties.

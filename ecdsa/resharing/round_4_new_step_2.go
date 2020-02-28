@@ -7,6 +7,7 @@
 package resharing
 
 import (
+	"encoding/hex"
 	"errors"
 	"math/big"
 
@@ -37,20 +38,51 @@ func (round *round4) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	// 1-3. verify paillier key proofs
-	culprits := make([]*tss.PartyID, 0, len(round.NewParties().IDs())) // who caused the error(s)
+	// 1-3. verify paillier & dln proofs, store message pieces, ensure uniqueness of h1j, h2j
+	h1H2Map := make(map[string]struct{}, len(round.temp.dgRound2Message1s) * 2)
+	paiProofCulprits := make([]*tss.PartyID, 0, len(round.temp.dgRound2Message1s)) // who caused the error(s)
+	dlnProof1FailCulprits := make([]*tss.PartyID, 0, len(round.temp.dgRound2Message1s))
+	dlnProof2FailCulprits := make([]*tss.PartyID, 0, len(round.temp.dgRound2Message1s))
 	for _, msg := range round.temp.dgRound2Message1s {
 		r2msg1 := msg.Content().(*DGRound2Message1)
-		paiPK, proof := r2msg1.UnmarshalPaillierPK(), r2msg1.UnmarshalPaillierProof()
-		if ok, err := proof.Verify(paiPK.N, msg.GetFrom().KeyInt(), round.save.ECDSAPub); !ok || err != nil {
-			culprits = append(culprits, msg.GetFrom())
+		paiPK, paiPf, NTildej, H1j, H2j :=
+			r2msg1.UnmarshalPaillierPK(),
+			r2msg1.UnmarshalPaillierProof(),
+			r2msg1.UnmarshalNTilde(),
+			r2msg1.UnmarshalH1(),
+			r2msg1.UnmarshalH2()
+		if H1j.Cmp(H2j) == 0 {
+			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
+		}
+		h1JHex, h2JHex := hex.EncodeToString(H1j.Bytes()), hex.EncodeToString(H2j.Bytes())
+		if _, found := h1H2Map[h1JHex]; found {
+			return round.WrapError(errors.New("this h1j was already used by another party"), msg.GetFrom())
+		}
+		if _, found := h1H2Map[h2JHex]; found {
+			return round.WrapError(errors.New("this h2j was already used by another party"), msg.GetFrom())
+		}
+		if ok, err := paiPf.Verify(paiPK.N, msg.GetFrom().KeyInt(), round.save.ECDSAPub); !ok || err != nil {
+			paiProofCulprits = append(paiProofCulprits, msg.GetFrom())
 			common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom())
 			continue
 		}
+		h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
+		if dlnProof1, err := r2msg1.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
+			dlnProof1FailCulprits = append(dlnProof1FailCulprits, msg.GetFrom())
+		}
+		if dlnProof2, err := r2msg1.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
+			dlnProof2FailCulprits = append(dlnProof2FailCulprits, msg.GetFrom())
+		}
 		common.Logger.Debugf("paillier verify passed for party %s", msg.GetFrom())
 	}
-	if len(culprits) > 0 {
-		return round.WrapError(errors.New("paillier verify failed"), culprits...)
+	if len(paiProofCulprits) > 0 {
+		return round.WrapError(errors.New("paillier verify failed"), paiProofCulprits...)
+	}
+	if 0 < len(dlnProof1FailCulprits) {
+		return round.WrapError(errors.New("dln proof 1 verification failed"), dlnProof1FailCulprits...)
+	}
+	if 0 < len(dlnProof2FailCulprits) {
+		return round.WrapError(errors.New("dln proof 2 verification failed"), dlnProof2FailCulprits...)
 	}
 
 	// save NTilde_j, h1_j, h2_j received in NewCommitteeStep1 here
@@ -127,7 +159,7 @@ func (round *round4) Start() *tss.Error {
 	// 15-19.
 	newKs := make([]*big.Int, 0, round.NewPartyCount())
 	newBigXjs := make([]*crypto.ECPoint, round.NewPartyCount())
-	culprits = make([]*tss.PartyID, 0, round.NewPartyCount()) // who caused the error(s)
+	paiProofCulprits = make([]*tss.PartyID, 0, round.NewPartyCount()) // who caused the error(s)
 	for j := 0; j < round.NewPartyCount(); j++ {
 		Pj := round.NewParties().IDs()[j]
 		kj := Pj.KeyInt()
@@ -138,13 +170,13 @@ func (round *round4) Start() *tss.Error {
 			z = modQ.Mul(z, kj)
 			newBigXj, err = newBigXj.Add(Vc[c].ScalarMult(z))
 			if err != nil {
-				culprits = append(culprits, Pj)
+				paiProofCulprits = append(paiProofCulprits, Pj)
 			}
 		}
 		newBigXjs[j] = newBigXj
 	}
-	if len(culprits) > 0 {
-		return round.WrapError(errors2.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"), culprits...)
+	if len(paiProofCulprits) > 0 {
+		return round.WrapError(errors2.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"), paiProofCulprits...)
 	}
 
 	round.temp.newXi = newXi
