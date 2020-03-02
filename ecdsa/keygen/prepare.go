@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto/dlnproof"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 )
 
@@ -115,15 +116,16 @@ consumer:
 	h1i := modNTildeI.Mul(f1, f1)
 	h2i := modNTildeI.Exp(h1i, alpha)
 
+	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
+	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
+
 	preParams := &LocalPreParams{
 		PaillierSK: paiSK,
 		NTildei:    NTildei,
 		H1i:        h1i,
 		H2i:        h2i,
-		Alpha:      alpha,
-		Beta:       beta,
-		P:          p,
-		Q:          q,
+		DlnProof1:  dlnProof1,
+		DlnProof2:  dlnProof2,
 	}
 	return preParams, nil
 }

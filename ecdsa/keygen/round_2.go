@@ -9,6 +9,8 @@ package keygen
 import (
 	"encoding/hex"
 	"errors"
+	"math/big"
+	"sync"
 
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -24,17 +26,16 @@ func (round *round2) Start() *tss.Error {
 	i := round.PartyID().Index
 
 	// 6. verify dln proofs, store r1 message pieces, ensure uniqueness of h1j, h2j
-	h1H2Map := make(map[string]struct{}, len(round.temp.kgRound1Messages) * 2)
-	dlnProof1FailCulprits := make([]*tss.PartyID, 0, len(round.temp.kgRound1Messages))
-	dlnProof2FailCulprits := make([]*tss.PartyID, 0, len(round.temp.kgRound1Messages))
+	h1H2Map := make(map[string]struct{}, len(round.temp.kgRound1Messages)*2)
+	dlnProof1FailCulprits := make([]*tss.PartyID, len(round.temp.kgRound1Messages))
+	dlnProof2FailCulprits := make([]*tss.PartyID, len(round.temp.kgRound1Messages))
+	wg := new(sync.WaitGroup)
 	for j, msg := range round.temp.kgRound1Messages {
 		r1msg := msg.Content().(*KGRound1Message)
-		paillierPK, H1j, H2j, NTildej, KGC :=
-			r1msg.UnmarshalPaillierPK(),
+		H1j, H2j, NTildej :=
 			r1msg.UnmarshalH1(),
 			r1msg.UnmarshalH2(),
-			r1msg.UnmarshalNTilde(),
-			r1msg.UnmarshalCommitment()
+			r1msg.UnmarshalNTilde()
 		if H1j.Cmp(H2j) == 0 {
 			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
 		}
@@ -46,22 +47,42 @@ func (round *round2) Start() *tss.Error {
 			return round.WrapError(errors.New("this h2j was already used by another party"), msg.GetFrom())
 		}
 		h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
-		if dlnProof1, err := r1msg.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
-			dlnProof1FailCulprits = append(dlnProof1FailCulprits, msg.GetFrom())
+		wg.Add(2)
+		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
+			if dlnProof1, err := r1msg.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
+				dlnProof1FailCulprits[j] = msg.GetFrom()
+			}
+			wg.Done()
+		}(j, msg, r1msg, H1j, H2j, NTildej)
+		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
+			if dlnProof2, err := r1msg.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
+				dlnProof2FailCulprits[j] = msg.GetFrom()
+			}
+			wg.Done()
+		}(j, msg, r1msg, H1j, H2j, NTildej)
+	}
+	wg.Wait()
+	for _, culprit := range append(dlnProof1FailCulprits, dlnProof2FailCulprits...) {
+		if culprit != nil {
+			return round.WrapError(errors.New("dln proof verification failed"), culprit)
 		}
-		if dlnProof2, err := r1msg.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
-			dlnProof2FailCulprits = append(dlnProof2FailCulprits, msg.GetFrom())
+	}
+	// save NTilde_j, h1_j, h2_j, ...
+	for j, msg := range round.temp.kgRound1Messages {
+		if j == i {
+			continue
 		}
+		r1msg := msg.Content().(*KGRound1Message)
+		paillierPK, H1j, H2j, NTildej, KGC :=
+			r1msg.UnmarshalPaillierPK(),
+			r1msg.UnmarshalH1(),
+			r1msg.UnmarshalH2(),
+			r1msg.UnmarshalNTilde(),
+			r1msg.UnmarshalCommitment()
 		round.save.PaillierPKs[j] = paillierPK // used in round 4
 		round.save.NTildej[j] = NTildej
 		round.save.H1j[j], round.save.H2j[j] = H1j, H2j
 		round.temp.KGCs[j] = KGC
-	}
-	if 0 < len(dlnProof1FailCulprits) {
-		return round.WrapError(errors.New("dln proof 1 verification failed"), dlnProof1FailCulprits...)
-	}
-	if 0 < len(dlnProof2FailCulprits) {
-		return round.WrapError(errors.New("dln proof 2 verification failed"), dlnProof2FailCulprits...)
 	}
 
 	// 5. p2p send share ij to Pj
