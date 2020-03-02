@@ -12,6 +12,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/dlnproof"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -20,9 +21,9 @@ type (
 	LocalPreParams struct {
 		PaillierSK *paillier.PrivateKey // ski
 		NTildei,
-		H1i, H2i,
-		Alpha, Beta,
-		P, Q *big.Int
+		H1i, H2i *big.Int
+		DlnProof1,
+		DlnProof2 *dlnproof.Proof
 	}
 
 	LocalSecrets struct {
@@ -68,10 +69,8 @@ func (preParams LocalPreParams) Validate() bool {
 
 func (preParams LocalPreParams) ValidateWithProof() bool {
 	return preParams.Validate() &&
-		preParams.Alpha != nil &&
-		preParams.Beta != nil &&
-		preParams.P != nil &&
-		preParams.Q != nil
+		preParams.DlnProof1 != nil &&
+		preParams.DlnProof2 != nil
 }
 
 // BuildLocalSaveDataSubset re-creates the LocalPartySaveData to contain data for only the list of signing parties.
