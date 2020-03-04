@@ -27,5 +27,5 @@ jobs:
       run: go get -v -t -d ./...
 
     - name: Run Tests
-      run: make test
+      run: make test_unit_race
 

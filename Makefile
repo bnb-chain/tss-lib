@@ -27,7 +27,7 @@ test_unit:
 test_unit_race:
 	@echo "--> Running Unit Tests (with Race Detection)"
 	@echo "!!! WARNING: This will take a long time :)"
-	go test -timeout 20m -race $(PACKAGES)
+	go test -timeout 30m -race $(PACKAGES)
 
 test:
 	make test_unit
