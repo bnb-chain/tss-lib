@@ -19,4 +19,4 @@ require (
 	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
 )
 
-replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20191227075823-118dc9629933
+replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43
