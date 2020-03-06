@@ -40,7 +40,7 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 	alpha := crypto.ScalarBaseMult(tss.EC(), a)
 
 	var c *big.Int
-	{ // must use RejectionSample
+	{
 		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
@@ -60,7 +60,7 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
-	{ // must use RejectionSample
+	{
 		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
@@ -95,7 +95,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	alpha, _ := aR.Add(bG) // already on the curve.
 
 	var c *big.Int
-	{ // must use RejectionSample
+	{
 		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
@@ -115,7 +115,7 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
-	{ // must use RejectionSample
+	{
 		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}

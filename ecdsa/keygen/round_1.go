@@ -41,6 +41,7 @@ func (round *round1) Start() *tss.Error {
 
 	// 1. calculate "partial" key share ui
 	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
+
 	round.temp.ui = ui
 
 	// 2. compute the vss shares

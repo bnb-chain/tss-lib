@@ -1,0 +1,44 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+
+option go_package = "eddsa/resharing";
+
+/*
+ * The Round 1 data is broadcast to peers of the New Committee in this message.
+ */
+message DGRound1Message {
+    bytes eddsa_pub_x = 1;
+    bytes eddsa_pub_y = 2;
+    bytes v_commitment = 3;
+}
+
+/*
+ * The Round 2 "ACK" is broadcast to peers of the Old Committee in this message.
+ */
+message DGRound2Message2 {
+}
+
+/*
+ * The Round 3 data is sent to peers of the New Committee in this message.
+ */
+message DGRound3Message1 {
+    bytes share = 1;
+}
+
+/*
+ * The Round 3 data is broadcast to peers of the New Committee in this message.
+ */
+message DGRound3Message2 {
+    repeated bytes v_decommitment = 1;
+}
+
+/*
+ * The Round 4 "ACK" is broadcast to peers of the Old and New Committees from the New Committee in this message.
+ */
+message DGRound4Message {
+}

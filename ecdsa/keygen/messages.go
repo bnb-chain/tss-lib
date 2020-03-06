@@ -33,10 +33,10 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*KGRound1Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound1Message")
-	proto.RegisterType((*KGRound2Message1)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message1")
-	proto.RegisterType((*KGRound2Message2)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message2")
-	proto.RegisterType((*KGRound3Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound3Message")
+	proto.RegisterType((*KGRound1Message)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound1Message")
+	proto.RegisterType((*KGRound2Message1)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound2Message1")
+	proto.RegisterType((*KGRound2Message2)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound2Message2")
+	proto.RegisterType((*KGRound3Message)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound3Message")
 }
 
 // ----- //

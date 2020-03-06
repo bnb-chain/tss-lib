@@ -1,0 +1,33 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+
+option go_package = "eddsa/signing";
+
+/*
+ * Represents a BROADCAST message sent to all parties during Round 1 of the EDDSA TSS signing protocol.
+ */
+message SignRound1Message {
+    bytes commitment = 1;
+}
+
+/*
+ * Represents a BROADCAST message sent to all parties during Round 2 of the EDDSA TSS signing protocol.
+ */
+message SignRound2Message {
+    repeated bytes de_commitment = 1;
+    bytes proof_alpha_x = 2;
+    bytes proof_alpha_y = 3;
+    bytes proof_t = 4;
+}
+
+/*
+ * Represents a BROADCAST message sent to all parties during Round 3 of the EDDSA TSS signing protocol.
+ */
+message SignRound3Message {
+    bytes s = 1;
+}
