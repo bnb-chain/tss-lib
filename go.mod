@@ -3,8 +3,10 @@ module github.com/binance-chain/tss-lib
 go 1.12
 
 require (
+	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
 	github.com/golang/protobuf v1.3.2
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/ipfs/go-log v0.0.1
@@ -16,3 +18,5 @@ require (
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
 )
+
+replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43
