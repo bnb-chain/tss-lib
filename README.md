@@ -13,7 +13,7 @@ Permissively MIT Licensed.
 Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
 
 ## Introduction
-This is an implementation of multi-party {t,n}-threshold ECDSA (elliptic curve digital signatures) based on Gennaro and Goldfeder CCS 2018 [\[1\]](#references)
+This is an implementation of multi-party {t,n}-threshold ECDSA (Elliptic Curve Digital Signature Algorithm) based on Gennaro and Goldfeder CCS 2018 [1] and EdDSA (Edwards-curve Digital Signature Algorithm) following a similar approach.
 
 This library includes three protocols:
 
@@ -25,6 +25,9 @@ This library includes three protocols:
 
 ## Rationale
 ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and many more. 
+
+EdDSA is used extensively for crypto-currencies such as Cardano, Aeternity, Stellar Lumens and many more.
+
 For such currencies this technique may be used to create crypto wallets where multiple parties must collaborate to sign transactions. See [MultiSig Use Cases](https://en.bitcoin.it/wiki/Multisignature#Multisignature_Applications)
 
 One secret share per key/address is stored locally by each participant and these are kept safe by the protocol – they are never revealed to others at any time. Moreover, there is no trusted dealer of the shares.
@@ -40,6 +43,12 @@ The `LocalParty` that you use should be from the `keygen`, `signing` or `reshari
 
 ### Setup
 ```go
+// Set up elliptic curve
+// use ECDSA, which is used by default
+tss.SetCurve(s256k1.S256()) 
+// or use EdDSA
+// tss.SetCurve(edwards.Edwards()) 
+
 // When using the keygen party it is recommended that you pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
 // This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
 preParams, _ := keygen.GeneratePreParams(1 * time.Minute)
