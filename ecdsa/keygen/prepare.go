@@ -39,6 +39,9 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 	} else {
 		concurrency = runtime.NumCPU()
 	}
+	if concurrency /= 3; concurrency < 1 {
+		concurrency = 1
+	}
 
 	// prepare for concurrent Paillier and safe prime generation
 	paiCh := make(chan *paillier.PrivateKey, 1)
@@ -49,7 +52,7 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 		common.Logger.Info("generating the Paillier modulus, please wait...")
 		start := time.Now()
 		// more concurrency weight is assigned here because the paillier primes have a requirement of having "large" P-Q
-		PiPaillierSk, _, err := paillier.GenerateKeyPair(paillierModulusLen, timeout, (concurrency/3)*2)
+		PiPaillierSk, _, err := paillier.GenerateKeyPair(paillierModulusLen, timeout, concurrency*2)
 		if err != nil {
 			ch <- nil
 			return
@@ -63,7 +66,7 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 		var err error
 		common.Logger.Info("generating the safe primes for the signing proofs, please wait...")
 		start := time.Now()
-		sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency/3)
+		sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency)
 		if err != nil {
 			ch <- nil
 			return
