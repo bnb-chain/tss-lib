@@ -8,6 +8,7 @@ package resharing
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -20,7 +21,7 @@ import (
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- keygen.LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, temp, input, save, out, end, make([]bool, params.Threshold()+1), make([]bool, len(params.NewParties().IDs())), false, 1}}
+		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -42,8 +43,11 @@ func (round *round1) Start() *tss.Error {
 
 	// 1. PrepareForSigning() -> w_i
 	xi, ks, bigXj := round.input.Xi, round.input.Ks, round.input.BigXj
+	if round.Threshold()+1 > len(ks) {
+		return round.WrapError(fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks)), round.PartyID())
+	}
 	newKs := round.NewParties().IDs().Keys()
-	wi, _ := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks, bigXj)
+	wi, _ := signing.PrepareForSigning(i, len(round.OldParties().IDs()), xi, ks, bigXj)
 
 	// 2.
 	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
