@@ -163,6 +163,18 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 	return p.Update(msg)
 }
 
+func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	if ok, err := p.BaseParty.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
+	// check that the message's "from index" will fit into the array
+	if maxFromIdx := len(p.params.Parties().IDs()) - 1; maxFromIdx < msg.GetFrom().Index {
+		return false, p.WrapError(fmt.Errorf("received msg with a sender index too great (%d <= %d)",
+			maxFromIdx, msg.GetFrom().Index), msg.GetFrom())
+	}
+	return true, nil
+}
+
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// ValidateBasic is cheap; double-check the message here in case the public StoreMessage was called externally
 	if ok, err := p.ValidateMessage(msg); !ok || err != nil {
@@ -175,34 +187,24 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	switch msg.Content().(type) {
 	case *SignRound1Message1:
 		p.temp.signRound1Message1s[fromPIdx] = msg
-
 	case *SignRound1Message2:
 		p.temp.signRound1Message2s[fromPIdx] = msg
-
 	case *SignRound2Message:
 		p.temp.signRound2Messages[fromPIdx] = msg
-
 	case *SignRound3Message:
 		p.temp.signRound3Messages[fromPIdx] = msg
-
 	case *SignRound4Message:
 		p.temp.signRound4Messages[fromPIdx] = msg
-
 	case *SignRound5Message:
 		p.temp.signRound5Messages[fromPIdx] = msg
-
 	case *SignRound6Message:
 		p.temp.signRound6Messages[fromPIdx] = msg
-
 	case *SignRound7Message:
 		p.temp.signRound7Messages[fromPIdx] = msg
-
 	case *SignRound8Message:
 		p.temp.signRound8Messages[fromPIdx] = msg
-
 	case *SignRound9Message:
 		p.temp.signRound9Messages[fromPIdx] = msg
-
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

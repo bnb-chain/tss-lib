@@ -111,6 +111,18 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 	return p.Update(msg)
 }
 
+func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	if ok, err := p.BaseParty.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
+	// check that the message's "from index" will fit into the array
+	if maxFromIdx := p.params.PartyCount() - 1; maxFromIdx < msg.GetFrom().Index {
+		return false, p.WrapError(fmt.Errorf("received msg with a sender index too great (%d <= %d)",
+			p.params.PartyCount(), msg.GetFrom().Index), msg.GetFrom())
+	}
+	return true, nil
+}
+
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// ValidateBasic is cheap; double-check the message here in case the public StoreMessage was called externally
 	if ok, err := p.ValidateMessage(msg); !ok || err != nil {
@@ -121,19 +133,14 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
-
 	case *KGRound1Message:
 		p.temp.kgRound1Messages[fromPIdx] = msg
-
 	case *KGRound2Message1:
 		p.temp.kgRound2Message1s[fromPIdx] = msg
-
 	case *KGRound2Message2:
 		p.temp.kgRound2Message2s[fromPIdx] = msg
-
 	case *KGRound3Message:
 		p.temp.kgRound3Messages[fromPIdx] = msg
-
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil
