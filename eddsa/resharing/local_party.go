@@ -69,6 +69,7 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- keygen.LocalPartySaveData,
 ) tss.Party {
+	oldPartyCount := len(params.OldParties().IDs())
 	subset := key
 	if params.IsOldCommittee() {
 		subset = keygen.BuildLocalSaveDataSubset(key, params.OldParties().IDs())
@@ -83,10 +84,10 @@ func NewLocalParty(
 		end:       end,
 	}
 	// msgs init
-	p.temp.dgRound1Messages = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
-	p.temp.dgRound2Messages = make([]tss.ParsedMessage, params.NewPartyCount()) // "
-	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)  // from t+1 of Old Committee
-	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)  // "
+	p.temp.dgRound1Messages = make([]tss.ParsedMessage, oldPartyCount)          // from t+1 of Old Committee
+	p.temp.dgRound2Messages = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
+	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, oldPartyCount)         // from t+1 of Old Committee
+	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, oldPartyCount)         // "
 	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
 
 	return p
@@ -112,6 +113,25 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 	return p.Update(msg)
 }
 
+func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	if ok, err := p.BaseParty.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
+	// check that the message's "from index" will fit into the array
+	var maxFromIdx int
+	switch msg.Content().(type) {
+	case *DGRound2Message, *DGRound4Message:
+		maxFromIdx = len(p.params.NewParties().IDs()) - 1
+	default:
+		maxFromIdx = len(p.params.OldParties().IDs()) - 1
+	}
+	if maxFromIdx < msg.GetFrom().Index {
+		return false, p.WrapError(fmt.Errorf("received msg with a sender index too great (%d <= %d)",
+			maxFromIdx, msg.GetFrom().Index), msg.GetFrom())
+	}
+	return true, nil
+}
+
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// ValidateBasic is cheap; double-check the message here in case the public StoreMessage was called externally
 	if ok, err := p.ValidateMessage(msg); !ok || err != nil {
@@ -124,19 +144,14 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	switch msg.Content().(type) {
 	case *DGRound1Message:
 		p.temp.dgRound1Messages[fromPIdx] = msg
-
 	case *DGRound2Message:
 		p.temp.dgRound2Messages[fromPIdx] = msg
-
 	case *DGRound3Message1:
 		p.temp.dgRound3Message1s[fromPIdx] = msg
-
 	case *DGRound3Message2:
 		p.temp.dgRound3Message2s[fromPIdx] = msg
-
 	case *DGRound4Message:
 		p.temp.dgRound4Messages[fromPIdx] = msg
-
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil
