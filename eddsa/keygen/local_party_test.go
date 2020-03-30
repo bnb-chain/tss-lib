@@ -173,7 +173,9 @@ keygen:
 				}
 				println("u len: ", len(u.Bytes()))
 				sk, _, err := edwards.PrivKeyFromScalar(u.Bytes())
-				// fmt.Println("err: ", err.Error())
+				if !assert.NoError(t, err) {
+					return
+				}
 
 				// test pub key, should be on curve and match pkX, pkY
 				assert.True(t, pk.IsOnCurve(pkX, pkY), "public key must be on curve")

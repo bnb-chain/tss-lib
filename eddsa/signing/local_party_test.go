@@ -100,7 +100,7 @@ signing:
 		case <-endCh:
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
-				t.Logf("Done. Received save data from %d participants", ended)
+				t.Logf("Done. Received signature data from %d participants", ended)
 				R := parties[0].temp.r
 
 				// BEGIN check s correctness
