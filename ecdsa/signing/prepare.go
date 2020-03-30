@@ -19,10 +19,13 @@ import (
 func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
 	modQ := common.ModInt(tss.EC().Params().N)
 	if len(ks) != len(bigXs) {
-		panic(fmt.Errorf("indices and bigX are not same length"))
+		panic(fmt.Errorf("PrepareForSigning: len(ks) != len(bigXs) (%d != %d)", len(ks), len(bigXs)))
 	}
 	if len(ks) != pax {
-		panic(fmt.Errorf("indices is not equal to the number of participants"))
+		panic(fmt.Errorf("PrepareForSigning: len(ks) != pax (%d != %d)", len(ks), pax))
+	}
+	if len(ks) <= i {
+		panic(fmt.Errorf("PrepareForSigning: len(ks) <= i (%d <= %d)", len(ks), i))
 	}
 
 	// 2-4.
