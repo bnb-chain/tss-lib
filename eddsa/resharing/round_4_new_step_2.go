@@ -41,8 +41,8 @@ func (round *round4) Start() *tss.Error {
 
 	// 2-8.
 	modQ := common.ModInt(tss.EC().Params().N)
-	vjc := make([][]*crypto.ECPoint, round.Threshold()+1)
-	for j := 0; j <= round.Threshold(); j++ { // P1..P_t+1. Ps are indexed from 0 here
+	vjc := make([][]*crypto.ECPoint, len(round.OldParties().IDs()))
+	for j := 0; j <= len(vjc)-1; j++ { // P1..P_t+1. Ps are indexed from 0 here
 		r1msg := round.temp.dgRound1Messages[j].Content().(*DGRound1Message)
 		r3msg2 := round.temp.dgRound3Message2s[j].Content().(*DGRound3Message2)
 
@@ -79,7 +79,7 @@ func (round *round4) Start() *tss.Error {
 	Vc := make([]*crypto.ECPoint, round.NewThreshold()+1)
 	for c := 0; c <= round.NewThreshold(); c++ {
 		Vc[c] = vjc[0][c]
-		for j := 1; j <= round.Threshold(); j++ {
+		for j := 1; j <= len(vjc)-1; j++ {
 			Vc[c], err = Vc[c].Add(vjc[j][c])
 			if err != nil {
 				return round.WrapError(errors.Wrapf(err, "Vc[c].Add(vjc[j][c])"))
