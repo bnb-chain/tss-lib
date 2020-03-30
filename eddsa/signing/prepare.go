@@ -18,7 +18,10 @@ import (
 func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int) (wi *big.Int) {
 	modQ := common.ModInt(tss.EC().Params().N)
 	if len(ks) != pax {
-		panic(fmt.Errorf("indices is not in pax size"))
+		panic(fmt.Errorf("PrepareForSigning: len(ks) != pax (%d != %d)", len(ks), pax))
+	}
+	if len(ks) <= i {
+		panic(fmt.Errorf("PrepareForSigning: len(ks) <= i (%d <= %d)", len(ks), i))
 	}
 
 	// 1-4.
