@@ -35,6 +35,7 @@ func init() {
 	proto.RegisterType((*DGRound2Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound2Message")
 	proto.RegisterType((*DGRound3Message1)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message1")
 	proto.RegisterType((*DGRound3Message2)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message2")
+	proto.RegisterType((*DGRound4Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound4Message")
 }
 
 // ----- //
