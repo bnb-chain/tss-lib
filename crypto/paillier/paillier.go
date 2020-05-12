@@ -113,13 +113,13 @@ func (publicKey *PublicKey) EncryptAndReturnRandomness(m *big.Int) (c *big.Int, 
 		return nil, nil, ErrMessageTooLong
 	}
 	x = common.GetRandomPositiveRelativelyPrimeInt(publicKey.N)
-	N2 := publicKey.NSquare()
+	modNSq := common.ModInt(publicKey.NSquare())
 	// 1. gamma^m mod N2
-	Gm := new(big.Int).Exp(publicKey.Gamma(), m, N2)
+	Gm := modNSq.Exp(publicKey.Gamma(), m)
 	// 2. x^N mod N2
-	xN := new(big.Int).Exp(x, publicKey.N, N2)
+	xN := modNSq.Exp(x, publicKey.N)
 	// 3. (1) * (2) mod N2
-	c = common.ModInt(N2).Mul(Gm, xN)
+	c = modNSq.Mul(Gm, xN)
 	return
 }
 
@@ -132,24 +132,24 @@ func (publicKey *PublicKey) HomoMult(m, c1 *big.Int) (*big.Int, error) {
 	if m.Cmp(zero) == -1 || m.Cmp(publicKey.N) != -1 { // m < 0 || m >= N ?
 		return nil, ErrMessageTooLong
 	}
-	N2 := publicKey.NSquare()
-	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
+	NSq := publicKey.NSquare()
+	if c1.Cmp(zero) == -1 || c1.Cmp(NSq) != -1 { // c1 < 0 || c1 >= N2 ?
 		return nil, ErrMessageTooLong
 	}
 	// cipher^m mod N2
-	return common.ModInt(N2).Exp(c1, m), nil
+	return common.ModInt(NSq).Exp(c1, m), nil
 }
 
 func (publicKey *PublicKey) HomoAdd(c1, c2 *big.Int) (*big.Int, error) {
-	N2 := publicKey.NSquare()
-	if c1.Cmp(zero) == -1 || c1.Cmp(N2) != -1 { // c1 < 0 || c1 >= N2 ?
+	NSq := publicKey.NSquare()
+	if c1.Cmp(zero) == -1 || c1.Cmp(NSq) != -1 { // c1 < 0 || c1 >= N2 ?
 		return nil, ErrMessageTooLong
 	}
-	if c2.Cmp(zero) == -1 || c2.Cmp(N2) != -1 { // c2 < 0 || c2 >= N2 ?
+	if c2.Cmp(zero) == -1 || c2.Cmp(NSq) != -1 { // c2 < 0 || c2 >= N2 ?
 		return nil, ErrMessageTooLong
 	}
 	// c1 * c2 mod N2
-	return common.ModInt(N2).Mul(c1, c2), nil
+	return common.ModInt(NSq).Mul(c1, c2), nil
 }
 
 func (publicKey *PublicKey) NSquare() *big.Int {
@@ -169,14 +169,14 @@ func (publicKey *PublicKey) Gamma() *big.Int {
 // ----- //
 
 func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
-	N2 := privateKey.NSquare()
-	if c.Cmp(zero) == -1 || c.Cmp(N2) != -1 { // c < 0 || c >= N2 ?
+	NSq := privateKey.NSquare()
+	if c.Cmp(zero) == -1 || c.Cmp(NSq) != -1 { // c < 0 || c >= N2 ?
 		return nil, ErrMessageTooLong
 	}
 	// 1. L(u) = (c^LambdaN-1 mod N2) / N
-	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, N2), privateKey.N)
+	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, NSq), privateKey.N)
 	// 2. L(u) = (Gamma^LambdaN-1 mod N2) / N
-	Lg := L(new(big.Int).Exp(privateKey.Gamma(), privateKey.LambdaN, N2), privateKey.N)
+	Lg := L(new(big.Int).Exp(privateKey.Gamma(), privateKey.LambdaN, NSq), privateKey.N)
 	// 3. (1) * modInv(2) mod N
 	inv := new(big.Int).ModInverse(Lg, privateKey.N)
 	m = common.ModInt(privateKey.N).Mul(Lc, inv)
