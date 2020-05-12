@@ -99,20 +99,20 @@ func (round *round3) Start() *tss.Error {
 	}
 
 	modN := common.ModInt(tss.EC().Params().N)
-	thelta := modN.Mul(round.temp.k, round.temp.gamma)
-	sigma := modN.Mul(round.temp.k, round.temp.w)
+	deltaI := modN.Mul(round.temp.k, round.temp.gamma)
+	sigmaI := modN.Mul(round.temp.k, round.temp.w)
 
 	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
-		thelta = modN.Add(thelta, alphas[j].Add(alphas[j], round.temp.betas[j]))
-		sigma = modN.Add(sigma, us[j].Add(us[j], round.temp.vs[j]))
+		deltaI = modN.Add(deltaI, alphas[j].Add(alphas[j], round.temp.betas[j]))
+		sigmaI = modN.Add(sigmaI, us[j].Add(us[j], round.temp.vs[j]))
 	}
 
-	round.temp.theta = thelta
-	round.temp.sigma = sigma
-	r3msg := NewSignRound3Message(round.PartyID(), thelta)
+	round.temp.deltaI = deltaI
+	round.temp.sigmaI = sigmaI
+	r3msg := NewSignRound3Message(round.PartyID(), deltaI)
 	round.temp.signRound3Messages[round.PartyID().Index] = r3msg
 	round.out <- r3msg
 

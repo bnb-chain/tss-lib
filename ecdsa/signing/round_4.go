@@ -25,27 +25,26 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	theta := *round.temp.theta
-	thetaInverse := &theta
-
 	modN := common.ModInt(tss.EC().Params().N)
+	deltaI := *round.temp.deltaI
 
+	deltaInverse := &deltaI
 	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
 		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
-		theltaJ := r3msg.GetTheta()
-		thetaInverse = modN.Add(thetaInverse, new(big.Int).SetBytes(theltaJ))
+		deltaJ := r3msg.GetDelta()
+		deltaInverse = modN.Add(deltaInverse, new(big.Int).SetBytes(deltaJ))
 	}
 
-	// compute the multiplicative inverse thelta mod q
-	thetaInverse = modN.ModInverse(thetaInverse)
+	// compute the multiplicative inverse delta mod q
+	deltaInverse = modN.ModInverse(deltaInverse)
 	piGamma, err := schnorr.NewZKProof(round.temp.gamma, round.temp.pointGamma)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(gamma, bigGamma)"))
 	}
-	round.temp.thetaInverse = thetaInverse
+	round.temp.deltaInverse = deltaInverse
 	r4msg := NewSignRound4Message(round.PartyID(), round.temp.deCommit, piGamma)
 	round.temp.signRound4Messages[round.PartyID().Index] = r4msg
 	round.out <- r4msg

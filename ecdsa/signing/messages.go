@@ -158,14 +158,14 @@ func (m *SignRound2Message) UnmarshalProofBobWC() (*mta.ProofBobWC, error) {
 
 func NewSignRound3Message(
 	from *tss.PartyID,
-	theta *big.Int,
+	deltaI *big.Int,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	content := &SignRound3Message{
-		Theta: theta.Bytes(),
+		Delta: deltaI.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -173,7 +173,7 @@ func NewSignRound3Message(
 
 func (m *SignRound3Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.Theta)
+		common.NonEmptyBytes(m.Delta)
 }
 
 // ----- //

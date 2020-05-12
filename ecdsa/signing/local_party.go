@@ -58,9 +58,9 @@ type (
 		w,
 		m,
 		k,
-		theta,
-		thetaInverse,
-		sigma,
+		deltaI,
+		deltaInverse,
+		sigmaI,
 		gamma *big.Int
 		cis        []*big.Int
 		bigWs      []*crypto.ECPoint

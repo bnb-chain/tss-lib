@@ -37,7 +37,7 @@ message SignRound2Message {
  * Represents a BROADCAST message sent to all parties during Round 3 of the ECDSA TSS signing protocol.
  */
 message SignRound3Message {
-    bytes theta = 1;
+    bytes delta = 1;
 }
 
 /*

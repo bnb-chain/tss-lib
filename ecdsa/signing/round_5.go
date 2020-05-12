@@ -56,12 +56,12 @@ func (round *round5) Start() *tss.Error {
 		}
 	}
 
-	R = R.ScalarMult(round.temp.thetaInverse)
+	R = R.ScalarMult(round.temp.deltaInverse)
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
 	rx := R.X()
 	ry := R.Y()
-	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(rx, round.temp.sigma))
+	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(rx, round.temp.sigmaI))
 
 	// clear temp.w and temp.k from memory, lint ignore
 	round.temp.w = zero
