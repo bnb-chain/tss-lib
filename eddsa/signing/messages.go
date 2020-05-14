@@ -14,7 +14,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -67,7 +67,7 @@ func (m *SignRound1Message) UnmarshalCommitment() *big.Int {
 func NewSignRound2Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *schnorr.ZKProof,
+	proof *zkp.SchnorrProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -97,7 +97,7 @@ func (m *SignRound2Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound2Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound2Message) UnmarshalZKProof() (*zkp.SchnorrProof, error) {
 	point, err := crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
@@ -105,7 +105,7 @@ func (m *SignRound2Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &schnorr.ZKProof{
+	return &zkp.SchnorrProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil

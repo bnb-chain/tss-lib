@@ -14,7 +14,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/dlnproof"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
@@ -90,7 +90,7 @@ func NewDGRound2Message1(
 	paillierPK *paillier.PublicKey,
 	paillierPf paillier.Proof,
 	NTildei, H1i, H2i *big.Int,
-	dlnProof1, dlnProof2 *dlnproof.Proof,
+	dlnProof1, dlnProof2 *dlnp.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:             from,
@@ -128,8 +128,8 @@ func (m *DGRound2Message1) ValidateBasic() bool {
 		common.NonEmptyBytes(m.H1) &&
 		common.NonEmptyBytes(m.H2) &&
 		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
-		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnproof.Iterations*2)) &&
-		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnproof.Iterations*2))
+		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnp.Iterations*2)) &&
+		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnp.Iterations*2))
 }
 
 func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
@@ -157,12 +157,12 @@ func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
 	return pf
 }
 
-func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnproof.Proof, error) {
-	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_1())
+func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnp.Proof, error) {
+	return dlnp.UnmarshalProof(m.GetDlnproof_1())
 }
 
-func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnproof.Proof, error) {
-	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_2())
+func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnp.Proof, error) {
+	return dlnp.UnmarshalProof(m.GetDlnproof_2())
 }
 
 // ----- //

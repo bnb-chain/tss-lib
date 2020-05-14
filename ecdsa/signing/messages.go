@@ -15,7 +15,7 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -181,7 +181,7 @@ func (m *SignRound3Message) ValidateBasic() bool {
 func NewSignRound4Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *schnorr.ZKProof,
+	proof *zkp.SchnorrProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -211,7 +211,7 @@ func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound4Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound4Message) UnmarshalZKProof() (*zkp.SchnorrProof, error) {
 	point, err := crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
@@ -219,7 +219,7 @@ func (m *SignRound4Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &schnorr.ZKProof{
+	return &zkp.SchnorrProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil
@@ -256,8 +256,8 @@ func (m *SignRound5Message) UnmarshalCommitment() *big.Int {
 func NewSignRound6Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *schnorr.ZKProof,
-	vProof *schnorr.ZKVProof,
+	proof *zkp.SchnorrProof,
+	vProof *zkp.TProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -295,7 +295,7 @@ func (m *SignRound6Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound6Message) UnmarshalZKProof() (*zkp.SchnorrProof, error) {
 	point, err := crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
@@ -303,13 +303,13 @@ func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &schnorr.ZKProof{
+	return &zkp.SchnorrProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil
 }
 
-func (m *SignRound6Message) UnmarshalZKVProof() (*schnorr.ZKVProof, error) {
+func (m *SignRound6Message) UnmarshalZKVProof() (*zkp.TProof, error) {
 	point, err := crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.GetVProofAlphaX()),
@@ -317,7 +317,7 @@ func (m *SignRound6Message) UnmarshalZKVProof() (*schnorr.ZKVProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &schnorr.ZKVProof{
+	return &zkp.TProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetVProofT()),
 		U:     new(big.Int).SetBytes(m.GetVProofU()),

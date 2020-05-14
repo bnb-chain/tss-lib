@@ -11,7 +11,7 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -32,9 +32,9 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 2. compute Schnorr prove
-	pir, err := schnorr.NewZKProof(round.temp.ri, round.temp.pointRi)
+	pir, err := zkp.NewSchnorrProof(round.temp.ri, round.temp.pointRi)
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewZKProof(ri, pointRi)"))
+		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(ri, pointRi)"))
 	}
 
 	// 3. BROADCAST de-commitments of Shamir poly*G and Schnorr prove

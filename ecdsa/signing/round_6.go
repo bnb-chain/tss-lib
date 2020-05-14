@@ -11,7 +11,7 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -23,13 +23,13 @@ func (round *round6) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	piAi, err := schnorr.NewZKProof(round.temp.roi, round.temp.bigAi)
+	piAi, err := zkp.NewSchnorrProof(round.temp.rhoI, round.temp.bigAi)
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewZKProof(roi, bigAi)"))
+		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(rhoI, bigAi)"))
 	}
-	piV, err := schnorr.NewZKVProof(round.temp.bigVi, round.temp.bigR, round.temp.si, round.temp.li)
+	piV, err := zkp.NewTProof(round.temp.bigVi, round.temp.bigR, round.temp.si, round.temp.li)
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewZKVProof(bigVi, bigR, si, li)"))
+		return round.WrapError(errors2.Wrapf(err, "NewTProof(bigVi, bigR, si, li)"))
 	}
 
 	r6msg := NewSignRound6Message(round.PartyID(), round.temp.DPower, piAi, piV)

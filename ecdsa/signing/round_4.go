@@ -13,7 +13,7 @@ import (
 	errors2 "github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -40,9 +40,9 @@ func (round *round4) Start() *tss.Error {
 
 	// compute the multiplicative inverse delta mod q
 	deltaInverse = modN.ModInverse(deltaInverse)
-	piGamma, err := schnorr.NewZKProof(round.temp.gamma, round.temp.pointGamma)
+	piGamma, err := zkp.NewSchnorrProof(round.temp.gamma, round.temp.pointGamma)
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewZKProof(gamma, bigGamma)"))
+		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(gamma, bigGamma)"))
 	}
 	round.temp.deltaInverse = deltaInverse
 	r4msg := NewSignRound4Message(round.PartyID(), round.temp.deCommit, piGamma)

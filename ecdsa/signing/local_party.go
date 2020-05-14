@@ -80,7 +80,7 @@ type (
 		si,
 		rx,
 		ry,
-		roi *big.Int
+		rhoI *big.Int
 		bigR,
 		bigAi,
 		bigVi *crypto.ECPoint

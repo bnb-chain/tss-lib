@@ -53,7 +53,7 @@ func (round *round7) Start() *tss.Error {
 		bigAjs[j] = bigAj
 		pijA, err := r6msg.UnmarshalZKProof()
 		if err != nil || !pijA.Verify(bigAj) {
-			return round.WrapError(errors.New("schnorr verify for Aj failed"), Pj)
+			return round.WrapError(errors.New("zk verify for Aj failed"), Pj)
 		}
 		pijV, err := r6msg.UnmarshalZKVProof()
 		if err != nil || !pijV.Verify(bigVj, round.temp.bigR) {
@@ -78,7 +78,7 @@ func (round *round7) Start() *tss.Error {
 		AX, AY = tss.EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
 	}
 
-	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.roi.Bytes())
+	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.rhoI.Bytes())
 	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
 	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)
 	round.temp.Ti = crypto.NewECPointNoCurveCheck(tss.EC(), TiX, TiY)

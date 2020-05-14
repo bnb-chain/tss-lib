@@ -85,7 +85,7 @@ func (round *round5) Start() *tss.Error {
 	round.temp.li = li
 	round.temp.bigAi = bigAi
 	round.temp.bigVi = bigVi
-	round.temp.roi = roI
+	round.temp.rhoI = roI
 	round.temp.DPower = cmt.D
 	round.temp.si = si
 	round.temp.rx = rx

@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package schnorr_test
+package zkp_test
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	. "github.com/binance-chain/tss-lib/crypto/schnorr"
+	. "github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -21,7 +21,7 @@ func TestSchnorrProof(t *testing.T) {
 	q := tss.EC().Params().N
 	u := common.GetRandomPositiveInt(q)
 	uG := crypto.ScalarBaseMult(tss.EC(), u)
-	proof, _ := NewZKProof(u, uG)
+	proof, _ := NewSchnorrProof(u, uG)
 
 	assert.True(t, proof.Alpha.IsOnCurve())
 	assert.NotZero(t, proof.Alpha.X())
@@ -34,7 +34,7 @@ func TestSchnorrProofVerify(t *testing.T) {
 	u := common.GetRandomPositiveInt(q)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 
-	proof, _ := NewZKProof(u, X)
+	proof, _ := NewSchnorrProof(u, X)
 	res := proof.Verify(X)
 
 	assert.True(t, res, "verify result must be true")
@@ -47,7 +47,7 @@ func TestSchnorrProofVerifyBadX(t *testing.T) {
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 	X2 := crypto.ScalarBaseMult(tss.EC(), u2)
 
-	proof, _ := NewZKProof(u2, X2)
+	proof, _ := NewSchnorrProof(u2, X2)
 	res := proof.Verify(X)
 
 	assert.False(t, res, "verify result must be false")
@@ -63,7 +63,7 @@ func TestSchnorrVProofVerify(t *testing.T) {
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
 	V, _ := Rs.Add(lG)
 
-	proof, _ := NewZKVProof(V, R, s, l)
+	proof, _ := NewTProof(V, R, s, l)
 	res := proof.Verify(V, R)
 
 	assert.True(t, res, "verify result must be true")
@@ -78,7 +78,7 @@ func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 	Rs := R.ScalarMult(s)
 	V := Rs
 
-	proof, _ := NewZKVProof(V, R, s, l)
+	proof, _ := NewTProof(V, R, s, l)
 	res := proof.Verify(V, R)
 
 	assert.False(t, res, "verify result must be true")
@@ -95,7 +95,7 @@ func TestSchnorrVProofVerifyBadS(t *testing.T) {
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
 	V, _ := Rs.Add(lG)
 
-	proof, _ := NewZKVProof(V, R, s2, l)
+	proof, _ := NewTProof(V, R, s2, l)
 	res := proof.Verify(V, R)
 
 	assert.False(t, res, "verify result must be true")

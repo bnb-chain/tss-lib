@@ -1,4 +1,4 @@
-// Copyright © 2019-2020 Binance
+// Copyright © 2019 Binance
 //
 // This file is part of Binance. The full Binance copyright notice, including
 // terms governing use, modification, and redistribution, is contained in the
@@ -9,7 +9,7 @@
 // A proof of knowledge of the discrete log of an element h2 = hx1 with respect to h1.
 // In our protocol, we will run two of these in parallel to prove that two elements h1,h2 generate the same group modN.
 
-package dlnproof
+package dlnp
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ type (
 	}
 )
 
-func NewDLNProof(h1, h2, x, p, q, N *big.Int) *Proof {
+func NewProof(h1, h2, x, p, q, N *big.Int) *Proof {
 	pMulQ := new(big.Int).Mul(p, q)
 	modN, modPQ := common.ModInt(N), common.ModInt(pMulQ)
 	a := make([]*big.Int, Iterations)
@@ -92,7 +92,7 @@ func (p *Proof) Serialize() ([][]byte, error) {
 	return bzs, nil
 }
 
-func UnmarshalDLNProof(bzs [][]byte) (*Proof, error) {
+func UnmarshalProof(bzs [][]byte) (*Proof, error) {
 	bis := make([]*big.Int, len(bzs))
 	for i := range bis {
 		bis[i] = new(big.Int).SetBytes(bzs[i])
@@ -102,14 +102,14 @@ func UnmarshalDLNProof(bzs [][]byte) (*Proof, error) {
 		return nil, err
 	}
 	if len(parsed) != 2 {
-		return nil, fmt.Errorf("UnmarshalDLNProof expected %d parts but got %d", 2, len(parsed))
+		return nil, fmt.Errorf("dlnp.UnmarshalProof expected %d parts but got %d", 2, len(parsed))
 	}
 	pf := new(Proof)
 	if len1 := copy(pf.Alpha[:], parsed[0]); len1 != Iterations {
-		return nil, fmt.Errorf("UnmarshalDLNProof expected %d but copied %d", Iterations, len1)
+		return nil, fmt.Errorf("dlnp.UnmarshalProof expected %d but copied %d", Iterations, len1)
 	}
 	if len2 := copy(pf.T[:], parsed[1]); len2 != Iterations {
-		return nil, fmt.Errorf("UnmarshalDLNProof expected %d but copied %d", Iterations, len2)
+		return nil, fmt.Errorf("dlnp.UnmarshalProof expected %d but copied %d", Iterations, len2)
 	}
 	return pf, nil
 }
