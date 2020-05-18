@@ -21,7 +21,7 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 //
-// Represents a P2P message sent to each party during Round 1 of the ECDSA TSS signing protocol.
+// Represents a P2P message sent to each party during Phase 1 of the GG20 ECDSA TSS signing protocol.
 type SignRound1Message1 struct {
 	C                    []byte   `protobuf:"bytes,1,opt,name=c,proto3" json:"c,omitempty"`
 	RangeProofAlice      [][]byte `protobuf:"bytes,2,rep,name=range_proof_alice,json=rangeProofAlice,proto3" json:"range_proof_alice,omitempty"`
@@ -70,7 +70,7 @@ func (m *SignRound1Message1) GetRangeProofAlice() [][]byte {
 }
 
 //
-// Represents a BROADCAST message sent to all parties during Round 1 of the ECDSA TSS signing protocol.
+// Represents a BROADCAST message sent to all parties during Phase 1 of the GG20 ECDSA TSS signing protocol.
 type SignRound1Message2 struct {
 	Commitment           []byte   `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -111,7 +111,7 @@ func (m *SignRound1Message2) GetCommitment() []byte {
 }
 
 //
-// Represents a P2P message sent to each party during Round 2 of the ECDSA TSS signing protocol.
+// Represents a P2P message sent to each party during Phase 2 of the GG20 ECDSA TSS signing protocol.
 type SignRound2Message struct {
 	C1                   []byte   `protobuf:"bytes,1,opt,name=c1,proto3" json:"c1,omitempty"`
 	C2                   []byte   `protobuf:"bytes,2,opt,name=c2,proto3" json:"c2,omitempty"`
@@ -176,9 +176,14 @@ func (m *SignRound2Message) GetProofBobWc() [][]byte {
 }
 
 //
-// Represents a BROADCAST message sent to all parties during Round 3 of the ECDSA TSS signing protocol.
+// Represents a BROADCAST message sent to all parties during Phase 3 of the GG20 ECDSA TSS signing protocol.
 type SignRound3Message struct {
-	Delta                []byte   `protobuf:"bytes,1,opt,name=delta,proto3" json:"delta,omitempty"`
+	DeltaI               []byte   `protobuf:"bytes,1,opt,name=delta_i,json=deltaI,proto3" json:"delta_i,omitempty"`
+	TI                   []byte   `protobuf:"bytes,2,opt,name=t_i,json=tI,proto3" json:"t_i,omitempty"`
+	TProofAlphaX         []byte   `protobuf:"bytes,3,opt,name=t_proof_alpha_x,json=tProofAlphaX,proto3" json:"t_proof_alpha_x,omitempty"`
+	TProofAlphaY         []byte   `protobuf:"bytes,4,opt,name=t_proof_alpha_y,json=tProofAlphaY,proto3" json:"t_proof_alpha_y,omitempty"`
+	TProofT              []byte   `protobuf:"bytes,5,opt,name=t_proof_t,json=tProofT,proto3" json:"t_proof_t,omitempty"`
+	TProofU              []byte   `protobuf:"bytes,6,opt,name=t_proof_u,json=tProofU,proto3" json:"t_proof_u,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -209,20 +214,52 @@ func (m *SignRound3Message) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SignRound3Message proto.InternalMessageInfo
 
-func (m *SignRound3Message) GetDelta() []byte {
+func (m *SignRound3Message) GetDeltaI() []byte {
 	if m != nil {
-		return m.Delta
+		return m.DeltaI
+	}
+	return nil
+}
+
+func (m *SignRound3Message) GetTI() []byte {
+	if m != nil {
+		return m.TI
+	}
+	return nil
+}
+
+func (m *SignRound3Message) GetTProofAlphaX() []byte {
+	if m != nil {
+		return m.TProofAlphaX
+	}
+	return nil
+}
+
+func (m *SignRound3Message) GetTProofAlphaY() []byte {
+	if m != nil {
+		return m.TProofAlphaY
+	}
+	return nil
+}
+
+func (m *SignRound3Message) GetTProofT() []byte {
+	if m != nil {
+		return m.TProofT
+	}
+	return nil
+}
+
+func (m *SignRound3Message) GetTProofU() []byte {
+	if m != nil {
+		return m.TProofU
 	}
 	return nil
 }
 
 //
-// Represents a BROADCAST message sent to all parties during Round 4 of the ECDSA TSS signing protocol.
+// Represents a BROADCAST message sent to all parties during Phase 4 of the GG20 ECDSA TSS signing protocol.
 type SignRound4Message struct {
 	DeCommitment         [][]byte `protobuf:"bytes,1,rep,name=de_commitment,json=deCommitment,proto3" json:"de_commitment,omitempty"`
-	ProofAlphaX          []byte   `protobuf:"bytes,2,opt,name=proof_alpha_x,json=proofAlphaX,proto3" json:"proof_alpha_x,omitempty"`
-	ProofAlphaY          []byte   `protobuf:"bytes,3,opt,name=proof_alpha_y,json=proofAlphaY,proto3" json:"proof_alpha_y,omitempty"`
-	ProofT               []byte   `protobuf:"bytes,4,opt,name=proof_t,json=proofT,proto3" json:"proof_t,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -260,31 +297,11 @@ func (m *SignRound4Message) GetDeCommitment() [][]byte {
 	return nil
 }
 
-func (m *SignRound4Message) GetProofAlphaX() []byte {
-	if m != nil {
-		return m.ProofAlphaX
-	}
-	return nil
-}
-
-func (m *SignRound4Message) GetProofAlphaY() []byte {
-	if m != nil {
-		return m.ProofAlphaY
-	}
-	return nil
-}
-
-func (m *SignRound4Message) GetProofT() []byte {
-	if m != nil {
-		return m.ProofT
-	}
-	return nil
-}
-
 //
-// Represents a BROADCAST message sent to all parties during Round 5 of the ECDSA TSS signing protocol.
+// Represents a BROADCAST message sent to all parties during Phase 5 of the GG20 ECDSA TSS signing protocol.
 type SignRound5Message struct {
-	Commitment           []byte   `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	RIX                  []byte   `protobuf:"bytes,1,opt,name=r_i_x,json=rIX,proto3" json:"r_i_x,omitempty"`
+	RIY                  []byte   `protobuf:"bytes,2,opt,name=r_i_y,json=rIY,proto3" json:"r_i_y,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -315,24 +332,30 @@ func (m *SignRound5Message) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SignRound5Message proto.InternalMessageInfo
 
-func (m *SignRound5Message) GetCommitment() []byte {
+func (m *SignRound5Message) GetRIX() []byte {
 	if m != nil {
-		return m.Commitment
+		return m.RIX
+	}
+	return nil
+}
+
+func (m *SignRound5Message) GetRIY() []byte {
+	if m != nil {
+		return m.RIY
 	}
 	return nil
 }
 
 //
-// Represents a BROADCAST message sent to all parties during Round 6 of the ECDSA TSS signing protocol.
+// Represents a BROADCAST message sent to all parties during Phase 6 of the GG20 ECDSA TSS signing protocol.
 type SignRound6Message struct {
-	DeCommitment         [][]byte `protobuf:"bytes,1,rep,name=de_commitment,json=deCommitment,proto3" json:"de_commitment,omitempty"`
-	ProofAlphaX          []byte   `protobuf:"bytes,2,opt,name=proof_alpha_x,json=proofAlphaX,proto3" json:"proof_alpha_x,omitempty"`
-	ProofAlphaY          []byte   `protobuf:"bytes,3,opt,name=proof_alpha_y,json=proofAlphaY,proto3" json:"proof_alpha_y,omitempty"`
-	ProofT               []byte   `protobuf:"bytes,4,opt,name=proof_t,json=proofT,proto3" json:"proof_t,omitempty"`
-	VProofAlphaX         []byte   `protobuf:"bytes,5,opt,name=v_proof_alpha_x,json=vProofAlphaX,proto3" json:"v_proof_alpha_x,omitempty"`
-	VProofAlphaY         []byte   `protobuf:"bytes,6,opt,name=v_proof_alpha_y,json=vProofAlphaY,proto3" json:"v_proof_alpha_y,omitempty"`
-	VProofT              []byte   `protobuf:"bytes,7,opt,name=v_proof_t,json=vProofT,proto3" json:"v_proof_t,omitempty"`
-	VProofU              []byte   `protobuf:"bytes,8,opt,name=v_proof_u,json=vProofU,proto3" json:"v_proof_u,omitempty"`
+	SI                   []byte   `protobuf:"bytes,1,opt,name=s_i,json=sI,proto3" json:"s_i,omitempty"`
+	StProofAlphaX        []byte   `protobuf:"bytes,2,opt,name=st_proof_alpha_x,json=stProofAlphaX,proto3" json:"st_proof_alpha_x,omitempty"`
+	StProofAlphaY        []byte   `protobuf:"bytes,3,opt,name=st_proof_alpha_y,json=stProofAlphaY,proto3" json:"st_proof_alpha_y,omitempty"`
+	StProofBetaX         []byte   `protobuf:"bytes,4,opt,name=st_proof_beta_x,json=stProofBetaX,proto3" json:"st_proof_beta_x,omitempty"`
+	StProofBetaY         []byte   `protobuf:"bytes,5,opt,name=st_proof_beta_y,json=stProofBetaY,proto3" json:"st_proof_beta_y,omitempty"`
+	StProofT             []byte   `protobuf:"bytes,6,opt,name=st_proof_t,json=stProofT,proto3" json:"st_proof_t,omitempty"`
+	StProofU             []byte   `protobuf:"bytes,7,opt,name=st_proof_u,json=stProofU,proto3" json:"st_proof_u,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -363,66 +386,59 @@ func (m *SignRound6Message) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SignRound6Message proto.InternalMessageInfo
 
-func (m *SignRound6Message) GetDeCommitment() [][]byte {
+func (m *SignRound6Message) GetSI() []byte {
 	if m != nil {
-		return m.DeCommitment
+		return m.SI
 	}
 	return nil
 }
 
-func (m *SignRound6Message) GetProofAlphaX() []byte {
+func (m *SignRound6Message) GetStProofAlphaX() []byte {
 	if m != nil {
-		return m.ProofAlphaX
+		return m.StProofAlphaX
 	}
 	return nil
 }
 
-func (m *SignRound6Message) GetProofAlphaY() []byte {
+func (m *SignRound6Message) GetStProofAlphaY() []byte {
 	if m != nil {
-		return m.ProofAlphaY
+		return m.StProofAlphaY
 	}
 	return nil
 }
 
-func (m *SignRound6Message) GetProofT() []byte {
+func (m *SignRound6Message) GetStProofBetaX() []byte {
 	if m != nil {
-		return m.ProofT
+		return m.StProofBetaX
 	}
 	return nil
 }
 
-func (m *SignRound6Message) GetVProofAlphaX() []byte {
+func (m *SignRound6Message) GetStProofBetaY() []byte {
 	if m != nil {
-		return m.VProofAlphaX
+		return m.StProofBetaY
 	}
 	return nil
 }
 
-func (m *SignRound6Message) GetVProofAlphaY() []byte {
+func (m *SignRound6Message) GetStProofT() []byte {
 	if m != nil {
-		return m.VProofAlphaY
+		return m.StProofT
 	}
 	return nil
 }
 
-func (m *SignRound6Message) GetVProofT() []byte {
+func (m *SignRound6Message) GetStProofU() []byte {
 	if m != nil {
-		return m.VProofT
-	}
-	return nil
-}
-
-func (m *SignRound6Message) GetVProofU() []byte {
-	if m != nil {
-		return m.VProofU
+		return m.StProofU
 	}
 	return nil
 }
 
 //
-// Represents a BROADCAST message sent to all parties during Round 7 of the ECDSA TSS signing protocol.
+// Represents a BROADCAST message sent to all parties during Phase 7 of the GG20 ECDSA TSS signing protocol.
 type SignRound7Message struct {
-	Commitment           []byte   `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	SI                   []byte   `protobuf:"bytes,1,opt,name=s_i,json=sI,proto3" json:"s_i,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -453,91 +469,9 @@ func (m *SignRound7Message) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SignRound7Message proto.InternalMessageInfo
 
-func (m *SignRound7Message) GetCommitment() []byte {
+func (m *SignRound7Message) GetSI() []byte {
 	if m != nil {
-		return m.Commitment
-	}
-	return nil
-}
-
-//
-// Represents a BROADCAST message sent to all parties during Round 8 of the ECDSA TSS signing protocol.
-type SignRound8Message struct {
-	DeCommitment         [][]byte `protobuf:"bytes,1,rep,name=de_commitment,json=deCommitment,proto3" json:"de_commitment,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *SignRound8Message) Reset()         { *m = SignRound8Message{} }
-func (m *SignRound8Message) String() string { return proto.CompactTextString(m) }
-func (*SignRound8Message) ProtoMessage()    {}
-func (*SignRound8Message) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5f861bfc687bec19, []int{8}
-}
-
-func (m *SignRound8Message) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SignRound8Message.Unmarshal(m, b)
-}
-func (m *SignRound8Message) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SignRound8Message.Marshal(b, m, deterministic)
-}
-func (m *SignRound8Message) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SignRound8Message.Merge(m, src)
-}
-func (m *SignRound8Message) XXX_Size() int {
-	return xxx_messageInfo_SignRound8Message.Size(m)
-}
-func (m *SignRound8Message) XXX_DiscardUnknown() {
-	xxx_messageInfo_SignRound8Message.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SignRound8Message proto.InternalMessageInfo
-
-func (m *SignRound8Message) GetDeCommitment() [][]byte {
-	if m != nil {
-		return m.DeCommitment
-	}
-	return nil
-}
-
-//
-// Represents a BROADCAST message sent to all parties during Round 9 of the ECDSA TSS signing protocol.
-type SignRound9Message struct {
-	S                    []byte   `protobuf:"bytes,1,opt,name=s,proto3" json:"s,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *SignRound9Message) Reset()         { *m = SignRound9Message{} }
-func (m *SignRound9Message) String() string { return proto.CompactTextString(m) }
-func (*SignRound9Message) ProtoMessage()    {}
-func (*SignRound9Message) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5f861bfc687bec19, []int{9}
-}
-
-func (m *SignRound9Message) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SignRound9Message.Unmarshal(m, b)
-}
-func (m *SignRound9Message) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SignRound9Message.Marshal(b, m, deterministic)
-}
-func (m *SignRound9Message) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SignRound9Message.Merge(m, src)
-}
-func (m *SignRound9Message) XXX_Size() int {
-	return xxx_messageInfo_SignRound9Message.Size(m)
-}
-func (m *SignRound9Message) XXX_DiscardUnknown() {
-	xxx_messageInfo_SignRound9Message.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SignRound9Message proto.InternalMessageInfo
-
-func (m *SignRound9Message) GetS() []byte {
-	if m != nil {
-		return m.S
+		return m.SI
 	}
 	return nil
 }
@@ -551,37 +485,38 @@ func init() {
 	proto.RegisterType((*SignRound5Message)(nil), "SignRound5Message")
 	proto.RegisterType((*SignRound6Message)(nil), "SignRound6Message")
 	proto.RegisterType((*SignRound7Message)(nil), "SignRound7Message")
-	proto.RegisterType((*SignRound8Message)(nil), "SignRound8Message")
-	proto.RegisterType((*SignRound9Message)(nil), "SignRound9Message")
 }
 
 func init() { proto.RegisterFile("protob/ecdsa-signing.proto", fileDescriptor_5f861bfc687bec19) }
 
 var fileDescriptor_5f861bfc687bec19 = []byte{
-	// 396 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x93, 0x5f, 0x6b, 0xe2, 0x40,
-	0x14, 0xc5, 0x49, 0xfc, 0x7f, 0x37, 0xae, 0x38, 0x2c, 0xec, 0xe0, 0xc2, 0xe2, 0xce, 0xb2, 0xe0,
-	0x2e, 0xec, 0x4a, 0xa2, 0xdb, 0xda, 0xc7, 0xda, 0xe7, 0x16, 0xb1, 0x96, 0xd6, 0xbe, 0x84, 0x64,
-	0x32, 0x8d, 0x01, 0xcd, 0x84, 0x24, 0xda, 0xfa, 0x51, 0xfa, 0xd4, 0xaf, 0x5a, 0x9c, 0x64, 0x64,
-	0xd4, 0x42, 0xdb, 0xb7, 0x3e, 0xde, 0x7b, 0x7e, 0x77, 0xce, 0x9d, 0x03, 0x17, 0x5a, 0x51, 0xcc,
-	0x53, 0xee, 0x76, 0x19, 0xf5, 0x12, 0xe7, 0x6f, 0x12, 0xf8, 0x61, 0x10, 0xfa, 0xff, 0x44, 0x93,
-	0x5c, 0x00, 0xba, 0x0c, 0xfc, 0x70, 0xcc, 0x97, 0xa1, 0x67, 0x9e, 0xb3, 0x24, 0x71, 0x7c, 0x66,
-	0x22, 0x03, 0x34, 0x8a, 0xb5, 0xb6, 0xd6, 0x31, 0xc6, 0x1a, 0x45, 0x7f, 0xa0, 0x19, 0x3b, 0xa1,
-	0xcf, 0xec, 0x28, 0xe6, 0xfc, 0xce, 0x76, 0xe6, 0x01, 0x65, 0x58, 0x6f, 0x17, 0x3a, 0xc6, 0xb8,
-	0x21, 0x84, 0xd1, 0xa6, 0x7f, 0xba, 0x69, 0x93, 0xfe, 0x0b, 0xef, 0x59, 0xe8, 0x3b, 0x00, 0xe5,
-	0x8b, 0x45, 0x90, 0x2e, 0x58, 0x98, 0xe6, 0x0f, 0x2b, 0x1d, 0x12, 0x43, 0x73, 0x3b, 0x65, 0xe5,
-	0x53, 0xe8, 0x33, 0xe8, 0xd4, 0xcc, 0x61, 0x9d, 0x9a, 0xa2, 0xb6, 0xb0, 0x9e, 0xd7, 0x16, 0xfa,
-	0x06, 0xb5, 0x6c, 0x21, 0x97, 0xbb, 0xb8, 0x20, 0xd6, 0xa9, 0x8a, 0xc6, 0x90, 0xbb, 0xa8, 0x0d,
-	0xc6, 0x56, 0xb4, 0xef, 0x29, 0x2e, 0x0a, 0x1d, 0xa4, 0x7e, 0x4d, 0xc9, 0x6f, 0xc5, 0xb3, 0x27,
-	0x3d, 0xbf, 0x40, 0xc9, 0x63, 0xf3, 0xd4, 0xc9, 0x6d, 0xb3, 0x82, 0x3c, 0x6a, 0x0a, 0xdb, 0x97,
-	0xec, 0x4f, 0xa8, 0x7b, 0xcc, 0xde, 0xf9, 0xd7, 0xc6, 0xc3, 0xf0, 0xd8, 0xd9, 0xb6, 0x87, 0x08,
-	0xd4, 0x65, 0x6a, 0xd1, 0xcc, 0xb1, 0x1f, 0xf2, 0xfd, 0x3f, 0x45, 0x59, 0x64, 0xd1, 0xcc, 0xb9,
-	0xd9, 0x67, 0xd6, 0xb8, 0xb0, 0xcf, 0x4c, 0xd1, 0x57, 0xa8, 0x64, 0x4c, 0x8a, 0x8b, 0x42, 0x2d,
-	0x8b, 0x72, 0x42, 0x7a, 0xca, 0x6a, 0xff, 0xe5, 0x6a, 0xaf, 0xe5, 0xfd, 0xa4, 0x2b, 0x53, 0x47,
-	0x1f, 0xea, 0x43, 0xe8, 0x17, 0x34, 0x56, 0xf6, 0xae, 0x45, 0x49, 0x00, 0xc6, 0x6a, 0xa4, 0x78,
-	0x1c, 0x60, 0x6b, 0x5c, 0x3e, 0xc0, 0xa6, 0xa8, 0x05, 0x35, 0x89, 0xa5, 0xb8, 0x22, 0x80, 0x4a,
-	0x06, 0x4c, 0x54, 0x6d, 0x89, 0xab, 0xaa, 0x76, 0xb5, 0x13, 0xeb, 0xf1, 0x5b, 0x63, 0x1d, 0x28,
-	0x43, 0x83, 0xf7, 0xa4, 0x4a, 0x7e, 0x28, 0x93, 0x27, 0x72, 0xd2, 0x00, 0x2d, 0x91, 0x57, 0x98,
-	0x0c, 0x1b, 0xb7, 0x75, 0x71, 0xc0, 0xdd, 0xfc, 0x80, 0xdd, 0xb2, 0xb8, 0xe0, 0xde, 0x73, 0x00,
-	0x00, 0x00, 0xff, 0xff, 0xd0, 0xa3, 0x53, 0x1c, 0xdf, 0x03, 0x00, 0x00,
+	// 440 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x93, 0x4f, 0x6f, 0xd4, 0x30,
+	0x10, 0xc5, 0x95, 0xa4, 0xdd, 0x6d, 0x47, 0x59, 0x42, 0x7d, 0xc1, 0x2a, 0x08, 0xad, 0x02, 0x88,
+	0x0a, 0x09, 0xaa, 0xdd, 0x96, 0x3f, 0x12, 0x27, 0x96, 0x53, 0x0e, 0x20, 0xb4, 0x50, 0xd1, 0x70,
+	0xb1, 0x12, 0xc7, 0xa4, 0x96, 0xba, 0x71, 0x14, 0x7b, 0x45, 0x73, 0xe3, 0xbb, 0xf1, 0xc5, 0x50,
+	0x1c, 0x3b, 0x75, 0x58, 0x7a, 0xf4, 0xbc, 0xf7, 0x66, 0x3c, 0x3f, 0x69, 0xe0, 0xb8, 0x6e, 0x84,
+	0x12, 0xf9, 0x29, 0xa3, 0x85, 0xcc, 0x5e, 0x4a, 0x5e, 0x56, 0xbc, 0x2a, 0x5f, 0xe9, 0x62, 0xfc,
+	0x19, 0xd0, 0x57, 0x5e, 0x56, 0x6b, 0xb1, 0xad, 0x8a, 0xc5, 0x27, 0x26, 0x65, 0x56, 0xb2, 0x05,
+	0x0a, 0xc1, 0xa3, 0xd8, 0x9b, 0x7b, 0x27, 0xe1, 0xda, 0xa3, 0xe8, 0x05, 0x1c, 0x35, 0x59, 0x55,
+	0x32, 0x52, 0x37, 0x42, 0xfc, 0x24, 0xd9, 0x35, 0xa7, 0x0c, 0xfb, 0xf3, 0xe0, 0x24, 0x5c, 0x47,
+	0x5a, 0xf8, 0xd2, 0xd5, 0x3f, 0x74, 0xe5, 0xf8, 0xfc, 0x3f, 0xfd, 0x96, 0xe8, 0x31, 0x00, 0x15,
+	0x9b, 0x0d, 0x57, 0x1b, 0x56, 0x29, 0xd3, 0xd8, 0xa9, 0xc4, 0x0d, 0x1c, 0x0d, 0xa9, 0xa5, 0x49,
+	0xa1, 0x7b, 0xe0, 0xd3, 0x85, 0x31, 0xfb, 0x74, 0xa1, 0xdf, 0x4b, 0xec, 0x9b, 0xf7, 0x12, 0x3d,
+	0x84, 0xc3, 0xfe, 0x43, 0xb9, 0xc8, 0x71, 0xa0, 0xbf, 0x73, 0xa0, 0x0b, 0x2b, 0x91, 0xa3, 0x39,
+	0x84, 0x83, 0x48, 0x7e, 0x51, 0xbc, 0xa7, 0x75, 0xb0, 0xfa, 0x77, 0x1a, 0xff, 0xf1, 0x9c, 0xa1,
+	0x67, 0x76, 0xe8, 0x03, 0x98, 0x16, 0xec, 0x5a, 0x65, 0x84, 0x9b, 0xc9, 0x13, 0xfd, 0x4c, 0x50,
+	0x04, 0x81, 0x22, 0xdc, 0x8e, 0x57, 0x09, 0x7a, 0x06, 0x91, 0x1a, 0x88, 0xd4, 0x57, 0x19, 0xb9,
+	0xc1, 0x81, 0x16, 0x43, 0x65, 0x78, 0xd4, 0x57, 0xd9, 0xe5, 0xae, 0xad, 0xc5, 0x7b, 0x3b, 0xb6,
+	0x14, 0x1d, 0xc3, 0xa1, 0xb5, 0x29, 0xbc, 0xaf, 0x0d, 0xd3, 0xde, 0xf0, 0xcd, 0xd5, 0xb6, 0x78,
+	0xe2, 0x6a, 0x17, 0xf1, 0x3b, 0x67, 0x89, 0x73, 0xbb, 0xc4, 0x13, 0x98, 0x15, 0x8c, 0x8c, 0x88,
+	0x77, 0xdb, 0x87, 0x05, 0xfb, 0x78, 0xcb, 0xfc, 0xbd, 0x93, 0x7c, 0x6d, 0x93, 0x08, 0xf6, 0x1b,
+	0xc2, 0xc9, 0x8d, 0x59, 0x3e, 0x68, 0x92, 0x4b, 0x5b, 0x6b, 0xcd, 0xee, 0x41, 0x93, 0xa4, 0xf1,
+	0x6f, 0xdf, 0x49, 0xbf, 0xb1, 0xe9, 0x08, 0x02, 0x39, 0x80, 0xf3, 0x65, 0x82, 0x9e, 0xc3, 0x7d,
+	0xf9, 0x2f, 0xa4, 0xbe, 0xcb, 0x4c, 0x8e, 0x28, 0xed, 0x1a, 0x5b, 0x43, 0x73, 0x64, 0x4c, 0x3b,
+	0x9c, 0x83, 0x31, 0x67, 0xaa, 0x6b, 0x68, 0x70, 0x1a, 0xdf, 0x8a, 0xa9, 0x9e, 0xfa, 0xd8, 0xd6,
+	0x1a, 0xa8, 0xae, 0x2d, 0x45, 0x8f, 0x00, 0xe4, 0x2d, 0xf6, 0x1e, 0xed, 0x81, 0xb4, 0xdc, 0x5d,
+	0x75, 0x8b, 0xa7, 0x23, 0xf5, 0x22, 0x7e, 0xea, 0x10, 0x78, 0x7b, 0x17, 0x81, 0x55, 0xf4, 0x63,
+	0xa6, 0xcf, 0xee, 0xd4, 0x9c, 0x5d, 0x3e, 0xd1, 0x77, 0x77, 0xf6, 0x37, 0x00, 0x00, 0xff, 0xff,
+	0xdf, 0xe7, 0xa2, 0x54, 0x95, 0x03, 0x00, 0x00,
 }
