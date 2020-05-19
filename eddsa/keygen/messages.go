@@ -14,8 +14,8 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
