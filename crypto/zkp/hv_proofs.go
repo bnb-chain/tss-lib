@@ -25,10 +25,9 @@ type (
 	// ZK proof for knowledge of sigma_i, l_i such that S_i = R^sigma_i, T_i = g^sigma_i h^l_i (GG20)
 	STProof struct {
 		Alpha, Beta *crypto.ECPoint
-		T, U  *big.Int
+		T, U        *big.Int
 	}
 )
-
 
 // NewTProof constructs a new ZK proof of knowledge sigma_i, l_i such that T_i = g^sigma_i, h^l_i (GG20)
 func NewTProof(TI, h *crypto.ECPoint, sigmaI, lI *big.Int) (*TProof, error) {

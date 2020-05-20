@@ -31,7 +31,8 @@ func MultiBytesToBigInts(bytes [][]byte) []*big.Int {
 
 // Returns true when the byte slice is non-nil and non-empty
 func NonEmptyBytes(bz []byte) bool {
-	return bz != nil && 0 < len(bz)
+	// len(nil) == 0
+	return 0 < len(bz) && new(big.Int).SetBytes(bz).Cmp(zero) != 0
 }
 
 // Returns true when all of the slices in the multi-dimensional byte slice are non-nil and non-empty
