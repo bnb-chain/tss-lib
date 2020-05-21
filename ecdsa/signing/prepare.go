@@ -35,7 +35,7 @@ func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.E
 			continue
 		}
 		// big.Int Div is calculated as: a/b = a * modInv(b,q)
-		coef := modQ.Mul(ks[j], modQ.ModInverse(new(big.Int).Sub(ks[j], ks[i])))
+		coef := modQ.Mul(ks[j], modQ.Inverse(new(big.Int).Sub(ks[j], ks[i])))
 		wi = modQ.Mul(wi, coef)
 	}
 
@@ -53,7 +53,7 @@ func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.E
 				panic(fmt.Errorf("index of two parties are equal"))
 			}
 			// big.Int Div is calculated as: a/b = a * modInv(b,q)
-			iota := modQ.Mul(ksc, modQ.ModInverse(new(big.Int).Sub(ksc, ksj)))
+			iota := modQ.Mul(ksc, modQ.Inverse(new(big.Int).Sub(ksc, ksj)))
 			bigWj = bigWj.ScalarMult(iota)
 		}
 		bigWs[j] = bigWj

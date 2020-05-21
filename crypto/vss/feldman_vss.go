@@ -113,7 +113,7 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 				continue
 			}
 			sub := modN.Sub(xs[j], share.ID)
-			subInv := modN.ModInverse(sub)
+			subInv := modN.Inverse(sub)
 			div := modN.Mul(xs[j], subInv)
 			times = modN.Mul(times, div)
 		}

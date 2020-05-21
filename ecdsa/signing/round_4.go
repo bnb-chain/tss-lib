@@ -39,7 +39,7 @@ func (round *round4) Start() *tss.Error {
 	}
 
 	// compute the multiplicative inverse delta mod q
-	deltaInverse = modN.ModInverse(deltaInverse)
+	deltaInverse = modN.Inverse(deltaInverse)
 	piGamma, err := zkp.NewSchnorrProof(round.temp.gamma, round.temp.pointGamma)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(gamma, bigGamma)"))

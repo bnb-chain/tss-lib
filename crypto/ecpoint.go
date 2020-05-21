@@ -15,6 +15,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
+
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -77,17 +80,89 @@ func (p *ECPoint) ValidateBasic() bool {
 	return p != nil && p.coords[0] != nil && p.coords[1] != nil && p.IsOnCurve()
 }
 
-func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
-	x, y := curve.ScalarBaseMult(k.Bytes())
-	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
-	return p
-}
+// ----- //
 
 func isOnCurve(c elliptic.Curve, x, y *big.Int) bool {
 	if x == nil || y == nil {
 		return false
 	}
 	return c.IsOnCurve(x, y)
+}
+
+func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
+	x, y := curve.ScalarBaseMult(k.Bytes())
+	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	return p
+}
+
+func DecompressPoint(curve elliptic.Curve, x *big.Int, sign byte) (*ECPoint, error) {
+	if curve == nil || x == nil {
+		return nil, errors.New("DecompressPoint() received one or more nil args")
+	}
+	switch curve {
+	case btcec.S256():
+		return decompressPoint_Secp256k1(curve, x, sign)
+	case elliptic.P256():
+		return decompressPoint_P256(curve, x, sign)
+	default:
+		return nil, fmt.Errorf("DecompressPoint() unsupported curve provided; please implement DecompressPoint for that curve")
+	}
+}
+
+func decompressPoint_Secp256k1(curve elliptic.Curve, x *big.Int, sign byte) (*ECPoint, error) {
+	params := curve.Params()
+	modP := common.ModInt(params.P)
+
+	// secp256k1: y^2 = x^3 + 7
+	x3 := new(big.Int).Mul(x, x)
+	x3.Mul(x3, x)
+
+	y2 := x3.Add(x3, big.NewInt(7))
+	// y2.Mod(y2, params.P)
+
+	// find the sq root mod P
+	y := modP.Sqrt(y2)
+	if y == nil {
+		return nil, errors.New("DecompressPoint() invalid point")
+	}
+	if y.Bit(0) != uint(sign)&1 {
+		y = modP.Neg(y)
+	}
+	return &ECPoint{
+		curve:  curve,
+		coords: [2]*big.Int{x, y},
+	}, nil
+}
+
+// Adapted from IsOnCurve from the stdlib: https://golang.org/src/crypto/elliptic/elliptic.go?s=2055:2110#L45
+// With an extra modular square root to recover the Y co-ord
+// It's only implemented for secp256k1, secp256r1 and P256 curves for now (ECDSA only)
+func decompressPoint_P256(curve elliptic.Curve, x *big.Int, sign byte) (*ECPoint, error) {
+	params := curve.Params()
+	modP := common.ModInt(params.P)
+	three := big.NewInt(3)
+
+	// P-256/secp256r1/prime256v1: y^2 = x^3 - 3x + b
+	x3 := modP.Exp(x, three)
+	threeX := modP.Mul(x, three)
+
+	// x^3 - 3x
+	y2 := new(big.Int).Sub(x3, threeX)
+	// .. + b mod P
+	y2 = modP.Add(y2, params.B)
+
+	// find the sq root mod P
+	y := modP.Sqrt(y2)
+	if y == nil {
+		return nil, errors.New("DecompressPoint() invalid point")
+	}
+	if y.Bit(0) != uint(sign)&1 {
+		y = modP.Neg(y)
+	}
+	return &ECPoint{
+		curve:  curve,
+		coords: [2]*big.Int{x, y},
+	}, nil
 }
 
 // ----- //
