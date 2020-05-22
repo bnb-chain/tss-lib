@@ -23,8 +23,9 @@ import (
 
 // ECPoint convenience helper
 type ECPoint struct {
-	curve  elliptic.Curve
-	coords [2]*big.Int
+	curve        elliptic.Curve
+	coords       [2]*big.Int
+	onCurveKnown bool
 }
 
 // Creates a new ECPoint and checks that the given coordinates are on the elliptic curve.
@@ -32,13 +33,13 @@ func NewECPoint(curve elliptic.Curve, X, Y *big.Int) (*ECPoint, error) {
 	if !isOnCurve(curve, X, Y) {
 		return nil, fmt.Errorf("NewECPoint: the given point is not on the elliptic curve")
 	}
-	return &ECPoint{curve, [2]*big.Int{X, Y}}, nil
+	return &ECPoint{curve, [2]*big.Int{X, Y}, true}, nil
 }
 
 // Creates a new ECPoint without checking that the coordinates are on the elliptic curve.
 // Only use this function when you are completely sure that the point is already on the curve.
 func NewECPointNoCurveCheck(curve elliptic.Curve, X, Y *big.Int) *ECPoint {
-	return &ECPoint{curve, [2]*big.Int{X, Y}}
+	return &ECPoint{curve, [2]*big.Int{X, Y}, false}
 }
 
 func (p *ECPoint) X() *big.Int {
@@ -77,7 +78,11 @@ func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
 }
 
 func (p *ECPoint) ValidateBasic() bool {
-	return p != nil && p.coords[0] != nil && p.coords[1] != nil && p.IsOnCurve()
+	res := p != nil && p.coords[0] != nil && p.coords[1] != nil && (p.onCurveKnown || p.IsOnCurve())
+	if res && !p.onCurveKnown {
+		p.onCurveKnown = true
+	}
+	return res
 }
 
 // ----- //
