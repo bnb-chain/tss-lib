@@ -38,11 +38,12 @@ message SignRound2Message {
  */
 message SignRound3Message {
     bytes delta_i = 1;
-    bytes t_i = 2;
-    bytes t_proof_alpha_x = 3;
-    bytes t_proof_alpha_y = 4;
-    bytes t_proof_t = 5;
-    bytes t_proof_u = 6;
+    bytes t_i_x = 2;
+    bytes t_i_y = 3;
+    bytes t_proof_alpha_x = 4;
+    bytes t_proof_alpha_y = 5;
+    bytes t_proof_t = 6;
+    bytes t_proof_u = 7;
 }
 
 /*

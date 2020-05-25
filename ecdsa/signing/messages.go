@@ -7,6 +7,7 @@
 package signing
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
@@ -155,7 +156,7 @@ func (m *SignRound2Message) UnmarshalProofBobWC() (*mta.ProofBobWC, error) {
 func NewSignRound3Message(
 	from *tss.PartyID,
 	deltaI *big.Int,
-	tI *big.Int,
+	TI *crypto.ECPoint,
 	tProof *zkp.TProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
@@ -164,7 +165,8 @@ func NewSignRound3Message(
 	}
 	content := &SignRound3Message{
 		DeltaI:       deltaI.Bytes(),
-		TI:           tI.Bytes(),
+		TIX:          TI.X().Bytes(),
+		TIY:          TI.Y().Bytes(),
 		TProofAlphaX: tProof.Alpha.X().Bytes(),
 		TProofAlphaY: tProof.Alpha.Y().Bytes(),
 		TProofT:      tProof.T.Bytes(),
@@ -175,13 +177,39 @@ func NewSignRound3Message(
 }
 
 func (m *SignRound3Message) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyBytes(m.GetDeltaI()) &&
-		common.NonEmptyBytes(m.GetTI()) &&
-		common.NonEmptyBytes(m.GetTProofAlphaX()) &&
-		common.NonEmptyBytes(m.GetTProofAlphaY()) &&
-		common.NonEmptyBytes(m.GetTProofT()) &&
-		common.NonEmptyBytes(m.GetTProofU())
+	if m == nil ||
+		!common.NonEmptyBytes(m.GetDeltaI()) ||
+		!common.NonEmptyBytes(m.GetTIX()) ||
+		!common.NonEmptyBytes(m.GetTIY()) ||
+		!common.NonEmptyBytes(m.GetTProofAlphaX()) ||
+		!common.NonEmptyBytes(m.GetTProofAlphaY()) ||
+		!common.NonEmptyBytes(m.GetTProofT()) ||
+		!common.NonEmptyBytes(m.GetTProofU()) {
+		return false
+	}
+	TI, err := m.UnmarshalTI()
+	if err != nil {
+		return false
+	}
+	tProof, err := m.UnmarshalTProof()
+	if err != nil {
+		return false
+	}
+	basePoint2, err := crypto.ECBasePoint2(tss.EC())
+	if err != nil {
+		return false
+	}
+	return TI.ValidateBasic() && tProof.Verify(TI, basePoint2)
+}
+
+func (m *SignRound3Message) UnmarshalTI() (*crypto.ECPoint, error) {
+	if m.GetTIX() == nil || m.GetTIY() == nil {
+		return nil, errors.New("UnmarshalTI() X or Y coord is nil")
+	}
+	return crypto.NewECPoint(
+		tss.EC(),
+		new(big.Int).SetBytes(m.GetTIX()),
+		new(big.Int).SetBytes(m.GetTIY()))
 }
 
 func (m *SignRound3Message) UnmarshalTProof() (*zkp.TProof, error) {

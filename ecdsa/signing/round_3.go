@@ -14,7 +14,9 @@ import (
 	errorspkg "github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/mta"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -26,10 +28,11 @@ func (round *round3) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	var alphas = make([]*big.Int, len(round.Parties().IDs()))
-	var us = make([]*big.Int, len(round.Parties().IDs()))
+	Pi := round.PartyID()
+	i := Pi.Index
 
-	i := round.PartyID().Index
+	alphas := make([]*big.Int, len(round.Parties().IDs()))
+	us := make([]*big.Int, len(round.Parties().IDs()))
 
 	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
 	wg := sync.WaitGroup{}
@@ -98,22 +101,41 @@ func (round *round3) Start() *tss.Error {
 		return round.WrapError(errors.New("failed to calculate Alice_end or Alice_end_wc"), culprits...)
 	}
 
-	modN := common.ModInt(tss.EC().Params().N)
+	q := tss.EC().Params().N
+	modN := common.ModInt(q)
 	deltaI := modN.Mul(round.temp.k, round.temp.gamma)
 	sigmaI := modN.Mul(round.temp.k, round.temp.w)
 
 	for j := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
+		if j == i {
 			continue
 		}
 		deltaI = modN.Add(deltaI, alphas[j].Add(alphas[j], round.temp.betas[j]))
 		sigmaI = modN.Add(sigmaI, us[j].Add(us[j], round.temp.vs[j]))
 	}
 
+	// gg20: calculate T_i = g^sigma_i h^l_i
+	lI := common.GetRandomPositiveInt(q)
+	h, err := crypto.ECBasePoint2(tss.EC())
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+	hLI := h.ScalarMult(lI)
+	gSigmaI := crypto.ScalarBaseMult(tss.EC(), sigmaI)
+	TI, err := gSigmaI.Add(hLI)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+	// gg20: generate the ZK proof of T_i
+	tProof, err := zkp.NewTProof(TI, h, sigmaI, lI)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+
 	round.temp.deltaI = deltaI
 	round.temp.sigmaI = sigmaI
-	r3msg := NewSignRound3Message(round.PartyID(), deltaI)
-	round.temp.signRound3Messages[round.PartyID().Index] = r3msg
+	r3msg := NewSignRound3Message(Pi, deltaI, TI, tProof)
+	round.temp.signRound3Messages[i] = r3msg
 	round.out <- r3msg
 
 	return nil
