@@ -103,8 +103,11 @@ func (round *round3) Start() *tss.Error {
 
 	q := tss.EC().Params().N
 	modN := common.ModInt(q)
-	deltaI := modN.Mul(round.temp.k, round.temp.gamma)
-	sigmaI := modN.Mul(round.temp.k, round.temp.w)
+	deltaI := modN.Mul(round.temp.kI, round.temp.gammaI)
+	sigmaI := modN.Mul(round.temp.kI, round.temp.wI)
+
+	// clear wI from temp memory
+	round.temp.wI = zero
 
 	for j := range round.Parties().IDs() {
 		if j == i {
@@ -132,12 +135,13 @@ func (round *round3) Start() *tss.Error {
 		return round.WrapError(err, Pi)
 	}
 
+	round.temp.TI = TI
+	round.temp.lI = lI
 	round.temp.deltaI = deltaI
 	round.temp.sigmaI = sigmaI
 	r3msg := NewSignRound3Message(Pi, deltaI, TI, tProof)
 	round.temp.signRound3Messages[i] = r3msg
 	round.out <- r3msg
-
 	return nil
 }
 

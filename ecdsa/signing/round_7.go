@@ -10,11 +10,8 @@ import (
 	"errors"
 	"math/big"
 
-	errors2 "github.com/pkg/errors"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -26,68 +23,66 @@ func (round *round7) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	bigVjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
-	bigAjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
-	for j, Pj := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
+	Pi := round.PartyID()
+	i := Pi.Index
+
+	N := tss.EC().Params().N
+	modN := common.ModInt(N)
+
+	bigR := round.temp.bigR
+	h, err := crypto.ECBasePoint2(tss.EC())
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+
+	bigSIProducts := (*crypto.ECPoint)(nil)
+	for j, msg := range round.temp.signRound6Messages {
+		Pj := round.Parties().IDs()[j]
+		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
+		r6msg := msg.Content().(*SignRound6Message)
+
+		TI, err := r3msg.UnmarshalTI()
+		if err != nil {
+			return round.WrapError(err, Pj)
+		}
+		bigSI, err := r6msg.UnmarshalSI()
+		if err != nil {
+			return round.WrapError(err, Pj)
+		}
+
+		// ZK STProof check
+		stProof, err := r6msg.UnmarshalSTProof()
+		if err != nil {
+			return round.WrapError(err, Pj)
+		}
+		if ok := stProof.Verify(bigSI, TI, bigR, h); !ok {
+			return round.WrapError(errors.New("STProof verify failure"), Pj)
+		}
+
+		// bigSI consistency check
+		if bigSIProducts == nil {
+			bigSIProducts = bigSI
 			continue
 		}
-		r5msg := round.temp.signRound5Messages[j].Content().(*SignRound5Message)
-		r6msg := round.temp.signRound6Messages[j].Content().(*SignRound6Message)
-		cj, dj := r5msg.UnmarshalCommitment(), r6msg.UnmarshalDeCommitment()
-		cmtDeCmt := commitments.HashCommitDecommit{C: cj, D: dj}
-		ok, values := cmtDeCmt.DeCommit()
-		if !ok || len(values) != 4 {
-			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
+		if bigSIProducts, err = bigSIProducts.Add(bigSI); err != nil {
+			return round.WrapError(err, Pj)
 		}
-		bigVjX, bigVjY, bigAjX, bigAjY := values[0], values[1], values[2], values[3]
-		bigVj, err := crypto.NewECPoint(tss.EC(), bigVjX, bigVjY)
-		if err != nil {
-			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigVj)"), Pj)
-		}
-		bigVjs[j] = bigVj
-		bigAj, err := crypto.NewECPoint(tss.EC(), bigAjX, bigAjY)
-		if err != nil {
-			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigAj)"), Pj)
-		}
-		bigAjs[j] = bigAj
-		pijA, err := r6msg.UnmarshalZKProof()
-		if err != nil || !pijA.Verify(bigAj) {
-			return round.WrapError(errors.New("zk verify for Aj failed"), Pj)
-		}
-		pijV, err := r6msg.UnmarshalZKVProof()
-		if err != nil || !pijV.Verify(bigVj, round.temp.bigR) {
-			return round.WrapError(errors.New("vverify for Vj failed"), Pj)
+	}
+	{
+		y := round.key.ECDSAPub
+		if bigSIProducts.X().Cmp(y.X()) != 0 || bigSIProducts.Y().Cmp(y.Y()) != 0 {
+			return round.WrapError(errors.New("consistency check failed; y != products"))
 		}
 	}
 
-	modN := common.ModInt(tss.EC().Params().N)
-	AX, AY := round.temp.bigAi.X(), round.temp.bigAi.Y()
-	minusM := modN.Sub(big.NewInt(0), round.temp.m)
-	gToMInvX, gToMInvY := tss.EC().ScalarBaseMult(minusM.Bytes())
-	minusR := modN.Sub(big.NewInt(0), round.temp.rx)
-	yToRInvX, yToRInvY := tss.EC().ScalarMult(round.key.ECDSAPub.X(), round.key.ECDSAPub.Y(), minusR.Bytes())
-	VX, VY := tss.EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
-	VX, VY = tss.EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())
+	m, kI, sigmaI := round.temp.m, round.temp.kI, round.temp.sigmaI
+	rIX := new(big.Int).Mod(bigR.X(), N)
+	sI := modN.Add(modN.Mul(m, kI), modN.Mul(rIX, sigmaI))
+	round.temp.rI, round.temp.sI = bigR, sI
 
-	for j := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
-			continue
-		}
-		VX, VY = tss.EC().Add(VX, VY, bigVjs[j].X(), bigVjs[j].Y())
-		AX, AY = tss.EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
-	}
-
-	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.rhoI.Bytes())
-	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
-	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)
-	round.temp.Ti = crypto.NewECPointNoCurveCheck(tss.EC(), TiX, TiY)
-	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
-	r7msg := NewSignRound7Message(round.PartyID(), cmt.C)
-	round.temp.signRound7Messages[round.PartyID().Index] = r7msg
+	r7msg := NewSignRound7Message(round.PartyID(), sI)
+	round.temp.signRound7Messages[i] = r7msg
 	round.out <- r7msg
-	round.temp.DTelda = cmt.D
-
 	return nil
 }
 
@@ -113,5 +108,5 @@ func (round *round7) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round7) NextRound() tss.Round {
 	round.started = false
-	return &round8{round}
+	return &finalization{round}
 }

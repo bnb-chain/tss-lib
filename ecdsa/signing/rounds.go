@@ -49,14 +49,8 @@ type (
 	round7 struct {
 		*round6
 	}
-	round8 struct {
-		*round7
-	}
-	round9 struct {
-		*round8
-	}
 	finalization struct {
-		*round9
+		*round7
 	}
 )
 
@@ -68,8 +62,6 @@ var (
 	_ tss.Round = (*round5)(nil)
 	_ tss.Round = (*round6)(nil)
 	_ tss.Round = (*round7)(nil)
-	_ tss.Round = (*round8)(nil)
-	_ tss.Round = (*round9)(nil)
 	_ tss.Round = (*finalization)(nil)
 )
 

@@ -8,6 +8,7 @@ package signing
 
 import (
 	"errors"
+	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
@@ -25,13 +26,24 @@ func (round *round5) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	R := round.temp.pointGamma
+	Pi := round.PartyID()
+	i := Pi.Index
+
+	modN := common.ModInt(tss.EC().Params().N)
+
+	bigR := round.temp.gammaIG
+	deltaI := *round.temp.deltaI
+	deltaInverse := &deltaI
+
 	for j, Pj := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
+		if j == i {
 			continue
 		}
 		r1msg2 := round.temp.signRound1Message2s[j].Content().(*SignRound1Message2)
+		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
 		r4msg := round.temp.signRound4Messages[j].Content().(*SignRound4Message)
+
+		// calculating Big R
 		SCj, SDj := r1msg2.UnmarshalCommitment(), r4msg.UnmarshalDeCommitment()
 		cmtDeCmt := commitments.HashCommitDecommit{C: SCj, D: SDj}
 		ok, bigGammaJ := cmtDeCmt.DeCommit()
@@ -42,56 +54,28 @@ func (round *round5) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
 		}
-		proof, err := r4msg.UnmarshalZKProof()
+		bigR, err = bigR.Add(bigGammaJPoint)
 		if err != nil {
-			return round.WrapError(errors.New("failed to unmarshal bigGamma proof"), Pj)
+			return round.WrapError(errors2.Wrapf(err, "bigR.Add(bigGammaJ)"), Pj)
 		}
-		ok = proof.Verify(bigGammaJPoint)
-		if !ok {
-			return round.WrapError(errors.New("failed to prove bigGamma"), Pj)
-		}
-		R, err = R.Add(bigGammaJPoint)
-		if err != nil {
-			return round.WrapError(errors2.Wrapf(err, "R.Add(bigGammaJ)"), Pj)
-		}
+
+		// calculating delta^-1 (below)
+		deltaJ := r3msg.GetDeltaI()
+		deltaInverse = modN.Add(deltaInverse, new(big.Int).SetBytes(deltaJ))
 	}
 
-	R = R.ScalarMult(round.temp.deltaInverse)
-	N := tss.EC().Params().N
-	modN := common.ModInt(N)
-	rx := R.X()
-	ry := R.Y()
-	si := modN.Add(modN.Mul(round.temp.m, round.temp.k), modN.Mul(rx, round.temp.sigmaI))
+	// compute the multiplicative inverse delta mod q
+	deltaInverse = modN.Inverse(deltaInverse)
+	round.temp.deltaInverse = deltaInverse
 
-	// clear temp.w and temp.k from memory, lint ignore
-	round.temp.w = zero
-	round.temp.k = zero
+	// compute Big R
+	bigR = bigR.ScalarMult(deltaInverse)
+	round.temp.bigR = bigR
 
-	li := common.GetRandomPositiveInt(N)  // li
-	roI := common.GetRandomPositiveInt(N) // pi
-	rToSi := R.ScalarMult(si)
-	liPoint := crypto.ScalarBaseMult(tss.EC(), li)
-	bigAi := crypto.ScalarBaseMult(tss.EC(), roI)
-	bigVi, err := rToSi.Add(liPoint)
-	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "rToSi.Add(li)"))
-	}
-
-	cmt := commitments.NewHashCommitment(bigVi.X(), bigVi.Y(), bigAi.X(), bigAi.Y())
-	r5msg := NewSignRound5Message(round.PartyID(), cmt.C)
-	round.temp.signRound5Messages[round.PartyID().Index] = r5msg
+	bigRBarI := bigR.ScalarMult(round.temp.kI)
+	r5msg := NewSignRound5Message(Pi, bigRBarI)
+	round.temp.signRound5Messages[i] = r5msg
 	round.out <- r5msg
-
-	round.temp.li = li
-	round.temp.bigAi = bigAi
-	round.temp.bigVi = bigVi
-	round.temp.rhoI = roI
-	round.temp.DPower = cmt.D
-	round.temp.si = si
-	round.temp.rx = rx
-	round.temp.ry = ry
-	round.temp.bigR = R
-
 	return nil
 }
 

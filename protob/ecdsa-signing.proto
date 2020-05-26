@@ -66,13 +66,14 @@ message SignRound5Message {
  * Represents a BROADCAST message sent to all parties during Phase 6 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound6Message {
-    bytes s_i = 1;
-    bytes st_proof_alpha_x = 2;
-    bytes st_proof_alpha_y = 3;
-    bytes st_proof_beta_x = 4;
-    bytes st_proof_beta_y = 5;
-    bytes st_proof_t = 6;
-    bytes st_proof_u = 7;
+    bytes s_i_x = 1;
+    bytes s_i_y = 2;
+    bytes st_proof_alpha_x = 3;
+    bytes st_proof_alpha_y = 4;
+    bytes st_proof_beta_x = 5;
+    bytes st_proof_beta_y = 6;
+    bytes st_proof_t = 7;
+    bytes st_proof_u = 8;
 }
 
 /*

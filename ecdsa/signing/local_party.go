@@ -46,26 +46,24 @@ type (
 		signRound4Messages,
 		signRound5Messages,
 		signRound6Messages,
-		signRound7Messages,
-		signRound8Messages,
-		signRound9Messages []tss.ParsedMessage
+		signRound7Messages []tss.ParsedMessage
 	}
 
 	localTempData struct {
 		localMessageStore
 
 		// temp data (thrown away after sign) / round 1
-		w,
 		m,
-		k,
+		wI,
+		kI,
 		deltaI,
 		deltaInverse,
 		sigmaI,
-		gamma *big.Int
-		cis        []*big.Int
-		bigWs      []*crypto.ECPoint
-		pointGamma *crypto.ECPoint
-		deCommit   cmt.HashDeCommitment
+		gammaI *big.Int
+		cis      []*big.Int
+		bigWs    []*crypto.ECPoint
+		gammaIG  *crypto.ECPoint
+		deCommit cmt.HashDeCommitment
 
 		// round 2
 		betas, // return value of Bob_mid
@@ -75,20 +73,16 @@ type (
 		pi1jis []*mta.ProofBob
 		pi2jis []*mta.ProofBobWC
 
+		// round 3
+		lI *big.Int
+
 		// round 5
-		li,
-		si,
-		rx,
-		ry,
-		rhoI *big.Int
-		bigR,
-		bigAi,
-		bigVi *crypto.ECPoint
-		DPower cmt.HashDeCommitment
+		bigR *crypto.ECPoint
 
 		// round 7
-		Ui,
-		Ti *crypto.ECPoint
+		sI *big.Int
+		rI,
+		TI *crypto.ECPoint
 		DTelda cmt.HashDeCommitment
 	}
 )
@@ -119,8 +113,6 @@ func NewLocalParty(
 	p.temp.signRound5Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound6Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.m = msg
 	p.temp.cis = make([]*big.Int, partyCount)
@@ -201,10 +193,6 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		p.temp.signRound6Messages[fromPIdx] = msg
 	case *SignRound7Message:
 		p.temp.signRound7Messages[fromPIdx] = msg
-	case *SignRound8Message:
-		p.temp.signRound8Messages[fromPIdx] = msg
-	case *SignRound9Message:
-		p.temp.signRound9Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

@@ -32,6 +32,8 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
+	i := round.PartyID().Index
+
 	// 1. select ri
 	ri := common.GetRandomPositiveInt(tss.EC().Params().N)
 
@@ -43,9 +45,6 @@ func (round *round1) Start() *tss.Error {
 	round.temp.ri = ri
 	round.temp.pointRi = pointRi
 	round.temp.deCommit = cmt.D
-
-	i := round.PartyID().Index
-	round.ok[i] = true
 
 	// 4. broadcast commitment
 	r1msg2 := NewSignRound1Message(round.PartyID(), cmt.C)

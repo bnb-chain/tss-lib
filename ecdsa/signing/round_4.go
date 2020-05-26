@@ -8,12 +8,7 @@ package signing
 
 import (
 	"errors"
-	"math/big"
 
-	errors2 "github.com/pkg/errors"
-
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -25,30 +20,12 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	modN := common.ModInt(tss.EC().Params().N)
-	deltaI := *round.temp.deltaI
+	Pi := round.PartyID()
+	i := Pi.Index
 
-	deltaInverse := &deltaI
-	for j := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
-			continue
-		}
-		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
-		deltaJ := r3msg.GetDelta()
-		deltaInverse = modN.Add(deltaInverse, new(big.Int).SetBytes(deltaJ))
-	}
-
-	// compute the multiplicative inverse delta mod q
-	deltaInverse = modN.Inverse(deltaInverse)
-	piGamma, err := zkp.NewSchnorrProof(round.temp.gamma, round.temp.pointGamma)
-	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(gamma, bigGamma)"))
-	}
-	round.temp.deltaInverse = deltaInverse
-	r4msg := NewSignRound4Message(round.PartyID(), round.temp.deCommit, piGamma)
-	round.temp.signRound4Messages[round.PartyID().Index] = r4msg
+	r4msg := NewSignRound4Message(Pi, round.temp.deCommit)
+	round.temp.signRound4Messages[i] = r4msg
 	round.out <- r4msg
-
 	return nil
 }
 

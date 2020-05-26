@@ -9,8 +9,7 @@ package signing
 import (
 	"errors"
 
-	errors2 "github.com/pkg/errors"
-
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -23,17 +22,47 @@ func (round *round6) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	piAi, err := zkp.NewSchnorrProof(round.temp.rhoI, round.temp.bigAi)
-	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(rhoI, bigAi)"))
+	Pi := round.PartyID()
+	i := Pi.Index
+
+	bigRBarIProducts := (*crypto.ECPoint)(nil)
+	for j, msg := range round.temp.signRound5Messages {
+		Pj := round.Parties().IDs()[j]
+		r5msg := msg.Content().(*SignRound5Message)
+		bigRBarI, err := r5msg.UnmarshalRI()
+		if err != nil {
+			return round.WrapError(err, Pj)
+		}
+		if bigRBarIProducts == nil {
+			bigRBarIProducts = bigRBarI
+			continue
+		}
+		if bigRBarIProducts, err = bigRBarIProducts.Add(bigRBarI); err != nil {
+			return round.WrapError(err, Pj)
+		}
 	}
-	piV, err := zkp.NewTProof(round.temp.bigVi, round.temp.bigR, round.temp.si, round.temp.li)
-	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewTProof(bigVi, bigR, si, li)"))
+	{
+		ec := tss.EC()
+		gX, gY := ec.Params().Gx, ec.Params().Gy
+		if bigRBarIProducts.X().Cmp(gX) != 0 || bigRBarIProducts.Y().Cmp(gY) != 0 {
+			return round.WrapError(errors.New("consistency check failed; g != products"))
+		}
 	}
 
-	r6msg := NewSignRound6Message(round.PartyID(), round.temp.DPower, piAi, piV)
-	round.temp.signRound6Messages[round.PartyID().Index] = r6msg
+	bigR, sigmaI, TI, lI := round.temp.bigR, round.temp.sigmaI, round.temp.TI, round.temp.lI
+	bigSI := bigR.ScalarMult(sigmaI)
+
+	h, err := crypto.ECBasePoint2(tss.EC())
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+	stProof, err := zkp.NewSTProof(TI, bigR, h, sigmaI, lI)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+
+	r6msg := NewSignRound6Message(Pi, bigSI, stProof)
+	round.temp.signRound6Messages[i] = r6msg
 	round.out <- r6msg
 	return nil
 }

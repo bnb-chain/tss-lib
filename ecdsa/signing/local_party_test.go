@@ -35,7 +35,7 @@ func setUp(level string) {
 }
 
 func TestE2EConcurrent(t *testing.T) {
-	setUp("info")
+	setUp("debug")
 	threshold := testThreshold
 
 	// PHASE: load keygen fixtures
@@ -99,7 +99,7 @@ signing:
 			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
 				t.Logf("Done. Received signature data from %d participants", ended)
 				R := parties[0].temp.bigR
-				r := parties[0].temp.rx
+				r := parties[0].temp.rI.X()
 				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
 
 				modN := common.ModInt(tss.EC().Params().N)
@@ -107,7 +107,7 @@ signing:
 				// BEGIN check s correctness
 				sumS := big.NewInt(0)
 				for _, p := range parties {
-					sumS = modN.Add(sumS, p.temp.si)
+					sumS = modN.Add(sumS, p.temp.sI)
 				}
 				fmt.Printf("S: %s\n", sumS.String())
 				// END check s correctness

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -84,6 +85,9 @@ func TestECBasePoint2(t *testing.T) {
 			}
 
 			gotPtAgain, err := ECBasePoint2(tt.args.curve)
+			if !assert.NoError(t, err) {
+				return
+			}
 			if !reflect.DeepEqual(gotPt, gotPtAgain) {
 				t.Errorf("ECBasePoint2() repeat invocation did not return a deep equal result")
 			}

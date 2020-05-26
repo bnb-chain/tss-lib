@@ -38,14 +38,14 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*SignRound1Message1)(nil), tss.ECDSAProtoNamePrefix+"sign.Round1Message1")
-	proto.RegisterType((*SignRound1Message2)(nil), tss.ECDSAProtoNamePrefix+"sign.Round1Message2")
-	proto.RegisterType((*SignRound2Message)(nil), tss.ECDSAProtoNamePrefix+"sign.Round2Message")
-	proto.RegisterType((*SignRound3Message)(nil), tss.ECDSAProtoNamePrefix+"sign.Round3Message")
-	proto.RegisterType((*SignRound4Message)(nil), tss.ECDSAProtoNamePrefix+"sign.Round4Message")
-	proto.RegisterType((*SignRound5Message)(nil), tss.ECDSAProtoNamePrefix+"sign.Round5Message")
-	proto.RegisterType((*SignRound6Message)(nil), tss.ECDSAProtoNamePrefix+"sign.Round6Message")
-	proto.RegisterType((*SignRound7Message)(nil), tss.ECDSAProtoNamePrefix+"sign.Round7Message")
+	proto.RegisterType((*SignRound1Message1)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound1Message1")
+	proto.RegisterType((*SignRound1Message2)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound1Message2")
+	proto.RegisterType((*SignRound2Message)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound2Message")
+	proto.RegisterType((*SignRound3Message)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound3Message")
+	proto.RegisterType((*SignRound4Message)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound4Message")
+	proto.RegisterType((*SignRound5Message)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound5Message")
+	proto.RegisterType((*SignRound6Message)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound6Message")
+	proto.RegisterType((*SignRound7Message)(nil), tss.ECDSAProtoNamePrefix+"sign.SRound7Message")
 }
 
 // ----- //
@@ -195,6 +195,7 @@ func (m *SignRound3Message) ValidateBasic() bool {
 	if err != nil {
 		return false
 	}
+	// we have everything we need to validate the TProof here!
 	basePoint2, err := crypto.ECBasePoint2(tss.EC())
 	if err != nil {
 		return false
@@ -274,9 +275,16 @@ func NewSignRound5Message(
 }
 
 func (m *SignRound5Message) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyBytes(m.GetRIX()) &&
-		common.NonEmptyBytes(m.GetRIY())
+	if m == nil ||
+		!common.NonEmptyBytes(m.GetRIX()) ||
+		!common.NonEmptyBytes(m.GetRIY()) {
+		return false
+	}
+	RI, err := m.UnmarshalRI()
+	if err != nil {
+		return false
+	}
+	return RI.ValidateBasic()
 }
 
 func (m *SignRound5Message) UnmarshalRI() (*crypto.ECPoint, error) {
@@ -289,7 +297,7 @@ func (m *SignRound5Message) UnmarshalRI() (*crypto.ECPoint, error) {
 
 func NewSignRound6Message(
 	from *tss.PartyID,
-	sI *big.Int,
+	sI *crypto.ECPoint,
 	proof *zkp.STProof,
 
 ) tss.ParsedMessage {
@@ -298,7 +306,8 @@ func NewSignRound6Message(
 		IsBroadcast: true,
 	}
 	content := &SignRound6Message{
-		SI:            sI.Bytes(),
+		SIX:           sI.X().Bytes(),
+		SIY:           sI.Y().Bytes(),
 		StProofAlphaX: proof.Alpha.X().Bytes(),
 		StProofAlphaY: proof.Alpha.Y().Bytes(),
 		StProofBetaX:  proof.Beta.X().Bytes(),
@@ -311,14 +320,32 @@ func NewSignRound6Message(
 }
 
 func (m *SignRound6Message) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyBytes(m.GetSI()) &&
-		common.NonEmptyBytes(m.GetStProofAlphaX()) &&
-		common.NonEmptyBytes(m.GetStProofAlphaY()) &&
-		common.NonEmptyBytes(m.GetStProofBetaX()) &&
-		common.NonEmptyBytes(m.GetStProofBetaY()) &&
-		common.NonEmptyBytes(m.GetStProofT()) &&
-		common.NonEmptyBytes(m.GetStProofU())
+	if m == nil ||
+		!common.NonEmptyBytes(m.GetSIX()) ||
+		!common.NonEmptyBytes(m.GetSIY()) ||
+		!common.NonEmptyBytes(m.GetStProofAlphaX()) ||
+		!common.NonEmptyBytes(m.GetStProofAlphaY()) ||
+		!common.NonEmptyBytes(m.GetStProofBetaX()) ||
+		!common.NonEmptyBytes(m.GetStProofBetaY()) ||
+		!common.NonEmptyBytes(m.GetStProofT()) ||
+		!common.NonEmptyBytes(m.GetStProofU()) {
+		return false
+	}
+	sI, err := m.UnmarshalSI()
+	if err != nil {
+		return false
+	}
+	tProof, err := m.UnmarshalSTProof()
+	if err != nil {
+		return false
+	}
+	return sI.ValidateBasic() && tProof.ValidateBasic()
+}
+
+func (m *SignRound6Message) UnmarshalSI() (*crypto.ECPoint, error) {
+	return crypto.NewECPoint(tss.EC(),
+		new(big.Int).SetBytes(m.GetSIX()),
+		new(big.Int).SetBytes(m.GetSIY()))
 }
 
 func (m *SignRound6Message) UnmarshalSTProof() (*zkp.STProof, error) {
@@ -348,14 +375,14 @@ func (m *SignRound6Message) UnmarshalSTProof() (*zkp.STProof, error) {
 
 func NewSignRound7Message(
 	from *tss.PartyID,
-	si *big.Int,
+	sI *big.Int,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	content := &SignRound7Message{
-		SI: si.Bytes(),
+		SI: sI.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)

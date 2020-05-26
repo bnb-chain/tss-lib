@@ -46,24 +46,26 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	k := common.GetRandomPositiveInt(tss.EC().Params().N)
-	gamma := common.GetRandomPositiveInt(tss.EC().Params().N)
-
-	pointGamma := crypto.ScalarBaseMult(tss.EC(), gamma)
-	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
-	round.temp.k = k
-	round.temp.gamma = gamma
-	round.temp.pointGamma = pointGamma
-	round.temp.deCommit = cmt.D
-
-	i := round.PartyID().Index
+	Pi := round.PartyID()
+	i := Pi.Index
 	round.ok[i] = true
+
+	kI := common.GetRandomPositiveInt(tss.EC().Params().N)
+	gammaI := common.GetRandomPositiveInt(tss.EC().Params().N)
+	round.temp.kI = kI
+	round.temp.gammaI = gammaI
+
+	gammaIG := crypto.ScalarBaseMult(tss.EC(), gammaI)
+	round.temp.gammaIG = gammaIG
+
+	cmt := commitments.NewHashCommitment(gammaIG.X(), gammaIG.Y())
+	round.temp.deCommit = cmt.D
 
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		cA, pi, err := mta.AliceInit(round.key.PaillierPKs[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		cA, pi, err := mta.AliceInit(round.key.PaillierPKs[i], kI, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
@@ -124,9 +126,9 @@ func (round *round1) prepare() error {
 	if round.Threshold()+1 > len(ks) {
 		return fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks))
 	}
-	wi, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
+	wI, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
 
-	round.temp.w = wi
+	round.temp.wI = wI
 	round.temp.bigWs = bigWs
 	return nil
 }
