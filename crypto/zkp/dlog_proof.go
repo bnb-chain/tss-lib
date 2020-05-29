@@ -17,16 +17,16 @@ import (
 
 type (
 	// Schnorr ZK of the discrete logarithm of pho_i such that A = g^pho (GG18)
-	SchnorrProof struct {
+	DLogProof struct {
 		Alpha *crypto.ECPoint
 		T     *big.Int
 	}
 )
 
-// NewSchnorrProof constructs a new Schnorr ZK of the discrete logarithm of pho_i such that A = g^pho (GG18)
-func NewSchnorrProof(x *big.Int, X *crypto.ECPoint) (*SchnorrProof, error) {
+// NewDLogProof constructs a new Schnorr ZK of the discrete logarithm of pho_i such that A = g^pho (GG18)
+func NewDLogProof(x *big.Int, X *crypto.ECPoint) (*DLogProof, error) {
 	if x == nil || X == nil || !X.ValidateBasic() {
-		return nil, errors.New("NewSchnorrProof received nil or invalid value(s)")
+		return nil, errors.New("NewDLogProof received nil or invalid value(s)")
 	}
 	ecParams := tss.EC().Params()
 	q := ecParams.N
@@ -43,11 +43,11 @@ func NewSchnorrProof(x *big.Int, X *crypto.ECPoint) (*SchnorrProof, error) {
 	t := new(big.Int).Mul(c, x)
 	t = common.ModInt(q).Add(a, t)
 
-	return &SchnorrProof{Alpha: alpha, T: t}, nil
+	return &DLogProof{Alpha: alpha, T: t}, nil
 }
 
-// NewSchnorrProof verifies a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func (pf *SchnorrProof) Verify(X *crypto.ECPoint) bool {
+// NewDLogProof verifies a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
+func (pf *DLogProof) Verify(X *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
@@ -72,6 +72,6 @@ func (pf *SchnorrProof) Verify(X *crypto.ECPoint) bool {
 	return true
 }
 
-func (pf *SchnorrProof) ValidateBasic() bool {
+func (pf *DLogProof) ValidateBasic() bool {
 	return pf.T != nil && pf.Alpha != nil && pf.Alpha.ValidateBasic()
 }

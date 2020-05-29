@@ -45,9 +45,9 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 5. compute Schnorr prove
-	pii, err := zkp.NewSchnorrProof(round.temp.ui, round.temp.vs[0])
+	pii, err := zkp.NewDLogProof(round.temp.ui, round.temp.vs[0])
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewSchnorrProof(ui, vi0)"))
+		return round.WrapError(errors2.Wrapf(err, "NewDLogProof(ui, vi0)"))
 	}
 
 	// 5. BROADCAST de-commitments of Shamir poly*G and Schnorr prove

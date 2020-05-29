@@ -129,7 +129,7 @@ func (round *round3) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	// gg20: generate the ZK proof of T_i
+	// gg20: generate the ZK proof of T_i, verified in ValidateBasic for the round 3 message
 	tProof, err := zkp.NewTProof(TI, h, sigmaI, lI)
 	if err != nil {
 		return round.WrapError(err, Pi)
@@ -139,6 +139,7 @@ func (round *round3) Start() *tss.Error {
 	round.temp.lI = lI
 	round.temp.deltaI = deltaI
 	round.temp.sigmaI = sigmaI
+
 	r3msg := NewSignRound3Message(Pi, deltaI, TI, tProof)
 	round.temp.signRound3Messages[i] = r3msg
 	round.out <- r3msg

@@ -91,7 +91,7 @@ func (m *KGRound2Message1) UnmarshalShare() *big.Int {
 func NewKGRound2Message2(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *zkp.SchnorrProof,
+	proof *zkp.DLogProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -118,7 +118,7 @@ func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *KGRound2Message2) UnmarshalZKProof() (*zkp.SchnorrProof, error) {
+func (m *KGRound2Message2) UnmarshalZKProof() (*zkp.DLogProof, error) {
 	point, err := crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
@@ -126,7 +126,7 @@ func (m *KGRound2Message2) UnmarshalZKProof() (*zkp.SchnorrProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &zkp.SchnorrProof{
+	return &zkp.DLogProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil
