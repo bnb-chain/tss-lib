@@ -61,11 +61,19 @@ func (round *round1) Start() *tss.Error {
 	cmt := commitments.NewHashCommitment(gammaIG.X(), gammaIG.Y())
 	round.temp.deCommit = cmt.D
 
+	// MtA round 1
+	paiPK := round.key.PaillierPKs[i]
+	cA, rA, err := paiPK.EncryptAndReturnRandomness(kI)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+	round.temp.cAKI = cA // used in round 5 for the ZK proof
+	round.temp.rAKI = rA
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		cA, pi, err := mta.AliceInit(round.key.PaillierPKs[i], kI, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		pi, err := mta.AliceInit(paiPK, kI, cA, rA, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}

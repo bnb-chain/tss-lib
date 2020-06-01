@@ -31,6 +31,7 @@ var (
 
 func setUp(t *testing.T) {
 	if privateKey != nil && publicKey != nil {
+		t.Parallel()
 		return
 	}
 	var err error
@@ -53,6 +54,12 @@ func TestEncrypt(t *testing.T) {
 	t.Log(cipher)
 }
 
+func TestEncryptWithChosenRandomnessFailsBadRandom(t *testing.T) {
+	setUp(t)
+	_, _, err := publicKey.EncryptWithChosenRandomness(big.NewInt(1), big.NewInt(0))
+	assert.Error(t, err, "must error")
+}
+
 func TestEncryptDecrypt(t *testing.T) {
 	setUp(t)
 	exp := big.NewInt(100)
@@ -62,6 +69,22 @@ func TestEncryptDecrypt(t *testing.T) {
 	}
 	ret, err := privateKey.Decrypt(cypher)
 	assert.NoError(t, err)
+	assert.Equal(t, 0, exp.Cmp(ret),
+		"wrong decryption ", ret, " is not ", exp)
+}
+
+func TestEncryptWithChosenRandomnessDecrypt(t *testing.T) {
+	setUp(t)
+	exp := big.NewInt(100)
+	rnd := common.GetRandomPositiveInt(privateKey.N)
+	cypher, x, err := privateKey.EncryptWithChosenRandomness(exp, rnd)
+	if err != nil {
+		t.Error(err)
+	}
+	ret, err := privateKey.Decrypt(cypher)
+	assert.NoError(t, err)
+	expX := new(big.Int).Exp(rnd, privateKey.N, privateKey.NSquare())
+	assert.Equal(t, expX, x)
 	assert.Equal(t, 0, exp.Cmp(ret),
 		"wrong decryption ", ret, " is not ", exp)
 }

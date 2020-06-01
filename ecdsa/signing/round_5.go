@@ -15,6 +15,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -68,12 +69,31 @@ func (round *round5) Start() *tss.Error {
 	deltaInverse = modN.Inverse(deltaInverse)
 	round.temp.deltaInverse = deltaInverse
 
-	// compute Big R
+	// compute R
 	bigR = bigR.ScalarMult(deltaInverse)
 	round.temp.bigR = bigR
-
+	// all parties broadcast Rdash_i = k_i * R
 	bigRBarI := bigR.ScalarMult(round.temp.kI)
-	r5msg := NewSignRound5Message(Pi, bigRBarI)
+
+	// compute ZK proof of consistency between R_i and E_i(k_i)
+	// ported from: https://git.io/Jf69a
+	pdlWSlackStatement := zkp.PDLwSlackStatement{
+		PK:         &round.key.PaillierSK.PublicKey,
+		CipherText: round.temp.cAKI,
+		Q:          bigRBarI,
+		G:          bigR,
+		H1:         round.key.H1i,
+		H2:         round.key.H2i,
+		NTilde:     round.key.NTildei,
+	}
+	pdlWSlackWitness := zkp.PDLwSlackWitness{
+		SK: round.key.PaillierSK,
+		X:  round.temp.kI,
+		R:  round.temp.rAKI,
+	}
+	pdlWSlackPf := zkp.NewPDLwSlackProof(pdlWSlackWitness, pdlWSlackStatement)
+
+	r5msg := NewSignRound5Message(Pi, bigRBarI, &pdlWSlackPf)
 	round.temp.signRound5Messages[i] = r5msg
 	round.out <- r5msg
 	return nil

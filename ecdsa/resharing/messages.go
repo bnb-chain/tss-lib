@@ -99,11 +99,11 @@ func NewDGRound2Message1(
 		IsToOldCommittee: false,
 	}
 	paiPfBzs := common.BigIntsToBytes(paillierPf[:])
-	dlnProof1Bz, err := dlnProof1.Serialize()
+	dlnProof1Bz, err := dlnProof1.Marshal()
 	if err != nil {
 		return nil, err
 	}
-	dlnProof2Bz, err := dlnProof2.Serialize()
+	dlnProof2Bz, err := dlnProof2.Marshal()
 	if err != nil {
 		return nil, err
 	}

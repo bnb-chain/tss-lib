@@ -8,6 +8,10 @@ package signing
 
 import (
 	"errors"
+	"fmt"
+	"math/big"
+
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/zkp"
@@ -25,6 +29,7 @@ func (round *round6) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
+	errs := make(map[*tss.PartyID]error)
 	bigRBarIProducts := (*crypto.ECPoint)(nil)
 	for j, msg := range round.temp.signRound5Messages {
 		Pj := round.Parties().IDs()[j]
@@ -33,13 +38,49 @@ func (round *round6) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(err, Pj)
 		}
+
+		// find products of all Rdash_i to ensure it equals the G point of the curve
 		if bigRBarIProducts == nil {
 			bigRBarIProducts = bigRBarI
 			continue
 		}
 		if bigRBarIProducts, err = bigRBarIProducts.Add(bigRBarI); err != nil {
-			return round.WrapError(err, Pj)
+			errs[Pj] = err
+			continue
 		}
+
+		if j == i {
+			continue
+		}
+		// verify ZK proof of consistency between R_i and E_i(k_i)
+		// ported from: https://git.io/Jf69a
+		pdlWSlackPf, err := r5msg.UnmarshalPDLwSlackProof()
+		if err != nil {
+			errs[Pj] = err
+			continue
+		}
+		r1msg1 := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+		pdlWSlackStatement := zkp.PDLwSlackStatement{
+			PK:         round.key.PaillierPKs[Pj.Index],
+			CipherText: new(big.Int).SetBytes(r1msg1.GetC()),
+			Q:          bigRBarI,
+			G:          round.temp.bigR,
+			H1:         round.key.H1j[Pj.Index],
+			H2:         round.key.H2j[Pj.Index],
+			NTilde:     round.key.NTildej[Pj.Index], // maybe i
+		}
+		if !pdlWSlackPf.Verify(pdlWSlackStatement) {
+			errs[Pj] = fmt.Errorf("failed to verify ZK proof of consistency between R_i and E_i(k_i) for P %d", j)
+		}
+	}
+	if 0 < len(errs) {
+		var multiErr error
+		culprits := make([]*tss.PartyID, 0, len(errs))
+		for Pj, err := range errs {
+			multiErr = multierror.Append(multiErr, err)
+			culprits = append(culprits, Pj)
+		}
+		return round.WrapError(multiErr, culprits...)
 	}
 	{
 		ec := tss.EC()

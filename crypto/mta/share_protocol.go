@@ -18,14 +18,9 @@ import (
 
 func AliceInit(
 	pkA *paillier.PublicKey,
-	a, NTildeB, h1B, h2B *big.Int,
-) (cA *big.Int, pf *RangeProofAlice, err error) {
-	cA, rA, err := pkA.EncryptAndReturnRandomness(a)
-	if err != nil {
-		return nil, nil, err
-	}
-	pf, err = ProveRangeAlice(pkA, cA, NTildeB, h1B, h2B, a, rA)
-	return cA, pf, err
+	a, cA, rA, NTildeB, h1B, h2B *big.Int,
+) (pf *RangeProofAlice, err error) {
+	return ProveRangeAlice(pkA, cA, NTildeB, h1B, h2B, a, rA)
 }
 
 func BobMid(

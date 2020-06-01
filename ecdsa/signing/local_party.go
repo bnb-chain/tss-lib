@@ -56,6 +56,8 @@ type (
 		m,
 		wI,
 		kI,
+		cAKI,
+		rAKI,
 		deltaI,
 		deltaInverse,
 		sigmaI,

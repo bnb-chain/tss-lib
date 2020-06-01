@@ -52,11 +52,11 @@ func NewKGRound1Message(
 		From:        from,
 		IsBroadcast: true,
 	}
-	dlnProof1Bz, err := dlnProof1.Serialize()
+	dlnProof1Bz, err := dlnProof1.Marshal()
 	if err != nil {
 		return nil, err
 	}
-	dlnProof2Bz, err := dlnProof2.Serialize()
+	dlnProof2Bz, err := dlnProof2.Marshal()
 	if err != nil {
 		return nil, err
 	}

@@ -261,14 +261,20 @@ func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
 func NewSignRound5Message(
 	from *tss.PartyID,
 	Ri *crypto.ECPoint,
+	pdlwSlackPf *zkp.PDLwSlackProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
+	pfBzs, err := pdlwSlackPf.Marshal()
+	if err != nil {
+		return nil
+	}
 	content := &SignRound5Message{
-		RIX: Ri.X().Bytes(),
-		RIY: Ri.Y().Bytes(),
+		RIX:            Ri.X().Bytes(),
+		RIY:            Ri.Y().Bytes(),
+		ProofPdlWSlack: pfBzs,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -277,7 +283,8 @@ func NewSignRound5Message(
 func (m *SignRound5Message) ValidateBasic() bool {
 	if m == nil ||
 		!common.NonEmptyBytes(m.GetRIX()) ||
-		!common.NonEmptyBytes(m.GetRIY()) {
+		!common.NonEmptyBytes(m.GetRIY()) ||
+		!common.NonEmptyMultiBytes(m.GetProofPdlWSlack(), zkp.PDLwSlackMarshalledParts) {
 		return false
 	}
 	RI, err := m.UnmarshalRI()
@@ -291,6 +298,10 @@ func (m *SignRound5Message) UnmarshalRI() (*crypto.ECPoint, error) {
 	return crypto.NewECPoint(tss.EC(),
 		new(big.Int).SetBytes(m.GetRIX()),
 		new(big.Int).SetBytes(m.GetRIY()))
+}
+
+func (m *SignRound5Message) UnmarshalPDLwSlackProof() (*zkp.PDLwSlackProof, error) {
+	return zkp.UnmarshalPDLwSlackProof(m.GetProofPdlWSlack())
 }
 
 // ----- //

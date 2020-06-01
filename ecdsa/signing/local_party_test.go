@@ -35,7 +35,7 @@ func setUp(level string) {
 }
 
 func TestE2EConcurrent(t *testing.T) {
-	setUp("debug")
+	setUp("info")
 	threshold := testThreshold
 
 	// PHASE: load keygen fixtures

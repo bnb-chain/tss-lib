@@ -73,10 +73,10 @@ func (p *Proof) Verify(h1, h2, N *big.Int) bool {
 	return true
 }
 
-func (p *Proof) Serialize() ([][]byte, error) {
+func (p *Proof) Marshal() ([][]byte, error) {
 	cb := cmts.NewBuilder()
-	cb = cb.AddPart(p.Alpha[:])
-	cb = cb.AddPart(p.T[:])
+	cb = cb.AddPart(p.Alpha[:]...)
+	cb = cb.AddPart(p.T[:]...)
 	ints, err := cb.Secrets()
 	if err != nil {
 		return nil, err
@@ -101,8 +101,9 @@ func UnmarshalProof(bzs [][]byte) (*Proof, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(parsed) != 2 {
-		return nil, fmt.Errorf("dlnp.UnmarshalProof expected %d parts but got %d", 2, len(parsed))
+	expParts := 2
+	if len(parsed) != expParts {
+		return nil, fmt.Errorf("dlnp.UnmarshalProof expected %d parts but got %d", expParts, len(parsed))
 	}
 	pf := new(Proof)
 	if len1 := copy(pf.Alpha[:], parsed[0]); len1 != Iterations {

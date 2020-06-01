@@ -39,7 +39,9 @@ func TestShareProtocol(t *testing.T) {
 	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
-	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
+	cA, rA, err := pk.EncryptAndReturnRandomness(a)
+	assert.NoError(t, err)
+	pf, err := AliceInit(pk, a, cA, rA, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
 	_, cB, betaPrm, pfB, err := BobMid(pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
@@ -70,7 +72,9 @@ func TestShareProtocolWC(t *testing.T) {
 	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
-	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
+	cA, rA, err := pk.EncryptAndReturnRandomness(a)
+	assert.NoError(t, err)
+	pf, err := AliceInit(pk, a, cA, rA, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
 	gBPoint, err := crypto.NewECPoint(tss.EC(), gBX, gBY)

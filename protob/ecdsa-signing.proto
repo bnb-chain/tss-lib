@@ -59,7 +59,7 @@ message SignRound4Message {
 message SignRound5Message {
     bytes r_i_x = 1;
     bytes r_i_y = 2;
-    // TODO: add the paillier consistency proof for phase 5
+    repeated bytes proof_pdl_w_slack = 3;
 }
 
 /*
