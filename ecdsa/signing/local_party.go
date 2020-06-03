@@ -55,12 +55,10 @@ type (
 		// temp data (thrown away after sign) / round 1
 		m,
 		wI,
-		kI,
 		cAKI,
 		rAKI,
 		deltaI,
 		deltaInverse,
-		sigmaI,
 		gammaI *big.Int
 		cis      []*big.Int
 		bigWs    []*crypto.ECPoint
@@ -78,8 +76,8 @@ type (
 		// round 3
 		lI *big.Int
 
-		// round 5
-		bigR *crypto.ECPoint
+		// round 6
+		common.SignatureData_OneRoundData
 
 		// round 7
 		sI *big.Int
@@ -89,6 +87,7 @@ type (
 	}
 )
 
+// Constructs a new ECDSA signing party. Note: msg may be left nil for one-round signing mode to only do the pre-processing steps.
 func NewLocalParty(
 	msg *big.Int,
 	params *tss.Parameters,

@@ -12,6 +12,21 @@ option go_package = "./common";
  * Container for output signatures, mostly used for marshalling this data structure to a mobile app
  */
 message SignatureData {
+    message OneRoundData {
+        // Components to produce s = sum(s_i)
+        bytes k_i = 1;
+        bytes sigma_i = 2;
+        bytes big_r_x = 3;
+
+        // Components for identifiable aborts during the final phase
+        bytes big_r_y = 4;
+        bytes big_r_bar_i_x = 5;
+        bytes big_r_bar_i_y = 6;
+        bytes big_s_i_x = 7;
+        bytes big_s_i_y = 8;
+    }
+    OneRoundData one_round_data = 6;
+
     bytes signature = 1;
 
     // Ethereum-style recovery byte; only the first byte is relevant

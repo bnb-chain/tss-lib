@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/test"
 	"github.com/binance-chain/tss-lib/tss"
@@ -98,9 +99,13 @@ signing:
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
 				t.Logf("Done. Received signature data from %d participants", ended)
-				R := parties[0].temp.bigR
+
+				// bigR is stored as bytes for the OneRoundData protobuf struct
+				bigRX, bigRY := new(big.Int).SetBytes(parties[0].temp.BigRX), new(big.Int).SetBytes(parties[0].temp.BigRY)
+				bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
+
 				r := parties[0].temp.rI.X()
-				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
+				fmt.Printf("sign result: R(%s, %s), r=%s\n", bigR.X().String(), bigR.Y().String(), r.String())
 
 				modN := common.ModInt(tss.EC().Params().N)
 
@@ -119,7 +124,7 @@ signing:
 					X:     pkX,
 					Y:     pkY,
 				}
-				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), R.X(), sumS)
+				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), bigR.X(), sumS)
 				assert.True(t, ok, "ecdsa verify must pass")
 				t.Log("ECDSA signing test done.")
 				// END ECDSA verify

@@ -29,6 +29,10 @@ func (round *round6) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
+	// bigR is stored as bytes for the OneRoundData protobuf struct
+	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigRX), new(big.Int).SetBytes(round.temp.BigRY)
+	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
+
 	errs := make(map[*tss.PartyID]error)
 	bigRBarIProducts := (*crypto.ECPoint)(nil)
 	for j, msg := range round.temp.signRound5Messages {
@@ -64,7 +68,7 @@ func (round *round6) Start() *tss.Error {
 			PK:         round.key.PaillierPKs[Pj.Index],
 			CipherText: new(big.Int).SetBytes(r1msg1.GetC()),
 			Q:          bigRBarI,
-			G:          round.temp.bigR,
+			G:          bigR,
 			H1:         round.key.H1j[Pj.Index],
 			H2:         round.key.H2j[Pj.Index],
 			NTilde:     round.key.NTildej[Pj.Index], // maybe i
@@ -90,8 +94,10 @@ func (round *round6) Start() *tss.Error {
 		}
 	}
 
-	bigR, sigmaI, TI, lI := round.temp.bigR, round.temp.sigmaI, round.temp.TI, round.temp.lI
+	sigmaI := new(big.Int).SetBytes(round.temp.SigmaI)
+	TI, lI := round.temp.TI, round.temp.lI
 	bigSI := bigR.ScalarMult(sigmaI)
+	round.temp.BigSIX, round.temp.BigSIY = bigSI.X().Bytes(), bigSI.Y().Bytes()
 
 	h, err := crypto.ECBasePoint2(tss.EC())
 	if err != nil {
@@ -105,6 +111,8 @@ func (round *round6) Start() *tss.Error {
 	r6msg := NewSignRound6Message(Pi, bigSI, stProof)
 	round.temp.signRound6Messages[i] = r6msg
 	round.out <- r6msg
+
+	round.data.OneRoundData = &round.temp.SignatureData_OneRoundData
 	return nil
 }
 

@@ -29,7 +29,10 @@ func (round *round7) Start() *tss.Error {
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
 
-	bigR := round.temp.bigR
+	// bigR is stored as bytes for the OneRoundData protobuf struct
+	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigRX), new(big.Int).SetBytes(round.temp.BigRY)
+	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
+
 	h, err := crypto.ECBasePoint2(tss.EC())
 	if err != nil {
 		return round.WrapError(err, Pi)
@@ -75,7 +78,8 @@ func (round *round7) Start() *tss.Error {
 		}
 	}
 
-	m, kI, sigmaI := round.temp.m, round.temp.kI, round.temp.sigmaI
+	m := round.temp.m
+	kI, sigmaI := new(big.Int).SetBytes(round.temp.KI), new(big.Int).SetBytes(round.temp.SigmaI)
 	rIX := new(big.Int).Mod(bigR.X(), N)
 	sI := modN.Add(modN.Mul(m, kI), modN.Mul(rIX, sigmaI))
 	round.temp.rI, round.temp.sI = bigR, sI

@@ -69,11 +69,13 @@ func (round *round5) Start() *tss.Error {
 	deltaInverse = modN.Inverse(deltaInverse)
 	round.temp.deltaInverse = deltaInverse
 
-	// compute R
+	// compute R and Rdash_i
 	bigR = bigR.ScalarMult(deltaInverse)
-	round.temp.bigR = bigR
+	round.temp.BigRX, round.temp.BigRY = bigR.X().Bytes(), bigR.Y().Bytes()
 	// all parties broadcast Rdash_i = k_i * R
-	bigRBarI := bigR.ScalarMult(round.temp.kI)
+	kI := new(big.Int).SetBytes(round.temp.KI)
+	bigRBarI := bigR.ScalarMult(kI)
+	round.temp.BigRBarIX, round.temp.BigRBarIY = bigRBarI.X().Bytes(), bigRBarI.Y().Bytes()
 
 	// compute ZK proof of consistency between R_i and E_i(k_i)
 	// ported from: https://git.io/Jf69a
@@ -88,7 +90,7 @@ func (round *round5) Start() *tss.Error {
 	}
 	pdlWSlackWitness := zkp.PDLwSlackWitness{
 		SK: round.key.PaillierSK,
-		X:  round.temp.kI,
+		X:  kI,
 		R:  round.temp.rAKI,
 	}
 	pdlWSlackPf := zkp.NewPDLwSlackProof(pdlWSlackWitness, pdlWSlackStatement)

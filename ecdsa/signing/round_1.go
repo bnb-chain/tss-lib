@@ -52,7 +52,7 @@ func (round *round1) Start() *tss.Error {
 
 	kI := common.GetRandomPositiveInt(tss.EC().Params().N)
 	gammaI := common.GetRandomPositiveInt(tss.EC().Params().N)
-	round.temp.kI = kI
+	round.temp.KI = kI.Bytes()
 	round.temp.gammaI = gammaI
 
 	gammaIG := crypto.ScalarBaseMult(tss.EC(), gammaI)
