@@ -58,7 +58,6 @@ type (
 		cAKI,
 		rAKI,
 		deltaI,
-		deltaInverse,
 		gammaI *big.Int
 		cis      []*big.Int
 		bigWs    []*crypto.ECPoint
@@ -83,7 +82,6 @@ type (
 		sI *big.Int
 		rI,
 		TI *crypto.ECPoint
-		DTelda cmt.HashDeCommitment
 	}
 )
 
@@ -125,6 +123,16 @@ func NewLocalParty(
 	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
 	p.temp.vs = make([]*big.Int, partyCount)
 	return p
+}
+
+// Constructs a new ECDSA signing party for one-round signing. The final SignatureData struct will be a partial struct containing only the data for a final signing round (see the readme).
+func NewLocalPartyWithOneRoundSign(
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
+	out chan<- tss.Message,
+	end chan<- common.SignatureData,
+) tss.Party {
+	return NewLocalParty(nil, params, key, out, end)
 }
 
 func (p *LocalParty) FirstRound() tss.Round {

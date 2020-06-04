@@ -10,7 +10,6 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -25,9 +24,6 @@ func (round *round7) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
-
-	N := tss.EC().Params().N
-	modN := common.ModInt(N)
 
 	// bigR is stored as bytes for the OneRoundData protobuf struct
 	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigRX), new(big.Int).SetBytes(round.temp.BigRY)
@@ -77,12 +73,19 @@ func (round *round7) Start() *tss.Error {
 			return round.WrapError(errors.New("consistency check failed; y != products"))
 		}
 	}
+	round.temp.rI = bigR
 
-	m := round.temp.m
-	kI, sigmaI := new(big.Int).SetBytes(round.temp.KI), new(big.Int).SetBytes(round.temp.SigmaI)
-	rIX := new(big.Int).Mod(bigR.X(), N)
-	sI := modN.Add(modN.Mul(m, kI), modN.Mul(rIX, sigmaI))
-	round.temp.rI, round.temp.sI = bigR, sI
+	// PRE-PROCESSING FINISHED
+	// If we are in one-round signing mode (msg is nil), we will exit out with the current state here and we are done.
+	round.data.OneRoundData = &round.temp.SignatureData_OneRoundData
+	if round.temp.m == nil {
+		round.end <- *round.data
+		return nil
+	}
+
+	// Continuing the full online protocol.
+	sI := FinalizeGetOurSigShare(round.data, round.temp.m)
+	round.temp.sI = sI
 
 	r7msg := NewSignRound7Message(round.PartyID(), sI)
 	round.temp.signRound7Messages[i] = r7msg
@@ -91,6 +94,11 @@ func (round *round7) Start() *tss.Error {
 }
 
 func (round *round7) Update() (bool, *tss.Error) {
+	// If we are in one-round signing mode (msg is nil) there are no further rounds.
+	if round.temp.m == nil {
+		return false, nil
+	}
+	// Continuing the full online protocol.
 	for j, msg := range round.temp.signRound7Messages {
 		if round.ok[j] {
 			continue
@@ -104,6 +112,11 @@ func (round *round7) Update() (bool, *tss.Error) {
 }
 
 func (round *round7) CanAccept(msg tss.ParsedMessage) bool {
+	// If we are in one-round signing mode (msg is nil) there are no further rounds.
+	if round.temp.m == nil {
+		return false
+	}
+	// Continuing the full online protocol.
 	if _, ok := msg.Content().(*SignRound7Message); ok {
 		return msg.IsBroadcast()
 	}
@@ -111,6 +124,11 @@ func (round *round7) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round7) NextRound() tss.Round {
+	// If we are in one-round signing mode (msg is nil), we will exit out with the current state here and there are no further rounds.
+	if round.temp.m == nil {
+		return nil
+	}
+	// Continuing the full online protocol.
 	round.started = false
 	return &finalization{round}
 }

@@ -111,8 +111,6 @@ func (round *round6) Start() *tss.Error {
 	r6msg := NewSignRound6Message(Pi, bigSI, stProof)
 	round.temp.signRound6Messages[i] = r6msg
 	round.out <- r6msg
-
-	round.data.OneRoundData = &round.temp.SignatureData_OneRoundData
 	return nil
 }
 

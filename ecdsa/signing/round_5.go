@@ -67,7 +67,6 @@ func (round *round5) Start() *tss.Error {
 
 	// compute the multiplicative inverse delta mod q
 	deltaInverse = modN.Inverse(deltaInverse)
-	round.temp.deltaInverse = deltaInverse
 
 	// compute R and Rdash_i
 	bigR = bigR.ScalarMult(deltaInverse)

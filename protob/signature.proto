@@ -9,7 +9,7 @@ syntax = "proto3";
 option go_package = "./common";
 
 /*
- * Container for output signatures, mostly used for marshalling this data structure to a mobile app
+ * State object for signatures, either partial (for offline/async "one round" signing) or full (contains the final signature).
  */
 message SignatureData {
     message OneRoundData {
