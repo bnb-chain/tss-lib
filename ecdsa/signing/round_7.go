@@ -10,6 +10,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -26,7 +27,7 @@ func (round *round7) Start() *tss.Error {
 	i := Pi.Index
 
 	// bigR is stored as bytes for the OneRoundData protobuf struct
-	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigRX), new(big.Int).SetBytes(round.temp.BigRY)
+	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigR.GetX()), new(big.Int).SetBytes(round.temp.BigR.GetY())
 	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
 
 	h, err := crypto.ECBasePoint2(tss.EC())
@@ -34,7 +35,8 @@ func (round *round7) Start() *tss.Error {
 		return round.WrapError(err, Pi)
 	}
 
-	bigSIProducts := (*crypto.ECPoint)(nil)
+	bigSJ := make(map[string]*common.ECPoint, len(round.temp.signRound6Messages))
+	bigSJProducts := (*crypto.ECPoint)(nil)
 	for j, msg := range round.temp.signRound6Messages {
 		Pj := round.Parties().IDs()[j]
 		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
@@ -48,6 +50,7 @@ func (round *round7) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(err, Pj)
 		}
+		bigSJ[Pj.Id] = bigSI.ToProtobufPoint()
 
 		// ZK STProof check
 		stProof, err := r6msg.UnmarshalSTProof()
@@ -59,24 +62,26 @@ func (round *round7) Start() *tss.Error {
 		}
 
 		// bigSI consistency check
-		if bigSIProducts == nil {
-			bigSIProducts = bigSI
+		if bigSJProducts == nil {
+			bigSJProducts = bigSI
 			continue
 		}
-		if bigSIProducts, err = bigSIProducts.Add(bigSI); err != nil {
+		if bigSJProducts, err = bigSJProducts.Add(bigSI); err != nil {
 			return round.WrapError(err, Pj)
 		}
 	}
 	{
 		y := round.key.ECDSAPub
-		if bigSIProducts.X().Cmp(y.X()) != 0 || bigSIProducts.Y().Cmp(y.Y()) != 0 {
+		if bigSJProducts.X().Cmp(y.X()) != 0 || bigSJProducts.Y().Cmp(y.Y()) != 0 {
 			return round.WrapError(errors.New("consistency check failed; y != products"))
 		}
 	}
 	round.temp.rI = bigR
+	round.temp.BigSJ = bigSJ
 
 	// PRE-PROCESSING FINISHED
 	// If we are in one-round signing mode (msg is nil), we will exit out with the current state here and we are done.
+	round.temp.T = int32(len(round.Parties().IDs()) - 1)
 	round.data.OneRoundData = &round.temp.SignatureData_OneRoundData
 	if round.temp.m == nil {
 		round.end <- *round.data

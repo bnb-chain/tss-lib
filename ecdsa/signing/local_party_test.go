@@ -101,7 +101,7 @@ signing:
 				t.Logf("Done. Received signature data from %d participants", ended)
 
 				// bigR is stored as bytes for the OneRoundData protobuf struct
-				bigRX, bigRY := new(big.Int).SetBytes(parties[0].temp.BigRX), new(big.Int).SetBytes(parties[0].temp.BigRY)
+				bigRX, bigRY := new(big.Int).SetBytes(parties[0].temp.BigR.GetX()), new(big.Int).SetBytes(parties[0].temp.BigR.GetY())
 				bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
 
 				r := parties[0].temp.rI.X()

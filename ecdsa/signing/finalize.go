@@ -33,7 +33,7 @@ func FinalizeGetOurSigShare(state *common.SignatureData, msg *big.Int) (sI *big.
 	modN := common.ModInt(N)
 
 	// bigR is stored as bytes for the OneRoundData protobuf struct
-	bigRXBz, bigRYBz := data.GetBigRX(), data.GetBigRY()
+	bigRXBz, bigRYBz := data.GetBigR().GetX(), data.GetBigR().GetY()
 	bigRX, bigRY := new(big.Int).SetBytes(bigRXBz), new(big.Int).SetBytes(bigRYBz)
 	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
 
@@ -51,34 +51,73 @@ func FinalizeGetAndVerifyFinalSig(
 	msg *big.Int,
 	ourP *tss.PartyID,
 	ourSI *big.Int,
-	otherPs []*tss.PartyID,
-	otherSIs []*big.Int,
+	otherSIs map[*tss.PartyID]*big.Int,
 ) (*common.SignatureData, *btcec.Signature, *tss.Error) {
-	if len(otherPs) == 0 || len(otherPs) != len(otherSIs) {
-		return nil, nil, FinalizeWrapError(errors.New("len(otherPs) == 0 || len(otherPs) != len(otherSIs)"), ourP)
+	if len(otherSIs) == 0 {
+		return nil, nil, FinalizeWrapError(errors.New("len(otherSIs) == 0"), ourP)
 	}
 	data := state.GetOneRoundData()
+	if data.GetT() != int32(len(otherSIs)) {
+		return nil, nil, FinalizeWrapError(errors.New("len(otherSIs) != T"), ourP)
+	}
 
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
 
-	sumS := ourSI
-	for _, sJ := range otherSIs {
-		sumS = modN.Add(sumS, sJ)
-	}
-
-	rI, err := crypto.NewECPoint(tss.EC(),
-		new(big.Int).SetBytes(data.GetBigRX()),
-		new(big.Int).SetBytes(data.GetBigRY()))
+	bigR, err := crypto.NewECPoint(tss.EC(),
+		new(big.Int).SetBytes(data.GetBigR().GetX()),
+		new(big.Int).SetBytes(data.GetBigR().GetY()))
 	if err != nil {
 		return nil, nil, FinalizeWrapError(err, ourP)
 	}
+
+	r, s := bigR.X(), ourSI
+	culprits := make([]*tss.PartyID, 0, len(otherSIs))
+	for Pj, sJ := range otherSIs {
+		bigRBarJBz := data.GetBigRBarJ()[Pj.Id]
+		bigSJBz := data.GetBigSJ()[Pj.Id]
+		if Pj == nil || bigRBarJBz == nil || bigSJBz == nil {
+			return nil, nil, FinalizeWrapError(errors.New("in loop: Pj or map value s_i is nil"), Pj)
+		}
+
+		bigRBarJ, err := crypto.NewECPoint(tss.EC(),
+			new(big.Int).SetBytes(bigRBarJBz.GetX()),
+			new(big.Int).SetBytes(bigRBarJBz.GetY()))
+		if err != nil {
+			culprits = append(culprits, Pj)
+			continue
+		}
+		bigSI, err := crypto.NewECPoint(tss.EC(),
+			new(big.Int).SetBytes(bigSJBz.GetX()),
+			new(big.Int).SetBytes(bigSJBz.GetY()))
+		if err != nil {
+			culprits = append(culprits, Pj)
+			continue
+		}
+
+		// identify abort for phase 7
+		// verify that R^S_i = Rdash_i^m * S_i^r
+		bigRBarIM := bigRBarJ.ScalarMult(msg)
+		bigSIR := bigSI.ScalarMult(r)
+		bigRSI := bigR.ScalarMult(sJ)
+		bigRBarIMBigSIR, err := bigRBarIM.Add(bigSIR)
+		if err != nil || !bigRSI.Equals(bigRBarIMBigSIR) {
+			culprits = append(culprits, Pj)
+			continue
+		}
+
+		s = modN.Add(s, sJ)
+	}
+	if 0 < len(culprits) {
+		return nil, nil, FinalizeWrapError(errors.New("identify abort assertion fail in phase 7"), ourP, culprits...)
+	}
+
 	// byte v = if(R.X > curve.N) then 2 else 0) | (if R.Y.IsEven then 0 else 1);
 	recId := 0
-	if rI.X().Cmp(N) > 0 {
+	if bigR.X().Cmp(N) > 0 {
 		recId = 2
 	}
-	if rI.Y().Bit(0) != 0 {
+	if bigR.Y().Bit(0) != 0 {
 		recId |= 1
 	}
 
@@ -87,20 +126,19 @@ func FinalizeGetAndVerifyFinalSig(
 	// This is needed because of tendermint checks here:
 	// https://github.com/tendermint/tendermint/blob/d9481e3648450cb99e15c6a070c1fb69aa0c255b/crypto/secp256k1/secp256k1_nocgo.go#L43-L47
 	secp256k1halfN := new(big.Int).Rsh(N, 1)
-	if sumS.Cmp(secp256k1halfN) > 0 {
-		sumS.Sub(N, sumS)
+	if s.Cmp(secp256k1halfN) > 0 {
+		s.Sub(N, s)
 		recId ^= 1
 	}
 
-	ok := ecdsa.Verify(pk, msg.Bytes(), rI.X(), sumS)
+	ok := ecdsa.Verify(pk, msg.Bytes(), r, s)
 	if !ok {
 		return nil, nil, FinalizeWrapError(fmt.Errorf("signature verification failed"), ourP)
 	}
 
 	// save the signature for final output
-	r, s := rI.X(), sumS
 	state.R, state.S = r.Bytes(), s.Bytes()
-	state.Signature = append(rI.X().Bytes(), sumS.Bytes()...)
+	state.Signature = append(r.Bytes(), s.Bytes()...)
 	state.SignatureRecovery = []byte{byte(recId)}
 	state.M = msg.Bytes()
 
@@ -126,16 +164,14 @@ func (round *finalization) Start() *tss.Error {
 	i := Pi.Index
 
 	ourSI := round.temp.sI
-	otherSIs := make([]*big.Int, 0, len(Ps)-1)
-	otherPs := make([]*tss.PartyID, 0, len(Ps)-1)
-	for j := range round.temp.signRound7Messages {
+	otherSIs := make(map[*tss.PartyID]*big.Int, len(Ps)-1)
+	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
 		r7msg := round.temp.signRound7Messages[j].Content().(*SignRound7Message)
 		sI := r7msg.GetSI()
-		otherSIs = append(otherSIs, new(big.Int).SetBytes(sI))
-		otherPs = append(otherPs, Ps[j])
+		otherSIs[Pj] = new(big.Int).SetBytes(sI)
 	}
 
 	pk := &ecdsa.PublicKey{
@@ -143,7 +179,7 @@ func (round *finalization) Start() *tss.Error {
 		X:     round.key.ECDSAPub.X(),
 		Y:     round.key.ECDSAPub.Y(),
 	}
-	data, _, err := FinalizeGetAndVerifyFinalSig(round.data, pk, round.temp.m, round.PartyID(), ourSI, otherPs, otherSIs)
+	data, _, err := FinalizeGetAndVerifyFinalSig(round.data, pk, round.temp.m, round.PartyID(), ourSI, otherSIs)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}

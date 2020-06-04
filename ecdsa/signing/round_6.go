@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
@@ -30,25 +31,28 @@ func (round *round6) Start() *tss.Error {
 	i := Pi.Index
 
 	// bigR is stored as bytes for the OneRoundData protobuf struct
-	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigRX), new(big.Int).SetBytes(round.temp.BigRY)
+	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigR.GetX()), new(big.Int).SetBytes(round.temp.BigR.GetY())
 	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
 
 	errs := make(map[*tss.PartyID]error)
-	bigRBarIProducts := (*crypto.ECPoint)(nil)
+	bigRBarJProducts := (*crypto.ECPoint)(nil)
+	BigRBarJ := make(map[string]*common.ECPoint, len(round.temp.signRound5Messages))
 	for j, msg := range round.temp.signRound5Messages {
 		Pj := round.Parties().IDs()[j]
 		r5msg := msg.Content().(*SignRound5Message)
-		bigRBarI, err := r5msg.UnmarshalRI()
+		bigRBarJ, err := r5msg.UnmarshalRI()
 		if err != nil {
-			return round.WrapError(err, Pj)
-		}
-
-		// find products of all Rdash_i to ensure it equals the G point of the curve
-		if bigRBarIProducts == nil {
-			bigRBarIProducts = bigRBarI
+			errs[Pj] = err
 			continue
 		}
-		if bigRBarIProducts, err = bigRBarIProducts.Add(bigRBarI); err != nil {
+		BigRBarJ[Pj.Id] = bigRBarJ.ToProtobufPoint()
+
+		// find products of all Rdash_i to ensure it equals the G point of the curve
+		if bigRBarJProducts == nil {
+			bigRBarJProducts = bigRBarJ
+			continue
+		}
+		if bigRBarJProducts, err = bigRBarJProducts.Add(bigRBarJ); err != nil {
 			errs[Pj] = err
 			continue
 		}
@@ -67,7 +71,7 @@ func (round *round6) Start() *tss.Error {
 		pdlWSlackStatement := zkp.PDLwSlackStatement{
 			PK:         round.key.PaillierPKs[Pj.Index],
 			CipherText: new(big.Int).SetBytes(r1msg1.GetC()),
-			Q:          bigRBarI,
+			Q:          bigRBarJ,
 			G:          bigR,
 			H1:         round.key.H1j[Pj.Index],
 			H2:         round.key.H2j[Pj.Index],
@@ -89,15 +93,15 @@ func (round *round6) Start() *tss.Error {
 	{
 		ec := tss.EC()
 		gX, gY := ec.Params().Gx, ec.Params().Gy
-		if bigRBarIProducts.X().Cmp(gX) != 0 || bigRBarIProducts.Y().Cmp(gY) != 0 {
+		if bigRBarJProducts.X().Cmp(gX) != 0 || bigRBarJProducts.Y().Cmp(gY) != 0 {
 			return round.WrapError(errors.New("consistency check failed; g != products"))
 		}
 	}
+	round.temp.BigRBarJ = BigRBarJ
 
 	sigmaI := new(big.Int).SetBytes(round.temp.SigmaI)
 	TI, lI := round.temp.TI, round.temp.lI
 	bigSI := bigR.ScalarMult(sigmaI)
-	round.temp.BigSIX, round.temp.BigSIY = bigSI.X().Bytes(), bigSI.Y().Bytes()
 
 	h, err := crypto.ECBasePoint2(tss.EC())
 	if err != nil {

@@ -70,11 +70,13 @@ func (round *round5) Start() *tss.Error {
 
 	// compute R and Rdash_i
 	bigR = bigR.ScalarMult(deltaInverse)
-	round.temp.BigRX, round.temp.BigRY = bigR.X().Bytes(), bigR.Y().Bytes()
+	round.temp.BigR = &common.ECPoint{
+		X: bigR.X().Bytes(),
+		Y: bigR.Y().Bytes(),
+	}
 	// all parties broadcast Rdash_i = k_i * R
 	kI := new(big.Int).SetBytes(round.temp.KI)
 	bigRBarI := bigR.ScalarMult(kI)
-	round.temp.BigRBarIX, round.temp.BigRBarIY = bigRBarI.X().Bytes(), bigRBarI.Y().Bytes()
 
 	// compute ZK proof of consistency between R_i and E_i(k_i)
 	// ported from: https://git.io/Jf69a
