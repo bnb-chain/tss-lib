@@ -47,7 +47,7 @@ func (round *round3) Start() *tss.Error {
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
 			proofBob, err := r2msg.UnmarshalProofBob()
 			if err != nil {
-				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBob failed"), Pj)
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBob failed"), Pj)
 				return
 			}
 			alphaIj, err := mta.AliceEnd(
@@ -70,7 +70,7 @@ func (round *round3) Start() *tss.Error {
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
 			proofBobWC, err := r2msg.UnmarshalProofBobWC()
 			if err != nil {
-				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBobWC failed"), Pj)
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBobWC failed"), Pj)
 				return
 			}
 			uIj, err := mta.AliceEndWC(

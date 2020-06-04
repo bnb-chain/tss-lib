@@ -40,7 +40,7 @@ func (round *round2) Start() *tss.Error {
 			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
 			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
 			if err != nil {
-				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalRangeProofAlice failed"), Pj)
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalRangeProofAlice failed"), Pj)
 				return
 			}
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
@@ -68,7 +68,7 @@ func (round *round2) Start() *tss.Error {
 			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
 			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
 			if err != nil {
-				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalRangeProofAlice failed"), Pj)
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalRangeProofAlice failed"), Pj)
 				return
 			}
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
@@ -99,7 +99,7 @@ func (round *round2) Start() *tss.Error {
 		culprits = append(culprits, err.Culprits()...)
 	}
 	if len(culprits) > 0 {
-		return round.WrapError(errors.New("failed to calculate Bob_mid or Bob_mid_wc"), culprits...)
+		return round.WrapError(errors.New("MtA: failed to verify Bob_mid or Bob_mid_wc"), culprits...)
 	}
 	// create and send messages
 	for j, Pj := range round.Parties().IDs() {
