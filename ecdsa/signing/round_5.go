@@ -74,6 +74,11 @@ func (round *round5) Start() *tss.Error {
 		X: bigR.X().Bytes(),
 		Y: bigR.Y().Bytes(),
 	}
+	r := bigR.X()
+
+	// used in FinalizeGetOurSigShare
+	round.temp.RSigmaI = modN.Mul(r, round.temp.sigmaI).Bytes()
+
 	// all parties broadcast Rdash_i = k_i * R
 	kI := new(big.Int).SetBytes(round.temp.KI)
 	bigRBarI := bigR.ScalarMult(kI)

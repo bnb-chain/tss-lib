@@ -58,6 +58,7 @@ type (
 		cAKI,
 		rAKI,
 		deltaI,
+		sigmaI,
 		gammaI *big.Int
 		cis      []*big.Int
 		bigWs    []*crypto.ECPoint

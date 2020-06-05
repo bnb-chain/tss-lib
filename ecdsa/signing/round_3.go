@@ -139,7 +139,7 @@ func (round *round3) Start() *tss.Error {
 	round.temp.TI = TI
 	round.temp.lI = lI
 	round.temp.deltaI = deltaI
-	round.temp.SigmaI = sigmaI.Bytes()
+	round.temp.sigmaI = sigmaI
 
 	r3msg := NewSignRound3Message(Pi, deltaI, TI, tProof)
 	round.temp.signRound3Messages[i] = r3msg

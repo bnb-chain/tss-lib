@@ -19,11 +19,11 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-// One Round Finalization (called async/offline)
-
 const (
 	TaskNameFinalize = "signing-finalize"
 )
+
+// One Round Finalization (async/offline)
 
 // FinalizeGetOurSigShare is called in one-round signing mode after the online rounds have finished to compute s_i.
 func FinalizeGetOurSigShare(state *common.SignatureData, msg *big.Int) (sI *big.Int) {
@@ -32,14 +32,8 @@ func FinalizeGetOurSigShare(state *common.SignatureData, msg *big.Int) (sI *big.
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
 
-	// bigR is stored as bytes for the OneRoundData protobuf struct
-	bigRXBz, bigRYBz := data.GetBigR().GetX(), data.GetBigR().GetY()
-	bigRX, bigRY := new(big.Int).SetBytes(bigRXBz), new(big.Int).SetBytes(bigRYBz)
-	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
-
-	kI, sigmaI := new(big.Int).SetBytes(data.GetKI()), new(big.Int).SetBytes(data.GetSigmaI())
-	rIX := new(big.Int).Mod(bigR.X(), N)
-	sI = modN.Add(modN.Mul(msg, kI), modN.Mul(rIX, sigmaI))
+	kI, rSigmaI := new(big.Int).SetBytes(data.GetKI()), new(big.Int).SetBytes(data.GetRSigmaI())
+	sI = modN.Add(modN.Mul(msg, kI), rSigmaI)
 	return
 }
 
@@ -80,6 +74,7 @@ func FinalizeGetAndVerifyFinalSig(
 			return nil, nil, FinalizeWrapError(errors.New("in loop: Pj or map value s_i is nil"), Pj)
 		}
 
+		// prep for identify aborts in phase 7
 		bigRBarJ, err := crypto.NewECPoint(tss.EC(),
 			new(big.Int).SetBytes(bigRBarJBz.GetX()),
 			new(big.Int).SetBytes(bigRBarJBz.GetY()))
@@ -95,11 +90,9 @@ func FinalizeGetAndVerifyFinalSig(
 			continue
 		}
 
-		// identify abort for phase 7
+		// identify aborts for phase 7
 		// verify that R^S_i = Rdash_i^m * S_i^r
-		bigRBarIM := bigRBarJ.ScalarMult(msg)
-		bigSIR := bigSI.ScalarMult(r)
-		bigRSI := bigR.ScalarMult(sJ)
+		bigRBarIM, bigSIR, bigRSI := bigRBarJ.ScalarMult(msg), bigSI.ScalarMult(r), bigR.ScalarMult(sJ)
 		bigRBarIMBigSIR, err := bigRBarIM.Add(bigSIR)
 		if err != nil || !bigRSI.Equals(bigRBarIMBigSIR) {
 			culprits = append(culprits, Pj)

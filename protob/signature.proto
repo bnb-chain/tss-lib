@@ -20,7 +20,7 @@ message SignatureData {
 
         // Components to produce s = sum(s_i)
         bytes k_i = 2;
-        bytes sigma_i = 3;
+        bytes r_sigma_i = 3;
         ECPoint big_r = 4;
 
         // Components for identifiable aborts during the final phase

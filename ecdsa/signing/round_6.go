@@ -99,7 +99,10 @@ func (round *round6) Start() *tss.Error {
 	}
 	round.temp.BigRBarJ = BigRBarJ
 
-	sigmaI := new(big.Int).SetBytes(round.temp.SigmaI)
+	// sigma_i can be discarded here; its only use is to be multiplied with r to become s_i = m*k + r*sigma_i
+	sigmaI := round.temp.sigmaI
+	round.temp.sigmaI = zero
+
 	TI, lI := round.temp.TI, round.temp.lI
 	bigSI := bigR.ScalarMult(sigmaI)
 
