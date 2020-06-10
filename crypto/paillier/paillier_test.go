@@ -73,6 +73,21 @@ func TestEncryptDecrypt(t *testing.T) {
 		"wrong decryption ", ret, " is not ", exp)
 }
 
+func TestEncryptDecryptAndRecoverRandomness(t *testing.T) {
+	setUp(t)
+	exp := big.NewInt(100)
+	cypher, rand, err := privateKey.EncryptAndReturnRandomness(exp)
+	if err != nil {
+		t.Error(err)
+	}
+	ret, rec, err := privateKey.DecryptAndRecoverRandomness(cypher)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exp.Cmp(ret),
+		"wrong decryption ", ret, " is not ", exp)
+	assert.Equal(t, rand, rec,
+		"wrong randomness ", rand, " is not ", rec)
+}
+
 func TestEncryptWithChosenRandomnessDecrypt(t *testing.T) {
 	setUp(t)
 	exp := big.NewInt(100)

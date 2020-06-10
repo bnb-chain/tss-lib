@@ -202,6 +202,23 @@ func (sk *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 	return
 }
 
+func (sk *PrivateKey) DecryptAndRecoverRandomness(c *big.Int) (m, x *big.Int, err error) {
+	if m, err = sk.Decrypt(c); err != nil {
+		return
+	}
+	modN := common.ModInt(sk.N)
+	modNSq := common.ModInt(sk.NSquare())
+	modPhiN := common.ModInt(sk.PhiN)
+	// CDash = C * (1 - m*N) mod N2  (this is scalar subtraction)
+	mN := modNSq.Mul(m, sk.N)
+	cDash := modNSq.Mul(c, new(big.Int).Sub(one, mN))
+	// M = N^-1 mod phi(N)
+	M := modPhiN.Inverse(sk.N)
+	// x = CDash^M mod N
+	x = modN.Exp(cDash, M)
+	return
+}
+
 // ----- //
 
 // Proof is an implementation of Gennaro, R., Micciancio, D., Rabin, T.:
