@@ -10,16 +10,18 @@
 
 Permissively MIT Licensed.
 
-Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
+Note: This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
 
 ## Introduction
-This is an implementation of multi-party {t,n}-threshold ECDSA (Elliptic Curve Digital Signature Algorithm) based on Gennaro and Goldfeder CCS 2018 [1] and EdDSA (Edwards-curve Digital Signature Algorithm) following a similar approach.
+This is an implementation of multi-party {t,n}-threshold ECDSA (Elliptic Curve Digital Signature Algorithm) based on Gennaro and Goldfeder __2020__ \[1\] and EdDSA (Edwards-curve Digital Signature Algorithm) following a similar approach.
 
 This library includes three protocols:
 
 * Key Generation for creating secret shares with no trusted dealer ("keygen").
-* Signing for using the secret shares to generate a signature ("signing").
+* Signing for using the secret shares to generate a signature ("signing"). 
 * Dynamic Groups to change the group of participants while keeping the secret ("resharing").
+
+😍 This library now supports one-round signing introduced in the new GG20 paper. See the dedicated section about that below.
 
 ⚠️ Do not miss [these important notes](#how-to-use-this-securely) on implementing this library securely
 
@@ -85,7 +87,7 @@ go func() {
 ### Signing
 Use the `signing.LocalParty` for signing and provide it with a `message` to sign. It requires the key data obtained from the keygen protocol. The signature will be sent through the `endCh` once completed.
 
-Please note that `t+1` signers are required to sign a message and for optimal usage no more than this should be involved. Each signer should have the same view of who the `t+1` signers are.
+Please note that `t+1` signers are required to sign a message and no more than this should be involved in the messaging rounds. Each signer should have the same view of who the `t+1` signers are.
 
 ```go
 party := signing.NewLocalParty(message, params, ourKeyData, outCh, endCh)
@@ -94,6 +96,21 @@ go func() {
     // handle err ...
 }()
 ```
+
+By default the library will perform all signing rounds "online" in a similar way to GG18. If you would like to use one-round signing see the next section.
+
+#### One-Round Signing
+
+The new implementation for GG20 supports one-round signing.
+
+There are some pre-processing rounds that need to be done when you know the T+1 signers, but the message doesn't have to be known until the final round.
+Here's a brief summary of how to use this mode:
+
+1. Use nil as the `msg` in the `signing.NewLocalParty` constructor function.
+2. The `SignatureData` produced through the `end` channel contains `OneRoundData` but no final signature.
+3. Pass this partial `SignatureData` to `signing.FinalizeGetOurSigShare` with your `msg`; this produces `s_i`.
+4. Share `s_i` with other parties that know that msg however you'd like. This could even happen on-chain.
+5. Pass all party IDs and `s_i` to `signing.FinalizeGetAndVerifyFinalSig`. You will get a `SignatureData` populated with a full ECDSA signature.
 
 ### Re-Sharing
 Use the `resharing.LocalParty` to re-distribute the secret shares. The save data received through the `endCh` should overwrite the existing key data in storage, or write new data if the party is receiving a new share.
@@ -153,5 +170,4 @@ Timeouts and errors should be handled by your application. The method `WaitingFo
 A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report [`audit-binance-tss-lib-final-20191018.pdf`](https://github.com/binance-chain/tss-lib/releases/download/v1.0.0/audit-binance-tss-lib-final-20191018.pdf) may be found in the v1.0.0 release notes of this repository.
 
 ## References
-\[1\] https://eprint.iacr.org/2019/114.pdf
-
+\[1\] https://eprint.iacr.org/2020/540.pdf
