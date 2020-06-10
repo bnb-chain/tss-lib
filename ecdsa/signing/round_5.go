@@ -34,7 +34,7 @@ func (round *round5) Start() *tss.Error {
 
 	bigR := round.temp.gammaIG
 	deltaI := *round.temp.deltaI
-	deltaInverse := &deltaI
+	deltaSum := &deltaI
 
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
@@ -63,14 +63,14 @@ func (round *round5) Start() *tss.Error {
 
 		// calculating delta^-1 (below)
 		deltaJ := r3msg.GetDeltaI()
-		deltaInverse = modN.Add(deltaInverse, new(big.Int).SetBytes(deltaJ))
+		deltaSum = modN.Add(deltaSum, new(big.Int).SetBytes(deltaJ))
 	}
 
 	// compute the multiplicative inverse delta mod q
-	deltaInverse = modN.Inverse(deltaInverse)
+	deltaInv := modN.Inverse(deltaSum)
 
 	// compute R and Rdash_i
-	bigR = bigR.ScalarMult(deltaInverse)
+	bigR = bigR.ScalarMult(deltaInv)
 	round.temp.BigR = &common.ECPoint{
 		X: bigR.X().Bytes(),
 		Y: bigR.Y().Bytes(),
