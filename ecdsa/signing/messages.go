@@ -306,7 +306,7 @@ func (m *SignRound5Message) UnmarshalPDLwSlackProof() (*zkp.PDLwSlackProof, erro
 
 // ----- //
 
-func NewSignRound6Message(
+func NewSignRound6MessageSuccess(
 	from *tss.PartyID,
 	sI *crypto.ECPoint,
 	proof *zkp.STProof,
@@ -317,49 +317,88 @@ func NewSignRound6Message(
 		IsBroadcast: true,
 	}
 	content := &SignRound6Message{
-		SIX:           sI.X().Bytes(),
-		SIY:           sI.Y().Bytes(),
-		StProofAlphaX: proof.Alpha.X().Bytes(),
-		StProofAlphaY: proof.Alpha.Y().Bytes(),
-		StProofBetaX:  proof.Beta.X().Bytes(),
-		StProofBetaY:  proof.Beta.Y().Bytes(),
-		StProofT:      proof.T.Bytes(),
-		StProofU:      proof.U.Bytes(),
+		Content: &SignRound6Message_Success{
+			Success: &SignRound6Message_SuccessData{
+				SIX:           sI.X().Bytes(),
+				SIY:           sI.Y().Bytes(),
+				StProofAlphaX: proof.Alpha.X().Bytes(),
+				StProofAlphaY: proof.Alpha.Y().Bytes(),
+				StProofBetaX:  proof.Beta.X().Bytes(),
+				StProofBetaY:  proof.Beta.Y().Bytes(),
+				StProofT:      proof.T.Bytes(),
+				StProofU:      proof.U.Bytes(),
+			},
+		},
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *SignRound6Message) ValidateBasic() bool {
-	if m == nil ||
-		!common.NonEmptyBytes(m.GetSIX()) ||
-		!common.NonEmptyBytes(m.GetSIY()) ||
-		!common.NonEmptyBytes(m.GetStProofAlphaX()) ||
-		!common.NonEmptyBytes(m.GetStProofAlphaY()) ||
-		!common.NonEmptyBytes(m.GetStProofBetaX()) ||
-		!common.NonEmptyBytes(m.GetStProofBetaY()) ||
-		!common.NonEmptyBytes(m.GetStProofT()) ||
-		!common.NonEmptyBytes(m.GetStProofU()) {
-		return false
+func NewSignRound6MessageAbort(
+	from *tss.PartyID,
+	data *SignRound6Message_AbortData,
+
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
 	}
-	sI, err := m.UnmarshalSI()
-	if err != nil {
-		return false
+	content := &SignRound6Message{
+		Content: &SignRound6Message_Abort{
+			Abort: data,
+		},
 	}
-	tProof, err := m.UnmarshalSTProof()
-	if err != nil {
-		return false
-	}
-	return sI.ValidateBasic() && tProof.ValidateBasic()
+	// this hack makes the ValidateBasic pass because the [i] index position is empty in these arrays
+	data.GetAlphaIJ()[from.Index] = []byte{1}
+	data.GetBetaJI()[from.Index] = []byte{1}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *SignRound6Message) UnmarshalSI() (*crypto.ECPoint, error) {
+func (m *SignRound6Message) ValidateBasic() bool {
+	if m == nil {
+		return false
+	}
+	switch c := m.GetContent().(type) {
+	case *SignRound6Message_Success:
+		if !common.NonEmptyBytes(c.Success.GetSIX()) ||
+			!common.NonEmptyBytes(c.Success.GetSIY()) ||
+			!common.NonEmptyBytes(c.Success.GetStProofAlphaX()) ||
+			!common.NonEmptyBytes(c.Success.GetStProofAlphaY()) ||
+			!common.NonEmptyBytes(c.Success.GetStProofBetaX()) ||
+			!common.NonEmptyBytes(c.Success.GetStProofBetaY()) ||
+			!common.NonEmptyBytes(c.Success.GetStProofT()) ||
+			!common.NonEmptyBytes(c.Success.GetStProofU()) {
+			return false
+		}
+		sI, err := c.Success.UnmarshalSI()
+		if err != nil {
+			return false
+		}
+		tProof, err := c.Success.UnmarshalSTProof()
+		if err != nil {
+			return false
+		}
+		return sI.ValidateBasic() && tProof.ValidateBasic()
+	case *SignRound6Message_Abort:
+		return common.NonEmptyBytes(c.Abort.GetKI()) &&
+			common.NonEmptyBytes(c.Abort.GetKIRandomness()) &&
+			common.NonEmptyBytes(c.Abort.GetGammaI()) &&
+			common.NonEmptyMultiBytes(c.Abort.GetAlphaIJ()) &&
+			common.NonEmptyMultiBytes(c.Abort.GetBetaJI()) &&
+			len(c.Abort.GetAlphaIJ()) == len(c.Abort.GetBetaJI())
+	default:
+		return false
+	}
+}
+
+func (m *SignRound6Message_SuccessData) UnmarshalSI() (*crypto.ECPoint, error) {
 	return crypto.NewECPoint(tss.EC(),
 		new(big.Int).SetBytes(m.GetSIX()),
 		new(big.Int).SetBytes(m.GetSIY()))
 }
 
-func (m *SignRound6Message) UnmarshalSTProof() (*zkp.STProof, error) {
+func (m *SignRound6Message_SuccessData) UnmarshalSTProof() (*zkp.STProof, error) {
 	alpha, err := crypto.NewECPoint(
 		tss.EC(),
 		new(big.Int).SetBytes(m.GetStProofAlphaX()),

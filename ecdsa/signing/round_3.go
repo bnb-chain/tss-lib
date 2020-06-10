@@ -50,7 +50,7 @@ func (round *round3) Start() *tss.Error {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBob failed"), Pj)
 				return
 			}
-			alphaIj, err := mta.AliceEnd(
+			alphaIJ, err := mta.AliceEnd(
 				round.key.PaillierPKs[i],
 				proofBob,
 				round.key.H1j[i],
@@ -59,10 +59,12 @@ func (round *round3) Start() *tss.Error {
 				new(big.Int).SetBytes(r2msg.GetC1()),
 				round.key.NTildej[i],
 				round.key.PaillierSK)
-			alphas[j] = alphaIj
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
+				return
 			}
+			alphas[j] = alphaIJ
+			round.temp.r5AbortData.AlphaIJ[j] = alphaIJ.Bytes()
 		}(j, Pj)
 		// Alice_end_wc
 		go func(j int, Pj *tss.PartyID) {
@@ -83,10 +85,11 @@ func (round *round3) Start() *tss.Error {
 				round.key.H1j[i],
 				round.key.H2j[i],
 				round.key.PaillierSK)
-			us[j] = uIj
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
+				return
 			}
+			us[j] = uIj
 		}(j, Pj)
 	}
 
@@ -103,6 +106,7 @@ func (round *round3) Start() *tss.Error {
 
 	q := tss.EC().Params().N
 	modN := common.ModInt(q)
+
 	kI := new(big.Int).SetBytes(round.temp.KI)
 	deltaI := modN.Mul(kI, round.temp.gammaI)
 	sigmaI := modN.Mul(kI, round.temp.wI)

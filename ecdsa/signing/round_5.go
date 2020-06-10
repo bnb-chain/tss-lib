@@ -55,6 +55,7 @@ func (round *round5) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
 		}
+		round.temp.bigGammaJs[j] = bigGammaJPoint // used for identifying abort in round 7
 		bigR, err = bigR.Add(bigGammaJPoint)
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "bigR.Add(bigGammaJ)"), Pj)
@@ -129,5 +130,5 @@ func (round *round5) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round5) NextRound() tss.Round {
 	round.started = false
-	return &round6{round}
+	return &round6{round, false}
 }

@@ -54,7 +54,9 @@ func (round *round1) Start() *tss.Error {
 	kI := common.GetRandomPositiveInt(tss.EC().Params().N)
 	gammaI := common.GetRandomPositiveInt(tss.EC().Params().N)
 	round.temp.KI = kI.Bytes()
+	round.temp.r5AbortData.KI = kI.Bytes()
 	round.temp.gammaI = gammaI
+	round.temp.r5AbortData.GammaI = gammaI.Bytes()
 
 	gammaIG := crypto.ScalarBaseMult(tss.EC(), gammaI)
 	round.temp.gammaIG = gammaIG
@@ -70,6 +72,7 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.temp.cAKI = cA // used in round 5 for the ZK proof
 	round.temp.rAKI = rA
+	round.temp.r5AbortData.KIRandomness = rA.Bytes()
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
@@ -79,6 +82,7 @@ func (round *round1) Start() *tss.Error {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
 		r1msg1 := NewSignRound1Message1(Pj, round.PartyID(), cA, pi)
+		round.temp.signRound1Message1s[i] = r1msg1
 		round.temp.cis[j] = cA
 		round.out <- r1msg1
 	}

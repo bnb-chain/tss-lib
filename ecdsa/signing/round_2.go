@@ -43,7 +43,7 @@ func (round *round2) Start() *tss.Error {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalRangeProofAlice failed"), Pj)
 				return
 			}
-			beta, c1ji, _, pi1ji, err := mta.BobMid(
+			betaJI, c1ji, _, pi1ji, err := mta.BobMid(
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
 				round.temp.gammaI,
@@ -54,13 +54,15 @@ func (round *round2) Start() *tss.Error {
 				round.key.NTildej[i],
 				round.key.H1j[i],
 				round.key.H2j[i])
-			// should be thread safe as these are pre-allocated
-			round.temp.betas[j] = beta
-			round.temp.c1jis[j] = c1ji
-			round.temp.pi1jis[j] = pi1ji
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
+				return
 			}
+			// should be thread safe as these are pre-allocated
+			round.temp.betas[j] = betaJI
+			round.temp.r5AbortData.BetaJI[j] = betaJI.Bytes()
+			round.temp.c1jis[j] = c1ji
+			round.temp.pi1jis[j] = pi1ji
 		}(j, Pj)
 		// Bob_mid_wc
 		go func(j int, Pj *tss.PartyID) {
@@ -83,12 +85,13 @@ func (round *round2) Start() *tss.Error {
 				round.key.H1j[i],
 				round.key.H2j[i],
 				round.temp.bigWs[i])
+			if err != nil {
+				errChs <- round.WrapError(err, Pj)
+				return
+			}
 			round.temp.vs[j] = v
 			round.temp.c2jis[j] = c2ji
 			round.temp.pi2jis[j] = pi2ji
-			if err != nil {
-				errChs <- round.WrapError(err, Pj)
-			}
 		}(j, Pj)
 	}
 	// consume error channels; wait for goroutines

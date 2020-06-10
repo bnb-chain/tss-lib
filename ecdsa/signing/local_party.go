@@ -76,6 +76,10 @@ type (
 		// round 3
 		lI *big.Int
 
+		// round 5
+		bigGammaJs  []*crypto.ECPoint
+		r5AbortData SignRound6Message_AbortData
+
 		// round 6
 		common.SignatureData_OneRoundData
 
@@ -123,6 +127,9 @@ func NewLocalParty(
 	p.temp.pi1jis = make([]*mta.ProofBob, partyCount)
 	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
 	p.temp.vs = make([]*big.Int, partyCount)
+	p.temp.bigGammaJs = make([]*crypto.ECPoint, partyCount)
+	p.temp.r5AbortData.AlphaIJ = make([][]byte, partyCount)
+	p.temp.r5AbortData.BetaJI = make([][]byte, partyCount)
 	return p
 }
 

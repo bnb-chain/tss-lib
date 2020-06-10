@@ -30,6 +30,10 @@ func (round *round6) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
+	// sigma_i can be discarded here; its only use is to be multiplied with r to become s_i = m*k + r*sigma_i
+	sigmaI := round.temp.sigmaI
+	round.temp.sigmaI = zero
+
 	// bigR is stored as bytes for the OneRoundData protobuf struct
 	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigR.GetX()), new(big.Int).SetBytes(round.temp.BigR.GetY())
 	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
@@ -94,14 +98,16 @@ func (round *round6) Start() *tss.Error {
 		ec := tss.EC()
 		gX, gY := ec.Params().Gx, ec.Params().Gy
 		if bigRBarJProducts.X().Cmp(gX) != 0 || bigRBarJProducts.Y().Cmp(gY) != 0 {
-			return round.WrapError(errors.New("consistency check failed; g != products"))
+			round.aborting = true
+			common.Logger.Warningf("round 6: consistency check failed: g != R products, entering identify abort mode")
+
+			r6msg := NewSignRound6MessageAbort(Pi, &round.temp.r5AbortData)
+			round.temp.signRound6Messages[i] = r6msg
+			round.out <- r6msg
+			return nil
 		}
 	}
 	round.temp.BigRBarJ = BigRBarJ
-
-	// sigma_i can be discarded here; its only use is to be multiplied with r to become s_i = m*k + r*sigma_i
-	sigmaI := round.temp.sigmaI
-	round.temp.sigmaI = zero
 
 	TI, lI := round.temp.TI, round.temp.lI
 	bigSI := bigR.ScalarMult(sigmaI)
@@ -115,7 +121,7 @@ func (round *round6) Start() *tss.Error {
 		return round.WrapError(err, Pi)
 	}
 
-	r6msg := NewSignRound6Message(Pi, bigSI, stProof)
+	r6msg := NewSignRound6MessageSuccess(Pi, bigSI, stProof)
 	round.temp.signRound6Messages[i] = r6msg
 	round.out <- r6msg
 	return nil

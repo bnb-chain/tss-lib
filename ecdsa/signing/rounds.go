@@ -45,7 +45,11 @@ type (
 	}
 	round6 struct {
 		*round5
+
+		// Trigger for when a consistency check fails during subsequent parts of the protocol, resulting in an identifiable abort
+		aborting bool
 	}
+	// The final round for the one-round signing mode (see the README)
 	round7 struct {
 		*round6
 	}
