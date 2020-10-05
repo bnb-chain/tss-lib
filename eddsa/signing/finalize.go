@@ -21,7 +21,7 @@ func (round *finalization) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
-	round.number = 4
+	round.number = 8
 	round.started = true
 	round.resetOK()
 
@@ -31,8 +31,8 @@ func (round *finalization) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
-		sjBytes := bigIntToEncodedBytes(r3msg.UnmarshalS())
+		r7msg := round.temp.signRound7Messages[j].Content().(*SignRound7Message)
+		sjBytes := bigIntToEncodedBytes(r7msg.UnmarshalS())
 		var tmpSumS [32]byte
 		edwards25519.ScMulAdd(&tmpSumS, sumS, bigIntToEncodedBytes(big.NewInt(1)), sjBytes)
 		sumS = &tmpSumS

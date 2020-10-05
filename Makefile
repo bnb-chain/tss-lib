@@ -8,7 +8,7 @@ all: protob test
 
 protob:
 	@echo "--> Building Protocol Buffers"
-	@for protocol in message signature ecdsa-keygen ecdsa-signing ecdsa-resharing; do \
+	@for protocol in message signature ecdsa-keygen ecdsa-signing ecdsa-resharing eddsa-keygen eddsa-signing eddsa-resharing; do \
 		echo "Generating $$protocol.pb.go" ; \
 		protoc --go_out=. ./protob/$$protocol.proto ; \
 	done
@@ -22,12 +22,12 @@ build: protob
 test_unit:
 	@echo "--> Running Unit Tests"
 	@echo "!!! WARNING: This will take a long time :)"
-	go test -timeout 20m $(PACKAGES)
+	go test -timeout 30m $(PACKAGES)
 
 test_unit_race:
 	@echo "--> Running Unit Tests (with Race Detection)"
 	@echo "!!! WARNING: This will take a long time :)"
-	go test -timeout 30m -race $(PACKAGES)
+	go test -timeout 50m -race $(PACKAGES)
 
 test:
 	make test_unit

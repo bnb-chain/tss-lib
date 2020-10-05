@@ -20,8 +20,10 @@ import (
 
 // Implements Party
 // Implements Stringer
-var _ tss.Party = (*LocalParty)(nil)
-var _ fmt.Stringer = (*LocalParty)(nil)
+var (
+	_ tss.Party    = (*LocalParty)(nil)
+	_ fmt.Stringer = (*LocalParty)(nil)
+)
 
 type (
 	LocalParty struct {
@@ -40,7 +42,11 @@ type (
 	localMessageStore struct {
 		signRound1Messages,
 		signRound2Messages,
-		signRound3Messages []tss.ParsedMessage
+		signRound3Messages,
+		signRound4Messages,
+		signRound5Messages,
+		signRound6Messages,
+		signRound7Messages []tss.ParsedMessage
 	}
 
 	localTempData struct {
@@ -58,7 +64,21 @@ type (
 		si  *[32]byte
 
 		// round 3
-		r *big.Int
+		h [32]byte
+		r,
+		li,
+		rx,
+		ry,
+		roi *big.Int
+		bigMinusR,
+		bigAi,
+		bigVi *crypto.ECPoint
+		DPower cmt.HashDeCommitment
+
+		// round 5
+		Ui,
+		Ti *crypto.ECPoint
+		DTelda cmt.HashDeCommitment
 	}
 )
 
@@ -83,6 +103,10 @@ func NewLocalParty(
 	p.temp.signRound1Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound2Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound3Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound4Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound5Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound6Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
 
 	// temp data init
 	p.temp.m = msg
@@ -149,7 +173,14 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 
 	case *SignRound3Message:
 		p.temp.signRound3Messages[fromPIdx] = msg
-
+	case *SignRound4Message:
+		p.temp.signRound4Messages[fromPIdx] = msg
+	case *SignRound5Message:
+		p.temp.signRound5Messages[fromPIdx] = msg
+	case *SignRound6Message:
+		p.temp.signRound6Messages[fromPIdx] = msg
+	case *SignRound7Message:
+		p.temp.signRound7Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil
