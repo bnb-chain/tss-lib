@@ -108,7 +108,6 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 		return false
 	}
 
-	N2 := new(big.Int).Mul(pk.N, pk.N)
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
 	q3 = new(big.Int).Mul(q, q3)
@@ -129,14 +128,14 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	minusE := new(big.Int).Sub(zero, e)
 
 	{ // 4. gamma^s_1 * s^N * c^-e
-		modN2 := common.ModInt(N2)
+		modNSquared := common.ModInt(pk.NSquare())
 
-		cExpMinusE := modN2.Exp(c, minusE)
-		sExpN := modN2.Exp(pf.S, pk.N)
-		gammaExpS1 := modN2.Exp(pk.Gamma(), pf.S1)
+		cExpMinusE := modNSquared.Exp(c, minusE)
+		sExpN := modNSquared.Exp(pf.S, pk.N)
+		gammaExpS1 := modNSquared.Exp(pk.Gamma(), pf.S1)
 		// u != (4)
-		products = modN2.Mul(gammaExpS1, sExpN)
-		products = modN2.Mul(products, cExpMinusE)
+		products = modNSquared.Mul(gammaExpS1, sExpN)
+		products = modNSquared.Mul(products, cExpMinusE)
 		if pf.U.Cmp(products) != 0 {
 			return false
 		}
