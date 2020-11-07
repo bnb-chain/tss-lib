@@ -133,6 +133,8 @@ func (round *round3) Start() *tss.Error {
 		}
 	}
 	{
+		eight := big.NewInt(8)
+		eightInv := new(big.Int).ModInverse(eight, tss.EC().Params().N)
 		var err error
 		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 		for j, Pj := range Ps {
@@ -142,7 +144,7 @@ func (round *round3) Start() *tss.Error {
 			// 11-12.
 			PjVs := vssResults[j].pjVs
 			for c := 0; c <= round.Threshold(); c++ {
-				Vc[c], err = Vc[c].Add(PjVs[c])
+				Vc[c], err = Vc[c].Add(PjVs[c].ScalarMult(eight).ScalarMult(eightInv))
 				if err != nil {
 					culprits = append(culprits, Pj)
 				}
