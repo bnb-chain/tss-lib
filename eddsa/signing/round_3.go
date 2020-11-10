@@ -50,6 +50,7 @@ func (round *round3) Start() *tss.Error {
 		}
 
 		Rj, err := crypto.NewECPoint(tss.EC(), coordinates[0], coordinates[1])
+		Rj = Rj.EightInvEight()
 		if err != nil {
 			return round.WrapError(errors.Wrapf(err, "NewECPoint(Rj)"), Pj)
 		}
