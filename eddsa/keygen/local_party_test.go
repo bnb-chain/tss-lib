@@ -37,6 +37,12 @@ func setUp(level string) {
 	}
 }
 
+func TestEightInvEight(t *testing.T) {
+	p := crypto.ScalarBaseMult(tss.EC(), big.NewInt(12345678))
+	after := p.EightInvEight()
+	fmt.Println(after)
+}
+
 func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	setUp("info")
 

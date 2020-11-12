@@ -83,7 +83,12 @@ func (p *ECPoint) ValidateBasic() bool {
 }
 
 func (p *ECPoint) EightInvEight() *ECPoint {
-	return p.ScalarMult(eight).ScalarMult(eightInv)
+	before, _ := NewECPoint(tss.EC(), p.X(), p.Y())
+	after := p.ScalarMult(eight).ScalarMult(eightInv)
+	if before.coords[0].Cmp(after.coords[0]) != 0 || before.coords[1].Cmp(after.coords[1]) != 0 {
+		fmt.Printf("before: (%s,%s), after: (%s,%s)\n", before.coords[0].String(), before.coords[1].String(), after.coords[0].String(), after.coords[1].String())
+	}
+	return after
 }
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
