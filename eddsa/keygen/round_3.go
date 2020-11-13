@@ -78,6 +78,9 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			PjVs, err := crypto.UnFlattenECPoints(tss.EC(), flatPolyGs)
+			for i, PjV := range PjVs {
+				PjVs[i] = PjV.EightInvEight()
+			}
 			if err != nil {
 				ch <- vssOut{err, nil}
 				return

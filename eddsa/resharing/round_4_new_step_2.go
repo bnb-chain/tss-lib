@@ -59,6 +59,11 @@ func (round *round4) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(err, round.Parties().IDs()[j])
 		}
+
+		for i, v := range vj {
+			vj[i] = v.EightInvEight()
+		}
+
 		vjc[j] = vj
 
 		r3msg1 := round.temp.dgRound3Message1s[j].Content().(*DGRound3Message1)
