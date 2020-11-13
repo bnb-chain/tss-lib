@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/decred/dcrd/dcrec/edwards/v2"
+
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -26,7 +28,7 @@ type ECPoint struct {
 
 var (
 	eight    = big.NewInt(8)
-	eightInv = new(big.Int).ModInverse(eight, tss.EC().Params().N)
+	eightInv = new(big.Int).ModInverse(eight, edwards.Edwards().Params().N)
 )
 
 // Creates a new ECPoint and checks that the given coordinates are on the elliptic curve.
