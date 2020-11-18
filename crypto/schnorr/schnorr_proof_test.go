@@ -81,7 +81,7 @@ func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 	proof, _ := NewZKVProof(V, R, s, l)
 	res := proof.Verify(V, R)
 
-	assert.False(t, res, "verify result must be true")
+	assert.False(t, res, "verify result must be false")
 }
 
 func TestSchnorrVProofVerifyBadS(t *testing.T) {
@@ -98,5 +98,5 @@ func TestSchnorrVProofVerifyBadS(t *testing.T) {
 	proof, _ := NewZKVProof(V, R, s2, l)
 	res := proof.Verify(V, R)
 
-	assert.False(t, res, "verify result must be true")
+	assert.False(t, res, "verify result must be false")
 }
