@@ -58,11 +58,7 @@ func (cmt *HashCommitDecommit) Verify() bool {
 		return false
 	}
 	hash := common.SHA512_256i(D...)
-	if hash.Cmp(C) == 0 {
-		return true
-	} else {
-		return false
-	}
+	return hash.Cmp(C) == 0
 }
 
 func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment) {

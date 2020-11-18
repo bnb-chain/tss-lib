@@ -70,10 +70,7 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 	if err != nil {
 		return false
 	}
-	if aXc.X().Cmp(tG.X()) != 0 || aXc.Y().Cmp(tG.Y()) != 0 {
-		return false
-	}
-	return true
+	return aXc.X().Cmp(tG.X()) == 0 && aXc.Y().Cmp(tG.Y()) == 0
 }
 
 func (pf *ZKProof) ValidateBasic() bool {
@@ -128,10 +125,7 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 	if err != nil {
 		return false
 	}
-	if tRuG.X().Cmp(aVc.X()) != 0 || tRuG.Y().Cmp(aVc.Y()) != 0 {
-		return false
-	}
-	return true
+	return tRuG.X().Cmp(aVc.X()) == 0 && tRuG.Y().Cmp(aVc.Y()) == 0
 }
 
 func (pf *ZKVProof) ValidateBasic() bool {
