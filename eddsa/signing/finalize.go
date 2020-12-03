@@ -37,11 +37,12 @@ func (round *finalization) Start() *tss.Error {
 		edwards25519.ScMulAdd(&tmpSumS, sumS, bigIntToEncodedBytes(big.NewInt(1)), sjBytes)
 		sumS = &tmpSumS
 	}
+	s := encodedBytesToBigInt(sumS)
 
 	// save the signature for final output
 	round.data.Signature = append(bigIntToEncodedBytes(round.temp.r)[:], sumS[:]...)
 	round.data.R = round.temp.r.Bytes()
-	round.data.S = sumS[:]
+	round.data.S = s.Bytes()
 	round.data.M = round.temp.m.Bytes()
 
 	pk := edwards.PublicKey{
@@ -49,7 +50,6 @@ func (round *finalization) Start() *tss.Error {
 		X:     round.key.EDDSAPub.X(),
 		Y:     round.key.EDDSAPub.Y(),
 	}
-	s := encodedBytesToBigInt(sumS)
 
 	ok := edwards.Verify(&pk, round.temp.m.Bytes(), round.temp.r, s)
 	if !ok {
