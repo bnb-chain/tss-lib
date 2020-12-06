@@ -48,8 +48,8 @@ type (
 
 		// temp data (thrown away after sign) / round 1
 		wi,
-		m,
 		ri *big.Int
+		m        []byte
 		pointRi  *crypto.ECPoint
 		deCommit cmt.HashDeCommitment
 
@@ -63,7 +63,7 @@ type (
 )
 
 func NewLocalParty(
-	msg *big.Int,
+	msg []byte,
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
