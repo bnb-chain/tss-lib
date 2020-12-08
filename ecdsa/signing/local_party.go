@@ -31,11 +31,11 @@ type (
 
 		keys keygen.LocalPartySaveData
 		temp localTempData
-		data SignatureData
+		data common.SignatureData
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- SignatureData
+		end chan<- common.SignatureData
 	}
 
 	localMessageStore struct {
@@ -98,7 +98,7 @@ func NewLocalParty(
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- SignatureData,
+	end chan<- common.SignatureData,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -106,7 +106,7 @@ func NewLocalParty(
 		params:    params,
 		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
 		temp:      localTempData{},
-		data:      SignatureData{},
+		data:      common.SignatureData{},
 		out:       out,
 		end:       end,
 	}
@@ -139,7 +139,7 @@ func (p *LocalParty) FirstRound() tss.Round {
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	return tss.BaseStart(p, "signing", func(round tss.Round) *tss.Error {
+	return tss.BaseStart(p, TaskName, func(round tss.Round) *tss.Error {
 		round1, ok := round.(*round1)
 		if !ok {
 			return round.WrapError(errors.New("unable to Start(). party is in an unexpected round"))
@@ -152,7 +152,7 @@ func (p *LocalParty) Start() *tss.Error {
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
-	return tss.BaseUpdate(p, msg, "signing")
+	return tss.BaseUpdate(p, msg, TaskName)
 }
 
 func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (bool, *tss.Error) {
