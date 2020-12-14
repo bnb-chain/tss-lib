@@ -43,7 +43,7 @@ func (round *round1) Start() *tss.Error {
 	// 1. PrepareForSigning() -> w_i
 	xi, ks := round.input.Xi, round.input.Ks
 	newKs := round.NewParties().IDs().Keys()
-	wi := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks)
+	wi := signing.PrepareForSigning(i, len(round.OldParties().IDs()), xi, ks)
 
 	// 2.
 	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
