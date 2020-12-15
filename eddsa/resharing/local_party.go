@@ -69,6 +69,7 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- keygen.LocalPartySaveData,
 ) tss.Party {
+	oldPartyCount := len(params.OldParties().IDs())
 	subset := key
 	if params.IsOldCommittee() {
 		subset = keygen.BuildLocalSaveDataSubset(key, params.OldParties().IDs())
@@ -83,10 +84,10 @@ func NewLocalParty(
 		end:       end,
 	}
 	// msgs init
-	p.temp.dgRound1Messages = make([]tss.ParsedMessage, params.Threshold()+1)   // from t+1 of Old Committee
+	p.temp.dgRound1Messages = make([]tss.ParsedMessage, oldPartyCount)   // from t+1 of Old Committee
 	p.temp.dgRound2Messages = make([]tss.ParsedMessage, params.NewPartyCount()) // "
-	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, params.Threshold()+1)  // from t+1 of Old Committee
-	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, params.Threshold()+1)  // "
+	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, oldPartyCount)  // from t+1 of Old Committee
+	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, oldPartyCount)  // "
 	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
 
 	return p
