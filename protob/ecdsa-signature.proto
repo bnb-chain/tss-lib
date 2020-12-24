@@ -1,0 +1,32 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+
+option go_package = "github.com/binance-chain/tss-lib/ecdsa/signing";
+
+import "protob/shared.proto";
+
+/*
+ * State object for signatures, either partial (for offline/async "one round" signing) or full (contains the final ECDSA signature).
+ */
+message SignatureData {
+    message OneRoundData {
+        // Sanity check in FinalizeGetAndVerifyFinalSig
+        int32 t = 1;
+
+        // Components to produce s = sum(s_i)
+        bytes k_i = 2;
+        bytes r_sigma_i = 3;
+        ECPoint big_r = 4;
+
+        // Components for identifiable aborts during the final phase
+        map<string, ECPoint> big_r_bar_j = 5;
+        map<string, ECPoint> big_s_j = 6;
+    }
+    ECSignature signature = 10;
+    OneRoundData one_round_data = 11;
+}

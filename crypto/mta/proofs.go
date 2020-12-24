@@ -40,11 +40,11 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 		return nil, errors.New("ProveBob() received a nil argument")
 	}
 
-	NSquared := pk.NSquare()
+	NSq := pk.NSquare()
 
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3.Mul(q3, q)
 	qNTilde := new(big.Int).Mul(q, NTilde)
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
@@ -84,10 +84,10 @@ func ProveBobWC(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int
 	t = modNTilde.Mul(t, modNTilde.Exp(h2, sigma))
 
 	// 9.
-	modNSquared := common.ModInt(NSquared)
-	v := modNSquared.Exp(c1, alpha)
-	v = modNSquared.Mul(v, modNSquared.Exp(pk.Gamma(), gamma))
-	v = modNSquared.Mul(v, modNSquared.Exp(beta, pk.N))
+	modNSq := common.ModInt(NSq)
+	v := modNSq.Exp(c1, alpha)
+	v = modNSq.Mul(v, modNSq.Exp(pk.Gamma(), gamma))
+	v = modNSq.Mul(v, modNSq.Exp(beta, pk.N))
 
 	// 10.
 	w := modNTilde.Exp(h1, gamma)
@@ -192,7 +192,7 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3.Mul(q3, q)
 
 	// 3.
 	if pf.S1.Cmp(q3) > 0 {
@@ -251,15 +251,15 @@ func (pf *ProofBobWC) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c1, c2 *big
 	}
 
 	{ // 7.
-		modNSquared := common.ModInt(pk.NSquare())
+		modNSq := common.ModInt(pk.NSquare())
 
-		c1ExpS1 := modNSquared.Exp(c1, pf.S1)
-		sExpN := modNSquared.Exp(pf.S, pk.N)
-		gammaExpT1 := modNSquared.Exp(pk.Gamma(), pf.T1)
-		left = modNSquared.Mul(c1ExpS1, sExpN)
-		left = modNSquared.Mul(left, gammaExpT1)
-		c2ExpE := modNSquared.Exp(c2, e)
-		right = modNSquared.Mul(c2ExpE, pf.V)
+		c1ExpS1 := modNSq.Exp(c1, pf.S1)
+		sExpN := modNSq.Exp(pf.S, pk.N)
+		gammaExpT1 := modNSq.Exp(pk.Gamma(), pf.T1)
+		left = modNSq.Mul(c1ExpS1, sExpN)
+		left = modNSq.Mul(left, gammaExpT1)
+		c2ExpE := modNSq.Exp(c2, e)
+		right = modNSq.Mul(c2ExpE, pf.V)
 		if left.Cmp(right) != 0 {
 			return false
 		}

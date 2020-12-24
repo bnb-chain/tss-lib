@@ -24,7 +24,7 @@ var (
 )
 
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- *SignatureData) tss.Round {
 	return &round1{
 		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
@@ -38,7 +38,8 @@ func (round *round1) Start() *tss.Error {
 	// but considered different blockchain use different hash function we accept the converted big.Int
 	// if this big.Int is not belongs to Zq, the client might not comply with common rule (for ECDSA):
 	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L263
-	if round.temp.m.Cmp(tss.EC().Params().N) >= 0 {
+	if round.temp.m != nil &&
+		round.temp.m.Cmp(tss.EC().Params().N) >= 0 {
 		return round.WrapError(errors.New("hashed message is not valid"))
 	}
 
@@ -46,36 +47,56 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	k := common.GetRandomPositiveInt(tss.EC().Params().N)
-	gamma := common.GetRandomPositiveInt(tss.EC().Params().N)
+	Pi := round.PartyID()
+	i := Pi.Index
+	round.ok[i] = true
 
-	pointGamma := crypto.ScalarBaseMult(tss.EC(), gamma)
-	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
-	round.temp.k = k
-	round.temp.gamma = gamma
-	round.temp.pointGamma = pointGamma
+	gammaI := common.GetRandomPositiveInt(tss.EC().Params().N)
+	kI := common.GetRandomPositiveInt(tss.EC().Params().N)
+	round.temp.gammaI = gammaI
+	round.temp.r5AbortData.GammaI = gammaI.Bytes()
+
+	gammaIG := crypto.ScalarBaseMult(tss.EC(), gammaI)
+	round.temp.gammaIG = gammaIG
+
+	cmt := commitments.NewHashCommitment(gammaIG.X(), gammaIG.Y())
 	round.temp.deCommit = cmt.D
 
-	i := round.PartyID().Index
-	round.ok[i] = true
+	// MtA round 1
+	paiPK := round.key.PaillierPKs[i]
+	cA, rA, err := paiPK.EncryptAndReturnRandomness(kI)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+
+	// set "k"-related temporary variables, also used for identified aborts later in the protocol
+	{
+		kIBz := kI.Bytes()
+		round.temp.KI = kIBz // now part of the OneRoundData struct
+		round.temp.r5AbortData.KI = kIBz
+		round.temp.r7AbortData.KI = kIBz
+		round.temp.cAKI = cA // used for the ZK proof in round 5
+		round.temp.rAKI = rA
+		round.temp.r7AbortData.KRandI = rA.Bytes()
+	}
 
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		cA, pi, err := mta.AliceInit(round.key.PaillierPKs[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		pi, err := mta.AliceInit(paiPK, kI, cA, rA, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
 		r1msg1 := NewSignRound1Message1(Pj, round.PartyID(), cA, pi)
-		round.temp.cis[j] = cA
+		round.temp.signRound1Message1s[i] = r1msg1
+		round.temp.c1Is[j] = cA
 		round.out <- r1msg1
 	}
 
 	r1msg2 := NewSignRound1Message2(round.PartyID(), cmt.C)
 	round.temp.signRound1Message2s[i] = r1msg2
 	round.out <- r1msg2
-
 	return nil
 }
 
@@ -116,17 +137,15 @@ func (round *round1) NextRound() tss.Round {
 // helper to call into PrepareForSigning()
 func (round *round1) prepare() error {
 	i := round.PartyID().Index
-
-	xi := round.key.Xi
-	ks := round.key.Ks
-	bigXs := round.key.BigXj
-
+	xi, ks, bigXs := round.key.Xi, round.key.Ks, round.key.BigXj
 	if round.Threshold()+1 > len(ks) {
 		return fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks))
 	}
-	wi, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
-
-	round.temp.w = wi
-	round.temp.bigWs = bigWs
+	if wI, bigWs, err := PrepareForSigning(i, len(ks), xi, ks, bigXs); err != nil {
+		return err
+	} else {
+		round.temp.wI = wI
+		round.temp.bigWs = bigWs
+	}
 	return nil
 }

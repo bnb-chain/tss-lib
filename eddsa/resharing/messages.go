@@ -9,8 +9,6 @@ package resharing
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -27,16 +25,9 @@ var (
 		(*DGRound2Message)(nil),
 		(*DGRound3Message1)(nil),
 		(*DGRound3Message2)(nil),
+		(*DGRound4Message)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound2Message")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message2")
-	proto.RegisterType((*DGRound4Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound4Message")
-}
 
 // ----- //
 
@@ -53,8 +44,7 @@ func NewDGRound1Message(
 		IsToOldCommittee: false,
 	}
 	content := &DGRound1Message{
-		EddsaPubX:   eddsaPub.X().Bytes(),
-		EddsaPubY:   eddsaPub.Y().Bytes(),
+		EddsaPub:    eddsaPub.ToProtobufPoint(),
 		VCommitment: vct.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
@@ -63,16 +53,13 @@ func NewDGRound1Message(
 
 func (m *DGRound1Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.EddsaPubX) &&
-		common.NonEmptyBytes(m.EddsaPubY) &&
+		m.GetEddsaPub() != nil &&
+		m.GetEddsaPub().ValidateBasic() &&
 		common.NonEmptyBytes(m.VCommitment)
 }
 
 func (m *DGRound1Message) UnmarshalEDDSAPub() (*crypto.ECPoint, error) {
-	return crypto.NewECPoint(
-		tss.EC(),
-		new(big.Int).SetBytes(m.EddsaPubX),
-		new(big.Int).SetBytes(m.EddsaPubY))
+	return crypto.NewECPointFromProtobuf(m.GetEddsaPub())
 }
 
 func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {

@@ -49,7 +49,7 @@ func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
 }
 
 func NewHashDeCommitmentFromBytes(marshalled [][]byte) HashDeCommitment {
-	return common.MultiBytesToBigInts(marshalled)
+	return common.ByteSlicesToBigInts(marshalled)
 }
 
 func (cmt *HashCommitDecommit) Verify() bool {
@@ -58,11 +58,7 @@ func (cmt *HashCommitDecommit) Verify() bool {
 		return false
 	}
 	hash := common.SHA512_256i(D...)
-	if hash.Cmp(C) == 0 {
-		return true
-	} else {
-		return false
-	}
+	return hash.Cmp(C) == 0
 }
 
 func (cmt *HashCommitDecommit) DeCommit() (bool, HashDeCommitment) {

@@ -63,7 +63,7 @@ func (round *round4) Start() *tss.Error {
 	for j, ok := range round.ok {
 		if !ok {
 			culprits = append(culprits, Ps[j])
-			common.Logger.Warningf("paillier verify failed for party %s", Ps[j])
+			common.Logger.Warnf("paillier verify failed for party %s", Ps[j])
 			continue
 		}
 		common.Logger.Debugf("paillier verify passed for party %s", Ps[j])

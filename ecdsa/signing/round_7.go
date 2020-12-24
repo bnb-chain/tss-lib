@@ -8,13 +8,13 @@ package signing
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
-	errors2 "github.com/pkg/errors"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -26,72 +26,176 @@ func (round *round7) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	bigVjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
-	bigAjs := make([]*crypto.ECPoint, len(round.Parties().IDs()))
-	for j, Pj := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
-			continue
+	Pi := round.PartyID()
+	i := Pi.Index
+
+	N := tss.EC().Params().N
+	modN := common.ModInt(N)
+
+	culprits := make([]*tss.PartyID, 0, len(round.temp.signRound6Messages))
+
+	// Identifiable Abort Type 5 triggered during Phase 5 (GG20)
+	if round.abortingT5 {
+		common.Logger.Infof("round 7: Abort Type 5 code path triggered")
+	outer:
+		for j, msg := range round.temp.signRound6Messages {
+			if j == i {
+				continue
+			}
+			Pj := round.Parties().IDs()[j]
+			r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
+			r6msgInner, ok := msg.Content().(*SignRound6Message).GetContent().(*SignRound6Message_Abort)
+			if !ok {
+				common.Logger.Warnf("round 7: unexpected success message while in aborting mode: %+v", r6msgInner)
+				culprits = append(culprits, Pj)
+				continue
+			}
+			r6msg := r6msgInner.Abort
+
+			// Check that value gamma_j (in MtA) is consistent with bigGamma_j that is de-committed in Phase 4
+			gammaJ := new(big.Int).SetBytes(r6msg.GetGammaI())
+			gammaJG := crypto.ScalarBaseMult(tss.EC(), gammaJ)
+			if !gammaJG.Equals(round.temp.bigGammaJs[j]) {
+				culprits = append(culprits, Pj)
+				continue
+			}
+
+			kJ := new(big.Int).SetBytes(r6msg.GetKI())
+			calcDeltaJ := modN.Mul(kJ, gammaJ)
+			for k, a := range r6msg.GetAlphaIJ() {
+				if k == j {
+					continue
+				}
+				if a == nil {
+					culprits = append(culprits, Pj)
+					continue outer
+				}
+				calcDeltaJ = modN.Add(calcDeltaJ, new(big.Int).SetBytes(a))
+			}
+			for k, b := range r6msg.GetBetaJI() {
+				if k == j {
+					continue
+				}
+				if b == nil {
+					culprits = append(culprits, Pj)
+					continue outer
+				}
+				calcDeltaJ = modN.Add(calcDeltaJ, new(big.Int).SetBytes(b))
+			}
+			if expDeltaJ := new(big.Int).SetBytes(r3msg.GetDeltaI()); expDeltaJ.Cmp(calcDeltaJ) != 0 {
+				culprits = append(culprits, Pj)
+				continue
+			}
 		}
-		r5msg := round.temp.signRound5Messages[j].Content().(*SignRound5Message)
-		r6msg := round.temp.signRound6Messages[j].Content().(*SignRound6Message)
-		cj, dj := r5msg.UnmarshalCommitment(), r6msg.UnmarshalDeCommitment()
-		cmtDeCmt := commitments.HashCommitDecommit{C: cj, D: dj}
-		ok, values := cmtDeCmt.DeCommit()
-		if !ok || len(values) != 4 {
-			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
-		}
-		bigVjX, bigVjY, bigAjX, bigAjY := values[0], values[1], values[2], values[3]
-		bigVj, err := crypto.NewECPoint(tss.EC(), bigVjX, bigVjY)
-		if err != nil {
-			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigVj)"), Pj)
-		}
-		bigVjs[j] = bigVj
-		bigAj, err := crypto.NewECPoint(tss.EC(), bigAjX, bigAjY)
-		if err != nil {
-			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigAj)"), Pj)
-		}
-		bigAjs[j] = bigAj
-		pijA, err := r6msg.UnmarshalZKProof()
-		if err != nil || !pijA.Verify(bigAj) {
-			return round.WrapError(errors.New("schnorr verify for Aj failed"), Pj)
-		}
-		pijV, err := r6msg.UnmarshalZKVProof()
-		if err != nil || !pijV.Verify(bigVj, round.temp.bigR) {
-			return round.WrapError(errors.New("vverify for Vj failed"), Pj)
-		}
+		return round.WrapError(errors.New("round 6 consistency check failed: g != R products, Type 5 identified abort, culprits known"), culprits...)
 	}
 
-	modN := common.ModInt(tss.EC().Params().N)
-	AX, AY := round.temp.bigAi.X(), round.temp.bigAi.Y()
-	minusM := modN.Sub(big.NewInt(0), round.temp.m)
-	gToMInvX, gToMInvY := tss.EC().ScalarBaseMult(minusM.Bytes())
-	minusR := modN.Sub(big.NewInt(0), round.temp.rx)
-	yToRInvX, yToRInvY := tss.EC().ScalarMult(round.key.ECDSAPub.X(), round.key.ECDSAPub.Y(), minusR.Bytes())
-	VX, VY := tss.EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
-	VX, VY = tss.EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())
+	// bigR is stored as bytes for the OneRoundData protobuf struct
+	bigRX, bigRY := new(big.Int).SetBytes(round.temp.BigR.GetX()), new(big.Int).SetBytes(round.temp.BigR.GetY())
+	bigR := crypto.NewECPointNoCurveCheck(tss.EC(), bigRX, bigRY)
 
-	for j := range round.Parties().IDs() {
-		if j == round.PartyID().Index {
-			continue
-		}
-		VX, VY = tss.EC().Add(VX, VY, bigVjs[j].X(), bigVjs[j].Y())
-		AX, AY = tss.EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
+	h, err := crypto.ECBasePoint2(tss.EC())
+	if err != nil {
+		return round.WrapError(err, Pi)
 	}
 
-	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.roi.Bytes())
-	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
-	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)
-	round.temp.Ti = crypto.NewECPointNoCurveCheck(tss.EC(), TiX, TiY)
-	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
-	r7msg := NewSignRound7Message(round.PartyID(), cmt.C)
-	round.temp.signRound7Messages[round.PartyID().Index] = r7msg
+	bigSJ := make(map[string]*common.ECPoint, len(round.temp.signRound6Messages))
+	bigSJProducts := (*crypto.ECPoint)(nil)
+	var multiErr error
+	for j, msg := range round.temp.signRound6Messages {
+		Pj := round.Parties().IDs()[j]
+		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
+		r6msgInner, ok := msg.Content().(*SignRound6Message).GetContent().(*SignRound6Message_Success)
+		if !ok {
+			culprits = append(culprits, Pj)
+			multiErr = multierror.Append(multiErr, fmt.Errorf("unexpected abort message while in success mode: %+v", r6msgInner))
+			continue
+		}
+		r6msg := r6msgInner.Success
+
+		TI, err := r3msg.UnmarshalTI()
+		if err != nil {
+			culprits = append(culprits, Pj)
+			multiErr = multierror.Append(multiErr, err)
+			continue
+		}
+		bigSI, err := r6msg.UnmarshalSI()
+		if err != nil {
+			culprits = append(culprits, Pj)
+			multiErr = multierror.Append(multiErr, err)
+			continue
+		}
+		bigSJ[Pj.Id] = bigSI.ToProtobufPoint()
+
+		// ZK STProof check
+		if j != i {
+			stProof, err := r6msg.UnmarshalSTProof()
+			if err != nil {
+				culprits = append(culprits, Pj)
+				multiErr = multierror.Append(multiErr, err)
+				continue
+			}
+			if ok := stProof.Verify(bigSI, TI, bigR, h); !ok {
+				culprits = append(culprits, Pj)
+				multiErr = multierror.Append(multiErr, errors.New("STProof verify failure"))
+				continue
+			}
+		}
+
+		// bigSI consistency check
+		if bigSJProducts == nil {
+			bigSJProducts = bigSI
+			continue
+		}
+		if bigSJProducts, err = bigSJProducts.Add(bigSI); err != nil {
+			culprits = append(culprits, Pj)
+			multiErr = multierror.Append(multiErr, err)
+			continue
+		}
+	}
+	if 0 < len(culprits) {
+		return round.WrapError(multiErr, culprits...)
+	}
+
+	round.temp.rI = bigR
+	round.temp.BigSJ = bigSJ
+	if y := round.key.ECDSAPub; !bigSJProducts.Equals(y) {
+		round.abortingT7 = true
+		common.Logger.Warnf("round 7: consistency check failed: y != bigSJ products, entering Type 7 identified abort")
+
+		// If we abort here, one-round mode won't matter now - we will proceed to round "8" anyway.
+		r7msg := NewSignRound7MessageAbort(Pi, &round.temp.r7AbortData)
+		round.temp.signRound7Messages[i] = r7msg
+		round.out <- r7msg
+		return nil
+	}
+	// wipe sensitive data for gc, not used from here
+	round.temp.r7AbortData = SignRound7Message_AbortData{}
+
+	// PRE-PROCESSING FINISHED
+	// If we are in one-round signing mode (msg is nil), we will exit out with the current state here and we are done.
+	round.temp.T = int32(len(round.Parties().IDs()) - 1)
+	round.data.OneRoundData = &round.temp.SignatureData_OneRoundData
+	if round.temp.m == nil {
+		round.end <- round.data
+		for j := range round.ok {
+			round.ok[j] = true
+		}
+		return nil
+	}
+
+	// Continuing the full online protocol.
+	sI := FinalizeGetOurSigShare(round.data, round.temp.m)
+	round.temp.sI = sI
+
+	r7msg := NewSignRound7MessageSuccess(round.PartyID(), sI)
+	round.temp.signRound7Messages[i] = r7msg
 	round.out <- r7msg
-	round.temp.DTelda = cmt.D
-
 	return nil
 }
 
 func (round *round7) Update() (bool, *tss.Error) {
+	// Collect messages for the full online protocol OR identified abort of type 7.
 	for j, msg := range round.temp.signRound7Messages {
 		if round.ok[j] {
 			continue
@@ -105,6 +209,7 @@ func (round *round7) Update() (bool, *tss.Error) {
 }
 
 func (round *round7) CanAccept(msg tss.ParsedMessage) bool {
+	// Collect messages for the full online protocol OR identified abort of type 7.
 	if _, ok := msg.Content().(*SignRound7Message); ok {
 		return msg.IsBroadcast()
 	}
@@ -112,6 +217,11 @@ func (round *round7) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round7) NextRound() tss.Round {
+	// If we are in one-round signing mode (msg is nil), we will exit out with the current state here and there are no further rounds.
+	if !round.abortingT7 && round.temp.m == nil {
+		return nil
+	}
+	// Continuing the full online protocol.
 	round.started = false
-	return &round8{round}
+	return &finalization{round}
 }

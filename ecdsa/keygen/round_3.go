@@ -31,18 +31,6 @@ func (round *round3) Start() *tss.Error {
 	Ps := round.Parties().IDs()
 	PIdx := round.PartyID().Index
 
-	// 1,9. calculate xi
-	xi := new(big.Int).Set(round.temp.shares[PIdx].Share)
-	for j := range Ps {
-		if j == PIdx {
-			continue
-		}
-		r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
-		share := r2msg1.UnmarshalShare()
-		xi = new(big.Int).Add(xi, share)
-	}
-	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
-
 	// 2-3.
 	Vc := make(vss.Vs, round.Threshold()+1)
 	for c := range Vc {
@@ -97,6 +85,19 @@ func (round *round3) Start() *tss.Error {
 		}(j, chs[j])
 	}
 
+	// 1,9. calculate xi (deferred for performance)
+	modQ := common.ModInt(tss.EC().Params().N)
+	xi := new(big.Int).Set(round.temp.shares[PIdx].Share)
+	for j := range Ps {
+		if j == PIdx {
+			continue
+		}
+		r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
+		share := r2msg1.UnmarshalShare()
+		xi = xi.Add(xi, share)
+	}
+	round.save.Xi = modQ.Add(xi, zero)
+
 	// consume unbuffered channels (end the goroutines)
 	vssResults := make([]vssOut, len(Ps))
 	{
@@ -146,7 +147,6 @@ func (round *round3) Start() *tss.Error {
 	// 12-16. compute Xj for each Pj
 	{
 		var err error
-		modQ := common.ModInt(tss.EC().Params().N)
 		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 		bigXj := round.save.BigXj
 		for j := 0; j < round.PartyCount(); j++ {

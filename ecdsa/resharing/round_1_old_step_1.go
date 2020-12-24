@@ -47,7 +47,10 @@ func (round *round1) Start() *tss.Error {
 		return round.WrapError(fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks)), round.PartyID())
 	}
 	newKs := round.NewParties().IDs().Keys()
-	wi, _ := signing.PrepareForSigning(i, len(round.OldParties().IDs()), xi, ks, bigXj)
+	wi, _, err := signing.PrepareForSigning(i, len(round.OldParties().IDs()), xi, ks, bigXj)
+	if err != nil {
+		return round.WrapError(err, round.PartyID())
+	}
 
 	// 2.
 	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)

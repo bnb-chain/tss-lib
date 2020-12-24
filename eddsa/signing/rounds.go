@@ -7,7 +7,6 @@
 package signing
 
 import (
-	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/eddsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -20,10 +19,10 @@ type (
 	base struct {
 		*tss.Parameters
 		key     *keygen.LocalPartySaveData
-		data    *common.SignatureData
+		data    *SignatureData
 		temp    *localTempData
 		out     chan<- tss.Message
-		end     chan<- common.SignatureData
+		end     chan<- *SignatureData
 		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool
 		number  int

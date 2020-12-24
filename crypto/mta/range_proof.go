@@ -38,7 +38,7 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (
 
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3.Mul(q3, q)
 	qNTilde := new(big.Int).Mul(q, NTilde)
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
@@ -59,9 +59,9 @@ func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (
 	z = modNTilde.Mul(z, modNTilde.Exp(h2, rho))
 
 	// 6.
-	modNSquared := common.ModInt(pk.NSquare())
-	u := modNSquared.Exp(pk.Gamma(), alpha)
-	u = modNSquared.Mul(u, modNSquared.Exp(beta, pk.N))
+	modNSq := common.ModInt(pk.NSquare())
+	u := modNSq.Exp(pk.Gamma(), alpha)
+	u = modNSq.Mul(u, modNSq.Exp(beta, pk.N))
 
 	// 7.
 	w := modNTilde.Exp(h1, alpha)
@@ -108,10 +108,10 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 		return false
 	}
 
-	N2 := new(big.Int).Mul(pk.N, pk.N)
+	NSq := new(big.Int).Mul(pk.N, pk.N)
 	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3.Mul(q3, q)
 
 	// 3.
 	if pf.S1.Cmp(q3) == 1 {
@@ -129,14 +129,14 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	minusE := new(big.Int).Sub(zero, e)
 
 	{ // 4. gamma^s_1 * s^N * c^-e
-		modN2 := common.ModInt(N2)
+		modNSq := common.ModInt(NSq)
 
-		cExpMinusE := modN2.Exp(c, minusE)
-		sExpN := modN2.Exp(pf.S, pk.N)
-		gammaExpS1 := modN2.Exp(pk.Gamma(), pf.S1)
+		cExpMinusE := modNSq.Exp(c, minusE)
+		sExpN := modNSq.Exp(pf.S, pk.N)
+		gammaExpS1 := modNSq.Exp(pk.Gamma(), pf.S1)
 		// u != (4)
-		products = modN2.Mul(gammaExpS1, sExpN)
-		products = modN2.Mul(products, cExpMinusE)
+		products = modNSq.Mul(gammaExpS1, sExpN)
+		products = modNSq.Mul(products, cExpMinusE)
 		if pf.U.Cmp(products) != 0 {
 			return false
 		}

@@ -67,21 +67,21 @@ func (round *round4) Start() *tss.Error {
 		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1) {
 			if ok, err := r2msg1.UnmarshalPaillierProof().Verify(paiPK.N, msg.GetFrom().KeyInt(), round.save.ECDSAPub); err != nil || !ok {
 				paiProofCulprits[j] = msg.GetFrom()
-				common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom(), err)
+				common.Logger.Warnf("paillier verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
 		}(j, msg, r2msg1)
 		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
 			if dlnProof1, err := r2msg1.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
 				dlnProof1FailCulprits[j] = msg.GetFrom()
-				common.Logger.Warningf("dln proof 1 verify failed for party %s", msg.GetFrom(), err)
+				common.Logger.Warnf("dln proof 1 verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
 		}(j, msg, r2msg1, H1j, H2j, NTildej)
 		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
 			if dlnProof2, err := r2msg1.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
 				dlnProof2FailCulprits[j] = msg.GetFrom()
-				common.Logger.Warningf("dln proof 2 verify failed for party %s", msg.GetFrom(), err)
+				common.Logger.Warnf("dln proof 2 verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
 		}(j, msg, r2msg1, H1j, H2j, NTildej)

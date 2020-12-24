@@ -9,7 +9,7 @@ package resharing
 import (
 	"errors"
 
-	"github.com/binance-chain/tss-lib/crypto/dlnproof"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -67,8 +67,8 @@ func (round *round2) Start() *tss.Error {
 		preParams.P,
 		preParams.Q,
 		preParams.NTildei
-	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
-	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
+	dlnProof1 := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
+	dlnProof2 := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
 
 	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
 	r2msg2, err := NewDGRound2Message1(

@@ -6,15 +6,16 @@
 
 syntax = "proto3";
 
-option go_package = "ecdsa/resharing";
+option go_package = "github.com/binance-chain/tss-lib/ecdsa/resharing";
+
+import "protob/shared.proto";
 
 /*
  * The Round 1 data is broadcast to peers of the New Committee in this message.
  */
 message DGRound1Message {
-    bytes ecdsa_pub_x = 1;
-    bytes ecdsa_pub_y = 2;
-    bytes v_commitment = 3;
+    ECPoint ecdsa_pub = 1;
+    bytes v_commitment = 2;
 }
 
 /*

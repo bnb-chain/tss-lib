@@ -9,18 +9,15 @@ package keygen
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into eddsa-keygen.pb.go
-// The following messages are registered on the Protocol Buffers "wire"
 
 var (
 	// Ensure that keygen messages implement ValidateBasic
@@ -30,12 +27,6 @@ var (
 		(*KGRound2Message2)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*KGRound1Message)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound1Message")
-	proto.RegisterType((*KGRound2Message1)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound2Message1")
-	proto.RegisterType((*KGRound2Message2)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound2Message2")
-}
 
 // ----- //
 
@@ -91,7 +82,7 @@ func (m *KGRound2Message1) UnmarshalShare() *big.Int {
 func NewKGRound2Message2(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *schnorr.ZKProof,
+	proof *zkp.DLogProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -100,8 +91,7 @@ func NewKGRound2Message2(
 	dcBzs := common.BigIntsToBytes(deCommitment)
 	content := &KGRound2Message2{
 		DeCommitment: dcBzs,
-		ProofAlphaX:  proof.Alpha.X().Bytes(),
-		ProofAlphaY:  proof.Alpha.Y().Bytes(),
+		ProofAlpha:   proof.Alpha.ToProtobufPoint(),
 		ProofT:       proof.T.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
@@ -118,15 +108,12 @@ func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *KGRound2Message2) UnmarshalZKProof() (*schnorr.ZKProof, error) {
-	point, err := crypto.NewECPoint(
-		tss.EC(),
-		new(big.Int).SetBytes(m.GetProofAlphaX()),
-		new(big.Int).SetBytes(m.GetProofAlphaY()))
+func (m *KGRound2Message2) UnmarshalZKProof() (*zkp.DLogProof, error) {
+	point, err := crypto.NewECPointFromProtobuf(m.GetProofAlpha())
 	if err != nil {
 		return nil, err
 	}
-	return &schnorr.ZKProof{
+	return &zkp.DLogProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil

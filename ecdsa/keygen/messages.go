@@ -9,18 +9,15 @@ package keygen
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/dlnproof"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go
-// The following messages are registered on the Protocol Buffers "wire"
 
 var (
 	// Ensure that keygen messages implement ValidateBasic
@@ -32,13 +29,6 @@ var (
 	}
 )
 
-func init() {
-	proto.RegisterType((*KGRound1Message)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound1Message")
-	proto.RegisterType((*KGRound2Message1)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound2Message1")
-	proto.RegisterType((*KGRound2Message2)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound2Message2")
-	proto.RegisterType((*KGRound3Message)(nil), tss.ECDSAProtoNamePrefix+"keygen.KGRound3Message")
-}
-
 // ----- //
 
 func NewKGRound1Message(
@@ -46,17 +36,17 @@ func NewKGRound1Message(
 	ct cmt.HashCommitment,
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
-	dlnProof1, dlnProof2 *dlnproof.Proof,
+	dlnProof1, dlnProof2 *dlnp.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
-	dlnProof1Bz, err := dlnProof1.Serialize()
+	dlnProof1Bz, err := dlnProof1.Marshal()
 	if err != nil {
 		return nil, err
 	}
-	dlnProof2Bz, err := dlnProof2.Serialize()
+	dlnProof2Bz, err := dlnProof2.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +71,8 @@ func (m *KGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.GetH1()) &&
 		common.NonEmptyBytes(m.GetH2()) &&
 		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
-		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnproof.Iterations*2)) &&
-		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnproof.Iterations*2))
+		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnp.Iterations*2)) &&
+		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnp.Iterations*2))
 }
 
 func (m *KGRound1Message) UnmarshalCommitment() *big.Int {
@@ -105,12 +95,12 @@ func (m *KGRound1Message) UnmarshalH2() *big.Int {
 	return new(big.Int).SetBytes(m.GetH2())
 }
 
-func (m *KGRound1Message) UnmarshalDLNProof1() (*dlnproof.Proof, error) {
-	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_1())
+func (m *KGRound1Message) UnmarshalDLNProof1() (*dlnp.Proof, error) {
+	return dlnp.UnmarshalProof(m.GetDlnproof_1())
 }
 
-func (m *KGRound1Message) UnmarshalDLNProof2() (*dlnproof.Proof, error) {
-	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_2())
+func (m *KGRound1Message) UnmarshalDLNProof2() (*dlnp.Proof, error) {
+	return dlnp.UnmarshalProof(m.GetDlnproof_2())
 }
 
 // ----- //

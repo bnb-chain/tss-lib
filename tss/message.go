@@ -157,13 +157,13 @@ func (mm *MessageImpl) ValidateBasic() bool {
 }
 
 func (mm *MessageImpl) String() string {
-	toStr := "all"
+	toStr := ""
 	if mm.To != nil {
-		toStr = fmt.Sprintf("%v", mm.To)
+		toStr = fmt.Sprintf("To: %v", mm.To)
 	}
 	extraStr := ""
 	if mm.IsToOldCommittee() {
 		extraStr = " (To Old Committee)"
 	}
-	return fmt.Sprintf("Type: %s, From: %s, To: %s%s", mm.Type(), mm.From.String(), toStr, extraStr)
+	return fmt.Sprintf("Type: %s, From: %s%s%s", mm.Type(), mm.From.String(), toStr, extraStr)
 }

@@ -18,7 +18,7 @@ import (
 )
 
 // round 1 represents round 1 of the signing part of the EDDSA TSS spec
-func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- *SignatureData) tss.Round {
 	return &round1{
 		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
@@ -32,6 +32,8 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
+	i := round.PartyID().Index
+
 	// 1. select ri
 	ri := common.GetRandomPositiveInt(tss.EC().Params().N)
 
@@ -43,9 +45,6 @@ func (round *round1) Start() *tss.Error {
 	round.temp.ri = ri
 	round.temp.pointRi = pointRi
 	round.temp.deCommit = cmt.D
-
-	i := round.PartyID().Index
-	round.ok[i] = true
 
 	// 4. broadcast commitment
 	r1msg2 := NewSignRound1Message(round.PartyID(), cmt.C)

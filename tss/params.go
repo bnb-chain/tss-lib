@@ -9,15 +9,18 @@ package tss
 import (
 	"errors"
 	"time"
+
+	"github.com/binance-chain/tss-lib/common"
 )
 
 type (
 	Parameters struct {
-		partyID             *PartyID
-		parties             *PeerContext
-		partyCount          int
-		threshold           int
-		safePrimeGenTimeout time.Duration
+		partyID                 *PartyID
+		parties                 *PeerContext
+		partyCount              int
+		threshold               int
+		safePrimeGenTimeout     time.Duration
+		unsafeKGIgnoreH1H2Dupes bool
 	}
 
 	ReSharingParameters struct {
@@ -70,6 +73,19 @@ func (params *Parameters) Threshold() int {
 
 func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 	return params.safePrimeGenTimeout
+}
+
+// Getter. The H1, H2 dupe check is disabled during some benchmarking scenarios to allow reuse of pre-params.
+func (params *Parameters) UNSAFE_KGIgnoreH1H2Dupes() bool {
+	return params.unsafeKGIgnoreH1H2Dupes
+}
+
+// Setter. The H1, H2 dupe check is disabled during some benchmarking scenarios to allow reuse of pre-params.
+func (params *Parameters) UNSAFE_setKGIgnoreH1H2Dupes(unsafeKGIgnoreH1H2Dupes bool) {
+	if unsafeKGIgnoreH1H2Dupes {
+		common.Logger.Warn("UNSAFE_setKGIgnoreH1H2Dupes() has been called; do not use these shares in production.")
+	}
+	params.unsafeKGIgnoreH1H2Dupes = unsafeKGIgnoreH1H2Dupes
 }
 
 // ----- //

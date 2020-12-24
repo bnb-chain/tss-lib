@@ -9,12 +9,10 @@ package resharing
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/dlnproof"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
@@ -33,14 +31,6 @@ var (
 	}
 )
 
-func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message1)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound2Message1")
-	proto.RegisterType((*DGRound2Message2)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound2Message2")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound3Message2")
-}
-
 // ----- //
 
 func NewDGRound1Message(
@@ -56,8 +46,7 @@ func NewDGRound1Message(
 		IsToOldCommittee: false,
 	}
 	content := &DGRound1Message{
-		EcdsaPubX:   ecdsaPub.X().Bytes(),
-		EcdsaPubY:   ecdsaPub.Y().Bytes(),
+		EcdsaPub:    ecdsaPub.ToProtobufPoint(),
 		VCommitment: vct.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
@@ -66,16 +55,13 @@ func NewDGRound1Message(
 
 func (m *DGRound1Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.EcdsaPubX) &&
-		common.NonEmptyBytes(m.EcdsaPubY) &&
+		m.EcdsaPub != nil &&
+		m.EcdsaPub.ValidateBasic() &&
 		common.NonEmptyBytes(m.VCommitment)
 }
 
 func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
-	return crypto.NewECPoint(
-		tss.EC(),
-		new(big.Int).SetBytes(m.EcdsaPubX),
-		new(big.Int).SetBytes(m.EcdsaPubY))
+	return crypto.NewECPointFromProtobuf(m.GetEcdsaPub())
 }
 
 func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {
@@ -90,7 +76,7 @@ func NewDGRound2Message1(
 	paillierPK *paillier.PublicKey,
 	paillierPf paillier.Proof,
 	NTildei, H1i, H2i *big.Int,
-	dlnProof1, dlnProof2 *dlnproof.Proof,
+	dlnProof1, dlnProof2 *dlnp.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:             from,
@@ -99,11 +85,11 @@ func NewDGRound2Message1(
 		IsToOldCommittee: false,
 	}
 	paiPfBzs := common.BigIntsToBytes(paillierPf[:])
-	dlnProof1Bz, err := dlnProof1.Serialize()
+	dlnProof1Bz, err := dlnProof1.Marshal()
 	if err != nil {
 		return nil, err
 	}
-	dlnProof2Bz, err := dlnProof2.Serialize()
+	dlnProof2Bz, err := dlnProof2.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +114,8 @@ func (m *DGRound2Message1) ValidateBasic() bool {
 		common.NonEmptyBytes(m.H1) &&
 		common.NonEmptyBytes(m.H2) &&
 		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
-		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnproof.Iterations*2)) &&
-		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnproof.Iterations*2))
+		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnp.Iterations*2)) &&
+		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnp.Iterations*2))
 }
 
 func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
@@ -152,17 +138,17 @@ func (m *DGRound2Message1) UnmarshalH2() *big.Int {
 
 func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
 	var pf paillier.Proof
-	ints := common.MultiBytesToBigInts(m.PaillierProof)
+	ints := common.ByteSlicesToBigInts(m.PaillierProof)
 	copy(pf[:], ints[:paillier.ProofIters])
 	return pf
 }
 
-func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnproof.Proof, error) {
-	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_1())
+func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnp.Proof, error) {
+	return dlnp.UnmarshalProof(m.GetDlnproof_1())
 }
 
-func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnproof.Proof, error) {
-	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_2())
+func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnp.Proof, error) {
+	return dlnp.UnmarshalProof(m.GetDlnproof_2())
 }
 
 // ----- //

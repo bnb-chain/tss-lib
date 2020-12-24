@@ -78,18 +78,21 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			PjVs, err := crypto.UnFlattenECPoints(tss.EC(), flatPolyGs)
+			for i, PjV := range PjVs {
+				PjVs[i] = PjV.EightInvEight()
+			}
 			if err != nil {
 				ch <- vssOut{err, nil}
 				return
 			}
 			proof, err := r2msg2.UnmarshalZKProof()
 			if err != nil {
-				ch <- vssOut{errors.New("failed to unmarshal schnorr proof"), nil}
+				ch <- vssOut{errors.New("failed to unmarshal zk proof"), nil}
 				return
 			}
 			ok = proof.Verify(PjVs[0])
 			if !ok {
-				ch <- vssOut{errors.New("failed to prove schnorr proof"), nil}
+				ch <- vssOut{errors.New("failed to prove zk proof"), nil}
 				return
 			}
 			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)

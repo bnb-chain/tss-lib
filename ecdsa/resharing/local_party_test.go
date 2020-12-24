@@ -45,7 +45,7 @@ func TestE2EConcurrent(t *testing.T) {
 	threshold, newThreshold := testThreshold, testThreshold
 
 	// PHASE: load keygen fixtures
-	firstPartyIdx, extraParties := 5, 1 // extra can be 0 to N-first
+	firstPartyIdx, extraParties := 0, 1 // extra can be 0 to N-first
 	oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+extraParties+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
@@ -168,7 +168,7 @@ signing:
 
 	signErrCh := make(chan *tss.Error, len(signPIDs))
 	signOutCh := make(chan tss.Message, len(signPIDs))
-	signEndCh := make(chan common.SignatureData, len(signPIDs))
+	signEndCh := make(chan *signing.SignatureData, len(signPIDs))
 
 	for j, signPID := range signPIDs {
 		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
@@ -219,8 +219,8 @@ signing:
 					Y:     pkY,
 				}
 				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(),
-					new(big.Int).SetBytes(signData.R),
-					new(big.Int).SetBytes(signData.S))
+					new(big.Int).SetBytes(signData.Signature.R),
+					new(big.Int).SetBytes(signData.Signature.S))
 
 				assert.True(t, ok, "ecdsa verify must pass")
 				t.Log("ECDSA signing test done.")

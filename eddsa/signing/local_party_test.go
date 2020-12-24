@@ -54,7 +54,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	errCh := make(chan *tss.Error, len(signPIDs))
 	outCh := make(chan tss.Message, len(signPIDs))
-	endCh := make(chan common.SignatureData, len(signPIDs))
+	endCh := make(chan *SignatureData, len(signPIDs))
 
 	updater := test.SharedPartyUpdater
 
@@ -126,7 +126,7 @@ signing:
 					Y:     pkY,
 				}
 
-				newSig, err := edwards.ParseSignature(parties[0].data.Signature)
+				newSig, err := edwards.ParseSignature(parties[0].data.Signature.Signature)
 				if err != nil {
 					println("new sig error, ", err.Error())
 				}

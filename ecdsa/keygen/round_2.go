@@ -39,14 +39,17 @@ func (round *round2) Start() *tss.Error {
 		if H1j.Cmp(H2j) == 0 {
 			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
 		}
-		h1JHex, h2JHex := hex.EncodeToString(H1j.Bytes()), hex.EncodeToString(H2j.Bytes())
-		if _, found := h1H2Map[h1JHex]; found {
-			return round.WrapError(errors.New("this h1j was already used by another party"), msg.GetFrom())
+		// the H1, H2 dupe check is disabled during some benchmarking scenarios to allow reuse of pre-params
+		if !round.Params().UNSAFE_KGIgnoreH1H2Dupes() {
+			h1JHex, h2JHex := hex.EncodeToString(H1j.Bytes()), hex.EncodeToString(H2j.Bytes())
+			if _, found := h1H2Map[h1JHex]; found {
+				return round.WrapError(errors.New("this h1j was already used by another party"), msg.GetFrom())
+			}
+			if _, found := h1H2Map[h2JHex]; found {
+				return round.WrapError(errors.New("this h2j was already used by another party"), msg.GetFrom())
+			}
+			h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
 		}
-		if _, found := h1H2Map[h2JHex]; found {
-			return round.WrapError(errors.New("this h2j was already used by another party"), msg.GetFrom())
-		}
-		h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
 		wg.Add(2)
 		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
 			if dlnProof1, err := r1msg.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {

@@ -21,7 +21,7 @@ func BigIntsToBytes(bigInts []*big.Int) [][]byte {
 	return bzs
 }
 
-func MultiBytesToBigInts(bytes [][]byte) []*big.Int {
+func ByteSlicesToBigInts(bytes [][]byte) []*big.Int {
 	ints := make([]*big.Int, len(bytes))
 	for i := range ints {
 		ints[i] = new(big.Int).SetBytes(bytes[i])
@@ -30,8 +30,19 @@ func MultiBytesToBigInts(bytes [][]byte) []*big.Int {
 }
 
 // Returns true when the byte slice is non-nil and non-empty
-func NonEmptyBytes(bz []byte) bool {
-	return bz != nil && 0 < len(bz)
+func NonEmptyBytes(bz []byte, minByteLen ...int) bool {
+	if 0 == len(bz) {
+		return false
+	}
+	allZero := true
+	for _, b := range bz {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	return !allZero &&
+		(len(minByteLen) == 0 || minByteLen[0] <= len(bz))
 }
 
 // Returns true when all of the slices in the multi-dimensional byte slice are non-nil and non-empty

@@ -30,11 +30,11 @@ type (
 
 		keys keygen.LocalPartySaveData
 		temp localTempData
-		data common.SignatureData
+		data SignatureData
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- common.SignatureData
+		end chan<- *SignatureData
 	}
 
 	localMessageStore struct {
@@ -67,7 +67,7 @@ func NewLocalParty(
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- common.SignatureData,
+	end chan<- *SignatureData,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -75,7 +75,7 @@ func NewLocalParty(
 		params:    params,
 		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
 		temp:      localTempData{},
-		data:      common.SignatureData{},
+		data:      SignatureData{},
 		out:       out,
 		end:       end,
 	}
@@ -151,7 +151,7 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		p.temp.signRound3Messages[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!
-		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		common.Logger.Warnf("unrecognised message ignored: %v", msg)
 		return false, nil
 	}
 	return true, nil
