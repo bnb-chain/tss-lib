@@ -14,6 +14,7 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	_ "github.com/binance-chain/tss-lib/eddsa/keygen" // this is must to have otherwise the type switch inside StoreMessage will fail
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -130,6 +131,18 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	}
 	fromPIdx := msg.GetFrom().Index
 
+	// var hoho tss.MessageContent
+	// hoho = &keygen.KGRound1Message{}
+	// common.Logger.Warnf("hoho: %T", hoho)
+	// switch hoho.(type) {
+	// case *KGRound1Message:
+	// 	common.Logger.Warnf("hoho good")
+	// case *keygen.KGRound1Message:
+	// 	common.Logger.Warnf("hoho hmm")
+	// default: // unrecognised message, just ignore!
+	// 	common.Logger.Warnf("hoho bad")
+	// }
+
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
@@ -142,7 +155,7 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	case *KGRound3Message:
 		p.temp.kgRound3Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
-		common.Logger.Warnf("unrecognised message ignored: %v", msg)
+		common.Logger.Warnf("unrecognised message ignored: %v %T %T", msg, msg.Content())
 		return false, nil
 	}
 	return true, nil

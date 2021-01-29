@@ -16,6 +16,7 @@ import (
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	_ "github.com/binance-chain/tss-lib/eddsa/signing" // has to be here otherwise 2021-01-19 18:52:06.820 TrusTSS[81825:3183626] failed to update session: {\"NSLocalizedDescription\":\"task signing, party {1,congip11pro_1216}, round 2: proto: cannot parse reserved wire type\"} fails
 	"github.com/binance-chain/tss-lib/tss"
 )
 

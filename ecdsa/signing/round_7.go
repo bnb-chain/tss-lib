@@ -185,7 +185,7 @@ func (round *round7) Start() *tss.Error {
 	}
 
 	// Continuing the full online protocol.
-	sI := FinalizeGetOurSigShare(round.data, round.temp.m)
+	sI := FinalizeGetOurSigShare(round.data.OneRoundData, round.temp.m)
 	round.temp.sI = sI
 
 	r7msg := NewSignRound7MessageSuccess(round.PartyID(), sI)

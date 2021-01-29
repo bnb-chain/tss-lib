@@ -32,9 +32,7 @@ const (
 // -----
 
 // FinalizeGetOurSigShare is called in one-round signing mode after the online rounds have finished to compute s_i.
-func FinalizeGetOurSigShare(state *SignatureData, msg *big.Int) (sI *big.Int) {
-	data := state.GetOneRoundData()
-
+func FinalizeGetOurSigShare(data *SignatureData_OneRoundData, msg *big.Int) (sI *big.Int) {
 	N := tss.EC().Params().N
 	modN := common.ModInt(N)
 

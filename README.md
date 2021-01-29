@@ -32,7 +32,7 @@ EdDSA is used extensively for crypto-currencies such as Cardano, Aeternity, Stel
 
 For such currencies this technique may be used to create crypto wallets where multiple parties must collaborate to sign transactions. See [MultiSig Use Cases](https://en.bitcoin.it/wiki/Multisignature#Multisignature_Applications)
 
-One secret share per key/address is stored locally by each participant and these are kept safe by the protocol – they are never revealed to others at any time. Moreover, there is no trusted dealer of the shares.
+One secret share per key/address is stored locally by each participant and these are kept safe by the NewLocalPartyWithOneRoundSigncol – they are never revealed to others at any time. Moreover, there is no trusted dealer of the shares.
 
 In contrast to MultiSig solutions, transactions produced by TSS preserve the privacy of the signers by not revealing which `t+1` participants were involved in their signing.
 

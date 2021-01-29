@@ -45,7 +45,7 @@ func (round *finalization) Start() *tss.Error {
 	signature.Signature = append(bigIntToEncodedBytes(round.temp.r)[:], sumS[:]...)
 	signature.R = round.temp.r.Bytes()
 	signature.S = s.Bytes()
-	signature.M = round.temp.m.Bytes()
+	signature.M = round.temp.m
 	round.data.Signature = signature
 
 	pk := edwards.PublicKey{
@@ -54,7 +54,7 @@ func (round *finalization) Start() *tss.Error {
 		Y:     round.key.EDDSAPub.Y(),
 	}
 
-	ok := edwards.Verify(&pk, round.temp.m.Bytes(), round.temp.r, s)
+	ok := edwards.Verify(&pk, round.temp.m, round.temp.r, s)
 	if !ok {
 		return round.WrapError(fmt.Errorf("signature verification failed"))
 	}

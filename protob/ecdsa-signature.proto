@@ -27,6 +27,6 @@ message SignatureData {
         map<string, ECPoint> big_r_bar_j = 5;
         map<string, ECPoint> big_s_j = 6;
     }
-    ECSignature signature = 10;
-    OneRoundData one_round_data = 11;
+    ECSignature signature = 1;
+    OneRoundData one_round_data = 2;
 }

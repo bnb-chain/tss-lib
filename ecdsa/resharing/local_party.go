@@ -15,6 +15,8 @@ import (
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	_ "github.com/binance-chain/tss-lib/eddsa/keygen"
+	_ "github.com/binance-chain/tss-lib/eddsa/resharing"
 	"github.com/binance-chain/tss-lib/tss"
 )
 

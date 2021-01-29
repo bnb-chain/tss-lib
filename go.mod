@@ -6,7 +6,7 @@ require (
 	github.com/agl/ed25519 v0.0.0-20200225211852-fd4d107ace12
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.1
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/ipfs/go-log v1.0.4
 	github.com/ipfs/go-log/v2 v2.1.1 // indirect
