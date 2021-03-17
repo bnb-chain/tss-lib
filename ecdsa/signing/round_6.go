@@ -72,14 +72,15 @@ func (round *round6) Start() *tss.Error {
 			continue
 		}
 		r1msg1 := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+		witnessId:=(Pj.Index+1)%len(round.Parties().IDs())
 		pdlWSlackStatement := zkp.PDLwSlackStatement{
-			PK:         round.key.PaillierPKs[Pj.Index],
+			N:         round.key.PaillierPKs[Pj.Index].N,
 			CipherText: new(big.Int).SetBytes(r1msg1.GetC()),
 			Q:          bigRBarJ,
 			G:          bigR,
-			H1:         round.key.H1j[Pj.Index],
-			H2:         round.key.H2j[Pj.Index],
-			NTilde:     round.key.NTildej[Pj.Index], // maybe i
+			H1:         round.key.H1j[witnessId],
+			H2:         round.key.H2j[witnessId],
+			NTilde:     round.key.NTildej[witnessId], // maybe i
 		}
 		if !pdlWSlackPf.Verify(pdlWSlackStatement) {
 			errs[Pj] = fmt.Errorf("failed to verify ZK proof of consistency between R_i and E_i(k_i) for P %d", j)

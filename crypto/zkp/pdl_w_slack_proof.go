@@ -15,21 +15,19 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
 	PDLwSlackStatement struct {
 		CipherText     *big.Int
-		PK             *paillier.PublicKey
+		N             *big.Int
 		Q, G           *crypto.ECPoint
 		H1, H2, NTilde *big.Int
 	}
 
 	PDLwSlackWitness struct {
 		X, R *big.Int
-		SK   *paillier.PrivateKey
 	}
 
 	PDLwSlackProof struct {
@@ -56,22 +54,23 @@ func NewPDLwSlackProof(wit PDLwSlackWitness, st PDLwSlackStatement) PDLwSlackPro
 	q3NTilde := new(big.Int).Mul(q3, st.NTilde)
 
 	alpha := common.GetRandomPositiveInt(q3)
-	nSubOne := new(big.Int).Add(st.PK.N, one)
+	nSubOne := new(big.Int).Add(st.N, one)
 	beta := new(big.Int).Add(one, common.GetRandomPositiveInt(nSubOne))
 	rho := common.GetRandomPositiveInt(qNTilde)
 	gamma := common.GetRandomPositiveInt(q3NTilde)
 
 	z := commitmentUnknownOrder(st.H1, st.H2, st.NTilde, wit.X, rho)
 	u1 := st.G.ScalarMult(alpha)
-	nOne := new(big.Int).Add(st.PK.N, one)
-	u2 := commitmentUnknownOrder(nOne, beta, st.PK.NSquare(), alpha, st.PK.N)
+	nOne := new(big.Int).Add(st.N, one)
+	nSquare :=new(big.Int).Mul(st.N, st.N)
+	u2 := commitmentUnknownOrder(nOne, beta, nSquare, alpha, st.N)
 	u3 := commitmentUnknownOrder(st.H1, st.H2, st.NTilde, alpha, gamma)
 
 	e := common.SHA512_256i(st.G.X(), st.G.Y(), st.Q.X(), st.Q.Y(), st.CipherText, z, u1.X(), u1.Y(), u2, u3)
 	s1 := new(big.Int).Mul(e, wit.X)
 	s3 := new(big.Int).Mul(e, rho)
 	s1.Add(s1, alpha)
-	s2 := commitmentUnknownOrder(wit.R, beta, st.PK.N, e, one)
+	s2 := commitmentUnknownOrder(wit.R, beta, st.N, e, one)
 	s3.Add(s3, gamma)
 
 	return PDLwSlackProof{z, u1, u2, u3, s1, s2, s3}
@@ -89,9 +88,10 @@ func (pf PDLwSlackProof) Verify(st PDLwSlackStatement) bool {
 		return false
 	}
 
-	nOne, eNeg := new(big.Int).Add(st.PK.N, one), new(big.Int).Neg(e)
-	u2TestTmp := commitmentUnknownOrder(nOne, pf.S2, st.PK.NSquare(), pf.S1, st.PK.N)
-	u2Test := commitmentUnknownOrder(u2TestTmp, st.CipherText, st.PK.NSquare(), one, eNeg)
+	nOne, eNeg := new(big.Int).Add(st.N, one), new(big.Int).Neg(e)
+	nSquare :=new(big.Int).Mul(st.N, st.N)
+	u2TestTmp := commitmentUnknownOrder(nOne, pf.S2, nSquare, pf.S1, st.N)
+	u2Test := commitmentUnknownOrder(u2TestTmp, st.CipherText, nSquare, one, eNeg)
 	u3TestTmp := commitmentUnknownOrder(st.H1, st.H2, st.NTilde, pf.S1, pf.S3)
 	u3Test := commitmentUnknownOrder(u3TestTmp, pf.Z, st.NTilde, one, eNeg)
 

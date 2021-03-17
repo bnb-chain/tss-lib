@@ -36,6 +36,7 @@ func (round *round5) Start() *tss.Error {
 	deltaI := *round.temp.deltaI
 	deltaSum := &deltaI
 
+	witnessId :=(i+1)%len(round.Parties().IDs())
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
@@ -84,16 +85,15 @@ func (round *round5) Start() *tss.Error {
 	// compute ZK proof of consistency between R_i and E_i(k_i)
 	// ported from: https://git.io/Jf69a
 	pdlWSlackStatement := zkp.PDLwSlackStatement{
-		PK:         &round.key.PaillierSK.PublicKey,
+		N:         round.key.PaillierSK.N,
 		CipherText: round.temp.cAKI,
 		Q:          bigRBarI,
 		G:          bigR,
-		H1:         round.key.H1i,
-		H2:         round.key.H2i,
-		NTilde:     round.key.NTildei,
+		H1:         round.key.H1j[witnessId],
+		H2:         round.key.H2j[witnessId],
+		NTilde:     round.key.NTildej[witnessId],
 	}
 	pdlWSlackWitness := zkp.PDLwSlackWitness{
-		SK: round.key.PaillierSK,
 		X:  kI,
 		R:  round.temp.rAKI,
 	}
