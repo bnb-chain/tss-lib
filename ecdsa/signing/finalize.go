@@ -56,10 +56,10 @@ func (round *finalization) Start() *tss.Error {
 	}
 
 	// save the signature for final output
-	round.data.Signature = append(round.temp.rx.Bytes(), sumS.Bytes()...)
+	round.data.R = fillTo32BytesInPlace(round.temp.rx.Bytes())
+	round.data.S = fillTo32BytesInPlace(sumS.Bytes())
+	round.data.Signature = append(round.data.R, round.data.S...)
 	round.data.SignatureRecovery = []byte{byte(recid)}
-	round.data.R = round.temp.rx.Bytes()
-	round.data.S = sumS.Bytes()
 	round.data.M = round.temp.m.Bytes()
 
 	pk := ecdsa.PublicKey{
@@ -89,4 +89,14 @@ func (round *finalization) Update() (bool, *tss.Error) {
 
 func (round *finalization) NextRound() tss.Round {
 	return nil // finished!
+}
+
+func fillTo32BytesInPlace(src []byte) []byte {
+	oriLen := len(src)
+	if oriLen < 32 {
+		for i := 0; i < 32-oriLen; i++ {
+			src = append([]byte{0}, src...)
+		}
+	}
+	return src
 }
