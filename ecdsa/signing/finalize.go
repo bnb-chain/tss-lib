@@ -228,7 +228,7 @@ func (round *finalization) Start() *tss.Error {
 			cA, err := paiPKJ.EncryptWithChosenRandomness(
 				new(big.Int).SetBytes(r7msg.GetKI()),
 				new(big.Int).SetBytes(r7msg.GetKRandI()))
-			r1msg1 := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+			r1msg1 := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
 			if err != nil || !bytes.Equal(cA.Bytes(), r1msg1.GetC()) {
 				culprits = append(culprits, Pj)
 				continue

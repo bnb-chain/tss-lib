@@ -39,15 +39,24 @@ func (round *round3) Start() *tss.Error {
 	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
 	wg := sync.WaitGroup{}
 	wg.Add((len(round.Parties().IDs()) - 1) * 2)
+
+	itemLocker := &sync.Mutex{}
+	var abortItems []*SignRound3Message_AbortDataEntry
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
+
 		// Alice_end
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
-			proofBob, err := r2msg.UnmarshalProofBob()
+			proofBob, err := r2msg.UnmarshalProofBob(i)
+			if err != nil {
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBob failed"), Pj)
+				return
+			}
+			c1, _, err := r2msg.UnmarshalC(i)
 			if err != nil {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBob failed"), Pj)
 				return
@@ -57,11 +66,17 @@ func (round *round3) Start() *tss.Error {
 				proofBob,
 				round.key.H1j[i],
 				round.key.H2j[i],
-				round.temp.c1Is[j],
-				new(big.Int).SetBytes(r2msg.GetC1()),
+				round.temp.c1Is,
+				new(big.Int).SetBytes(c1),
 				round.key.NTildej[i],
 				round.key.PaillierSK)
 			if err != nil {
+				itemLocker.Lock()
+				entry := SignRound3Message_AbortDataEntry{
+					Index: int32(j),
+				}
+				abortItems = append(abortItems, &entry)
+				itemLocker.Unlock()
 				errChs <- round.WrapError(err, Pj)
 				return
 			}
@@ -72,22 +87,28 @@ func (round *round3) Start() *tss.Error {
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
-			proofBobWC, err := r2msg.UnmarshalProofBobWC()
+			proofBobWC, err := r2msg.UnmarshalProofBobWC(i)
 			if err != nil {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBobWC failed"), Pj)
+				return
+			}
+			_, c2, err := r2msg.UnmarshalC(i)
+			if err != nil {
+				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBob failed"), Pj)
 				return
 			}
 			muIJ, muIJRec, muIJRand, err := mta.AliceEndWC(
 				round.key.PaillierPKs[i],
 				proofBobWC,
 				round.temp.bigWs[j],
-				round.temp.c1Is[j],
-				new(big.Int).SetBytes(r2msg.GetC2()),
+				round.temp.c1Is,
+				new(big.Int).SetBytes(c2),
 				round.key.NTildej[i],
 				round.key.H1j[i],
 				round.key.H2j[i],
 				round.key.PaillierSK)
 			if err != nil {
+				// we do not need to set the malicious node data again as the proof check is same as AliceEnd
 				errChs <- round.WrapError(err, Pj)
 				return
 			}
@@ -105,7 +126,15 @@ func (round *round3) Start() *tss.Error {
 		culprits = append(culprits, err.Culprits()...)
 	}
 	if len(culprits) > 0 {
-		return round.WrapError(errors.New("failed to calculate Alice_end or Alice_end_wc"), culprits...)
+		round.temp.abortMta = SignRound3Message_AbortData{
+			Item: abortItems,
+		}
+		round.abortMta = true
+		r3msg := NewSignRound3MessageAbort(round.PartyID(), &round.temp.abortMta)
+		round.temp.signRound3Messages[i] = r3msg
+		round.out <- r3msg
+		// not returning error here, we will handle that in abort mode.
+		return nil
 	}
 	// for identifying aborts in round 7: muIJs, revealed during Type 7 identified abort
 	round.temp.r7AbortData.MuIJ = common.BigIntsToBytes(muIJRecs)
@@ -158,7 +187,7 @@ func (round *round3) Start() *tss.Error {
 	round.temp.deltaI = deltaI
 	round.temp.sigmaI = sigmaI
 
-	r3msg := NewSignRound3Message(Pi, deltaI, TI, tProof)
+	r3msg := NewSignRound3MessageSuccess(Pi, deltaI, TI, tProof)
 	round.temp.signRound3Messages[i] = r3msg
 	round.out <- r3msg
 	return nil

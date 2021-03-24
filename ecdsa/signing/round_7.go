@@ -82,7 +82,7 @@ func (round *round7) Start() *tss.Error {
 				}
 				calcDeltaJ = modN.Add(calcDeltaJ, new(big.Int).SetBytes(b))
 			}
-			if expDeltaJ := new(big.Int).SetBytes(r3msg.GetDeltaI()); expDeltaJ.Cmp(calcDeltaJ) != 0 {
+			if expDeltaJ := new(big.Int).SetBytes(r3msg.GetSuccess().GetDeltaI()); expDeltaJ.Cmp(calcDeltaJ) != 0 {
 				culprits = append(culprits, Pj)
 				continue
 			}
@@ -113,7 +113,7 @@ func (round *round7) Start() *tss.Error {
 		}
 		r6msg := r6msgInner.Success
 
-		TI, err := r3msg.UnmarshalTI()
+		TI, err := r3msg.GetContent().(*SignRound3Message_Success).UnmarshalTI()
 		if err != nil {
 			culprits = append(culprits, Pj)
 			multiErr = multierror.Append(multiErr, err)

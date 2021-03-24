@@ -33,6 +33,8 @@ type (
 	}
 	round3 struct {
 		*round2
+		// once we fail to verify the share from VSS, we enter the identifying abort process
+		vssAbort bool
 	}
 	round4 struct {
 		*round3

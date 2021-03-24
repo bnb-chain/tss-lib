@@ -22,8 +22,10 @@ import (
 
 // Implements Party
 // Implements Stringer
-var _ tss.Party = (*LocalParty)(nil)
-var _ fmt.Stringer = (*LocalParty)(nil)
+var (
+	_ tss.Party    = (*LocalParty)(nil)
+	_ fmt.Stringer = (*LocalParty)(nil)
+)
 
 type (
 	LocalParty struct {
@@ -40,8 +42,7 @@ type (
 	}
 
 	localMessageStore struct {
-		signRound1Message1s,
-		signRound1Message2s,
+		signRound1Messages,
 		signRound2Messages,
 		signRound3Messages,
 		signRound4Messages,
@@ -61,10 +62,11 @@ type (
 		deltaI,
 		sigmaI,
 		gammaI *big.Int
-		c1Is     []*big.Int
-		bigWs    []*crypto.ECPoint
-		gammaIG  *crypto.ECPoint
-		deCommit cmt.HashDeCommitment
+		c1Is       *big.Int
+		bigWs      []*crypto.ECPoint
+		gammaIG    *crypto.ECPoint
+		deCommit   cmt.HashDeCommitment
+		rangeProof *mta.RangeProofAlice
 
 		// round 2
 		betas, // return value of Bob_mid
@@ -77,6 +79,8 @@ type (
 		// round 3
 		lI *big.Int
 
+		// round4
+		abortMta SignRound3Message_AbortData
 		// round 5
 		bigGammaJs  []*crypto.ECPoint
 		r5AbortData SignRound6Message_AbortData
@@ -111,8 +115,7 @@ func NewLocalParty(
 		end:       end,
 	}
 	// msgs init
-	p.temp.signRound1Message1s = make([]tss.ParsedMessage, partyCount)
-	p.temp.signRound1Message2s = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound1Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound2Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound3Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound4Messages = make([]tss.ParsedMessage, partyCount)
@@ -121,7 +124,6 @@ func NewLocalParty(
 	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.m = msg
-	p.temp.c1Is = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
 	p.temp.c1JIs = make([]*big.Int, partyCount)
@@ -196,10 +198,8 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
-	case *SignRound1Message1:
-		p.temp.signRound1Message1s[fromPIdx] = msg
-	case *SignRound1Message2:
-		p.temp.signRound1Message2s[fromPIdx] = msg
+	case *SignRound1Message:
+		p.temp.signRound1Messages[fromPIdx] = msg
 	case *SignRound2Message:
 		p.temp.signRound2Messages[fromPIdx] = msg
 	case *SignRound3Message:

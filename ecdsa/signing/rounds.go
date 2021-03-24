@@ -35,6 +35,8 @@ type (
 	}
 	round3 struct {
 		*round2
+		// trigger for abort of incorrect mta proof
+		abortMta bool
 	}
 	round4 struct {
 		*round3

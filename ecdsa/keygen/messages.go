@@ -13,21 +13,13 @@ import (
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go
 
-var (
-	// Ensure that keygen messages implement ValidateBasic
-	_ = []tss.MessageContent{
-		(*KGRound1Message)(nil),
-		(*KGRound2Message1)(nil),
-		(*KGRound2Message2)(nil),
-		(*KGRound3Message)(nil),
-	}
-)
+// Ensure that keygen messages implement ValidateBasic
+var _ = []tss.MessageContent{(*KGRound1Message)(nil), (*KGRound2Message)(nil), (*KGRound3Message)(nil)}
 
 // ----- //
 
@@ -105,62 +97,37 @@ func (m *KGRound1Message) UnmarshalDLNProof2() (*dlnp.Proof, error) {
 
 // ----- //
 
-func NewKGRound2Message1(
-	to, from *tss.PartyID,
-	share *vss.Share,
-) tss.ParsedMessage {
-	meta := tss.MessageRouting{
-		From:        from,
-		To:          []*tss.PartyID{to},
-		IsBroadcast: false,
-	}
-	content := &KGRound2Message1{
-		Share: share.Share.Bytes(),
-	}
-	msg := tss.NewMessageWrapper(meta, content)
-	return tss.NewMessage(meta, content, msg)
-}
-
-func (m *KGRound2Message1) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyBytes(m.GetShare())
-}
-
-func (m *KGRound2Message1) UnmarshalShare() *big.Int {
-	return new(big.Int).SetBytes(m.Share)
-}
-
-// ----- //
-
-func NewKGRound2Message2(
+func NewKGRound2Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
+	encryptedShares [][]byte,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
-	content := &KGRound2Message2{
-		DeCommitment: dcBzs,
+	content := &KGRound2Message{
+		DeCommitment:   dcBzs,
+		EncryptedShare: encryptedShares,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *KGRound2Message2) ValidateBasic() bool {
+func (m *KGRound2Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyMultiBytes(m.GetDeCommitment())
 }
 
-func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
+func (m *KGRound2Message) UnmarshalDeCommitment() []*big.Int {
 	deComBzs := m.GetDeCommitment()
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
 // ----- //
 
-func NewKGRound3Message(
+func NewKGRound3MessageSuccessful(
 	from *tss.PartyID,
 	proof paillier.Proof,
 ) tss.ParsedMessage {
@@ -175,21 +142,57 @@ func NewKGRound3Message(
 		}
 		pfBzs[i] = proof[i].Bytes()
 	}
+
 	content := &KGRound3Message{
-		PaillierProof: pfBzs,
+		Content: &KGRound3Message_Success{
+			Success: &KGRound3Message_SuccessData{
+				PaillierProof: pfBzs,
+			},
+		},
+	}
+
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
+}
+
+func NewKGRound3MessageAbort(
+	from *tss.PartyID,
+	data *KGRound3Message_AbortData,
+
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
+	}
+	content := &KGRound3Message{
+		Content: &KGRound3Message_Abort{Abort: data},
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
 func (m *KGRound3Message) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyMultiBytes(m.GetPaillierProof(), paillier.ProofIters)
+	if m == nil || m.GetContent() == nil {
+		return false
+	}
+	switch c := m.GetContent().(type) {
+	case *KGRound3Message_Success:
+		return (c.Success != nil) && common.NonEmptyMultiBytes(c.Success.GetPaillierProof(), paillier.ProofIters)
+
+	case *KGRound3Message_Abort:
+		return (c.Abort != nil) && len(c.Abort.Item) != 0
+	default:
+		return false
+	}
 }
 
 func (m *KGRound3Message) UnmarshalProofInts() paillier.Proof {
 	var pf paillier.Proof
-	proofBzs := m.GetPaillierProof()
+	c, ok := m.GetContent().(*KGRound3Message_Success)
+	if !ok {
+		return pf
+	}
+	proofBzs := c.Success.GetPaillierProof()
 	for i := range pf {
 		pf[i] = new(big.Int).SetBytes(proofBzs[i])
 	}

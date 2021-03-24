@@ -71,7 +71,7 @@ func (round *round6) Start() *tss.Error {
 			errs[Pj] = err
 			continue
 		}
-		r1msg1 := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+		r1msg1 := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
 		pdlWSlackStatement := zkp.PDLwSlackStatement{
 			PK:         round.key.PaillierPKs[Pj.Index],
 			CipherText: new(big.Int).SetBytes(r1msg1.GetC()),

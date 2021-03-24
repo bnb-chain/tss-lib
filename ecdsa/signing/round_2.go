@@ -34,10 +34,12 @@ func (round *round2) Start() *tss.Error {
 		if j == i {
 			continue
 		}
+
+		witnessPartyID := (j + 1) % len(round.Parties().IDs())
 		// Bob_mid
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
-			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+			r1msg := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
 			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
 			if err != nil {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalRangeProofAlice failed"), Pj)
@@ -51,9 +53,9 @@ func (round *round2) Start() *tss.Error {
 				round.key.NTildej[j],
 				round.key.H1j[j],
 				round.key.H2j[j],
-				round.key.NTildej[i],
-				round.key.H1j[i],
-				round.key.H2j[i])
+				round.key.NTildej[witnessPartyID],
+				round.key.H1j[witnessPartyID],
+				round.key.H2j[witnessPartyID])
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
 				return
@@ -67,12 +69,13 @@ func (round *round2) Start() *tss.Error {
 		// Bob_mid_wc
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
-			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
+			r1msg := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
 			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
 			if err != nil {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalRangeProofAlice failed"), Pj)
 				return
 			}
+
 			vJI, c2JI, pi2JI, err := mta.BobMidWC(
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
@@ -81,9 +84,9 @@ func (round *round2) Start() *tss.Error {
 				round.key.NTildej[j],
 				round.key.H1j[j],
 				round.key.H2j[j],
-				round.key.NTildej[i],
-				round.key.H1j[i],
-				round.key.H2j[i],
+				round.key.NTildej[witnessPartyID],
+				round.key.H1j[witnessPartyID],
+				round.key.H2j[witnessPartyID],
 				round.temp.bigWs[i])
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
@@ -105,18 +108,21 @@ func (round *round2) Start() *tss.Error {
 		return round.WrapError(errors.New("MtA: failed to verify Bob_mid or Bob_mid_wc"), culprits...)
 	}
 	// create and send messages
-	for j, Pj := range round.Parties().IDs() {
+	var items []*SignRound2MessageBody
+	for j := range round.Parties().IDs() {
 		if j == i {
+			items = append(items, nil)
 			continue
 		}
-		r2msg := NewSignRound2Message(
-			Pj, round.PartyID(),
+		item := NewSignRound2MessageBody(
 			round.temp.c1JIs[j],
 			round.temp.pI1JIs[j],
 			round.temp.c2JIs[j],
 			round.temp.pI2JIs[j])
-		round.out <- r2msg
+		items = append(items, item)
 	}
+	r2msg := NewSignRound2Message(round.PartyID(), items)
+	round.out <- r2msg
 	return nil
 }
 
@@ -135,12 +141,12 @@ func (round *round2) Update() (bool, *tss.Error) {
 
 func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*SignRound2Message); ok {
-		return !msg.IsBroadcast()
+		return msg.IsBroadcast()
 	}
 	return false
 }
 
 func (round *round2) NextRound() tss.Round {
 	round.started = false
-	return &round3{round}
+	return &round3{round, false}
 }

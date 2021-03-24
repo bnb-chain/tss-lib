@@ -47,6 +47,11 @@ type (
 		PhiN *big.Int // (p-1) * (q-1)
 	}
 
+	EncryptedMsg struct {
+		EncryptedData *big.Int
+		RandomR       *big.Int
+	}
+
 	// Proof uses the new GenerateXs method in GG18Spec (6)
 	Proof [ProofIters]*big.Int
 )

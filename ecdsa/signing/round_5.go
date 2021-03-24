@@ -27,22 +27,51 @@ func (round *round5) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
+	identityAbort := false
+	var identifyingAbortCulprits []*tss.PartyID
+
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	modN := common.ModInt(tss.EC().Params().N)
+	if round.abortMta {
+		identityAbort = true
+		// we are the victim, we just report the culprits
+		r3msg := round.temp.signRound3Messages[i].Content().(*SignRound3Message)
+		abortItems := r3msg.GetAbort().GetItem()
+		for _, el := range abortItems {
+			node := round.Parties().IDs()[el.GetIndex()]
+			identifyingAbortCulprits = append(identifyingAbortCulprits, node)
+		}
+	}
 
+	modN := common.ModInt(tss.EC().Params().N)
 	bigR := round.temp.gammaIG
-	deltaI := *round.temp.deltaI
-	deltaSum := &deltaI
+	// deltaI := *round.temp.deltaI
+	deltaSum := zero
+	if !identityAbort {
+		deltaSum = round.temp.deltaI
+	}
 
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		r1msg2 := round.temp.signRound1Message2s[j].Content().(*SignRound1Message2)
+		r1msg2 := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
 		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
 		r4msg := round.temp.signRound4Messages[j].Content().(*SignRound4Message)
+
+		switch c := r3msg.GetContent().(type) {
+		case *SignRound3Message_Success:
+			// calculating delta^-1 (below)
+			deltaJ := c.Success.GetDeltaI()
+			deltaSum = modN.Add(deltaSum, new(big.Int).SetBytes(deltaJ))
+		case *SignRound3Message_Abort:
+			identityAbort = true
+			for _, el := range c.Abort.GetItem() {
+				node := round.Parties().IDs()[el.GetIndex()]
+				identifyingAbortCulprits = append(identifyingAbortCulprits, node)
+			}
+		}
 
 		// calculating Big R
 		SCj, SDj := r1msg2.UnmarshalCommitment(), r4msg.UnmarshalDeCommitment()
@@ -60,10 +89,10 @@ func (round *round5) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "bigR.Add(bigGammaJ)"), Pj)
 		}
+	}
 
-		// calculating delta^-1 (below)
-		deltaJ := r3msg.GetDeltaI()
-		deltaSum = modN.Add(deltaSum, new(big.Int).SetBytes(deltaJ))
+	if identityAbort {
+		return round.WrapError(errors.New("the bobmid proof is incorrect"), identifyingAbortCulprits...)
 	}
 
 	// compute the multiplicative inverse delta mod q

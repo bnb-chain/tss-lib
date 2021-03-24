@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -90,54 +91,54 @@ func (round *round2) Start() *tss.Error {
 
 	// 5. p2p send share ij to Pj
 	shares := round.temp.shares
+	round.temp.encryptedShares = make([]paillier.EncryptedMsg, len(round.Parties().IDs()))
 	for j, Pj := range round.Parties().IDs() {
-		r2msg1 := NewKGRound2Message1(Pj, round.PartyID(), shares[j])
-		// do not send to this Pj, but store for round 3
-		if j == i {
-			round.temp.kgRound2Message1s[j] = r2msg1
-			continue
+		e, r, err := round.save.PaillierPKs[j].EncryptAndReturnRandomness(shares[j].Share)
+		if err != nil {
+			return round.WrapError(err, nil)
 		}
-		round.temp.kgRound2Message1s[i] = r2msg1
-		round.out <- r2msg1
+		encryptedValue := paillier.EncryptedMsg{
+			EncryptedData: e,
+			RandomR:       r,
+		}
+		round.temp.encryptedShares[Pj.Index] = encryptedValue
+	}
+	round.temp.broadcastEncryptedShare = make([][]byte, len(round.temp.encryptedShares))
+	for i, el := range round.temp.encryptedShares {
+		round.temp.broadcastEncryptedShare[i] = el.EncryptedData.Bytes()
 	}
 
 	// 7. BROADCAST de-commitments of Shamir poly*G
-	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG)
-	round.temp.kgRound2Message2s[i] = r2msg2
-	round.out <- r2msg2
+	r2msg := NewKGRound2Message(round.PartyID(), round.temp.deCommitPolyG, round.temp.broadcastEncryptedShare)
+	round.temp.kgRound2Messages[i] = r2msg
+	round.out <- r2msg
 
 	return nil
 }
 
 func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
-	if _, ok := msg.Content().(*KGRound2Message1); ok {
-		return !msg.IsBroadcast()
-	}
-	if _, ok := msg.Content().(*KGRound2Message2); ok {
+	if _, ok := msg.Content().(*KGRound2Message); ok {
 		return msg.IsBroadcast()
 	}
 	return false
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	// guard - VERIFY de-commit for all Pj
-	for j, msg := range round.temp.kgRound2Message1s {
+	for j, msg := range round.temp.kgRound2Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
 			return false, nil
 		}
-		msg2 := round.temp.kgRound2Message2s[j]
-		if msg2 == nil || !round.CanAccept(msg2) {
-			return false, nil
-		}
+		// vss check is in round 2
 		round.ok[j] = true
 	}
+
 	return true, nil
 }
 
 func (round *round2) NextRound() tss.Round {
 	round.started = false
-	return &round3{round}
+	return &round3{round, false}
 }

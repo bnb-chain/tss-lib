@@ -14,9 +14,11 @@ import (
 	"math/big"
 	"os"
 	"runtime"
+	"sort"
 	"sync/atomic"
 	"testing"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
@@ -253,15 +255,20 @@ keygen:
 						if j2 == j {
 							continue
 						}
-						vssMsgs := P.temp.kgRound2Message1s
-						share := vssMsgs[j].Content().(*KGRound2Message1).Share
+
+						vssMsgs := P.temp.kgRound2Messages
+						share := vssMsgs[j].Content().(*KGRound2Message).EncryptedShare
+						encryptedForMe := new(big.Int).SetBytes(share[j2])
+						e, _, _ := P.data.PaillierSK.DecryptAndRecoverRandomness(encryptedForMe)
+
 						shareStruct := &vss.Share{
 							Threshold: threshold,
 							ID:        P.PartyID().KeyInt(),
-							Share:     new(big.Int).SetBytes(share),
+							Share:     e,
 						}
 						pShares = append(pShares, shareStruct)
 					}
+
 					uj, err := pShares[:threshold+1].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
@@ -333,6 +340,203 @@ keygen:
 
 				break keygen
 			}
+		}
+	}
+}
+
+func TestE2EConcurrentWithWrongShareAbort(t *testing.T) {
+	setUp("info")
+	attacker := 4
+	threshold := testThreshold
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	p2pCtx := tss.NewPeerContext(pIDs)
+	parties := make([]*LocalParty, 0, len(pIDs))
+	errCh := make(chan *tss.Error, len(pIDs))
+	outCh := make(chan tss.Message, len(pIDs))
+	endCh := make(chan LocalPartySaveData, len(pIDs))
+
+	updater := test.SharedPartyUpdater
+
+	startGR := runtime.NumGoroutine()
+
+	// PHASE: keygen
+	var ended int32
+
+	// init the parties
+	for i := 0; i < len(pIDs); i++ {
+		var P *LocalParty
+		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
+		if i < len(fixtures) {
+			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
+		} else {
+			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
+		}
+		parties = append(parties, P)
+		go func(P *LocalParty) {
+			if err := P.Start(); err != nil {
+				errCh <- err
+			}
+		}(P)
+	}
+
+keygen:
+	for {
+		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
+		select {
+		case err := <-errCh:
+			if err.Victim().Index != attacker {
+				assert.Equal(t, attacker, err.Culprits()[0].Index, "victim should report all the attacker")
+			}
+			atomic.AddInt32(&ended, 1)
+			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
+				t.Log("share share attack test finished successfully")
+				t.Logf("Start goroutines: %d, End goroutines: %d", startGR, runtime.NumGoroutine())
+				break keygen
+			}
+		case msg := <-outCh:
+			dest := msg.GetTo()
+			if dest == nil { // broadcast!
+
+				if msg.Type() == "KGRound2Message" && msg.GetFrom().Index == attacker {
+					assert.Nil(t, err)
+					var attackContent KGRound2Message
+					err = ptypes.UnmarshalAny(msg.WireMsg().Message, &attackContent)
+					assert.Nil(t, err)
+					// we tries to attack node 1 as we change the secrete share of node 1
+					copy(attackContent.EncryptedShare[1], attackContent.EncryptedShare[3])
+
+					meta := tss.MessageRouting{
+						From:        msg.GetFrom(),
+						To:          nil,
+						IsBroadcast: true,
+					}
+					msg2 := tss.NewMessageWrapper(meta, &attackContent)
+					msg = tss.NewMessage(meta, &attackContent, msg2)
+				}
+
+				for _, P := range parties {
+					if P.PartyID().Index == msg.GetFrom().Index {
+						continue
+					}
+					// party 3 tries to attack party 1
+
+					go updater(P, msg, errCh)
+				}
+			} else { // point-to-point!
+				if dest[0].Index == msg.GetFrom().Index {
+					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
+					return
+				}
+				go updater(parties[dest[0].Index], msg, errCh)
+			}
+
+		case <-endCh:
+			t.Fatal("tss should not success")
+		}
+	}
+}
+
+func TestE2EConcurrentWithWrongShareAbortTwoAttackersAbort(t *testing.T) {
+	setUp("info")
+	attackers := []int{2, 4}
+	threshold := testThreshold
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	p2pCtx := tss.NewPeerContext(pIDs)
+	parties := make([]*LocalParty, 0, len(pIDs))
+	errCh := make(chan *tss.Error, len(pIDs))
+	outCh := make(chan tss.Message, len(pIDs))
+	endCh := make(chan LocalPartySaveData, len(pIDs))
+
+	updater := test.SharedPartyUpdater
+
+	startGR := runtime.NumGoroutine()
+
+	// init the parties
+	for i := 0; i < len(pIDs); i++ {
+		var P *LocalParty
+		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
+		if i < len(fixtures) {
+			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
+		} else {
+			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
+		}
+		parties = append(parties, P)
+		go func(P *LocalParty) {
+			if err := P.Start(); err != nil {
+				errCh <- err
+			}
+		}(P)
+	}
+
+	// PHASE: keygen
+	var ended int32
+keygen:
+	for {
+		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
+		select {
+		case err := <-errCh:
+			var actualAttackers []int
+			if err.Victim().Index != attackers[0] && err.Victim().Index != attackers[1] {
+				for _, el := range err.Culprits() {
+					actualAttackers = append(actualAttackers, el.Index)
+				}
+				sort.Ints(actualAttackers)
+				assert.Equal(t, attackers, actualAttackers, "the victim should report all the attackers")
+			}
+			err.Culprits()
+			atomic.AddInt32(&ended, 1)
+			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
+				t.Log("share share attack test finished successfully")
+				t.Logf("Start goroutines: %d, End goroutines: %d", startGR, runtime.NumGoroutine())
+				break keygen
+			}
+		case msg := <-outCh:
+			dest := msg.GetTo()
+			if dest == nil { // broadcast!
+
+				if msg.Type() == "KGRound2Message" && (msg.GetFrom().Index == attackers[0] || msg.GetFrom().Index == attackers[1]) {
+					assert.Nil(t, err)
+					var attackContent KGRound2Message
+					err = ptypes.UnmarshalAny(msg.WireMsg().Message, &attackContent)
+					assert.Nil(t, err)
+					// we tries to attack node 1 as we change the secrete share of node 1
+					copy(attackContent.EncryptedShare[1], attackContent.EncryptedShare[3])
+
+					meta := tss.MessageRouting{
+						From:        msg.GetFrom(),
+						To:          nil,
+						IsBroadcast: true,
+					}
+					msg2 := tss.NewMessageWrapper(meta, &attackContent)
+					msg = tss.NewMessage(meta, &attackContent, msg2)
+				}
+
+				for _, P := range parties {
+					if P.PartyID().Index == msg.GetFrom().Index {
+						continue
+					}
+					go updater(P, msg, errCh)
+				}
+			} else { // point-to-point!
+				if dest[0].Index == msg.GetFrom().Index {
+					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
+					return
+				}
+				go updater(parties[dest[0].Index], msg, errCh)
+			}
+
+		case <-endCh:
+			t.Fatal("tss should not success")
 		}
 	}
 }
