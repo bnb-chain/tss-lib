@@ -132,7 +132,7 @@ signing:
 
 func TestFillTo32BytesInPlace(t *testing.T) {
 	s := big.NewInt(123456789)
-	normalizedS := fillTo32BytesInPlace(s.Bytes())
+	normalizedS := padToLengthBytesInPlace(s.Bytes(), 32)
 	assert.True(t, big.NewInt(0).SetBytes(normalizedS).Cmp(s) == 0)
 	assert.Equal(t, 32, len(normalizedS))
 	assert.NotEqual(t, 32, len(s.Bytes()))
