@@ -48,7 +48,9 @@ func NewSignRound1Message(
 func (m *SignRound1Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyBytes(m.GetC()) &&
-		common.NonEmptyMultiBytes(m.GetRangeProofAlice(), mta.RangeProofAliceBytesParts)
+		common.NonEmptyMultiBytes(m.GetRangeProofAlice(), mta.RangeProofAliceBytesParts) &&
+		m.Commitment != nil &&
+		common.NonEmptyBytes(m.GetCommitment())
 }
 
 func (m *SignRound1Message) UnmarshalC() *big.Int {
