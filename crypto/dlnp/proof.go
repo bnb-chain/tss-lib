@@ -19,7 +19,11 @@ import (
 	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 )
 
-const Iterations = 128
+const (
+	// Two 1024-bit safe primes to produce NTilde
+	SafePrimeBitLen = 1024
+	Iterations      = 128
+)
 
 type (
 	Proof struct {
@@ -28,7 +32,25 @@ type (
 	}
 )
 
-func NewProof(h1, h2, x, p, q, N *big.Int) *Proof {
+func NewProof(h1, h2, x, p, q, N *big.Int) (*Proof, error) {
+	if h1.Cmp(N) >= 0 {
+		return nil, fmt.Errorf("h1 should less than N")
+	}
+	if h2.Cmp(N) >= 0 {
+		return nil, fmt.Errorf("h2 should less than N")
+	}
+	modNTildeI := common.ModInt(N)
+	h2Verify := modNTildeI.Exp(h1, x)
+	if h2Verify.Cmp(h2) != 0 {
+		return nil, fmt.Errorf("h2 != x * h1")
+	}
+	pDoublePlus1 := new(big.Int).Add(new(big.Int).Lsh(p, 1), big.NewInt(1))
+	qDoublePlus1 := new(big.Int).Add(new(big.Int).Lsh(q, 1), big.NewInt(1))
+	nVerify := new(big.Int).Mul(pDoublePlus1, qDoublePlus1)
+	if nVerify.Cmp(N) != 0 {
+		return nil, fmt.Errorf("DLN proof failed the chekc (2p+1)(2q+1)=N")
+	}
+
 	pMulQ := new(big.Int).Mul(p, q)
 	modN, modPQ := common.ModInt(N), common.ModInt(pMulQ)
 	a := make([]*big.Int, Iterations)
@@ -46,11 +68,21 @@ func NewProof(h1, h2, x, p, q, N *big.Int) *Proof {
 		cIBI = cIBI.SetInt64(int64(cI))
 		t[i] = modPQ.Add(a[i], modPQ.Mul(cIBI, x))
 	}
-	return &Proof{alpha, t}
+	return &Proof{alpha, t}, nil
 }
 
 func (p *Proof) Verify(h1, h2, N *big.Int) bool {
 	if p == nil {
+		return false
+	}
+	if h1.Cmp(N) >= 0 {
+		return false
+	}
+	if h2.Cmp(N) >= 0 {
+		return false
+	}
+
+	if N.BitLen() != SafePrimeBitLen*2 {
 		return false
 	}
 	modN := common.ModInt(N)
