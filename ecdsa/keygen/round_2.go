@@ -22,7 +22,6 @@ func (round *round2) Start() *tss.Error {
 	round.number = 2
 	round.started = true
 	round.resetOK()
-
 	i := round.PartyID().Index
 
 	// 6. verify dln proofs, store r1 message pieces, ensure uniqueness of h1j, h2j
@@ -32,10 +31,9 @@ func (round *round2) Start() *tss.Error {
 	wg := new(sync.WaitGroup)
 	for j, msg := range round.temp.kgRound1Messages {
 		r1msg := msg.Content().(*KGRound1Message)
-		H1j, H2j, NTildej :=
+		H1j, H2j:=
 			r1msg.UnmarshalH1(),
-			r1msg.UnmarshalH2(),
-			r1msg.UnmarshalNTilde()
+			r1msg.UnmarshalH2()
 		if H1j.Cmp(H2j) == 0 {
 			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
 		}
@@ -51,18 +49,18 @@ func (round *round2) Start() *tss.Error {
 			h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
 		}
 		wg.Add(2)
-		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
-			if dlnProof1, err := r1msg.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
+		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTilde *big.Int) {
+			if dlnProof1, err := r1msg.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTilde) {
 				dlnProof1FailCulprits[j] = msg.GetFrom()
 			}
 			wg.Done()
-		}(j, msg, r1msg, H1j, H2j, NTildej)
-		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
-			if dlnProof2, err := r1msg.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
+		}(j, msg, r1msg, H1j, H2j, round.save.LocalPreParams.NTilde)
+		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTilde *big.Int) {
+			if dlnProof2, err := r1msg.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTilde) {
 				dlnProof2FailCulprits[j] = msg.GetFrom()
 			}
 			wg.Done()
-		}(j, msg, r1msg, H1j, H2j, NTildej)
+		}(j, msg, r1msg, H1j, H2j, round.save.LocalPreParams.NTilde)
 	}
 	wg.Wait()
 	for _, culprit := range append(dlnProof1FailCulprits, dlnProof2FailCulprits...) {
@@ -76,14 +74,12 @@ func (round *round2) Start() *tss.Error {
 			continue
 		}
 		r1msg := msg.Content().(*KGRound1Message)
-		paillierPK, H1j, H2j, NTildej, KGC :=
+		paillierPK, H1j, H2j,  KGC :=
 			r1msg.UnmarshalPaillierPK(),
 			r1msg.UnmarshalH1(),
 			r1msg.UnmarshalH2(),
-			r1msg.UnmarshalNTilde(),
 			r1msg.UnmarshalCommitment()
 		round.save.PaillierPKs[j] = paillierPK // used in round 4
-		round.save.NTildej[j] = NTildej
 		round.save.H1j[j], round.save.H2j[j] = H1j, H2j
 		round.temp.KGCs[j] = KGC
 	}

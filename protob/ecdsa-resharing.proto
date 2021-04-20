@@ -24,7 +24,6 @@ message DGRound1Message {
 message DGRound2Message1 {
     bytes paillier_n = 1;
     repeated bytes paillier_proof = 2;
-    bytes n_tilde = 3;
     bytes h1 = 4;
     bytes h2 = 5;
     repeated bytes dlnproof_1 = 6;

@@ -49,13 +49,12 @@ func (round *round2) Start() *tss.Error {
 		preParams = &round.save.LocalPreParams
 	} else {
 		var err error
-		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout())
+		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout(),true)
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
 	}
 	round.save.LocalPreParams = *preParams
-	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	// generate the dlnproofs for resharing
@@ -66,14 +65,20 @@ func (round *round2) Start() *tss.Error {
 		preParams.Beta,
 		preParams.P,
 		preParams.Q,
-		preParams.NTildei
-	dlnProof1 := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
-	dlnProof2 := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
+		preParams.NTilde
+	dlnProof1,err := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
+	if err != nil {
+		return round.WrapError(errors.New("fail to generate the dln proof"), Pi)
+	}
+	dlnProof2,err := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
+	if err != nil {
+		return round.WrapError(errors.New("fail to generate the dln proof"), Pi)
+	}
 
 	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
 	r2msg2, err := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
+		&preParams.PaillierSK.PublicKey, paillierPf, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -83,7 +88,6 @@ func (round *round2) Start() *tss.Error {
 	// for this P: SAVE de-commitments, paillier keys for round 2
 	round.save.PaillierSK = preParams.PaillierSK
 	round.save.PaillierPKs[i] = &preParams.PaillierSK.PublicKey
-	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	return nil

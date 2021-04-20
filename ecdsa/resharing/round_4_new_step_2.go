@@ -47,9 +47,8 @@ func (round *round4) Start() *tss.Error {
 	wg := new(sync.WaitGroup)
 	for j, msg := range round.temp.dgRound2Message1s {
 		r2msg1 := msg.Content().(*DGRound2Message1)
-		paiPK, NTildej, H1j, H2j :=
+		paiPK, H1j, H2j :=
 			r2msg1.UnmarshalPaillierPK(),
-			r2msg1.UnmarshalNTilde(),
 			r2msg1.UnmarshalH1(),
 			r2msg1.UnmarshalH2()
 		if H1j.Cmp(H2j) == 0 {
@@ -77,14 +76,14 @@ func (round *round4) Start() *tss.Error {
 				common.Logger.Warnf("dln proof 1 verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
-		}(j, msg, r2msg1, H1j, H2j, NTildej)
+		}(j, msg, r2msg1, H1j, H2j, round.save.LocalPreParams.NTilde)
 		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
 			if dlnProof2, err := r2msg1.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
 				dlnProof2FailCulprits[j] = msg.GetFrom()
 				common.Logger.Warnf("dln proof 2 verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
-		}(j, msg, r2msg1, H1j, H2j, NTildej)
+		}(j, msg, r2msg1, H1j, H2j, round.save.LocalPreParams.NTilde)
 	}
 	wg.Wait()
 	for _, culprit := range append(append(paiProofCulprits, dlnProof1FailCulprits...), dlnProof2FailCulprits...) {
@@ -98,7 +97,6 @@ func (round *round4) Start() *tss.Error {
 			continue
 		}
 		r2msg1 := msg.Content().(*DGRound2Message1)
-		round.save.NTildej[j] = new(big.Int).SetBytes(r2msg1.NTilde)
 		round.save.H1j[j] = new(big.Int).SetBytes(r2msg1.H1)
 		round.save.H2j[j] = new(big.Int).SetBytes(r2msg1.H2)
 	}

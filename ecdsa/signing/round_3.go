@@ -59,7 +59,7 @@ func (round *round3) Start() *tss.Error {
 				round.key.H2j[i],
 				round.temp.c1Is[j],
 				new(big.Int).SetBytes(r2msg.GetC1()),
-				round.key.NTildej[i],
+				round.key.LocalPreParams.NTilde,
 				round.key.PaillierSK)
 			if err != nil {
 				errChs <- round.WrapError(err, Pj)
@@ -83,7 +83,7 @@ func (round *round3) Start() *tss.Error {
 				round.temp.bigWs[j],
 				round.temp.c1Is[j],
 				new(big.Int).SetBytes(r2msg.GetC2()),
-				round.key.NTildej[i],
+				round.key.LocalPreParams.NTilde,
 				round.key.H1j[i],
 				round.key.H2j[i],
 				round.key.PaillierSK)

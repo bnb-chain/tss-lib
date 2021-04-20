@@ -108,7 +108,7 @@ func LoadNTildeH1H2FromTestFixture(idx int) (NTildei, h1i, h2i *big.Int, err err
 		return
 	}
 	fixture := fixtures[idx]
-	NTildei, h1i, h2i = fixture.NTildei, fixture.H1i, fixture.H2i
+	NTildei, h1i, h2i = fixture.NTilde, fixture.H1i, fixture.H2i
 	return
 }
 

@@ -19,7 +19,7 @@ import (
 type (
 	LocalPreParams struct {
 		PaillierSK *paillier.PrivateKey // ski
-		NTildei,
+		NTilde,
 		H1i, H2i,
 		Alpha, Beta,
 		P, Q *big.Int
@@ -39,7 +39,7 @@ type (
 		Ks []*big.Int
 
 		// n-tilde, h1, h2 for range proofs
-		NTildej, H1j, H2j []*big.Int
+		 H1j, H2j []*big.Int
 
 		// public keys (Xj = uj*G for each Pj)
 		BigXj       []*crypto.ECPoint     // Xj
@@ -52,7 +52,6 @@ type (
 
 func NewLocalPartySaveData(partyCount int) (saveData LocalPartySaveData) {
 	saveData.Ks = make([]*big.Int, partyCount)
-	saveData.NTildej = make([]*big.Int, partyCount)
 	saveData.H1j, saveData.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	saveData.BigXj = make([]*crypto.ECPoint, partyCount)
 	saveData.PaillierPKs = make([]*paillier.PublicKey, partyCount)
@@ -61,7 +60,7 @@ func NewLocalPartySaveData(partyCount int) (saveData LocalPartySaveData) {
 
 func (preParams LocalPreParams) Validate() bool {
 	return preParams.PaillierSK != nil &&
-		preParams.NTildei != nil &&
+		preParams.NTilde != nil &&
 		preParams.H1i != nil &&
 		preParams.H2i != nil
 }
@@ -90,7 +89,6 @@ func BuildLocalSaveDataSubset(sourceData LocalPartySaveData, sortedIDs tss.Sorte
 			common.Logger.Warn("BuildLocalSaveDataSubset: unable to find a signer party in the local save data", id)
 		}
 		newData.Ks[j] = sourceData.Ks[savedIdx]
-		newData.NTildej[j] = sourceData.NTildej[savedIdx]
 		newData.H1j[j] = sourceData.H1j[savedIdx]
 		newData.H2j[j] = sourceData.H2j[savedIdx]
 		newData.BigXj[j] = sourceData.BigXj[savedIdx]

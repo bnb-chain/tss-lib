@@ -84,7 +84,7 @@ func (round *round1) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		pi, err := mta.AliceInit(paiPK, kI, cA, rA, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		pi, err := mta.AliceInit(paiPK, kI, cA, rA, round.key.LocalPreParams.NTilde, round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}

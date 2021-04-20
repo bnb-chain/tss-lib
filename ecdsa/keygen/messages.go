@@ -35,7 +35,7 @@ func NewKGRound1Message(
 	from *tss.PartyID,
 	ct cmt.HashCommitment,
 	paillierPK *paillier.PublicKey,
-	nTildeI, h1I, h2I *big.Int,
+	h1I, h2I *big.Int,
 	dlnProof1, dlnProof2 *dlnp.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
@@ -53,7 +53,6 @@ func NewKGRound1Message(
 	content := &KGRound1Message{
 		Commitment: ct.Bytes(),
 		PaillierN:  paillierPK.N.Bytes(),
-		NTilde:     nTildeI.Bytes(),
 		H1:         h1I.Bytes(),
 		H2:         h2I.Bytes(),
 		Dlnproof_1: dlnProof1Bz,
@@ -67,7 +66,6 @@ func (m *KGRound1Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyBytes(m.GetCommitment()) &&
 		common.NonEmptyBytes(m.GetPaillierN()) &&
-		common.NonEmptyBytes(m.GetNTilde()) &&
 		common.NonEmptyBytes(m.GetH1()) &&
 		common.NonEmptyBytes(m.GetH2()) &&
 		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
@@ -83,9 +81,6 @@ func (m *KGRound1Message) UnmarshalPaillierPK() *paillier.PublicKey {
 	return &paillier.PublicKey{N: new(big.Int).SetBytes(m.GetPaillierN())}
 }
 
-func (m *KGRound1Message) UnmarshalNTilde() *big.Int {
-	return new(big.Int).SetBytes(m.GetNTilde())
-}
 
 func (m *KGRound1Message) UnmarshalH1() *big.Int {
 	return new(big.Int).SetBytes(m.GetH1())

@@ -14,11 +14,10 @@ option go_package = "github.com/binance-chain/tss-lib/ecdsa/keygen";
 message KGRound1Message {
     bytes commitment = 1;
     bytes paillier_n = 2;
-    bytes n_tilde = 3;
-    bytes h1 = 4;
-    bytes h2 = 5;
-    repeated bytes dlnproof_1 = 6;
-    repeated bytes dlnproof_2 = 7;
+    bytes h1 = 3;
+    bytes h2 = 4;
+    repeated bytes dlnproof_1 = 5;
+    repeated bytes dlnproof_2 = 6;
 }
 
 /*

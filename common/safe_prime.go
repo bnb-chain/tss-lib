@@ -29,6 +29,11 @@ type (
 	}
 )
 
+func (sgp *GermainSafePrime) SetPrime(q,p *big.Int){
+	sgp.p=p
+	sgp.q=q
+}
+
 func (sgp *GermainSafePrime) Prime() *big.Int {
 	return sgp.q
 }

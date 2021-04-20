@@ -93,7 +93,6 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
 		pIDs = tss.GenerateTestPartyIDs(testParticipants)
 	}
-
 	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
 	if 0 < len(fixtures) {
@@ -109,7 +108,7 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	// round up to 256
 	len1 := len(lp.data.H1j[0].Bytes())
 	len2 := len(lp.data.H2j[0].Bytes())
-	len3 := len(lp.data.NTildej[0].Bytes())
+	len3 := len(lp.data.LocalPreParams.NTilde.Bytes())
 	if len1%2 != 0 {
 		len1 = len1 + (256 - (len1 % 256))
 	}
@@ -125,7 +124,7 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	assert.Equal(t, 256, len3, "n-tilde should be correct len")
 	assert.NotZero(t, lp.data.H1i, "h1 should be non-zero")
 	assert.NotZero(t, lp.data.H2i, "h2 should be non-zero")
-	assert.NotZero(t, lp.data.NTildei, "n-tilde should be non-zero")
+	assert.NotZero(t, lp.data.NTilde, "n-tilde should be non-zero")
 }
 
 func TestBadMessageCulprits(t *testing.T) {
@@ -152,7 +151,7 @@ func TestBadMessageCulprits(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	}
 
-	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, new(dlnp.Proof), new(dlnp.Proof))
+	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero,  new(dlnp.Proof), new(dlnp.Proof))
 	ok, err2 := lp.Update(badMsg)
 	t.Log(err2)
 	assert.False(t, ok)
@@ -194,7 +193,11 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 		var P *LocalParty
 		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		if i < len(fixtures) {
-			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
+			if i==0{
+				P = NewLocalParty(params, outCh, endCh).(*LocalParty)
+			}else{
+				P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
+			}
 		} else {
 			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
 		}

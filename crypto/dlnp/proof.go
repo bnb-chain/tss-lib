@@ -12,6 +12,7 @@
 package dlnp
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -28,7 +29,10 @@ type (
 	}
 )
 
-func NewProof(h1, h2, x, p, q, N *big.Int) *Proof {
+func NewProof(h1, h2, x, p, q, N *big.Int) (*Proof,error) {
+	if h1.Cmp(N)!=-1 || h2.Cmp(N)!=-1|| x.Cmp(N)!=-1|| p.Cmp(N)!=-1|| q.Cmp(N)!=-1{
+		return nil,errors.New("h1 or h2 larger than N")
+	}
 	pMulQ := new(big.Int).Mul(p, q)
 	modN, modPQ := common.ModInt(N), common.ModInt(pMulQ)
 	a := make([]*big.Int, Iterations)
@@ -46,10 +50,14 @@ func NewProof(h1, h2, x, p, q, N *big.Int) *Proof {
 		cIBI = cIBI.SetInt64(int64(cI))
 		t[i] = modPQ.Add(a[i], modPQ.Mul(cIBI, x))
 	}
-	return &Proof{alpha, t}
+	return &Proof{alpha, t},nil
 }
 
 func (p *Proof) Verify(h1, h2, N *big.Int) bool {
+
+	if h1.Cmp(N)!=-1 || h2.Cmp(N)!=-1{
+		return false
+	}
 	if p == nil {
 		return false
 	}

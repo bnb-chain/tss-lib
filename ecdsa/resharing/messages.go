@@ -75,7 +75,7 @@ func NewDGRound2Message1(
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
 	paillierPf paillier.Proof,
-	NTildei, H1i, H2i *big.Int,
+	H1i, H2i *big.Int,
 	dlnProof1, dlnProof2 *dlnp.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
@@ -96,7 +96,6 @@ func NewDGRound2Message1(
 	content := &DGRound2Message1{
 		PaillierN:     paillierPK.N.Bytes(),
 		PaillierProof: paiPfBzs,
-		NTilde:        NTildei.Bytes(),
 		H1:            H1i.Bytes(),
 		H2:            H2i.Bytes(),
 		Dlnproof_1:    dlnProof1Bz,
@@ -110,7 +109,6 @@ func (m *DGRound2Message1) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyMultiBytes(m.PaillierProof) &&
 		common.NonEmptyBytes(m.PaillierN) &&
-		common.NonEmptyBytes(m.NTilde) &&
 		common.NonEmptyBytes(m.H1) &&
 		common.NonEmptyBytes(m.H2) &&
 		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
@@ -124,9 +122,6 @@ func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
 	}
 }
 
-func (m *DGRound2Message1) UnmarshalNTilde() *big.Int {
-	return new(big.Int).SetBytes(m.GetNTilde())
-}
 
 func (m *DGRound2Message1) UnmarshalH1() *big.Int {
 	return new(big.Int).SetBytes(m.GetH1())

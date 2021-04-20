@@ -48,10 +48,10 @@ func (round *round2) Start() *tss.Error {
 				rangeProofAliceJ,
 				round.temp.gammaI,
 				r1msg.UnmarshalC(),
-				round.key.NTildej[j],
+				round.key.LocalPreParams.NTilde,
 				round.key.H1j[j],
 				round.key.H2j[j],
-				round.key.NTildej[i],
+				round.key.LocalPreParams.NTilde,
 				round.key.H1j[i],
 				round.key.H2j[i])
 			if err != nil {
@@ -78,10 +78,10 @@ func (round *round2) Start() *tss.Error {
 				rangeProofAliceJ,
 				round.temp.wI,
 				r1msg.UnmarshalC(),
-				round.key.NTildej[j],
+				round.key.LocalPreParams.NTilde,
 				round.key.H1j[j],
 				round.key.H2j[j],
-				round.key.NTildej[i],
+				round.key.LocalPreParams.NTilde,
 				round.key.H1j[i],
 				round.key.H2j[i],
 				round.temp.bigWs[i])

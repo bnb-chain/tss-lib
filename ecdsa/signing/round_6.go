@@ -79,7 +79,7 @@ func (round *round6) Start() *tss.Error {
 			G:          bigR,
 			H1:         round.key.H1j[Pj.Index],
 			H2:         round.key.H2j[Pj.Index],
-			NTilde:     round.key.NTildej[Pj.Index], // maybe i
+			NTilde:     round.key.LocalPreParams.NTilde, // maybe i
 		}
 		if !pdlWSlackPf.Verify(pdlWSlackStatement) {
 			errs[Pj] = fmt.Errorf("failed to verify ZK proof of consistency between R_i and E_i(k_i) for P %d", j)

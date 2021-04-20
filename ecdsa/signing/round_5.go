@@ -90,7 +90,7 @@ func (round *round5) Start() *tss.Error {
 		G:          bigR,
 		H1:         round.key.H1i,
 		H2:         round.key.H2i,
-		NTilde:     round.key.NTildei,
+		NTilde:     round.key.NTilde,
 	}
 	pdlWSlackWitness := zkp.PDLwSlackWitness{
 		SK: round.key.PaillierSK,

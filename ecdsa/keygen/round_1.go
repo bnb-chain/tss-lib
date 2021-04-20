@@ -74,27 +74,31 @@ func (round *round1) Start() *tss.Error {
 	} else if round.save.LocalPreParams.ValidateWithProof() {
 		preParams = &round.save.LocalPreParams
 	} else {
-		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout(), 3)
+		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout(), true,3)
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
 	}
 	round.save.LocalPreParams = *preParams
-	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	// generate the dlnproofs for keygen
-	h1i, h2i, alpha, beta, p, q, NTildei :=
+	h1i, h2i, alpha, beta, p, q, NTilde :=
 		preParams.H1i,
 		preParams.H2i,
 		preParams.Alpha,
 		preParams.Beta,
 		preParams.P,
 		preParams.Q,
-		preParams.NTildei
-	dlnProof1 := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
-	dlnProof2 := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
-
+		preParams.NTilde
+	dlnProof1,err := dlnp.NewProof(h1i, h2i, alpha, p, q, NTilde)
+	if err != nil {
+		return round.WrapError(errors.New("fail to generate the dln proof"), Pi)
+	}
+	dlnProof2,err := dlnp.NewProof(h2i, h1i, beta, p, q, NTilde)
+	if err != nil {
+		return round.WrapError(errors.New("fail to generate the dln proof"), Pi)
+	}
 	// for this P: SAVE
 	// - shareID
 	// and keep in temporary storage:
@@ -112,7 +116,7 @@ func (round *round1) Start() *tss.Error {
 	// BROADCAST commitments, paillier pk + proof; round 1 message
 	{
 		msg, err := NewKGRound1Message(
-			round.PartyID(), cmt.C, &preParams.PaillierSK.PublicKey, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
+			round.PartyID(), cmt.C, &preParams.PaillierSK.PublicKey,  preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
 		if err != nil {
 			return round.WrapError(err, Pi)
 		}
