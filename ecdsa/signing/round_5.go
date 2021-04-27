@@ -36,7 +36,6 @@ func (round *round5) Start() *tss.Error {
 	deltaI := *round.temp.deltaI
 	deltaSum := &deltaI
 
-	witnessId :=(i+1)%len(round.Parties().IDs())
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
@@ -84,22 +83,34 @@ func (round *round5) Start() *tss.Error {
 
 	// compute ZK proof of consistency between R_i and E_i(k_i)
 	// ported from: https://git.io/Jf69a
-	pdlWSlackStatement := zkp.PDLwSlackStatement{
-		N:         round.key.PaillierSK.N,
-		CipherText: round.temp.cAKI,
-		Q:          bigRBarI,
-		G:          bigR,
-		H1:         round.key.H1j[witnessId],
-		H2:         round.key.H2j[witnessId],
-		NTilde:     round.key.NTildej[witnessId],
-	}
-	pdlWSlackWitness := zkp.PDLwSlackWitness{
-		X:  kI,
-		R:  round.temp.rAKI,
-	}
-	pdlWSlackPf := zkp.NewPDLwSlackProof(pdlWSlackWitness, pdlWSlackStatement)
+	//
 
-	r5msg := NewSignRound5Message(Pi, bigRBarI, &pdlWSlackPf)
+	pdlWSlackWitness := zkp.PDLwSlackWitness{
+		X: kI,
+		R: round.temp.rAKI,
+	}
+
+	var pdlWSlackPfs []zkp.PDLwSlackProof
+	for j, _ := range round.Parties().IDs() {
+		if j == i {
+			pdlWSlackPfs = append(pdlWSlackPfs, zkp.PDLwSlackProof{})
+			continue
+		}
+		pdlWSlackStatement := zkp.PDLwSlackStatement{
+			N:          round.key.PaillierSK.N,
+			CipherText: round.temp.cAKI,
+			Q:          bigRBarI,
+			G:          bigR,
+			H1:         round.key.H1j[j],
+			H2:         round.key.H2j[j],
+			NTilde:     round.key.NTildej[j],
+		}
+
+		pdlWSlackPf := zkp.NewPDLwSlackProof(pdlWSlackWitness, pdlWSlackStatement)
+		pdlWSlackPfs = append(pdlWSlackPfs, pdlWSlackPf)
+	}
+
+	r5msg := NewSignRound5Message(Pi, bigRBarI, pdlWSlackPfs)
 	round.temp.signRound5Messages[i] = r5msg
 	round.out <- r5msg
 	return nil
