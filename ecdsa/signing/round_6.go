@@ -66,20 +66,20 @@ func (round *round6) Start() *tss.Error {
 		}
 		// verify ZK proof of consistency between R_i and E_i(k_i)
 		// ported from: https://git.io/Jf69a
-		pdlWSlackPf, err := r5msg.UnmarshalPDLwSlackProof()
+		pdlWSlackPf, err := r5msg.UnmarshalPDLwSlackProof(i)
 		if err != nil {
 			errs[Pj] = err
 			continue
 		}
 		r1msg1 := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
 		pdlWSlackStatement := zkp.PDLwSlackStatement{
-			PK:         round.key.PaillierPKs[Pj.Index],
+			N:         round.key.PaillierPKs[Pj.Index].N,
 			CipherText: new(big.Int).SetBytes(r1msg1.GetC()),
 			Q:          bigRBarJ,
 			G:          bigR,
-			H1:         round.key.H1j[Pj.Index],
-			H2:         round.key.H2j[Pj.Index],
-			NTilde:     round.key.NTildej[Pj.Index], // maybe i
+			H1:         round.key.H1j[i],
+			H2:         round.key.H2j[i],
+			NTilde:     round.key.NTildej[i], // maybe i
 		}
 		if !pdlWSlackPf.Verify(pdlWSlackStatement) {
 			errs[Pj] = fmt.Errorf("failed to verify ZK proof of consistency between R_i and E_i(k_i) for P %d", j)

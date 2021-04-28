@@ -20,19 +20,8 @@ import (
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-signing.pb.go
 
-var (
-	// Ensure that signing messages implement ValidateBasic
-	_ = []tss.MessageContent{
-		(*SignRound1Message1)(nil),
-		(*SignRound1Message2)(nil),
-		(*SignRound2Message)(nil),
-		(*SignRound3Message)(nil),
-		(*SignRound4Message)(nil),
-		(*SignRound5Message)(nil),
-		(*SignRound6Message)(nil),
-		(*SignRound7Message)(nil),
-	}
-)
+// Ensure that signing messages implement ValidateBasic
+var _ = []tss.MessageContent{(*SignRound1Message1)(nil), (*SignRound1Message2)(nil), (*SignRound2Message)(nil), (*SignRound3Message)(nil), (*SignRound4Message)(nil), (*SignRound5Message)(nil), (*SignRound6Message)(nil), (*SignRound7Message)(nil)}
 
 // ----- //
 
@@ -243,19 +232,31 @@ func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
 func NewSignRound5Message(
 	from *tss.PartyID,
 	Ri *crypto.ECPoint,
-	pdlwSlackPf *zkp.PDLwSlackProof,
+	pdlwSlackPfs []zkp.PDLwSlackProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
-	pfBzs, err := pdlwSlackPf.Marshal()
-	if err != nil {
-		return nil
+	var pfBzss []*SignRound5MessageProofPdlWSlack
+	var err error
+	for i, el := range pdlwSlackPfs {
+		var pfBzs [][]byte
+		if i == from.Index {
+			pfBzs = nil
+		} else {
+			pfBzs, err = el.Marshal()
+			if err != nil {
+				return nil
+			}
+		}
+		item := SignRound5MessageProofPdlWSlack{ProofPdlWSlack: pfBzs}
+		pfBzss = append(pfBzss, &item)
 	}
+
 	content := &SignRound5Message{
-		RI:             Ri.ToProtobufPoint(),
-		ProofPdlWSlack: pfBzs,
+		RI:              Ri.ToProtobufPoint(),
+		ProofPdlWSlacks: pfBzss,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -264,8 +265,7 @@ func NewSignRound5Message(
 func (m *SignRound5Message) ValidateBasic() bool {
 	if m == nil ||
 		m.GetRI() == nil ||
-		!m.GetRI().ValidateBasic() ||
-		!common.NonEmptyMultiBytes(m.GetProofPdlWSlack(), zkp.PDLwSlackMarshalledParts) {
+		!m.GetRI().ValidateBasic() {
 		return false
 	}
 	RI, err := m.UnmarshalRI()
@@ -279,8 +279,16 @@ func (m *SignRound5Message) UnmarshalRI() (*crypto.ECPoint, error) {
 	return crypto.NewECPointFromProtobuf(m.GetRI())
 }
 
-func (m *SignRound5Message) UnmarshalPDLwSlackProof() (*zkp.PDLwSlackProof, error) {
-	return zkp.UnmarshalPDLwSlackProof(m.GetProofPdlWSlack())
+func (m *SignRound5Message) UnmarshalPDLwSlackProof(i int) (*zkp.PDLwSlackProof, error) {
+	allProofs := m.GetProofPdlWSlacks()
+	if len(allProofs) < i {
+		return nil, errors.New("not enough proof in the array")
+	}
+	ProofSendToMe := allProofs[i].ProofPdlWSlack
+	if !common.NonEmptyMultiBytes(ProofSendToMe, zkp.PDLwSlackMarshalledParts) {
+		return nil, errors.New("empty proof sent to me")
+	}
+	return zkp.UnmarshalPDLwSlackProof(allProofs[i].ProofPdlWSlack)
 }
 
 // ----- //
