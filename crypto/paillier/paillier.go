@@ -33,7 +33,7 @@ import (
 const (
 	ProofIters         = 13
 	verifyPrimesUntil  = 1000 // Verify uses primes <1000
-	pQBitLenDifference = 3    // >1020-bit P-Q
+	PQBitLenDifference = 3    // >1020-bit P-Q
 )
 
 type (
@@ -86,7 +86,7 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 			}
 			P, Q = sgps[0].SafePrime(), sgps[1].SafePrime()
 			// KS-BTL-F-03: check that p-q is also very large in order to avoid square-root attacks
-			if tmp.Sub(P, Q).BitLen() >= (modulusBitLen/2)-pQBitLenDifference {
+			if tmp.Sub(P, Q).BitLen() >= (modulusBitLen/2)-PQBitLenDifference {
 				break
 			}
 		}

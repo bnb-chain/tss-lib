@@ -16,7 +16,7 @@ func (round *round5) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
-	round.number = 5
+	round.number = 6
 	round.started = true
 
 	round.allOldOK()
@@ -34,11 +34,11 @@ func (round *round5) Start() *tss.Error {
 		round.save.Ks = round.temp.newKs
 
 		// misc: build list of paillier public keys to save
-		for j, msg := range round.temp.dgRound2Message1s {
+		for j, msg := range round.temp.dgRound2bMessage1s {
 			if j == i {
 				continue
 			}
-			r2msg1 := msg.Content().(*DGRound2Message1)
+			r2msg1 := msg.Content().(*DGRound2BMessage1)
 			round.save.PaillierPKs[j] = r2msg1.UnmarshalPaillierPK()
 		}
 	} else if round.IsOldCommittee() {

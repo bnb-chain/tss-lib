@@ -16,7 +16,7 @@ func (round *round3) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
-	round.number = 3
+	round.number = 4
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allNewOK()
@@ -43,7 +43,6 @@ func (round *round3) Start() *tss.Error {
 		vDeCmt)
 	round.temp.dgRound3Message2s[i] = r3msg2
 	round.out <- r3msg2
-
 	return nil
 }
 

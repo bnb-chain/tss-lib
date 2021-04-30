@@ -30,11 +30,14 @@ type (
 	round1 struct {
 		*base
 	}
-	round2 struct {
+	round2a struct {
 		*round1
 	}
+	round2b struct {
+		*round2a
+	}
 	round3 struct {
-		*round2
+		*round2b
 	}
 	round4 struct {
 		*round3
@@ -46,7 +49,8 @@ type (
 
 var (
 	_ tss.Round = (*round1)(nil)
-	_ tss.Round = (*round2)(nil)
+	_ tss.Round = (*round2a)(nil)
+	_ tss.Round = (*round2b)(nil)
 	_ tss.Round = (*round3)(nil)
 	_ tss.Round = (*round4)(nil)
 	_ tss.Round = (*round5)(nil)

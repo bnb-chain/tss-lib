@@ -1,6 +1,6 @@
 module github.com/binance-chain/tss-lib
 
-go 1.12
+go 1.16
 
 require (
 	github.com/agl/ed25519 v0.0.0-20200225211852-fd4d107ace12

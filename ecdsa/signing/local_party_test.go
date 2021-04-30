@@ -50,7 +50,7 @@ type signatureDataWithPartyId struct {
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 	threshold := testThreshold
-
+	tss.SetCurve(btcec.S256())
 	// PHASE: load keygen fixtures
 	keys, signPIDs, err := keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
 	assert.NoError(t, err, "should load keygen fixtures")

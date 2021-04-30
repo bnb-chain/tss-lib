@@ -7,29 +7,42 @@
 package keygen
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go
 
-var (
-	// Ensure that keygen messages implement ValidateBasic
-	_ = []tss.MessageContent{
-		(*KGRound1Message)(nil),
-		(*KGRound2Message1)(nil),
-		(*KGRound2Message2)(nil),
-		(*KGRound3Message)(nil),
-	}
-)
+// Ensure that keygen messages implement ValidateBasic
+var _ = []tss.MessageContent{(*KGRound1Message)(nil), (*KGRound1Message)(nil), (*KGRound2Message1)(nil), (*KGRound2Message2)(nil), (*KGRound3Message)(nil)}
 
 // ----- //
+
+func NewKGRound0Message(from *tss.PartyID, omega *big.Int, challenge []*big.Int) (tss.ParsedMessage, error) {
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
+	}
+	var challengesBz [][]byte
+	for _, el := range challenge {
+		challengesBz = append(challengesBz, el.Bytes())
+	}
+	content := &KGRound0Message{Omega: omega.Bytes(), Challenges: challengesBz}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg), nil
+}
+
+func (m *KGRound0Message) ValidateBasic() bool {
+	return common.NonEmptyMultiBytes(m.Challenges, safeparameter.Iterations) && len(m.Omega) > 0
+}
 
 func NewKGRound1Message(
 	from *tss.PartyID,
@@ -37,6 +50,7 @@ func NewKGRound1Message(
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
 	dlnProof1, dlnProof2 *dlnp.Proof,
+	paramProof *safeparameter.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -50,14 +64,19 @@ func NewKGRound1Message(
 	if err != nil {
 		return nil, err
 	}
+	paramProofBz, err := json.Marshal(paramProof)
+	if err != nil {
+		return nil, err
+	}
 	content := &KGRound1Message{
-		Commitment: ct.Bytes(),
-		PaillierN:  paillierPK.N.Bytes(),
-		NTilde:     nTildeI.Bytes(),
-		H1:         h1I.Bytes(),
-		H2:         h2I.Bytes(),
-		Dlnproof_1: dlnProof1Bz,
-		Dlnproof_2: dlnProof2Bz,
+		Commitment:     ct.Bytes(),
+		PaillierN:      paillierPK.N.Bytes(),
+		NTilde:         nTildeI.Bytes(),
+		H1:             h1I.Bytes(),
+		H2:             h2I.Bytes(),
+		Dlnproof_1:     dlnProof1Bz,
+		Dlnproof_2:     dlnProof2Bz,
+		ParameterProof: paramProofBz,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg), nil
@@ -68,6 +87,7 @@ func (m *KGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.GetCommitment()) &&
 		common.NonEmptyBytes(m.GetPaillierN()) &&
 		common.NonEmptyBytes(m.GetNTilde()) &&
+		common.NonEmptyBytes(m.GetParameterProof()) &&
 		common.NonEmptyBytes(m.GetH1()) &&
 		common.NonEmptyBytes(m.GetH2()) &&
 		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
@@ -101,6 +121,12 @@ func (m *KGRound1Message) UnmarshalDLNProof1() (*dlnp.Proof, error) {
 
 func (m *KGRound1Message) UnmarshalDLNProof2() (*dlnp.Proof, error) {
 	return dlnp.UnmarshalProof(m.GetDlnproof_2())
+}
+
+func (m *KGRound1Message) UnmarshalParamProof() (*safeparameter.Proof, error) {
+	var paramProof safeparameter.Proof
+	err := json.Unmarshal(m.ParameterProof, &paramProof)
+	return &paramProof, err
 }
 
 // ----- //

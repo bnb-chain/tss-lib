@@ -13,18 +13,11 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
-	LocalPreParams struct {
-		PaillierSK *paillier.PrivateKey // ski
-		NTildei,
-		H1i, H2i,
-		Alpha, Beta,
-		P, Q *big.Int
-	}
-
 	LocalSecrets struct {
 		// secret fields (not shared, but stored locally)
 		Xi, ShareID *big.Int // xi, kj
@@ -32,7 +25,7 @@ type (
 
 	// Everything in LocalPartySaveData is saved locally to user's HD when done
 	LocalPartySaveData struct {
-		LocalPreParams
+		safeparameter.LocalPreParams
 		LocalSecrets
 
 		// original indexes (ki in signing preparation phase)
@@ -57,21 +50,6 @@ func NewLocalPartySaveData(partyCount int) (saveData LocalPartySaveData) {
 	saveData.BigXj = make([]*crypto.ECPoint, partyCount)
 	saveData.PaillierPKs = make([]*paillier.PublicKey, partyCount)
 	return
-}
-
-func (preParams LocalPreParams) Validate() bool {
-	return preParams.PaillierSK != nil &&
-		preParams.NTildei != nil &&
-		preParams.H1i != nil &&
-		preParams.H2i != nil
-}
-
-func (preParams LocalPreParams) ValidateWithProof() bool {
-	return preParams.Validate() &&
-		preParams.Alpha != nil &&
-		preParams.Beta != nil &&
-		preParams.P != nil &&
-		preParams.Q != nil
 }
 
 // BuildLocalSaveDataSubset re-creates the LocalPartySaveData to contain data for only the list of signing parties.

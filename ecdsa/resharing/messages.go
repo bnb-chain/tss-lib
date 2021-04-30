@@ -7,6 +7,7 @@
 package resharing
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -14,22 +15,15 @@ import (
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/dlnp"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-resharing.pb.go
 
-var (
-	// Ensure that signing messages implement ValidateBasic
-	_ = []tss.MessageContent{
-		(*DGRound1Message)(nil),
-		(*DGRound2Message1)(nil),
-		(*DGRound2Message2)(nil),
-		(*DGRound3Message1)(nil),
-		(*DGRound3Message2)(nil),
-	}
-)
+// Ensure that signing messages implement ValidateBasic
+var _ = []tss.MessageContent{(*DGRound1Message)(nil), (*DGRound2AMessage1)(nil), (*DGRound2BMessage1)(nil), (*DGRound2Message2)(nil), (*DGRound3Message1)(nil), (*DGRound3Message2)(nil)}
 
 // ----- //
 
@@ -70,13 +64,35 @@ func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {
 
 // ----- //
 
-func NewDGRound2Message1(
+func NewDGRound2aMessage1(to []*tss.PartyID, from *tss.PartyID, omega *big.Int, challenge []*big.Int) (tss.ParsedMessage, error) {
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               to,
+		IsBroadcast:      true,
+		IsToOldCommittee: false,
+	}
+
+	var challengesBz [][]byte
+	for _, el := range challenge {
+		challengesBz = append(challengesBz, el.Bytes())
+	}
+	content := &DGRound2AMessage1{Omega: omega.Bytes(), Challenges: challengesBz}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg), nil
+}
+
+func (m *DGRound2AMessage1) ValidateBasic() bool {
+	return common.NonEmptyMultiBytes(m.Challenges, safeparameter.Iterations) && len(m.Omega) > 0
+}
+
+func NewDGRound2bMessage1(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
 	paillierPf paillier.Proof,
 	NTildei, H1i, H2i *big.Int,
 	dlnProof1, dlnProof2 *dlnp.Proof,
+	paramProof *safeparameter.Proof,
 ) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:             from,
@@ -93,20 +109,25 @@ func NewDGRound2Message1(
 	if err != nil {
 		return nil, err
 	}
-	content := &DGRound2Message1{
-		PaillierN:     paillierPK.N.Bytes(),
-		PaillierProof: paiPfBzs,
-		NTilde:        NTildei.Bytes(),
-		H1:            H1i.Bytes(),
-		H2:            H2i.Bytes(),
-		Dlnproof_1:    dlnProof1Bz,
-		Dlnproof_2:    dlnProof2Bz,
+	paramProofBz, err := json.Marshal(paramProof)
+	if err != nil {
+		return nil, err
+	}
+	content := &DGRound2BMessage1{
+		PaillierN:      paillierPK.N.Bytes(),
+		PaillierProof:  paiPfBzs,
+		NTilde:         NTildei.Bytes(),
+		H1:             H1i.Bytes(),
+		H2:             H2i.Bytes(),
+		Dlnproof_1:     dlnProof1Bz,
+		Dlnproof_2:     dlnProof2Bz,
+		ParameterProof: paramProofBz,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg), nil
 }
 
-func (m *DGRound2Message1) ValidateBasic() bool {
+func (m *DGRound2BMessage1) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyMultiBytes(m.PaillierProof) &&
 		common.NonEmptyBytes(m.PaillierN) &&
@@ -118,37 +139,43 @@ func (m *DGRound2Message1) ValidateBasic() bool {
 		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnp.Iterations*2))
 }
 
-func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
+func (m *DGRound2BMessage1) UnmarshalPaillierPK() *paillier.PublicKey {
 	return &paillier.PublicKey{
 		N: new(big.Int).SetBytes(m.PaillierN),
 	}
 }
 
-func (m *DGRound2Message1) UnmarshalNTilde() *big.Int {
+func (m *DGRound2BMessage1) UnmarshalNTilde() *big.Int {
 	return new(big.Int).SetBytes(m.GetNTilde())
 }
 
-func (m *DGRound2Message1) UnmarshalH1() *big.Int {
+func (m *DGRound2BMessage1) UnmarshalH1() *big.Int {
 	return new(big.Int).SetBytes(m.GetH1())
 }
 
-func (m *DGRound2Message1) UnmarshalH2() *big.Int {
+func (m *DGRound2BMessage1) UnmarshalH2() *big.Int {
 	return new(big.Int).SetBytes(m.GetH2())
 }
 
-func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
+func (m *DGRound2BMessage1) UnmarshalPaillierProof() paillier.Proof {
 	var pf paillier.Proof
 	ints := common.ByteSlicesToBigInts(m.PaillierProof)
 	copy(pf[:], ints[:paillier.ProofIters])
 	return pf
 }
 
-func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnp.Proof, error) {
+func (m *DGRound2BMessage1) UnmarshalDLNProof1() (*dlnp.Proof, error) {
 	return dlnp.UnmarshalProof(m.GetDlnproof_1())
 }
 
-func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnp.Proof, error) {
+func (m *DGRound2BMessage1) UnmarshalDLNProof2() (*dlnp.Proof, error) {
 	return dlnp.UnmarshalProof(m.GetDlnproof_2())
+}
+
+func (m *DGRound2BMessage1) UnmarshalParamProof() (*safeparameter.Proof, error) {
+	var paramProof safeparameter.Proof
+	err := json.Unmarshal(m.ParameterProof, &paramProof)
+	return &paramProof, err
 }
 
 // ----- //

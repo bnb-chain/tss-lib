@@ -25,7 +25,7 @@ func (round *round4) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
-	round.number = 4
+	round.number = 5
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
 
@@ -40,13 +40,17 @@ func (round *round4) Start() *tss.Error {
 	i := Pi.Index
 
 	// 1-3. verify paillier & dln proofs, store message pieces, ensure uniqueness of h1j, h2j
-	h1H2Map := make(map[string]struct{}, len(round.temp.dgRound2Message1s)*2)
-	paiProofCulprits := make([]*tss.PartyID, len(round.temp.dgRound2Message1s)) // who caused the error(s)
-	dlnProof1FailCulprits := make([]*tss.PartyID, len(round.temp.dgRound2Message1s))
-	dlnProof2FailCulprits := make([]*tss.PartyID, len(round.temp.dgRound2Message1s))
+	h1H2Map := make(map[string]struct{}, len(round.temp.dgRound2bMessage1s)*2)
+	paiProofCulprits := make([]*tss.PartyID, len(round.temp.dgRound2bMessage1s)) // who caused the error(s)
+	dlnProof1FailCulprits := make([]*tss.PartyID, len(round.temp.dgRound2bMessage1s))
+	dlnProof2FailCulprits := make([]*tss.PartyID, len(round.temp.dgRound2bMessage1s))
+	paramProof2FailCulprits := make([]*tss.PartyID, len(round.temp.dgRound2bMessage1s))
+
 	wg := new(sync.WaitGroup)
-	for j, msg := range round.temp.dgRound2Message1s {
-		r2msg1 := msg.Content().(*DGRound2Message1)
+	for j, msg := range round.temp.dgRound2bMessage1s {
+		omegaBz := round.temp.dgRound2aMessage1s[j].Content().(*DGRound2AMessage1).Omega
+		omega := new(big.Int).SetBytes(omegaBz)
+		r2msg1 := msg.Content().(*DGRound2BMessage1)
 		paiPK, NTildej, H1j, H2j :=
 			r2msg1.UnmarshalPaillierPK(),
 			r2msg1.UnmarshalNTilde(),
@@ -63,41 +67,55 @@ func (round *round4) Start() *tss.Error {
 			return round.WrapError(errors.New("this h2j was already used by another party"), msg.GetFrom())
 		}
 		h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
-		wg.Add(3)
-		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1) {
+		wg.Add(4)
+		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2BMessage1) {
 			if ok, err := r2msg1.UnmarshalPaillierProof().Verify(paiPK.N, msg.GetFrom().KeyInt(), round.save.ECDSAPub); err != nil || !ok {
 				paiProofCulprits[j] = msg.GetFrom()
 				common.Logger.Warnf("paillier verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
 		}(j, msg, r2msg1)
-		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
+		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2BMessage1, H1j, H2j, NTildej *big.Int) {
 			if dlnProof1, err := r2msg1.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
 				dlnProof1FailCulprits[j] = msg.GetFrom()
 				common.Logger.Warnf("dln proof 1 verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
 		}(j, msg, r2msg1, H1j, H2j, NTildej)
-		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
+		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2BMessage1, H1j, H2j, NTildej *big.Int) {
 			if dlnProof2, err := r2msg1.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
 				dlnProof2FailCulprits[j] = msg.GetFrom()
 				common.Logger.Warnf("dln proof 2 verify failed for party %s", msg.GetFrom(), err)
 			}
 			wg.Done()
 		}(j, msg, r2msg1, H1j, H2j, NTildej)
+
+		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2BMessage1, H1j, H2j, NTildej *big.Int) {
+			if paramProof, err := r2msg1.UnmarshalParamProof(); err != nil || !paramProof.Verify(round.temp.challenges, omega, NTildej) {
+				paramProof2FailCulprits[j] = msg.GetFrom()
+			}
+
+			if dlnProof2, err := r2msg1.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
+				dlnProof2FailCulprits[j] = msg.GetFrom()
+				common.Logger.Warnf("dln proof 2 verify failed for party %s", msg.GetFrom(), err)
+			}
+			wg.Done()
+		}(j, msg, r2msg1, H1j, H2j, NTildej)
+
 	}
 	wg.Wait()
-	for _, culprit := range append(append(paiProofCulprits, dlnProof1FailCulprits...), dlnProof2FailCulprits...) {
+	culprits := append(paiProofCulprits, paramProof2FailCulprits...)
+	for _, culprit := range append(append(culprits, dlnProof1FailCulprits...), dlnProof2FailCulprits...) {
 		if culprit != nil {
 			return round.WrapError(errors.New("dln proof verification failed"), culprit)
 		}
 	}
 	// save NTilde_j, h1_j, h2_j received in NewCommitteeStep1 here
-	for j, msg := range round.temp.dgRound2Message1s {
+	for j, msg := range round.temp.dgRound2bMessage1s {
 		if j == i {
 			continue
 		}
-		r2msg1 := msg.Content().(*DGRound2Message1)
+		r2msg1 := msg.Content().(*DGRound2BMessage1)
 		round.save.NTildej[j] = new(big.Int).SetBytes(r2msg1.NTilde)
 		round.save.H1j[j] = new(big.Int).SetBytes(r2msg1.H1)
 		round.save.H2j[j] = new(big.Int).SetBytes(r2msg1.H2)

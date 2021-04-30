@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
@@ -41,8 +42,6 @@ func setUp(level string) {
 }
 
 func TestStartRound1Paillier(t *testing.T) {
-	setUp("debug")
-
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
@@ -81,8 +80,6 @@ func TestStartRound1Paillier(t *testing.T) {
 }
 
 func TestFinishAndSaveH1H2(t *testing.T) {
-	setUp("debug")
-
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
@@ -130,7 +127,6 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 
 func TestBadMessageCulprits(t *testing.T) {
 	setUp("debug")
-
 	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), 1)
@@ -151,8 +147,7 @@ func TestBadMessageCulprits(t *testing.T) {
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
-
-	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, new(dlnp.Proof), new(dlnp.Proof))
+	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, new(dlnp.Proof), new(dlnp.Proof), nil)
 	ok, err2 := lp.Update(badMsg)
 	t.Log(err2)
 	assert.False(t, ok)
@@ -162,15 +157,13 @@ func TestBadMessageCulprits(t *testing.T) {
 	assert.Equal(t, 1, len(err2.Culprits()))
 	assert.Equal(t, pIDs[1], err2.Culprits()[0])
 	assert.Equal(t,
-		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,2}]: message failed ValidateBasic: Type: KGRound1Message, From: {1,2}",
+		"task ecdsa-keygen, party {0,P[1]}, round 0, culprits [{1,2}]: message failed ValidateBasic: Type: KGRound1Message, From: {1,2}",
 		err2.Error())
 }
 
 func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	setUp("info")
-
-	// tss.SetCurve(elliptic.P256())
-
+	tss.SetCurve(btcec.S256())
 	threshold := testThreshold
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {

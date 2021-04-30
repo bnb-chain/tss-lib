@@ -22,8 +22,10 @@ import (
 
 // Implements Party
 // Implements Stringer
-var _ tss.Party = (*LocalParty)(nil)
-var _ fmt.Stringer = (*LocalParty)(nil)
+var (
+	_ tss.Party    = (*LocalParty)(nil)
+	_ fmt.Stringer = (*LocalParty)(nil)
+)
 
 type (
 	LocalParty struct {
@@ -40,7 +42,8 @@ type (
 
 	localMessageStore struct {
 		dgRound1Messages,
-		dgRound2Message1s,
+		dgRound2aMessage1s,
+		dgRound2bMessage1s,
 		dgRound2Message2s,
 		dgRound3Message1s,
 		dgRound3Message2s,
@@ -56,9 +59,10 @@ type (
 		VD        cmt.HashDeCommitment
 
 		// temporary storage of data that is persisted by the new party in round 5 if all "ACK" messages are received
-		newXi     *big.Int
-		newKs     []*big.Int
-		newBigXjs []*crypto.ECPoint // Xj to save in round 5
+		newXi      *big.Int
+		newKs      []*big.Int
+		newBigXjs  []*crypto.ECPoint // Xj to save in round 5
+		challenges []*big.Int
 	}
 )
 
@@ -87,12 +91,13 @@ func NewLocalParty(
 		end:       end,
 	}
 	// msgs init
-	p.temp.dgRound1Messages = make([]tss.ParsedMessage, oldPartyCount)           // from t+1 of Old Committee
-	p.temp.dgRound2Message1s = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
-	p.temp.dgRound2Message2s = make([]tss.ParsedMessage, params.NewPartyCount()) // "
-	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, oldPartyCount)          // from t+1 of Old Committee
-	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, oldPartyCount)          // "
-	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())  // from n of New Committee
+	p.temp.dgRound1Messages = make([]tss.ParsedMessage, oldPartyCount)            // from t+1 of Old Committee
+	p.temp.dgRound2aMessage1s = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
+	p.temp.dgRound2bMessage1s = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
+	p.temp.dgRound2Message2s = make([]tss.ParsedMessage, params.NewPartyCount())  // "
+	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, oldPartyCount)           // from t+1 of Old Committee
+	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, oldPartyCount)           // "
+	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())   // from n of New Committee
 	// save data init
 	if key.LocalPreParams.ValidateWithProof() {
 		p.save.LocalPreParams = key.LocalPreParams
@@ -127,7 +132,7 @@ func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// check that the message's "from index" will fit into the array
 	var maxFromIdx int
 	switch msg.Content().(type) {
-	case *DGRound2Message1, *DGRound2Message2, *DGRound4Message:
+	case *DGRound2AMessage1, *DGRound2BMessage1, *DGRound2Message2, *DGRound4Message:
 		maxFromIdx = len(p.params.NewParties().IDs()) - 1
 	default:
 		maxFromIdx = len(p.params.OldParties().IDs()) - 1
@@ -151,8 +156,10 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	switch msg.Content().(type) {
 	case *DGRound1Message:
 		p.temp.dgRound1Messages[fromPIdx] = msg
-	case *DGRound2Message1:
-		p.temp.dgRound2Message1s[fromPIdx] = msg
+	case *DGRound2AMessage1:
+		p.temp.dgRound2aMessage1s[fromPIdx] = msg
+	case *DGRound2BMessage1:
+		p.temp.dgRound2bMessage1s[fromPIdx] = msg
 	case *DGRound2Message2:
 		p.temp.dgRound2Message2s[fromPIdx] = msg
 	case *DGRound3Message1:

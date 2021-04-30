@@ -8,13 +8,14 @@ package resharing
 
 import (
 	"errors"
+	"math/big"
 
-	"github.com/binance-chain/tss-lib/crypto/dlnp"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-func (round *round2) Start() *tss.Error {
+func (round *round2a) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
 	}
@@ -22,7 +23,6 @@ func (round *round2) Start() *tss.Error {
 	round.started = true
 	round.resetOK() // resets both round.oldOK and round.newOK
 	round.allOldOK()
-
 	if !round.ReSharingParams().IsNewCommittee() {
 		return nil
 	}
@@ -33,6 +33,7 @@ func (round *round2) Start() *tss.Error {
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2Message2(
 		round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
+
 	round.temp.dgRound2Message2s[i] = r2msg1
 	round.out <- r2msg1
 
@@ -41,7 +42,7 @@ func (round *round2) Start() *tss.Error {
 	// generate safe primes for ZKPs later on
 	// compute ntilde, h1, h2 (uses safe primes)
 	// use the pre-params if they were provided to the LocalParty constructor
-	var preParams *keygen.LocalPreParams
+	var preParams *safeparameter.LocalPreParams
 	if round.save.LocalPreParams.Validate() && !round.save.LocalPreParams.ValidateWithProof() {
 		return round.WrapError(
 			errors.New("`optionalPreParams` failed to validate; it might have been generated with an older version of tss-lib"))
@@ -49,7 +50,7 @@ func (round *round2) Start() *tss.Error {
 		preParams = &round.save.LocalPreParams
 	} else {
 		var err error
-		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout())
+		preParams, err = safeparameter.GeneratePreParams(round.SafePrimeGenTimeout())
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
@@ -58,40 +59,31 @@ func (round *round2) Start() *tss.Error {
 	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
-	// generate the dlnproofs for resharing
-	h1i, h2i, alpha, beta, p, q, NTildei :=
-		preParams.H1i,
-		preParams.H2i,
-		preParams.Alpha,
-		preParams.Beta,
-		preParams.P,
-		preParams.Q,
-		preParams.NTildei
-	dlnProof1 := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
-	dlnProof2 := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
+	round.save.LocalPreParams = *preParams
+	round.save.NTildej[i] = preParams.NTildei
+	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
-	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
-	r2msg2, err := NewDGRound2Message1(
-		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
+	var challenges []*big.Int
+	for i := 0; i < safeparameter.Iterations; i++ {
+		challenge := common.GetRandomPositiveInt(round.save.NTildei)
+		challenges = append(challenges, challenge)
+	}
+	omega := safeparameter.GenOmega(round.save.NTildei)
+
+	msg, err := NewDGRound2aMessage1(
+		round.NewParties().IDs().Exclude(round.PartyID()), Pi, omega, challenges)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	round.temp.dgRound2Message1s[i] = r2msg2
-	round.out <- r2msg2
-
-	// for this P: SAVE de-commitments, paillier keys for round 2
-	round.save.PaillierSK = preParams.PaillierSK
-	round.save.PaillierPKs[i] = &preParams.PaillierSK.PublicKey
-	round.save.NTildej[i] = preParams.NTildei
-	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
+	round.temp.dgRound2aMessage1s[i] = msg
+	round.out <- msg
 
 	return nil
 }
 
-func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
+func (round *round2a) CanAccept(msg tss.ParsedMessage) bool {
 	if round.ReSharingParams().IsNewCommittee() {
-		if _, ok := msg.Content().(*DGRound2Message1); ok {
+		if _, ok := msg.Content().(*DGRound2AMessage1); ok {
 			return msg.IsBroadcast()
 		}
 	}
@@ -103,7 +95,7 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 	return false
 }
 
-func (round *round2) Update() (bool, *tss.Error) {
+func (round *round2a) Update() (bool, *tss.Error) {
 	if round.ReSharingParams().IsOldCommittee() && round.ReSharingParameters.IsNewCommittee() {
 		// accept messages from new -> old committee
 		for j, msg1 := range round.temp.dgRound2Message2s {
@@ -114,7 +106,7 @@ func (round *round2) Update() (bool, *tss.Error) {
 				return false, nil
 			}
 			// accept message from new -> committee
-			msg2 := round.temp.dgRound2Message1s[j]
+			msg2 := round.temp.dgRound2aMessage1s[j]
 			if msg2 == nil || !round.CanAccept(msg2) {
 				return false, nil
 			}
@@ -133,7 +125,7 @@ func (round *round2) Update() (bool, *tss.Error) {
 		}
 	} else if round.ReSharingParams().IsNewCommittee() {
 		// accept messages from new -> new committee
-		for j, msg := range round.temp.dgRound2Message1s {
+		for j, msg := range round.temp.dgRound2aMessage1s {
 			if round.newOK[j] {
 				continue
 			}
@@ -148,7 +140,7 @@ func (round *round2) Update() (bool, *tss.Error) {
 	return true, nil
 }
 
-func (round *round2) NextRound() tss.Round {
+func (round *round2a) NextRound() tss.Round {
 	round.started = false
-	return &round3{round}
+	return &round2b{round}
 }

@@ -25,8 +25,12 @@ type (
 		started bool
 		number  int
 	}
-	round1 struct {
+
+	round0 struct {
 		*base
+	}
+	round1 struct {
+		*round0
 	}
 	round2 struct {
 		*round1
@@ -40,6 +44,7 @@ type (
 )
 
 var (
+	_ tss.Round = (*round0)(nil)
 	_ tss.Round = (*round1)(nil)
 	_ tss.Round = (*round2)(nil)
 	_ tss.Round = (*round3)(nil)

@@ -13,6 +13,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	_ "github.com/binance-chain/tss-lib/eddsa/keygen" // this is must to have otherwise the type switch inside StoreMessage will fail
 	"github.com/binance-chain/tss-lib/tss"
@@ -20,8 +21,10 @@ import (
 
 // Implements Party
 // Implements Stringer
-var _ tss.Party = (*LocalParty)(nil)
-var _ fmt.Stringer = (*LocalParty)(nil)
+var (
+	_ tss.Party    = (*LocalParty)(nil)
+	_ fmt.Stringer = (*LocalParty)(nil)
+)
 
 type (
 	LocalParty struct {
@@ -37,6 +40,7 @@ type (
 	}
 
 	localMessageStore struct {
+		kgRound0Messages,
 		kgRound1Messages,
 		kgRound2Message1s,
 		kgRound2Message2s,
@@ -48,6 +52,7 @@ type (
 
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
+		challenges    []*big.Int
 		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
 		shares        vss.Shares
@@ -60,7 +65,7 @@ func NewLocalParty(
 	params *tss.Parameters,
 	out chan<- tss.Message,
 	end chan<- LocalPartySaveData,
-	optionalPreParams ...LocalPreParams,
+	optionalPreParams ...safeparameter.LocalPreParams,
 ) tss.Party {
 	partyCount := params.PartyCount()
 	data := NewLocalPartySaveData(partyCount)
@@ -83,6 +88,7 @@ func NewLocalParty(
 		end:       end,
 	}
 	// msgs init
+	p.temp.kgRound0Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound1Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound2Message1s = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound2Message2s = make([]tss.ParsedMessage, partyCount)
@@ -93,7 +99,7 @@ func NewLocalParty(
 }
 
 func (p *LocalParty) FirstRound() tss.Round {
-	return newRound1(p.params, &p.data, &p.temp, p.out, p.end)
+	return newRound0(p.params, &p.data, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
@@ -131,21 +137,11 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	}
 	fromPIdx := msg.GetFrom().Index
 
-	// var hoho tss.MessageContent
-	// hoho = &keygen.KGRound1Message{}
-	// common.Logger.Warnf("hoho: %T", hoho)
-	// switch hoho.(type) {
-	// case *KGRound1Message:
-	// 	common.Logger.Warnf("hoho good")
-	// case *keygen.KGRound1Message:
-	// 	common.Logger.Warnf("hoho hmm")
-	// default: // unrecognised message, just ignore!
-	// 	common.Logger.Warnf("hoho bad")
-	// }
-
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
+	case *KGRound0Message:
+		p.temp.kgRound0Messages[fromPIdx] = msg
 	case *KGRound1Message:
 		p.temp.kgRound1Messages[fromPIdx] = msg
 	case *KGRound2Message1:

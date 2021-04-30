@@ -11,6 +11,12 @@ option go_package = "github.com/binance-chain/tss-lib/ecdsa/keygen";
 /*
  * Represents a BROADCAST message sent during Round 1 of the ECDSA TSS keygen protocol.
  */
+
+message KGRound0Message{
+    repeated bytes challenges = 1;
+    bytes omega = 2;
+}
+
 message KGRound1Message {
     bytes commitment = 1;
     bytes paillier_n = 2;
@@ -19,6 +25,7 @@ message KGRound1Message {
     bytes h2 = 5;
     repeated bytes dlnproof_1 = 6;
     repeated bytes dlnproof_2 = 7;
+    bytes parameter_proof = 8;
 }
 
 /*
