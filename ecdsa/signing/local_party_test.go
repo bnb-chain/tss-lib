@@ -437,6 +437,102 @@ signing:
 	}
 }
 
+func TestE2EConcurrentMtaAbortReceiverAttack(t *testing.T) {
+	setUp("info")
+	attackers := []int{2, 4}
+	threshold := testThreshold
+
+	// PHASE: load keygen fixtures
+	keys, signPIDs, err := keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
+	assert.NoError(t, err, "should load keygen fixtures")
+	assert.Equal(t, testThreshold+1, len(keys))
+	assert.Equal(t, testThreshold+1, len(signPIDs))
+
+	// PHASE: signing
+	// use a shuffled selection of the list of parties for this test
+	p2pCtx := tss.NewPeerContext(signPIDs)
+	parties := make([]*LocalParty, 0, len(signPIDs))
+
+	errCh := make(chan *tss.Error, len(signPIDs))
+	outCh := make(chan tss.Message, len(signPIDs))
+	endCh := make(chan *SignatureData, len(signPIDs))
+
+	updater := test.SharedPartyUpdater
+
+	// init the parties
+	msg := common.GetRandomPrimeInt(256)
+	for i := 0; i < len(signPIDs); i++ {
+		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
+
+		P := NewLocalParty(msg, params, keys[i], outCh, endCh).(*LocalParty)
+		parties = append(parties, P)
+		go func(P *LocalParty) {
+			if err := P.Start(); err != nil {
+				errCh <- err
+			}
+		}(P)
+	}
+
+	startGR := runtime.NumGoroutine()
+	var ended int32
+signing:
+	for {
+		// fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
+		select {
+		case err := <-errCh:
+			var actualAttackers []int
+			var expectedAttacker []int
+			// as we blame the node in both bobMid and bobMidWc
+			for _, el := range attackers {
+				expectedAttacker = append(expectedAttacker, el)
+			}
+
+			if err.Victim().Index != attackers[0] && err.Victim().Index != attackers[1] {
+				for _, el := range err.Culprits() {
+					actualAttackers = append(actualAttackers, el.Index)
+				}
+				sort.Ints(expectedAttacker)
+				sort.Ints(actualAttackers)
+				assert.Equal(t, expectedAttacker, actualAttackers, "the victim should report all the attackers")
+			}
+			atomic.AddInt32(&ended, 1)
+			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
+				t.Log("share share attack test finished successfully")
+				t.Logf("Start goroutines: %d, End goroutines: %d", startGR, runtime.NumGoroutine())
+				break signing
+			}
+
+		case msg := <-outCh:
+			if msg.Type() == "SignRound3Message" && (msg.GetFrom().Index == attackers[0] || msg.GetFrom().Index == attackers[1]) {
+				var attackContent SignRound3Message
+				err = ptypes.UnmarshalAny(msg.WireMsg().Message, &attackContent)
+				assert.Nil(t, err)
+				localParty := parties[msg.GetFrom().Index]
+
+				entry := SignRound3Message_AbortDataEntry{
+					Index: int32(0),
+				}
+
+				abortMta := SignRound3Message_AbortData{
+					Item: []*SignRound3Message_AbortDataEntry{&entry},
+				}
+				r3msg := NewSignRound3MessageAbort(localParty.PartyID(), &abortMta)
+				localParty.temp.signRound3Messages[msg.GetFrom().Index] = r3msg
+				msg = r3msg
+			}
+			for _, P := range parties {
+				if P.PartyID().Index == msg.GetFrom().Index {
+					continue
+				}
+				go updater(P, msg, errCh)
+			}
+
+		case <-endCh:
+			t.Fatal("tss should never success")
+		}
+	}
+}
+
 func TestE2EConcurrentOneRound(t *testing.T) {
 	setUp("info")
 	threshold := testThreshold

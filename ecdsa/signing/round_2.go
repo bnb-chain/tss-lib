@@ -122,6 +122,7 @@ func (round *round2) Start() *tss.Error {
 		items = append(items, item)
 	}
 	r2msg := NewSignRound2Message(round.PartyID(), items)
+	round.temp.signRound2Messages[i] = r2msg
 	round.out <- r2msg
 	return nil
 }

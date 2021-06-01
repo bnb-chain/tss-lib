@@ -68,7 +68,13 @@ func (round *round5) Start() *tss.Error {
 		case *SignRound3Message_Abort:
 			identityAbort = true
 			for _, el := range c.Abort.GetItem() {
-				node := round.Parties().IDs()[el.GetIndex()]
+				var culpritIndex int32
+				if !round.verifyReportedProof(int(el.GetIndex()), j) {
+					culpritIndex = el.GetIndex()
+				} else {
+					culpritIndex = int32(j)
+				}
+				node := round.Parties().IDs()[culpritIndex]
 				identifyingAbortCulprits = append(identifyingAbortCulprits, node)
 			}
 		}
@@ -141,6 +147,35 @@ func (round *round5) Start() *tss.Error {
 	round.temp.signRound5Messages[i] = r5msg
 	round.out <- r5msg
 	return nil
+}
+
+func (round *round5) verifyReportedProof(blamedNodeIndex, reporterIndex int) bool {
+	r2msg := round.temp.signRound2Messages[blamedNodeIndex].Content().(*SignRound2Message)
+	r1msg := round.temp.signRound1Messages[reporterIndex].Content().(*SignRound1Message)
+	proofBob, err := r2msg.UnmarshalProofBob(reporterIndex)
+	if err != nil {
+		common.Logger.Errorf("fail to get the stored proofBob %v", err)
+		return false
+	}
+	proofBobWc, err := r2msg.UnmarshalProofBobWC(reporterIndex)
+	if err != nil {
+		common.Logger.Errorf("fail to get the stored proofBobWc %v\n", err)
+		return false
+	}
+	paillierPk := round.key.PaillierPKs[reporterIndex]
+	h1j := round.key.H1j[reporterIndex]
+	h2j := round.key.H2j[reporterIndex]
+
+	NTilde := round.key.NTildej[reporterIndex]
+	cBstore, cBstoreWc, err := r2msg.UnmarshalC(reporterIndex)
+	if err != nil {
+		return false
+	}
+	cB := new(big.Int).SetBytes(cBstore)
+	cA := new(big.Int).SetBytes(r1msg.C)
+	cBWc := new(big.Int).SetBytes(cBstoreWc)
+	B := round.temp.bigWs[blamedNodeIndex]
+	return proofBob.Verify(paillierPk, NTilde, h1j, h2j, cA, cB) && proofBobWc.Verify(paillierPk, NTilde, h1j, h2j, cA, cBWc, B)
 }
 
 func (round *round5) Update() (bool, *tss.Error) {
