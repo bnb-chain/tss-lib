@@ -13,8 +13,7 @@ option go_package = "github.com/binance-chain/tss-lib/ecdsa/keygen";
  */
 
 message KGRound0Message{
-    repeated bytes challenges = 1;
-    bytes omega = 2;
+    bytes omega = 1;
 }
 
 message KGRound1Message {

@@ -22,8 +22,7 @@ message DGRound1Message {
  * The Round 0 data is broadcast to other peers of the New Committee in this message.
  */
 message DGRound2aMessage1{
-    repeated bytes challenges = 1;
-    bytes omega = 2;
+    bytes omega = 1;
 }
 
 /*

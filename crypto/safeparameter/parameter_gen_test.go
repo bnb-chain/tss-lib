@@ -127,3 +127,17 @@ func TestPaiBlumPrimeProof(t *testing.T) {
 	_, err = ProvePaiBlumPreParams(challenges, omega, invalidParameter)
 	assert.NotNil(t, err)
 }
+
+func TestGenChallenges(t *testing.T) {
+	allPreParameters, err := LoadPreParameter(2)
+	assert.Nil(t, err)
+	validParameter := allPreParameters[0]
+	omegas := make([]*big.Int, Iterations)
+	for i := 0; i < Iterations; i++ {
+		omegas[i] = GenOmega(validParameter.NTildei)
+	}
+	_, err = GenChallenges(validParameter.NTildei, omegas)
+	assert.Nil(t, err)
+	_, err = GenChallenges(nil, omegas)
+	assert.NotNil(t, err)
+}

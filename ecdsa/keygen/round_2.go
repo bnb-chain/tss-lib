@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -53,9 +54,13 @@ func (round *round2) Start() *tss.Error {
 
 		omegaBz := round.temp.kgRound0Messages[j].Content().(*KGRound0Message).Omega
 		omega := new(big.Int).SetBytes(omegaBz)
+		challenges, err := safeparameter.GenChallenges(NTildej, round.temp.omegas)
+		if err != nil {
+			return round.WrapError(errors.New("fail to generate the challenges"), msg.GetFrom())
+		}
 		wg.Add(3)
 		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
-			if paramProof, err := r1msg.UnmarshalParamProof(); err != nil || !paramProof.Verify(round.temp.challenges, omega, NTildej) {
+			if paramProof, err := r1msg.UnmarshalParamProof(); err != nil || !paramProof.Verify(challenges, omega, NTildej) {
 				paramProof2FailCulprits[j] = msg.GetFrom()
 			}
 			wg.Done()

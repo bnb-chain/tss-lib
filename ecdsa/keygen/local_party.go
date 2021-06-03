@@ -52,7 +52,7 @@ type (
 
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
-		challenges    []*big.Int
+		omegas        []*big.Int
 		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
 		shares        vss.Shares
@@ -95,6 +95,7 @@ func NewLocalParty(
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
+	p.temp.omegas = make([]cmt.HashCommitment, partyCount)
 	return p
 }
 

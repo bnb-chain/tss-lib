@@ -59,10 +59,10 @@ type (
 		VD        cmt.HashDeCommitment
 
 		// temporary storage of data that is persisted by the new party in round 5 if all "ACK" messages are received
-		newXi      *big.Int
-		newKs      []*big.Int
-		newBigXjs  []*crypto.ECPoint // Xj to save in round 5
-		challenges []*big.Int
+		newXi     *big.Int
+		newKs     []*big.Int
+		newBigXjs []*crypto.ECPoint // Xj to save in round 5
+		omegas    []*big.Int
 	}
 )
 
@@ -98,6 +98,7 @@ func NewLocalParty(
 	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, oldPartyCount)           // from t+1 of Old Committee
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, oldPartyCount)           // "
 	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())   // from n of New Committee
+	p.temp.omegas = make([]*big.Int, params.NewPartyCount())
 	// save data init
 	if key.LocalPreParams.ValidateWithProof() {
 		p.save.LocalPreParams = key.LocalPreParams

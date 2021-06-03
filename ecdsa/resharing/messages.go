@@ -64,7 +64,7 @@ func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {
 
 // ----- //
 
-func NewDGRound2aMessage1(to []*tss.PartyID, from *tss.PartyID, omega *big.Int, challenge []*big.Int) (tss.ParsedMessage, error) {
+func NewDGRound2aMessage1(to []*tss.PartyID, from *tss.PartyID, omega *big.Int) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:             from,
 		To:               to,
@@ -72,17 +72,13 @@ func NewDGRound2aMessage1(to []*tss.PartyID, from *tss.PartyID, omega *big.Int, 
 		IsToOldCommittee: false,
 	}
 
-	var challengesBz [][]byte
-	for _, el := range challenge {
-		challengesBz = append(challengesBz, el.Bytes())
-	}
-	content := &DGRound2AMessage1{Omega: omega.Bytes(), Challenges: challengesBz}
+	content := &DGRound2AMessage1{Omega: omega.Bytes()}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg), nil
 }
 
 func (m *DGRound2AMessage1) ValidateBasic() bool {
-	return common.NonEmptyMultiBytes(m.Challenges, safeparameter.Iterations) && len(m.Omega) > 0
+	return common.NonEmptyBytes(m.Omega)
 }
 
 func NewDGRound2bMessage1(

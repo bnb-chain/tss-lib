@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	errors2 "github.com/pkg/errors"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -56,6 +57,10 @@ func (round *round4) Start() *tss.Error {
 			r2msg1.UnmarshalNTilde(),
 			r2msg1.UnmarshalH1(),
 			r2msg1.UnmarshalH2()
+		challenges, err := safeparameter.GenChallenges(NTildej, round.temp.omegas)
+		if err != nil {
+			return round.WrapError(errors.New("fail to generate the challenges"), msg.GetFrom())
+		}
 		if H1j.Cmp(H2j) == 0 {
 			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
 		}
@@ -91,7 +96,7 @@ func (round *round4) Start() *tss.Error {
 		}(j, msg, r2msg1, H1j, H2j, NTildej)
 
 		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2BMessage1, H1j, H2j, NTildej *big.Int) {
-			if paramProof, err := r2msg1.UnmarshalParamProof(); err != nil || !paramProof.Verify(round.temp.challenges, omega, NTildej) {
+			if paramProof, err := r2msg1.UnmarshalParamProof(); err != nil || !paramProof.Verify(challenges, omega, NTildej) {
 				paramProof2FailCulprits[j] = msg.GetFrom()
 			}
 

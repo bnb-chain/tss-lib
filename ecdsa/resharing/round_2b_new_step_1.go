@@ -32,39 +32,20 @@ func (round *round2b) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	var challengesBz [][][]byte
-	var omega *big.Int
 	for j, msg := range round.temp.dgRound2aMessage1s {
 		r0msg := msg.Content().(*DGRound2AMessage1)
-		if j == i {
-			omega = new(big.Int).SetBytes(r0msg.Omega)
-		}
-		challengesBz = append(challengesBz, r0msg.Challenges)
+		omega := new(big.Int).SetBytes(r0msg.Omega)
+		round.temp.omegas[j] = omega
 	}
 
-	var challenges [][]*big.Int
-	for _, thisNodeChallengesBz := range challengesBz {
-		var thisNodeChallenges []*big.Int
-		for _, challengeBz := range thisNodeChallengesBz {
-			challenge := new(big.Int).SetBytes(challengeBz)
-			thisNodeChallenges = append(thisNodeChallenges, challenge)
-		}
-		challenges = append(challenges, thisNodeChallenges)
-	}
-
-	accChallenges := make([]*big.Int, safeparameter.Iterations)
-	for i := 0; i < safeparameter.Iterations; i++ {
-		thisEpoch := big.NewInt(0)
-		for j := 0; j < round.PartyCount(); j++ {
-			thisEpoch.Add(thisEpoch, challenges[j][i])
-		}
-		accChallenges[i] = thisEpoch
-	}
-	paramProof, err := safeparameter.ProvePaiBlumPreParams(accChallenges, omega, round.save.LocalPreParams)
+	challenges, err := safeparameter.GenChallenges(round.save.NTildei, round.temp.omegas)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	round.temp.challenges = accChallenges
+	paramProof, err := safeparameter.ProvePaiBlumPreParams(challenges, round.temp.omegas[i], round.save.LocalPreParams)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
 
 	preParams := round.save.LocalPreParams
 	// generate the dlnproofs for resharing

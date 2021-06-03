@@ -8,9 +8,7 @@ package resharing
 
 import (
 	"errors"
-	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto/safeparameter"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -63,15 +61,9 @@ func (round *round2a) Start() *tss.Error {
 	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
-	var challenges []*big.Int
-	for i := 0; i < safeparameter.Iterations; i++ {
-		challenge := common.GetRandomPositiveInt(round.save.NTildei)
-		challenges = append(challenges, challenge)
-	}
 	omega := safeparameter.GenOmega(round.save.NTildei)
 
-	msg, err := NewDGRound2aMessage1(
-		round.NewParties().IDs().Exclude(round.PartyID()), Pi, omega, challenges)
+	msg, err := NewDGRound2aMessage1(round.NewParties().IDs().Exclude(round.PartyID()), Pi, omega)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}

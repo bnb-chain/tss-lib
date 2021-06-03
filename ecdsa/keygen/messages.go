@@ -26,22 +26,18 @@ var _ = []tss.MessageContent{(*KGRound1Message)(nil), (*KGRound1Message)(nil), (
 
 // ----- //
 
-func NewKGRound0Message(from *tss.PartyID, omega *big.Int, challenge []*big.Int) (tss.ParsedMessage, error) {
+func NewKGRound0Message(from *tss.PartyID, omega *big.Int) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
-	var challengesBz [][]byte
-	for _, el := range challenge {
-		challengesBz = append(challengesBz, el.Bytes())
-	}
-	content := &KGRound0Message{Omega: omega.Bytes(), Challenges: challengesBz}
+	content := &KGRound0Message{Omega: omega.Bytes()}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg), nil
 }
 
 func (m *KGRound0Message) ValidateBasic() bool {
-	return common.NonEmptyMultiBytes(m.Challenges, safeparameter.Iterations) && len(m.Omega) > 0
+	return common.NonEmptyBytes(m.Omega, safeparameter.Iterations)
 }
 
 func NewKGRound1Message(

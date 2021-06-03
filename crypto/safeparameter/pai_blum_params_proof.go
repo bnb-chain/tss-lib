@@ -11,9 +11,10 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
+	"golang.org/x/crypto/sha3"
 )
 
-const Iterations = 12
+const Iterations = 24
 
 var (
 	zero = big.NewInt(0)
@@ -40,64 +41,14 @@ func GenOmega(NTilde *big.Int) *big.Int {
 	return omega
 }
 
-// Finds x and y such that: Gcd(a, b) = ax + by. (By the extended euclidean algorithm)
-//
-// This implementation is based on
-// https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm#Iterative_algorithm_3
-func ExtendedGcd(a, b *big.Int) (x, y, gcd *big.Int) {
-	x0, x1, y0, y1 := new(big.Int).Set(one), new(big.Int).Set(zero), new(big.Int).Set(zero), new(big.Int).Set(one)
-
-	q := big.NewInt(0)
-	for a.Cmp(zero) > 0 {
-		bmoda := new(big.Int).Mod(b, a)
-		bdiva := new(big.Int).Div(b, a)
-		q, b, a = bdiva, a, bmoda
-		x0, x1 = x1, new(big.Int).Sub(x0, new(big.Int).Mul(q, x1))
-		y0, y1 = y1, new(big.Int).Sub(y0, new(big.Int).Mul(q, y1))
-	}
-	return y0, x0, b
-}
-
-// chinese reminder theorem for two numbers
-func CRT(reminders []*big.Int, modulos []*big.Int) (*big.Int, error) {
-	if len(reminders) != 2 || len(modulos) != 2 {
-		return nil, errors.New("we only support two number CRT")
-	}
-
-	p := modulos[0]
-	q := modulos[1]
-	pq := new(big.Int).Mul(p, q)
-
-	m, n, _ := ExtendedGcd(p, q)
-
-	m1n1 := new(big.Int).Mul(m, p)
-	m2n2 := new(big.Int).Mul(n, q)
-	am2n2 := new(big.Int).Mul(reminders[0], m2n2)
-	bm1n1 := new(big.Int).Mul(reminders[1], m1n1)
-	all := new(big.Int).Add(am2n2, bm1n1)
-
-	// Finds the least positive residue of a number
-	// in a given modulus. Note that this is very slightly
-	// different from the remainder (%) operator when working
-	// with negative numbers.
-	out := new(big.Int).Add(new(big.Int).Mod(all, pq), pq)
-	result := new(big.Int).Mod(out, pq)
-
-	return result, nil
-}
-
-func solve4root(x, p, q *big.Int) (*big.Int, error) {
-	p1 := new(big.Int).Add(p, big.NewInt(1))
-	q1 := new(big.Int).Add(q, big.NewInt(1))
-	p14 := new(big.Int).Div(p1, big4)
-	q14 := new(big.Int).Div(q1, big4)
-	i1 := new(big.Int).Exp(x, p14, p)
-	i1 = new(big.Int).Exp(i1, p14, p)
-
-	j1 := new(big.Int).Exp(x, q14, q)
-	j1 = new(big.Int).Exp(j1, q14, q)
-	ret, err := CRT([]*big.Int{i1, j1}, []*big.Int{p, q})
-	return ret, err
+func solve4root(x, phi, n *big.Int) *big.Int {
+	var result big.Int
+	e := big.NewInt(4)
+	e.Add(phi, e)
+	e.Mul(e, e)
+	e.Rsh(e, 6)
+	e.Mod(e, phi)
+	return result.Exp(x, e, n)
 }
 
 func (pf *Proof) sanityCheck(challenge []*big.Int, omega *big.Int) bool {
@@ -151,7 +102,7 @@ func genYiPrime(yi, omega, NTildei, p, q *big.Int) (*big.Int, int, int) {
 	return yi, 0, 0
 }
 
-func genXi(challenge []*big.Int, p, q, NTildei, omega *big.Int, ais, bis []int) ([]*big.Int, error) {
+func genXi(challenge []*big.Int, p, q, NTildei, phiN, omega *big.Int, ais, bis []int) ([]*big.Int, error) {
 	xis := make([]*big.Int, Iterations)
 
 	for i, yi := range challenge {
@@ -159,10 +110,7 @@ func genXi(challenge []*big.Int, p, q, NTildei, omega *big.Int, ais, bis []int) 
 			return nil, errors.New("invalid challenges")
 		}
 		yiPrime, a, b := genYiPrime(yi, omega, NTildei, p, q)
-		xi, err := solve4root(yiPrime, p, q)
-		if err != nil {
-			return nil, err
-		}
+		xi := solve4root(yiPrime, phiN, NTildei)
 		if new(big.Int).Exp(xi, big4, NTildei).Cmp(yiPrime) != 0 {
 			return nil, errors.New("the yi is not in QR(n)")
 		}
@@ -197,7 +145,7 @@ func ProvePaiBlumPreParams(challenges []*big.Int, omega *big.Int, params LocalPr
 	ais := make([]int, Iterations)
 	bis := make([]int, Iterations)
 	NTildei := params.NTildei
-	xis, err := genXi(yis, params.BigP, params.BigQ, NTildei, omega, ais, bis)
+	xis, err := genXi(yis, params.BigP, params.BigQ, NTildei, params.PaillierSK.PhiN, omega, ais, bis)
 	if err != nil {
 		common.Logger.Errorf("fail to generate the xi with error %v", err)
 		return nil, err
@@ -271,4 +219,31 @@ func (pf *Proof) Verify(challenges []*big.Int, omega, NTildei *big.Int) bool {
 	vXis := verifyXis(pf.Xis, yis, pf.Ais, pf.Bis, NTildei, omega)
 	vZi := verifyZis(zis, yis, NTildei)
 	return vXis && vZi
+}
+
+func GenChallenges(NTildei *big.Int, omegas []*big.Int) ([]*big.Int, error) {
+	if NTildei == nil {
+		return nil, errors.New("invalid input")
+	}
+	challengeBz := make([]byte, 32)
+	var challenges []*big.Int
+	hash := sha3.New256()
+	for _, el := range omegas {
+		_, err := hash.Write(el.Bytes())
+		if err != nil {
+			return nil, err
+		}
+	}
+	omegaHAsh := hash.Sum(nil)
+	cShakeHash := sha3.NewCShake256(NTildei.Bytes(), omegaHAsh)
+	_, err := cShakeHash.Write(hash.Sum(NTildei.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < Iterations; i++ {
+		cShakeHash.Read(challengeBz)
+		challenges = append(challenges, new(big.Int).SetBytes(challengeBz))
+	}
+	return challenges, nil
 }
