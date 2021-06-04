@@ -42,9 +42,7 @@ const (
 	PDLwSlackMarshalledParts = 11
 )
 
-var (
-	one = big.NewInt(1)
-)
+var one = big.NewInt(1)
 
 func NewPDLwSlackProof(wit PDLwSlackWitness, st PDLwSlackStatement) PDLwSlackProof {
 	q := tss.EC().Params().N
