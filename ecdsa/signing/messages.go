@@ -364,6 +364,7 @@ func NewSignRound6MessageAbort(
 	}
 	// this hack makes the ValidateBasic pass because the [i] index position for this P is empty in these arrays
 	data.GetAlphaIJ()[from.Index] = []byte{1}
+	data.GetAlphaIJRand()[from.Index] = []byte{1}
 	data.GetBetaJI()[from.Index] = []byte{1}
 	content := &SignRound6Message{
 		Content: &SignRound6Message_Abort{Abort: data},
@@ -403,6 +404,8 @@ func (m *SignRound6Message) ValidateBasic() bool {
 			common.NonEmptyBytes(c.Abort.GetKI()) &&
 			common.NonEmptyBytes(c.Abort.GetGammaI()) &&
 			common.NonEmptyMultiBytes(c.Abort.GetAlphaIJ()) &&
+			common.NonEmptyMultiBytes(c.Abort.GetAlphaIJRand()) &&
+			common.NonEmptyMultiBytes(c.Abort.GetAlphaIJRand()) &&
 			common.NonEmptyMultiBytes(c.Abort.GetBetaJI(), len(c.Abort.GetAlphaIJ()))
 	default:
 		return false

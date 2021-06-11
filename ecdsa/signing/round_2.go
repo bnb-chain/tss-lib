@@ -45,7 +45,7 @@ func (round *round2) Start() *tss.Error {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalRangeProofAlice failed"), Pj)
 				return
 			}
-			betaJI, c1JI, _, pi1JI, err := mta.BobMid(
+			betaJI, c1JI, betaJIRaw, betaJIRand, pi1JI, err := mta.BobMid(
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
 				round.temp.gammaI,
@@ -62,7 +62,8 @@ func (round *round2) Start() *tss.Error {
 			}
 			// should be thread safe as these are pre-allocated
 			round.temp.betas[j] = betaJI
-			round.temp.r5AbortData.BetaJI[j] = betaJI.Bytes()
+			round.temp.r5AbortData.BetaJI[j] = betaJIRaw.Bytes()
+			round.temp.r5AbortData.BetaJIRand[j] = betaJIRand.Bytes()
 			round.temp.pI1JIs[j] = pi1JI
 			round.temp.c1JIs[j] = c1JI
 		}(j, Pj)

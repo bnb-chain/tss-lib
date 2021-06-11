@@ -74,6 +74,7 @@ func (round *round1) Start() *tss.Error {
 		kIBz := kI.Bytes()
 		round.temp.KI = kIBz // now part of the OneRoundData struct
 		round.temp.r5AbortData.KI = kIBz
+		round.temp.r5AbortData.KIRand = rA.Bytes()
 		round.temp.r7AbortData.KI = kIBz
 		round.temp.cAKI = cA // used for the ZK proof in round 5
 		round.temp.rAKI = rA

@@ -133,7 +133,9 @@ func NewLocalParty(
 	p.temp.vJIs = make([]*big.Int, partyCount)
 	p.temp.bigGammaJs = make([]*crypto.ECPoint, partyCount)
 	p.temp.r5AbortData.AlphaIJ = make([][]byte, partyCount)
+	p.temp.r5AbortData.AlphaIJRand = make([][]byte, partyCount)
 	p.temp.r5AbortData.BetaJI = make([][]byte, partyCount)
+	p.temp.r5AbortData.BetaJIRand = make([][]byte, partyCount)
 	return p
 }
 

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -37,6 +38,7 @@ func (round *round7) Start() *tss.Error {
 	// Identifiable Abort Type 5 triggered during Phase 5 (GG20)
 	if round.abortingT5 {
 		common.Logger.Infof("round 7: Abort Type 5 code path triggered")
+		victim := make(map[int]bool)
 	outer:
 		for j, msg := range round.temp.signRound6Messages {
 			if j == i {
@@ -52,25 +54,84 @@ func (round *round7) Start() *tss.Error {
 			}
 			r6msg := r6msgInner.Abort
 
-			// Check that value gamma_j (in MtA) is consistent with bigGamma_j that is de-committed in Phase 4
+			// re-encrypt k_i to make sure it matches the one we have "on record" (auditing report item 1)
+			kJ := new(big.Int).SetBytes(r6msg.GetKI())
+			kRand := r6msg.GetKIRand()
+			r1msg1 := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
+			encKJ := r1msg1.UnmarshalC()
+			if !checkRecoverPaillier(kJ, new(big.Int).SetBytes(kRand), encKJ, round.key.PaillierPKs[j]) {
+				culprits = append(culprits, Pj)
+				continue
+			}
+
+			// Check that value gamma_j (in MtA) is consistent with bigGamma_j that is de-committed in Phase 4 (auditing report item 2)
 			gammaJ := new(big.Int).SetBytes(r6msg.GetGammaI())
 			gammaJG := crypto.ScalarBaseMult(tss.EC(), gammaJ)
 			if !gammaJG.Equals(round.temp.bigGammaJs[j]) {
 				culprits = append(culprits, Pj)
 				continue
 			}
-
-			kJ := new(big.Int).SetBytes(r6msg.GetKI())
 			calcDeltaJ := modN.Mul(kJ, gammaJ)
-			for k, a := range r6msg.GetAlphaIJ() {
-				if k == j {
+
+			// for the following checks, as all the checks related with alpha_ij, we put in the same loop for efficiency
+			// avoiding confusing by the parameter k, we rename node index from k to q
+			for q, alphaJQ := range r6msg.GetAlphaIJ() {
+				if q == j {
 					continue
 				}
-				if a == nil {
+
+				// we also need to verify whether the alpha we received from node i matched with the one it claimed
+				r2msg := round.temp.signRound2Messages[q].Content().(*SignRound2Message)
+				ca, _, err := r2msg.UnmarshalC(j)
+				if err != nil {
 					culprits = append(culprits, Pj)
 					continue outer
 				}
-				calcDeltaJ = modN.Add(calcDeltaJ, new(big.Int).SetBytes(a))
+				encAlphaJQ := new(big.Int).SetBytes(ca)
+				if alphaJQ == nil || !checkRecoverPaillier(new(big.Int).SetBytes(alphaJQ), new(big.Int).SetBytes(r6msg.GetAlphaIJRand()[q]), encAlphaJQ, round.key.PaillierPKs[j]) {
+					culprits = append(culprits, Pj)
+					fmt.Printf("attacker.......\n")
+					continue outer
+				}
+
+				// we check whether node q send alphaJQ wrong beta_ij to node j (auditing report item 4)
+				msgQ := round.temp.signRound6Messages[q]
+				r6msgQInner, ok := msgQ.Content().(*SignRound6Message).GetContent().(*SignRound6Message_Abort)
+				if !ok {
+					Pq := round.Parties().IDs()[q]
+					culprits = append(culprits, Pq)
+				}
+				gammaQ := new(big.Int).SetBytes(r6msgQInner.Abort.GetGammaI())
+				betaJQ := new(big.Int).SetBytes(r6msgQInner.Abort.GetBetaJI()[j])
+				betaRandJQ := new(big.Int).SetBytes(r6msgQInner.Abort.GetBetaJIRand()[j])
+				if q == 2 && j == 0 {
+					betaJQ = betaRandJQ.Add(betaRandJQ, big.NewInt(1))
+				}
+				ret := checkRecoverAlpha(encAlphaJQ, encKJ, gammaQ, betaJQ, betaRandJQ, round.key.PaillierPKs[j])
+				if !ret {
+					// so we will not blame the
+					victim[j] = true
+					Pq := round.Parties().IDs()[q]
+					culprits = append(culprits, Pq)
+					continue outer
+				}
+
+				// we check whether alpha= kr-beta (auditing report item 5)
+				kGammaJQ := modN.Mul(kJ, gammaQ)
+				beta := modN.Sub(zero, betaJQ)
+
+				calculatedAlphaJQ := modN.Sub(kGammaJQ, beta)
+				expectedAlphaJQ := new(big.Int).Mod(new(big.Int).SetBytes(alphaJQ), N)
+				if expectedAlphaJQ.Cmp(calculatedAlphaJQ) != 0 {
+					Pq := round.Parties().IDs()[q]
+					culprits = append(culprits, Pq)
+					continue outer
+				}
+				// calculate the partial of delta_i by accumulate all the alpha_ij (auditing report item 6)
+				calcDeltaJ = modN.Add(calcDeltaJ, new(big.Int).SetBytes(alphaJQ))
+			}
+			if victim[j] {
+				continue outer
 			}
 			for k, b := range r6msg.GetBetaJI() {
 				if k == j {
@@ -80,7 +141,8 @@ func (round *round7) Start() *tss.Error {
 					culprits = append(culprits, Pj)
 					continue outer
 				}
-				calcDeltaJ = modN.Add(calcDeltaJ, new(big.Int).SetBytes(b))
+				beta := common.ModInt(tss.EC().Params().N).Sub(zero, new(big.Int).SetBytes(b))
+				calcDeltaJ = modN.Add(calcDeltaJ, beta)
 			}
 			if expDeltaJ := new(big.Int).SetBytes(r3msg.GetSuccess().GetDeltaI()); expDeltaJ.Cmp(calcDeltaJ) != 0 {
 				culprits = append(culprits, Pj)
@@ -224,4 +286,27 @@ func (round *round7) NextRound() tss.Round {
 	// Continuing the full online protocol.
 	round.started = false
 	return &finalization{round}
+}
+
+func checkRecoverPaillier(m, r, encM *big.Int, pk *paillier.PublicKey) bool {
+	calculated, err := pk.EncryptWithChosenRandomness(m, r)
+	if err != nil {
+	}
+	return encM.Cmp(calculated) == 0
+}
+
+func checkRecoverAlpha(ca, encKj, gammaQ, betaJQ, betaJQRand *big.Int, pk *paillier.PublicKey) bool {
+	val1, err := pk.HomoMult(gammaQ, encKj)
+	if err != nil {
+		return false
+	}
+	val2, err := pk.EncryptWithChosenRandomness(betaJQ, betaJQRand)
+	if err != nil {
+		return false
+	}
+	calculatedCa, err := pk.HomoAdd(val1, val2)
+	if err != nil {
+		return false
+	}
+	return ca.Cmp(calculatedCa) == 0
 }

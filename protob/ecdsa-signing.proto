@@ -72,7 +72,10 @@ message SignRound4Message {
  */
 message SignRound5Message {
     ECPoint r_i = 1;
-    repeated bytes proof_pdl_w_slack = 2;
+    message proof_pdl_w_slack{
+        repeated bytes proof_pdl_w_slack = 1;
+    }
+    repeated proof_pdl_w_slack proof_pdl_w_slacks=2;
 }
 
 /*
@@ -88,9 +91,12 @@ message SignRound6Message {
     }
     message AbortData {
         bytes k_i = 1;
+        bytes k_i_rand=2;
         bytes gamma_i = 3;
         repeated bytes alpha_i_j = 4;
-        repeated bytes beta_j_i = 5;
+        repeated bytes alpha_i_j_rand = 5;
+        repeated bytes beta_j_i = 6;
+        repeated bytes beta_j_i_rand = 7;
     }
     oneof content {
         SuccessData success = 1;

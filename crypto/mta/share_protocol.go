@@ -27,7 +27,7 @@ func BobMid(
 	pkA *paillier.PublicKey,
 	pf *RangeProofAlice,
 	b, cA, NTildeA, h1A, h2A, NTildeB, h1B, h2B *big.Int,
-) (beta, cB, betaPrm *big.Int, piB *ProofBob, err error) {
+) (beta, cB, betaPrm, cRand *big.Int, piB *ProofBob, err error) {
 	if !pf.Verify(pkA, NTildeB, h1B, h2B, cA) {
 		err = errors.New("RangeProofAlice.Verify() returned false")
 		return
@@ -81,16 +81,17 @@ func AliceEnd(
 	pf *ProofBob,
 	h1A, h2A, cA, cB, NTildeA *big.Int,
 	sk *paillier.PrivateKey,
-) (alphaIJ *big.Int, err error) {
+) (alphaIJ, alphaIJRaw, alphaIJRand *big.Int, err error) {
 	if !pf.Verify(pkA, NTildeA, h1A, h2A, cA, cB) {
 		err = errors.New("ProofBob.Verify() returned false")
 		return
 	}
-	if alphaIJ, err = sk.Decrypt(cB); err != nil {
+	alphaIJRaw, alphaIJRand, err = sk.DecryptAndRecoverRandomness(cB)
+	if err != nil {
 		return
 	}
 	q := tss.EC().Params().N
-	alphaIJ.Mod(alphaIJ, q)
+	alphaIJ = new(big.Int).Mod(alphaIJRaw, q)
 	return
 }
 

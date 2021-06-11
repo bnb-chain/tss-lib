@@ -61,7 +61,7 @@ func (round *round3) Start() *tss.Error {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "MtA: UnmarshalProofBob failed"), Pj)
 				return
 			}
-			alphaIJ, err := mta.AliceEnd(
+			alphaIJ, alphaIJRaw, alphaIJRand, err := mta.AliceEnd(
 				round.key.PaillierPKs[i],
 				proofBob,
 				round.key.H1j[i],
@@ -80,8 +80,14 @@ func (round *round3) Start() *tss.Error {
 				errChs <- round.WrapError(err, Pj)
 				return
 			}
+			// fixme this is for test purpose node 0 to attack node 4!!
+			// if i == 0 && j == 4 {
+			// 	alphaIJ = new(big.Int).Sub(alphaIJ, big.NewInt(20))
+			// }
+
 			alphaIJs[j] = alphaIJ
-			round.temp.r5AbortData.AlphaIJ[j] = alphaIJ.Bytes()
+			round.temp.r5AbortData.AlphaIJ[j] = alphaIJRaw.Bytes()
+			round.temp.r5AbortData.AlphaIJRand[j] = alphaIJRand.Bytes()
 		}(j, Pj)
 		// Alice_end_wc
 		go func(j int, Pj *tss.PartyID) {
@@ -117,7 +123,6 @@ func (round *round3) Start() *tss.Error {
 			muRandIJ[j] = muIJRand
 		}(j, Pj)
 	}
-
 	// consume error channels; wait for goroutines
 	wg.Wait()
 	close(errChs)

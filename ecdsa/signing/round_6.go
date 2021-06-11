@@ -165,5 +165,8 @@ func (round *round6) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round6) NextRound() tss.Round {
 	round.started = false
+	if round.abortingT5 {
+		return &round7{round, true}
+	}
 	return &round7{round, false}
 }
