@@ -58,7 +58,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	updater := test.SharedPartyUpdater
 
-	msg := big.NewInt(200)
+	msg := big.NewInt(200).Bytes()
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
@@ -131,7 +131,7 @@ signing:
 					println("new sig error, ", err.Error())
 				}
 
-				ok := edwards.Verify(&pk, msg.Bytes(), newSig.R, newSig.S)
+				ok := edwards.Verify(&pk, msg, newSig.R, newSig.S)
 				assert.True(t, ok, "eddsa verify must pass")
 				t.Log("EDDSA signing test done.")
 				// END EDDSA verify
