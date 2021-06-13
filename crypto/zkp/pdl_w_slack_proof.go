@@ -21,7 +21,7 @@ import (
 type (
 	PDLwSlackStatement struct {
 		CipherText     *big.Int
-		N             *big.Int
+		N              *big.Int
 		Q, G           *crypto.ECPoint
 		H1, H2, NTilde *big.Int
 	}
@@ -62,7 +62,7 @@ func NewPDLwSlackProof(wit PDLwSlackWitness, st PDLwSlackStatement) PDLwSlackPro
 	z := commitmentUnknownOrder(st.H1, st.H2, st.NTilde, wit.X, rho)
 	u1 := st.G.ScalarMult(alpha)
 	nOne := new(big.Int).Add(st.N, one)
-	nSquare :=new(big.Int).Mul(st.N, st.N)
+	nSquare := new(big.Int).Mul(st.N, st.N)
 	u2 := commitmentUnknownOrder(nOne, beta, nSquare, alpha, st.N)
 	u3 := commitmentUnknownOrder(st.H1, st.H2, st.NTilde, alpha, gamma)
 
@@ -89,7 +89,7 @@ func (pf PDLwSlackProof) Verify(st PDLwSlackStatement) bool {
 	}
 
 	nOne, eNeg := new(big.Int).Add(st.N, one), new(big.Int).Neg(e)
-	nSquare :=new(big.Int).Mul(st.N, st.N)
+	nSquare := new(big.Int).Mul(st.N, st.N)
 	u2TestTmp := commitmentUnknownOrder(nOne, pf.S2, nSquare, pf.S1, st.N)
 	u2Test := commitmentUnknownOrder(u2TestTmp, st.CipherText, nSquare, one, eNeg)
 	u3TestTmp := commitmentUnknownOrder(st.H1, st.H2, st.NTilde, pf.S1, pf.S3)
