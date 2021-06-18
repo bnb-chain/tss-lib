@@ -9,6 +9,8 @@ package keygen
 import (
 	"errors"
 	"math/big"
+	"runtime"
+	"strings"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -28,6 +30,39 @@ func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTemp
 		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
+func inTestCheck() bool {
+	// depth of 10 is far more enough for testing environment
+	pcs := make([]uintptr, 10)
+	runtime.Callers(1, pcs)
+	frames := runtime.CallersFrames(pcs)
+	for {
+		frame, more := frames.Next()
+		if !more {
+			break
+		}
+		if strings.Contains(frame.File, "ecdsa/keygen/local_party_test") {
+			return true
+		}
+	}
+	return false
+}
+
+func (round *round1) genShares() (vss.Vs, vss.Shares, error) {
+
+	// 1. calculate "partial" key share ui
+	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
+
+	if inTestCheck() {
+		round.temp.ui = ui
+	}
+
+	// 2. compute the vss shares
+	ids := round.Parties().IDs().Keys()
+	vs, shares, err := vss.Create(round.Threshold(), ui, ids)
+
+	return vs, shares, err
+}
+
 func (round *round1) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -39,22 +74,15 @@ func (round *round1) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	// 1. calculate "partial" key share ui
-	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
-
-	round.temp.ui = ui
-
-	// 2. compute the vss shares
-	ids := round.Parties().IDs().Keys()
-	vs, shares, err := vss.Create(round.Threshold(), ui, ids)
+	vs, shares, err := round.genShares()
+	// clean up all the sensitive data
+	runtime.GC()
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	round.save.Ks = ids
 
-	// security: the original u_i may be discarded
-	ui = zero // clears the secret data from memory
-	_ = ui    // silences a linter warning
+	ids := round.Parties().IDs().Keys()
+	round.save.Ks = ids
 
 	// make commitment -> (C, D)
 	pGFlat, err := crypto.FlattenECPoints(vs)
