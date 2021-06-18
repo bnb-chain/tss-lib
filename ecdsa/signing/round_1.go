@@ -90,7 +90,6 @@ func (round *round1) Start() *tss.Error {
 		}
 		r1msg1 := NewSignRound1Message1(Pj, round.PartyID(), cA, pi)
 		round.temp.signRound1Message1s[i] = r1msg1
-		round.temp.c1Is[j] = cA
 		round.out <- r1msg1
 	}
 

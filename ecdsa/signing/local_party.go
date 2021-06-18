@@ -61,7 +61,6 @@ type (
 		deltaI,
 		sigmaI,
 		gammaI *big.Int
-		c1Is     []*big.Int
 		bigWs    []*crypto.ECPoint
 		gammaIG  *crypto.ECPoint
 		deCommit cmt.HashDeCommitment
@@ -121,7 +120,6 @@ func NewLocalParty(
 	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.m = msg
-	p.temp.c1Is = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
 	p.temp.c1JIs = make([]*big.Int, partyCount)

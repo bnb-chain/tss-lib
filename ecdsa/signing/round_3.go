@@ -57,7 +57,7 @@ func (round *round3) Start() *tss.Error {
 				proofBob,
 				round.key.H1j[i],
 				round.key.H2j[i],
-				round.temp.c1Is[j],
+				round.temp.cAKI,
 				new(big.Int).SetBytes(r2msg.GetC1()),
 				round.key.NTildej[i],
 				round.key.PaillierSK)
@@ -81,7 +81,7 @@ func (round *round3) Start() *tss.Error {
 				round.key.PaillierPKs[i],
 				proofBobWC,
 				round.temp.bigWs[j],
-				round.temp.c1Is[j],
+				round.temp.cAKI,
 				new(big.Int).SetBytes(r2msg.GetC2()),
 				round.key.NTildej[i],
 				round.key.H1j[i],
