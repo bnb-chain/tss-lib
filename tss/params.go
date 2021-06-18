@@ -38,6 +38,9 @@ const (
 // Exported, used in `tss` client
 func NewParameters(ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
 	var safePrimeGenTimeout time.Duration
+	if threshold >= partyCount {
+		panic(errors.New("the threshold should smaller than the party number"))
+	}
 	if 0 < len(optionalSafePrimeGenTimeout) {
 		if 1 < len(optionalSafePrimeGenTimeout) {
 			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalSafePrimeGenTimeout`"))
