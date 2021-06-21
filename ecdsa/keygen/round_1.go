@@ -10,7 +10,6 @@ import (
 	"errors"
 	"math/big"
 	"runtime"
-	"strings"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -30,29 +29,12 @@ func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTemp
 		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
-func inTestCheck() bool {
-	// depth of 10 is far more enough for testing environment
-	pcs := make([]uintptr, 10)
-	runtime.Callers(1, pcs)
-	frames := runtime.CallersFrames(pcs)
-	for {
-		frame, more := frames.Next()
-		if !more {
-			break
-		}
-		if strings.Contains(frame.File, "ecdsa/keygen/local_party_test") {
-			return true
-		}
-	}
-	return false
-}
-
 func (round *round1) genShares() (vss.Vs, vss.Shares, error) {
 
 	// 1. calculate "partial" key share ui
 	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
 
-	if inTestCheck() {
+	if InTestCheck("ecdsa/keygen/local_party_test") {
 		round.temp.ui = ui
 	}
 

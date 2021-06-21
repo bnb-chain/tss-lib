@@ -20,7 +20,8 @@ import (
 )
 
 var (
-	zero = big.NewInt(0)
+	zero   = big.NewInt(0)
+	inTest = false
 )
 
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
@@ -32,6 +33,10 @@ func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *Sig
 func (round *round1) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
+	}
+
+	if InTestCheck("signing.TestE2EConcurrentAbort7") {
+		inTest = true
 	}
 
 	// Spec requires calculate H(M) here,

@@ -17,6 +17,7 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/mta"
 	"github.com/binance-chain/tss-lib/crypto/zkp"
+	"github.com/binance-chain/tss-lib/test"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -131,6 +132,10 @@ func (round *round3) Start() *tss.Error {
 		sigmaI.Add(sigmaI, muIJs[j].Add(muIJs[j], beta))
 		deltaI.Mod(deltaI, q)
 		sigmaI.Mod(sigmaI, q)
+	}
+
+	if inTest && i == test.Abort7Attacker {
+		sigmaI = new(big.Int).Add(sigmaI, big.NewInt(1))
 	}
 	// nil sensitive data for gc
 	round.temp.betas, round.temp.vJIs = nil, nil

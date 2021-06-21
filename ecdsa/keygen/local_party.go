@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"runtime"
+	"strings"
 
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -184,4 +186,20 @@ func (p *LocalParty) PartyID() *tss.PartyID {
 
 func (p *LocalParty) String() string {
 	return fmt.Sprintf("id: %s, %s", p.PartyID(), p.BaseParty.String())
+}
+func InTestCheck(flag string) bool {
+	// depth of 10 is far more enough for testing environment
+	pcs := make([]uintptr, 10)
+	runtime.Callers(1, pcs)
+	frames := runtime.CallersFrames(pcs)
+	for {
+		frame, more := frames.Next()
+		if !more {
+			break
+		}
+		if strings.Contains(frame.File, flag) {
+			return true
+		}
+	}
+	return false
 }
