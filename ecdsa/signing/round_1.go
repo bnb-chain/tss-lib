@@ -38,7 +38,7 @@ func (round *round1) Start() *tss.Error {
 	// but considered different blockchain use different hash function we accept the converted big.Int
 	// if this big.Int is not belongs to Zq, the client might not comply with common rule (for ECDSA):
 	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L263
-	if round.temp.m.Cmp(tss.EC().Params().N) >= 0 {
+	if round.temp.m.Cmp(round.Params().EC().Params().N) >= 0 {
 		return round.WrapError(errors.New("hashed message is not valid"))
 	}
 
@@ -46,10 +46,10 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	k := common.GetRandomPositiveInt(tss.EC().Params().N)
-	gamma := common.GetRandomPositiveInt(tss.EC().Params().N)
+	k := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	gamma := common.GetRandomPositiveInt(round.Params().EC().Params().N)
 
-	pointGamma := crypto.ScalarBaseMult(tss.EC(), gamma)
+	pointGamma := crypto.ScalarBaseMult(round.Params().EC(), gamma)
 	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
 	round.temp.k = k
 	round.temp.gamma = gamma
@@ -124,7 +124,7 @@ func (round *round1) prepare() error {
 	if round.Threshold()+1 > len(ks) {
 		return fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks))
 	}
-	wi, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
+	wi, bigWs := PrepareForSigning(round.Params().EC(), i, len(ks), xi, ks, bigXs)
 
 	round.temp.w = wi
 	round.temp.bigWs = bigWs

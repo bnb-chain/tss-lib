@@ -25,7 +25,7 @@ func (round *finalization) Start() *tss.Error {
 	round.resetOK()
 
 	sumS := round.temp.si
-	modN := common.ModInt(tss.EC().Params().N)
+	modN := common.ModInt(round.Params().EC().Params().N)
 
 	for j := range round.Parties().IDs() {
 		round.ok[j] = true
@@ -38,7 +38,7 @@ func (round *finalization) Start() *tss.Error {
 
 	recid := 0
 	// byte v = if(R.X > curve.N) then 2 else 0) | (if R.Y.IsEven then 0 else 1);
-	if round.temp.rx.Cmp(tss.EC().Params().N) > 0 {
+	if round.temp.rx.Cmp(round.Params().EC().Params().N) > 0 {
 		recid = 2
 	}
 	if round.temp.ry.Bit(0) != 0 {
@@ -49,14 +49,14 @@ func (round *finalization) Start() *tss.Error {
 	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L442-L444
 	// This is needed because of tendermint checks here:
 	// https://github.com/tendermint/tendermint/blob/d9481e3648450cb99e15c6a070c1fb69aa0c255b/crypto/secp256k1/secp256k1_nocgo.go#L43-L47
-	secp256k1halfN := new(big.Int).Rsh(tss.EC().Params().N, 1)
+	secp256k1halfN := new(big.Int).Rsh(round.Params().EC().Params().N, 1)
 	if sumS.Cmp(secp256k1halfN) > 0 {
-		sumS.Sub(tss.EC().Params().N, sumS)
+		sumS.Sub(round.Params().EC().Params().N, sumS)
 		recid ^= 1
 	}
 
 	// save the signature for final output
-	bitSizeInBytes := tss.EC().Params().BitSize / 8
+	bitSizeInBytes := round.Params().EC().Params().BitSize / 8
 	round.data.R = padToLengthBytesInPlace(round.temp.rx.Bytes(), bitSizeInBytes)
 	round.data.S = padToLengthBytesInPlace(sumS.Bytes(), bitSizeInBytes)
 	round.data.Signature = append(round.data.R, round.data.S...)
@@ -64,7 +64,7 @@ func (round *finalization) Start() *tss.Error {
 	round.data.M = round.temp.m.Bytes()
 
 	pk := ecdsa.PublicKey{
-		Curve: tss.EC(),
+		Curve: round.Params().EC(),
 		X:     round.key.ECDSAPub.X(),
 		Y:     round.key.ECDSAPub.Y(),
 	}

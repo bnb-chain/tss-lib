@@ -61,6 +61,10 @@ func (p *ECPoint) IsOnCurve() bool {
 	return isOnCurve(p.curve, p.coords[0], p.coords[1])
 }
 
+func (p *ECPoint) Curve() elliptic.Curve {
+	return p.curve
+}
+
 func (p *ECPoint) Equals(p2 *ECPoint) bool {
 	if p == nil || p2 == nil {
 		return false

@@ -11,6 +11,7 @@ import (
 	"errors"
 
 	s256k1 "github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
 )
 
 var (
@@ -28,9 +29,19 @@ func EC() elliptic.Curve {
 }
 
 // SetCurve sets the curve used by TSS. Must be called before Start. The default is secp256k1
+// Deprecated
 func SetCurve(curve elliptic.Curve) {
 	if curve == nil {
 		panic(errors.New("SetCurve received a nil curve"))
 	}
 	ec = curve
+}
+
+// secp256k1
+func S256() elliptic.Curve {
+	return s256k1.S256()
+}
+
+func Edwards() elliptic.Curve {
+	return edwards.Edwards()
 }

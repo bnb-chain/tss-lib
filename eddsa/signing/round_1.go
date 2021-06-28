@@ -38,10 +38,10 @@ func (round *round1) Start() *tss.Error {
 	round.resetOK()
 
 	// 1. select ri
-	ri := common.GetRandomPositiveInt(tss.EC().Params().N)
+	ri := common.GetRandomPositiveInt(round.Params().EC().Params().N)
 
 	// 2. make commitment
-	pointRi := crypto.ScalarBaseMult(tss.EC(), ri)
+	pointRi := crypto.ScalarBaseMult(round.Params().EC(), ri)
 	cmt := commitments.NewHashCommitment(pointRi.X(), pointRi.Y())
 
 	// 3. store r1 message pieces
@@ -98,7 +98,7 @@ func (round *round1) prepare() error {
 		// TODO: this should not panic
 		return fmt.Errorf("t+1=%d is not consistent with the key count %d", round.Threshold()+1, len(ks))
 	}
-	wi := PrepareForSigning(i, len(ks), xi, ks)
+	wi := PrepareForSigning(round.Params().EC(), i, len(ks), xi, ks)
 
 	round.temp.wi = wi
 	return nil

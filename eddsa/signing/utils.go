@@ -7,12 +7,12 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/agl/ed25519/edwards25519"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 func encodedBytesToBigInt(s *[32]byte) *big.Int {
@@ -100,11 +100,11 @@ func addExtendedElements(p, q edwards25519.ExtendedGroupElement) edwards25519.Ex
 	return result
 }
 
-func ecPointToExtendedElement(x *big.Int, y *big.Int) edwards25519.ExtendedGroupElement {
+func ecPointToExtendedElement(ec elliptic.Curve, x *big.Int, y *big.Int) edwards25519.ExtendedGroupElement {
 	encodedXBytes := bigIntToEncodedBytes(x)
 	encodedYBytes := bigIntToEncodedBytes(y)
 
-	z := common.GetRandomPositiveInt(tss.EC().Params().N)
+	z := common.GetRandomPositiveInt(ec.Params().N)
 	encodedZBytes := bigIntToEncodedBytes(z)
 
 	var fx, fy, fxy edwards25519.FieldElement

@@ -48,6 +48,7 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			alphaIj, err := mta.AliceEnd(
+				round.Params().EC(),
 				round.key.PaillierPKs[i],
 				proofBob,
 				round.key.H1j[i],
@@ -65,12 +66,13 @@ func (round *round3) Start() *tss.Error {
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
-			proofBobWC, err := r2msg.UnmarshalProofBobWC()
+			proofBobWC, err := r2msg.UnmarshalProofBobWC(round.Parameters.EC())
 			if err != nil {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBobWC failed"), Pj)
 				return
 			}
 			uIj, err := mta.AliceEndWC(
+				round.Params().EC(),
 				round.key.PaillierPKs[i],
 				proofBobWC,
 				round.temp.bigWs[j],
@@ -98,7 +100,7 @@ func (round *round3) Start() *tss.Error {
 		return round.WrapError(errors.New("failed to calculate Alice_end or Alice_end_wc"), culprits...)
 	}
 
-	modN := common.ModInt(tss.EC().Params().N)
+	modN := common.ModInt(round.Params().EC().Params().N)
 	thelta := modN.Mul(round.temp.k, round.temp.gamma)
 	sigma := modN.Mul(round.temp.k, round.temp.w)
 
