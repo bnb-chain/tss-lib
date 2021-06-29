@@ -217,10 +217,13 @@ func (p *ECPoint) UnmarshalJSON(payload []byte) error {
 	if err := json.Unmarshal(payload, &aux); err != nil {
 		return err
 	}
-	p.curve = tss.EC()
 	p.coords = [2]*big.Int{aux.Coords[0], aux.Coords[1]}
-	if !p.IsOnCurve() {
-		return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
-	}
+
+	// move below outside
+	// p.curve = tss.EC()
+	// if !p.IsOnCurve() {
+	// 	return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
+	// }
+
 	return nil
 }
