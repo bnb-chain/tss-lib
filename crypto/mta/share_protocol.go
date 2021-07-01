@@ -14,10 +14,10 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 func AliceInit(
+	ec elliptic.Curve,
 	pkA *paillier.PublicKey,
 	a, NTildeB, h1B, h2B *big.Int,
 ) (cA *big.Int, pf *RangeProofAlice, err error) {
@@ -25,7 +25,7 @@ func AliceInit(
 	if err != nil {
 		return nil, nil, err
 	}
-	pf, err = ProveRangeAlice(tss.EC(), pkA, cA, NTildeB, h1B, h2B, a, rA)
+	pf, err = ProveRangeAlice(ec, pkA, cA, NTildeB, h1B, h2B, a, rA)
 	return cA, pf, err
 }
 
