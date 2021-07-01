@@ -126,7 +126,7 @@ func TestBadMessageCulprits(t *testing.T) {
 	assert.Equal(t, 1, len(err.Culprits()))
 	assert.Equal(t, pIDs[1], err.Culprits()[0])
 	assert.Equal(t,
-		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tss-lib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
+		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
 		err.Error())
 }
 

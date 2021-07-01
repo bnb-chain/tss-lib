@@ -10,8 +10,6 @@ import (
 	"crypto/elliptic"
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -30,14 +28,6 @@ var (
 		(*DGRound3Message2)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound2Message")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message2")
-	proto.RegisterType((*DGRound4Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound4Message")
-}
 
 // ----- //
 

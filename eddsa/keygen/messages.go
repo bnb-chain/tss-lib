@@ -10,8 +10,6 @@ import (
 	"crypto/elliptic"
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -31,12 +29,6 @@ var (
 		(*KGRound2Message2)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*KGRound1Message)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound1Message")
-	proto.RegisterType((*KGRound2Message1)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound2Message1")
-	proto.RegisterType((*KGRound2Message2)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound2Message2")
-}
 
 // ----- //
 
