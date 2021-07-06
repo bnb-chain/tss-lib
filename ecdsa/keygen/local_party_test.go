@@ -45,7 +45,7 @@ func TestStartRound1Paillier(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil).(*LocalParty)
@@ -74,7 +74,7 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil).(*LocalParty)
@@ -110,7 +110,7 @@ func TestBadMessageCulprits(t *testing.T) {
 
 	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), 1)
+	params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[0], len(pIDs), 1)
 
 	out := make(chan tss.Message, len(pIDs))
 	lp := NewLocalParty(params, out, nil)
@@ -126,7 +126,7 @@ func TestBadMessageCulprits(t *testing.T) {
 	assert.Equal(t, 1, len(err.Culprits()))
 	assert.Equal(t, pIDs[1], err.Culprits()[0])
 	assert.Equal(t,
-		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tss-lib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
+		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
 		err.Error())
 }
 
@@ -155,7 +155,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
-		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
+		params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[i], len(pIDs), threshold)
 		if i < len(fixtures) {
 			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
 		} else {
@@ -225,7 +225,7 @@ keygen:
 						}
 						pShares = append(pShares, shareStruct)
 					}
-					uj, err := pShares[:threshold+1].ReConstruct()
+					uj, err := pShares[:threshold+1].ReConstruct(tss.S256())
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
@@ -243,7 +243,7 @@ keygen:
 					{
 						badShares := pShares[:threshold]
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
-						uj, err := pShares[:threshold].ReConstruct()
+						uj, err := pShares[:threshold].ReConstruct(tss.S256())
 						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())

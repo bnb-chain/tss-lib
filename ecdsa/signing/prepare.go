@@ -7,17 +7,17 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 // PrepareForSigning(), GG18Spec (11) Fig. 14
-func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
-	modQ := common.ModInt(tss.EC().Params().N)
+func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
+	modQ := common.ModInt(ec.Params().N)
 	if len(ks) != len(bigXs) {
 		panic(fmt.Errorf("PrepareForSigning: len(ks) != len(bigXs) (%d != %d)", len(ks), len(bigXs)))
 	}

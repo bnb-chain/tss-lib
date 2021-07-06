@@ -38,11 +38,11 @@ func (round *round5) Start() *tss.Error {
 		if !ok || len(bigGammaJ) != 2 {
 			return round.WrapError(errors.New("commitment verify failed"), Pj)
 		}
-		bigGammaJPoint, err := crypto.NewECPoint(tss.EC(), bigGammaJ[0], bigGammaJ[1])
+		bigGammaJPoint, err := crypto.NewECPoint(round.Params().EC(), bigGammaJ[0], bigGammaJ[1])
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
 		}
-		proof, err := r4msg.UnmarshalZKProof()
+		proof, err := r4msg.UnmarshalZKProof(round.Params().EC())
 		if err != nil {
 			return round.WrapError(errors.New("failed to unmarshal bigGamma proof"), Pj)
 		}
@@ -57,7 +57,7 @@ func (round *round5) Start() *tss.Error {
 	}
 
 	R = R.ScalarMult(round.temp.thetaInverse)
-	N := tss.EC().Params().N
+	N := round.Params().EC().Params().N
 	modN := common.ModInt(N)
 	rx := R.X()
 	ry := R.Y()
@@ -70,8 +70,8 @@ func (round *round5) Start() *tss.Error {
 	li := common.GetRandomPositiveInt(N)  // li
 	roI := common.GetRandomPositiveInt(N) // pi
 	rToSi := R.ScalarMult(si)
-	liPoint := crypto.ScalarBaseMult(tss.EC(), li)
-	bigAi := crypto.ScalarBaseMult(tss.EC(), roI)
+	liPoint := crypto.ScalarBaseMult(round.Params().EC(), li)
+	bigAi := crypto.ScalarBaseMult(round.Params().EC(), roI)
 	bigVi, err := rToSi.Add(liPoint)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "rToSi.Add(li)"))
