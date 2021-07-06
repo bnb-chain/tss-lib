@@ -57,7 +57,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
-		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
+		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
 
 		P := NewLocalParty(big.NewInt(42), params, keys[i], outCh, endCh).(*LocalParty)
 		parties = append(parties, P)
@@ -102,7 +102,7 @@ signing:
 				r := parties[0].temp.rx
 				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
 
-				modN := common.ModInt(tss.EC().Params().N)
+				modN := common.ModInt(tss.S256().Params().N)
 
 				// BEGIN check s correctness
 				sumS := big.NewInt(0)

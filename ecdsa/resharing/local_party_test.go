@@ -72,13 +72,13 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// init the old parties first
 	for j, pID := range oldPIDs {
-		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(tss.S256(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		P := NewLocalParty(params, oldKeys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties
 	for j, pID := range newPIDs {
-		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(tss.S256(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		save := keygen.NewLocalPartySaveData(newPCount)
 		if j < len(fixtures) && len(newPIDs) <= len(fixtures) {
 			save.LocalPreParams = fixtures[j].LocalPreParams
@@ -149,7 +149,7 @@ func TestE2EConcurrent(t *testing.T) {
 				for j, key := range newKeys {
 					// xj test: BigXj == xj*G
 					xj := key.Xi
-					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
+					gXj := crypto.ScalarBaseMult(tss.S256(), xj)
 					BigXj := key.BigXj[j]
 					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
 				}
@@ -171,7 +171,7 @@ signing:
 	signEndCh := make(chan common.SignatureData, len(signPIDs))
 
 	for j, signPID := range signPIDs {
-		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
+		params := tss.NewParameters(tss.S256(), signP2pCtx, signPID, len(signPIDs), newThreshold)
 		P := signing.NewLocalParty(big.NewInt(42), params, signKeys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
@@ -214,7 +214,7 @@ signing:
 				// BEGIN ECDSA verify
 				pkX, pkY := signKeys[0].ECDSAPub.X(), signKeys[0].ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
-					Curve: tss.EC(),
+					Curve: tss.S256(),
 					X:     pkX,
 					Y:     pkY,
 				}

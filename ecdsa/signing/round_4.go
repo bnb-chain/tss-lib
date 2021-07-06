@@ -28,7 +28,7 @@ func (round *round4) Start() *tss.Error {
 	theta := *round.temp.theta
 	thetaInverse := &theta
 
-	modN := common.ModInt(tss.EC().Params().N)
+	modN := common.ModInt(round.Params().EC().Params().N)
 
 	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
