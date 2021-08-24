@@ -11,14 +11,13 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/ckd"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.LocalPartySaveData, extendedChildPk *ecdsa.PublicKey, ec elliptic.Curve) error {
 	var err error
 	gDelta := crypto.ScalarBaseMult(ec, keyDerivationDelta)
 	for k := range keys {
-		keys[k].ECDSAPub, err = crypto.NewECPoint(tss.EC(), extendedChildPk.X, extendedChildPk.Y)
+		keys[k].ECDSAPub, err = crypto.NewECPoint(ec, extendedChildPk.X, extendedChildPk.Y)
 		if err != nil {
 			common.Logger.Errorf("error creating new extended child public key")
 			return err
