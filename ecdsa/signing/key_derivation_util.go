@@ -4,6 +4,7 @@ package signing
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -13,10 +14,9 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.LocalPartySaveData,
-	extendedChildPk *ecdsa.PublicKey) error {
+func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.LocalPartySaveData, extendedChildPk *ecdsa.PublicKey, ec elliptic.Curve) error {
 	var err error
-	gDelta := crypto.ScalarBaseMult(tss.EC(), keyDerivationDelta)
+	gDelta := crypto.ScalarBaseMult(ec, keyDerivationDelta)
 	for k := range keys {
 		keys[k].ECDSAPub, err = crypto.NewECPoint(tss.EC(), extendedChildPk.X, extendedChildPk.Y)
 		if err != nil {
@@ -36,12 +36,10 @@ func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.Lo
 	return nil
 }
 
-func derivingPubkeyFromPath(masterPub *crypto.ECPoint, 
-							chainCode []byte, 
-							path []uint32) (*big.Int, *ckd.ExtendedKey, error) {
+func derivingPubkeyFromPath(masterPub *crypto.ECPoint, chainCode []byte, path []uint32, ec elliptic.Curve) (*big.Int, *ckd.ExtendedKey, error) {
 	// build ecdsa key pair
 	pk := ecdsa.PublicKey{
-		Curve: tss.EC(),
+		Curve: ec,
 		X:     masterPub.X(),
 		Y:     masterPub.Y(),
 	}
@@ -53,5 +51,5 @@ func derivingPubkeyFromPath(masterPub *crypto.ECPoint,
 		ChainCode:  chainCode[:],
 	}
 
-	return ckd.DeriveChildKeyFromHierarchy(path, extendedParentPk, tss.EC().Params().N)
+	return ckd.DeriveChildKeyFromHierarchy(path, extendedParentPk, ec.Params().N)
 }
