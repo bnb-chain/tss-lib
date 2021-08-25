@@ -11,6 +11,8 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/ckd"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+
+	"github.com/btcsuite/btcd/chaincfg"
 )
 
 func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.LocalPartySaveData, extendedChildPk *ecdsa.PublicKey, ec elliptic.Curve) error {
@@ -43,11 +45,14 @@ func derivingPubkeyFromPath(masterPub *crypto.ECPoint, chainCode []byte, path []
 		Y:     masterPub.Y(),
 	}
 
+	net := &chaincfg.MainNetParams
 	extendedParentPk := &ckd.ExtendedKey{
 		PublicKey:  pk,
 		Depth:      0,
 		ChildIndex: 0,
 		ChainCode:  chainCode[:],
+		ParentFP:   []byte{0x00, 0x00, 0x00, 0x00},
+		Version:    net.HDPrivateKeyID[:],
 	}
 
 	return ckd.DeriveChildKeyFromHierarchy(path, extendedParentPk, ec.Params().N)
