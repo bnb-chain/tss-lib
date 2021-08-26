@@ -61,6 +61,7 @@ type (
 		theta,
 		thetaInverse,
 		sigma,
+		keyDerivationDelta,
 		gamma *big.Int
 		cis        []*big.Int
 		bigWs      []*crypto.ECPoint
@@ -97,6 +98,7 @@ func NewLocalParty(
 	msg *big.Int,
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
+	keyDerivationDelta *big.Int,
 	out chan<- tss.Message,
 	end chan<- common.SignatureData,
 ) tss.Party {
@@ -122,6 +124,7 @@ func NewLocalParty(
 	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
+	p.temp.keyDerivationDelta = keyDerivationDelta
 	p.temp.m = msg
 	p.temp.cis = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
