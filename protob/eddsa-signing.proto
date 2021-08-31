@@ -6,6 +6,8 @@
 
 syntax = "proto3";
 
+package eddsa;
+
 option go_package = "eddsa/signing";
 
 /*

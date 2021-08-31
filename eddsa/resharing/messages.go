@@ -9,8 +9,6 @@ package resharing
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -24,19 +22,12 @@ var (
 	// Ensure that signing messages implement ValidateBasic
 	_ = []tss.MessageContent{
 		(*DGRound1Message)(nil),
-		(*DGRound2Message)(nil),
+		(*DGRound2Message2)(nil),
 		(*DGRound3Message1)(nil),
 		(*DGRound3Message2)(nil),
+		(*DGRound4Message)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound2Message")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound3Message2")
-	proto.RegisterType((*DGRound4Message)(nil), tss.EDDSAProtoNamePrefix+"resharing.DGRound4Message")
-}
 
 // ----- //
 
@@ -91,12 +82,12 @@ func NewDGRound2Message(
 		IsBroadcast:      true,
 		IsToOldCommittee: true,
 	}
-	content := &DGRound2Message{}
+	content := &DGRound2Message2{}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *DGRound2Message) ValidateBasic() bool {
+func (m *DGRound2Message2) ValidateBasic() bool {
 	return true
 }
 
