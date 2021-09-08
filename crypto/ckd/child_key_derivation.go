@@ -179,7 +179,7 @@ func serializeCompressed(publicKeyX *big.Int, publicKeyY *big.Int) []byte {
 	return paddedAppend(b, 32, publicKeyX.Bytes())
 }
 
-func DeriveChildKeyFromHierarchy(indicesHierarchy []uint32, pk *ExtendedKey, mod *big.Int) (*big.Int, *ExtendedKey, error) {
+func DeriveChildKeyFromHierarchy(indicesHierarchy []uint32, pk *ExtendedKey, mod *big.Int, curve elliptic.Curve) (*big.Int, *ExtendedKey, error) {
 	var k = pk
 	var err error
 	var childKey *ExtendedKey
@@ -187,7 +187,7 @@ func DeriveChildKeyFromHierarchy(indicesHierarchy []uint32, pk *ExtendedKey, mod
 	ilNum := big.NewInt(0)
 	for index := range indicesHierarchy {
 		ilNumOld := ilNum
-		ilNum, childKey, err = DeriveChildKey(indicesHierarchy[index], k)
+		ilNum, childKey, err = DeriveChildKey(indicesHierarchy[index], k, curve)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -197,9 +197,9 @@ func DeriveChildKeyFromHierarchy(indicesHierarchy []uint32, pk *ExtendedKey, mod
 	return ilNum, k, nil
 }
 
-// Derive a child key from the given parent key. The function returns "IL" ("I left"), per BIP-32 spec. It also
+// DeriveChildKey Derive a child key from the given parent key. The function returns "IL" ("I left"), per BIP-32 spec. It also
 // returns the derived child key.
-func DeriveChildKey(index uint32, pk *ExtendedKey) (*big.Int, *ExtendedKey, error) {
+func DeriveChildKey(index uint32, pk *ExtendedKey, curve elliptic.Curve) (*big.Int, *ExtendedKey, error) {
 	if index >= HardenedKeyStart {
 		return nil, nil, errors.New("the index must be non-hardened")
 	}
@@ -207,7 +207,7 @@ func DeriveChildKey(index uint32, pk *ExtendedKey) (*big.Int, *ExtendedKey, erro
 		return nil, nil, errors.New("cannot derive key beyond max depth")
 	}
 
-	cryptoPk, err := crypto.NewECPoint(btcec.S256(), pk.X, pk.Y)
+	cryptoPk, err := crypto.NewECPoint(curve, pk.X, pk.Y)
 	if err != nil {
 		common.Logger.Error("error getting pubkey from extendedkey")
 		return nil, nil, err
@@ -227,14 +227,14 @@ func DeriveChildKey(index uint32, pk *ExtendedKey) (*big.Int, *ExtendedKey, erro
 	childChainCode := ilr[32:]
 	ilNum := new(big.Int).SetBytes(il)
 
-	if ilNum.Cmp(btcec.S256().N) >= 0 || ilNum.Sign() == 0 {
+	if ilNum.Cmp(curve.Params().N) >= 0 || ilNum.Sign() == 0 {
 		// falling outside of the valid range for curve private keys
 		err = errors.New("invalid derived key")
 		common.Logger.Error("error deriving child key")
 		return nil, nil, err
 	}
 
-	deltaG := crypto.ScalarBaseMult(btcec.S256(), ilNum)
+	deltaG := crypto.ScalarBaseMult(curve, ilNum)
 	if deltaG.X().Sign() == 0 || deltaG.Y().Sign() == 0 {
 		err = errors.New("invalid child")
 		common.Logger.Error("error invalid child")
