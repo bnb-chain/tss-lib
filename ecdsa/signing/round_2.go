@@ -8,134 +8,100 @@ package signing
 
 import (
 	"errors"
-	"sync"
+	"math/big"
 
-	errorspkg "github.com/pkg/errors"
-
-	"github.com/binance-chain/tss-lib/crypto/mta"
+	"github.com/binance-chain/tss-lib/crypto"
+	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 func (round *round2) Start() *tss.Error {
-	if round.started {
-		return round.WrapError(errors.New("round already started"))
-	}
-	round.number = 2
-	round.started = true
-	round.resetOK()
+    if round.started {
+        return round.WrapError(errors.New("round already started"))
+    }
+    round.number = 2
+    round.started = true
+    round.resetOK()
 
-	i := round.PartyID().Index
-	round.ok[i] = true
+    i := round.PartyID().Index
+	//round.ok[i] = true
 
-	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
-	wg := sync.WaitGroup{}
-	wg.Add((len(round.Parties().IDs()) - 1) * 2)
-	for j, Pj := range round.Parties().IDs() {
-		if j == i {
-			continue
+    // Round 2.1 verify enc_proof
+    for j, Pj := range round.Parties().IDs() {
+        if j == i {
+            continue
+        }
+		r1msg := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
+		Kj := r1msg.UnmarshalK()
+		proof, err := r1msg.UnmarshalEncProof()
+		if err != nil {
+			return round.WrapError(errors.New("round2: proofenc unmarshal failed"), Pj)
 		}
-		// Bob_mid
-		go func(j int, Pj *tss.PartyID) {
-			defer wg.Done()
-			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
-			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
-			if err != nil {
-				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalRangeProofAlice failed"), Pj)
-				return
-			}
-			beta, c1ji, _, pi1ji, err := mta.BobMid(
-				round.Parameters.EC(),
-				round.key.PaillierPKs[j],
-				rangeProofAliceJ,
-				round.temp.gamma,
-				r1msg.UnmarshalC(),
-				round.key.NTildej[j],
-				round.key.H1j[j],
-				round.key.H2j[j],
-				round.key.NTildej[i],
-				round.key.H1j[i],
-				round.key.H2j[i])
-			// should be thread safe as these are pre-allocated
-			round.temp.betas[j] = beta
-			round.temp.c1jis[j] = c1ji
-			round.temp.pi1jis[j] = pi1ji
-			if err != nil {
-				errChs <- round.WrapError(err, Pj)
-			}
-		}(j, Pj)
-		// Bob_mid_wc
-		go func(j int, Pj *tss.PartyID) {
-			defer wg.Done()
-			r1msg := round.temp.signRound1Message1s[j].Content().(*SignRound1Message1)
-			rangeProofAliceJ, err := r1msg.UnmarshalRangeProofAlice()
-			if err != nil {
-				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalRangeProofAlice failed"), Pj)
-				return
-			}
-			v, c2ji, _, pi2ji, err := mta.BobMidWC(
-				round.Parameters.EC(),
-				round.key.PaillierPKs[j],
-				rangeProofAliceJ,
-				round.temp.w,
-				r1msg.UnmarshalC(),
-				round.key.NTildej[j],
-				round.key.H1j[j],
-				round.key.H2j[j],
-				round.key.NTildej[i],
-				round.key.H1j[i],
-				round.key.H2j[i],
-				round.temp.bigWs[i])
-			round.temp.vs[j] = v
-			round.temp.c2jis[j] = c2ji
-			round.temp.pi2jis[j] = pi2ji
-			if err != nil {
-				errChs <- round.WrapError(err, Pj)
-			}
-		}(j, Pj)
-	}
-	// consume error channels; wait for goroutines
-	wg.Wait()
-	close(errChs)
-	culprits := make([]*tss.PartyID, 0, len(round.Parties().IDs()))
-	for err := range errChs {
-		culprits = append(culprits, err.Culprits()...)
-	}
-	if len(culprits) > 0 {
-		return round.WrapError(errors.New("failed to calculate Bob_mid or Bob_mid_wc"), culprits...)
-	}
-	// create and send messages
-	for j, Pj := range round.Parties().IDs() {
-		if j == i {
-			continue
+		ok := proof.Verify(round.EC(), round.key.PaillierPKs[j], round.key.NTildei, round.key.H1i, round.key.H2i, Kj)
+		if !ok {
+			return round.WrapError(errors.New("round2: proofenc verify failed"), Pj)
 		}
-		r2msg := NewSignRound2Message(
-			Pj, round.PartyID(), round.temp.c1jis[j], round.temp.pi1jis[j], round.temp.c2jis[j], round.temp.pi2jis[j])
+    }
+
+    // Round 2.2
+    BigGammaShare := crypto.ScalarBaseMult(round.Params().EC(), round.temp.GammaShare)
+	g := crypto.ScalarBaseMult(round.EC(), big.NewInt(1)) // used in prooflogstar
+    for j, Pj := range round.Parties().IDs() {
+        if j == i {
+            continue
+        }
+
+		r1msg := round.temp.signRound1Messages[j].Content().(*SignRound1Message)
+		Kj := r1msg.UnmarshalK()
+
+		DeltaMtA, err := NewMtA(round.EC(), Kj, round.temp.GammaShare, BigGammaShare, round.key.PaillierPKs[j], &round.key.PaillierSK.PublicKey, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		if err != nil {
+			return round.WrapError(errors.New("MtADelta failed"))
+		}	
+
+		ChiMtA, err := NewMtA(round.EC(), Kj, round.temp.w, round.temp.BigWs[i], round.key.PaillierPKs[j], &round.key.PaillierSK.PublicKey, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		if err != nil {
+			return round.WrapError(errors.New("MtAChi failed"))
+		}
+
+		ProofLogstar, err := zkplogstar.NewProof(round.EC(), &round.key.PaillierSK.PublicKey, round.temp.G, BigGammaShare, g ,round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j], round.temp.GammaShare, round.temp.GNonce)
+		if err != nil {
+			return round.WrapError(errors.New("prooflogstar failed"))
+		}
+
+		r2msg := NewSignRound2Message(Pj, round.PartyID(), BigGammaShare, DeltaMtA.Dji, DeltaMtA.Fji, ChiMtA.Dji, ChiMtA.Fji, DeltaMtA.Proofji, ChiMtA.Proofji, ProofLogstar)
 		round.out <- r2msg
-	}
-	return nil
+
+		round.temp.DeltaShareBetas[j] = DeltaMtA.Beta
+		round.temp.ChiShareBetas[j] = ChiMtA.Beta
+    }
+
+	round.temp.BigGammaShare = BigGammaShare
+	round.ok[i] = true
+    return nil
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound2Messages {
-		if round.ok[j] {
-			continue
-		}
-		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
-		}
-		round.ok[j] = true
-	}
-	return true, nil
+    for j, msg := range round.temp.signRound2Messages {
+        if round.ok[j] {
+            continue
+        }
+        if msg == nil || !round.CanAccept(msg) {
+            return false, nil
+        }
+        round.ok[j] = true
+    }
+    return true, nil
 }
 
 func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
-	if _, ok := msg.Content().(*SignRound2Message); ok {
-		return !msg.IsBroadcast()
-	}
-	return false
+    if _, ok := msg.Content().(*SignRound2Message); ok {
+        return !msg.IsBroadcast()
+    }
+    return false
 }
 
 func (round *round2) NextRound() tss.Round {
-	round.started = false
-	return &round3{round}
+    round.started = false
+    return &round3{round}
 }

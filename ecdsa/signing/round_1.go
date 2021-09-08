@@ -12,128 +12,117 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/mta"
+	zkpenc "github.com/binance-chain/tss-lib/crypto/zkp/enc"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
 var (
-	zero = big.NewInt(0)
+    zero = big.NewInt(0)
 )
 
-// round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
-	return &round1{
-		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
+    return &round1{
+        &base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
-	if round.started {
-		return round.WrapError(errors.New("round already started"))
-	}
+    if round.started {
+        return round.WrapError(errors.New("round already started"))
+    }
 
-	// Spec requires calculate H(M) here,
-	// but considered different blockchain use different hash function we accept the converted big.Int
-	// if this big.Int is not belongs to Zq, the client might not comply with common rule (for ECDSA):
-	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L263
-	if round.temp.m.Cmp(round.Params().EC().Params().N) >= 0 {
-		return round.WrapError(errors.New("hashed message is not valid"))
-	}
+    round.number = 1
+    round.started = true
+    round.resetOK()
 
-	round.number = 1
-	round.started = true
-	round.resetOK()
+    i := round.PartyID().Index
+	//round.ok[i] = true
 
-	k := common.GetRandomPositiveInt(round.Params().EC().Params().N)
-	gamma := common.GetRandomPositiveInt(round.Params().EC().Params().N)
-
-	pointGamma := crypto.ScalarBaseMult(round.Params().EC(), gamma)
-	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
-	round.temp.k = k
-	round.temp.gamma = gamma
-	round.temp.pointGamma = pointGamma
-	round.temp.deCommit = cmt.D
-
-	i := round.PartyID().Index
-	round.ok[i] = true
-
-	for j, Pj := range round.Parties().IDs() {
-		if j == i {
-			continue
-		}
-		cA, pi, err := mta.AliceInit(round.Params().EC(), round.key.PaillierPKs[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+    // Round 1. sample
+    KShare := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+    GammaShare := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+    K, KNonce, err := round.key.PaillierSK.EncryptAndReturnRandomness(KShare)
+    if err != nil {
+        return round.WrapError(fmt.Errorf("paillier encryption failed"))
+    }
+    G, GNonce, err := round.key.PaillierSK.EncryptAndReturnRandomness(GammaShare)
+    if err != nil {
+        return round.WrapError(fmt.Errorf("paillier encryption failed"))
+    }
+    
+    // Round 1. enc_proof
+    for j, Pj := range round.Parties().IDs() {
+        if j == i {
+            continue
+        }
+		proof, err := zkpenc.NewProof(round.EC(), &round.key.PaillierSK.PublicKey, K, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j], KShare, KNonce)
 		if err != nil {
-			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
+			return round.WrapError(fmt.Errorf("ProofEnc failed: %v", err))
 		}
-		r1msg1 := NewSignRound1Message1(Pj, round.PartyID(), cA, pi)
-		round.temp.cis[j] = cA
-		round.out <- r1msg1
-	}
 
-	r1msg2 := NewSignRound1Message2(round.PartyID(), cmt.C)
-	round.temp.signRound1Message2s[i] = r1msg2
-	round.out <- r1msg2
+		r1msg := NewSignRound1Message(Pj, round.PartyID(), K, G, proof)
+		round.out <- r1msg
+    }
 
-	return nil
+    round.temp.KShare = KShare
+    round.temp.GammaShare = GammaShare
+	round.temp.G = G
+	round.temp.K = K
+    round.temp.KNonce = KNonce
+    round.temp.GNonce = GNonce
+
+	round.ok[i] = true
+    return nil
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
-	for j, msg1 := range round.temp.signRound1Message1s {
-		if round.ok[j] {
-			continue
-		}
-		if msg1 == nil || !round.CanAccept(msg1) {
-			return false, nil
-		}
-		msg2 := round.temp.signRound1Message2s[j]
-		if msg2 == nil || !round.CanAccept(msg2) {
-			return false, nil
-		}
-		round.ok[j] = true
-	}
-	return true, nil
+    for j, msg := range round.temp.signRound1Messages {
+        if round.ok[j] {
+            continue
+        }
+        if msg == nil || !round.CanAccept(msg) {
+            return false, nil
+        }
+        round.ok[j] = true
+    }
+    return true, nil
 }
 
 func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
-	if _, ok := msg.Content().(*SignRound1Message1); ok {
-		return !msg.IsBroadcast()
-	}
-	if _, ok := msg.Content().(*SignRound1Message2); ok {
-		return msg.IsBroadcast()
-	}
-	return false
+    if _, ok := msg.Content().(*SignRound1Message); ok {
+        return !msg.IsBroadcast()
+    }
+    return false
 }
 
 func (round *round1) NextRound() tss.Round {
-	round.started = false
-	return &round2{round}
+    round.started = false
+    return &round2{round}
 }
 
 // ----- //
 
 // helper to call into PrepareForSigning()
 func (round *round1) prepare() error {
-	i := round.PartyID().Index
+    i := round.PartyID().Index
 
-	xi := round.key.Xi
-	ks := round.key.Ks
-	bigXs := round.key.BigXj
+    xi := round.key.Xi
+    ks := round.key.Ks
+    BigXs := round.key.BigXj
 
-	// adding the key derivation delta to the xi's
-	// Suppose x has shamir shares x_0,     x_1,     ..., x_n
-	// So x + D has shamir shares  x_0 + D, x_1 + D, ..., x_n + D
-	mod := common.ModInt(round.Params().EC().Params().N)
-	xi = mod.Add(round.temp.keyDerivationDelta, xi)
-	round.key.Xi = xi
+    // adding the key derivation delta to the xi's
+    // Suppose x has shamir shares x_0,     x_1,     ..., x_n
+    // So x + D has shamir shares  x_0 + D, x_1 + D, ..., x_n + D
+    mod := common.ModInt(round.Params().EC().Params().N)
+    xi = mod.Add(round.temp.keyDerivationDelta, xi)
+    round.key.Xi = xi
 
-	if round.Threshold()+1 > len(ks) {
-		return fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks))
-	}
-	wi, bigWs := PrepareForSigning(round.Params().EC(), i, len(ks), xi, ks, bigXs)
+    if round.Threshold()+1 > len(ks) {
+        return fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks))
+    }
+    wi, BigWs := PrepareForSigning(round.Params().EC(), i, len(ks), xi, ks, BigXs)
 
-	round.temp.w = wi
-	round.temp.bigWs = bigWs
-	return nil
+    round.temp.w = wi
+    round.temp.BigWs = BigWs
+    return nil
 }
