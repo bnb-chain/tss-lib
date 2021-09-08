@@ -114,7 +114,7 @@ tests:
 
 		for _, childNum := range test.path {
 			var err error
-			_, extKey, err = DeriveChildKey(childNum, extKey)
+			_, extKey, err = DeriveChildKey(childNum, extKey, btcec.S256())
 			if err != nil {
 				t.Errorf("err: %v", err)
 				continue tests
