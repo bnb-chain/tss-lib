@@ -5,6 +5,7 @@ package ckd
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -63,8 +64,8 @@ func (k *ExtendedKey) String() string {
 	// version(4) || depth(1) || parentFP (4) || childinde(4) || chaincode (32) || key(33) || checksum(4)
 	var childNumBytes [4]byte
 	binary.BigEndian.PutUint32(childNumBytes[:], k.ChildIndex)
-	
-	serializedBytes := make([]byte, 0, serializedKeyLen + 4)
+
+	serializedBytes := make([]byte, 0, serializedKeyLen+4)
 	serializedBytes = append(serializedBytes, k.Version...)
 	serializedBytes = append(serializedBytes, k.Depth)
 	serializedBytes = append(serializedBytes, k.ParentFP...)
@@ -79,7 +80,7 @@ func (k *ExtendedKey) String() string {
 }
 
 // NewExtendedKeyFromString returns a new extended key from a base58-encoded extended key
-func NewExtendedKeyFromString(key string) (*ExtendedKey, error) {
+func NewExtendedKeyFromString(key string, curve elliptic.Curve) (*ExtendedKey, error) {
 	// version(4) || depth(1) || parentFP (4) || childinde(4) || chaincode (32) || key(33) || checksum(4)
 
 	decoded := base58.Decode(key)
@@ -103,20 +104,32 @@ func NewExtendedKeyFromString(key string) (*ExtendedKey, error) {
 	chainCode := payload[13:45]
 	keyData := payload[45:78]
 
-	// Ensure the public key parses correctly and is actually on the
-	// secp256k1 curve.
-	pubKey, err := btcec.ParsePubKey(keyData, btcec.S256())
-	if err != nil {
-		return nil, err
+	var pubKey ecdsa.PublicKey
+
+	if c, ok := curve.(*btcec.KoblitzCurve); ok {
+		// Ensure the public key parses correctly and is actually on the
+		// secp256k1 curve.
+		pk, err := btcec.ParsePubKey(keyData, c)
+		if err != nil {
+			return nil, err
+		}
+		pubKey = ecdsa.PublicKey(*pk)
+	} else {
+		px, py := elliptic.Unmarshal(curve, keyData)
+		pubKey = ecdsa.PublicKey{
+			Curve: curve,
+			X:     px,
+			Y:     py,
+		}
 	}
 
 	return &ExtendedKey{
-		PublicKey: ecdsa.PublicKey(*pubKey),
-		Depth: depth,
+		PublicKey:  pubKey,
+		Depth:      depth,
 		ChildIndex: childNum,
-		ChainCode: chainCode,
-		ParentFP: parentFP,
-		Version: version,
+		ChainCode:  chainCode,
+		ParentFP:   parentFP,
+		Version:    version,
 	}, nil
 }
 
@@ -214,7 +227,7 @@ func DeriveChildKey(index uint32, pk *ExtendedKey) (*big.Int, *ExtendedKey, erro
 	childChainCode := ilr[32:]
 	ilNum := new(big.Int).SetBytes(il)
 
-	if ilNum.Cmp(btcec.S256().N) >= 0  || ilNum.Sign() == 0 {
+	if ilNum.Cmp(btcec.S256().N) >= 0 || ilNum.Sign() == 0 {
 		// falling outside of the valid range for curve private keys
 		err = errors.New("invalid derived key")
 		common.Logger.Error("error deriving child key")
