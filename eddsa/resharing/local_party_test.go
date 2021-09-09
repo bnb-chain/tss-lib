@@ -33,12 +33,13 @@ func setUp(level string) {
 	if err := log.SetLogLevel("tss-lib", level); err != nil {
 		panic(err)
 	}
+
+	// only for test
+	tss.SetCurve(tss.Edwards())
 }
 
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
-
-	tss.SetCurve(edwards.Edwards())
 
 	threshold, newThreshold := testThreshold, testThreshold
 
@@ -67,14 +68,14 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// init the old parties first
 	for j, pID := range oldPIDs {
-		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(tss.Edwards(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		P := NewLocalParty(params, oldKeys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 
 	// init the new parties
 	for _, pID := range newPIDs {
-		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(tss.Edwards(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		save := keygen.NewLocalPartySaveData(newPCount)
 		P := NewLocalParty(params, save, outCh, endCh).(*LocalParty)
 		newCommittee = append(newCommittee, P)
@@ -141,7 +142,7 @@ func TestE2EConcurrent(t *testing.T) {
 				for j, key := range newKeys {
 					// xj test: BigXj == xj*G
 					xj := key.Xi
-					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
+					gXj := crypto.ScalarBaseMult(tss.Edwards(), xj)
 					BigXj := key.BigXj[j]
 					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
 				}
@@ -163,7 +164,7 @@ signing:
 	signEndCh := make(chan common.SignatureData, len(signPIDs))
 
 	for j, signPID := range signPIDs {
-		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
+		params := tss.NewParameters(tss.Edwards(), signP2pCtx, signPID, len(signPIDs), newThreshold)
 		P := signing.NewLocalParty(big.NewInt(42), params, signKeys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
@@ -205,7 +206,7 @@ signing:
 				// BEGIN EDDSA verify
 				pkX, pkY := signKeys[0].EDDSAPub.X(), signKeys[0].EDDSAPub.Y()
 				pk := edwards.PublicKey{
-					Curve: tss.EC(),
+					Curve: tss.Edwards(),
 					X:     pkX,
 					Y:     pkY,
 				}

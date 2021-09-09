@@ -7,6 +7,7 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -135,8 +136,8 @@ func (m *SignRound2Message) UnmarshalProofBob() (*mta.ProofBob, error) {
 	return mta.ProofBobFromBytes(m.ProofBob)
 }
 
-func (m *SignRound2Message) UnmarshalProofBobWC() (*mta.ProofBobWC, error) {
-	return mta.ProofBobWCFromBytes(m.ProofBobWc)
+func (m *SignRound2Message) UnmarshalProofBobWC(ec elliptic.Curve) (*mta.ProofBobWC, error) {
+	return mta.ProofBobWCFromBytes(ec, m.ProofBobWc)
 }
 
 // ----- //
@@ -196,9 +197,9 @@ func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound4Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound4Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {
@@ -280,9 +281,9 @@ func (m *SignRound6Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound6Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {
@@ -294,9 +295,9 @@ func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
 	}, nil
 }
 
-func (m *SignRound6Message) UnmarshalZKVProof() (*schnorr.ZKVProof, error) {
+func (m *SignRound6Message) UnmarshalZKVProof(ec elliptic.Curve) (*schnorr.ZKVProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetVProofAlphaX()),
 		new(big.Int).SetBytes(m.GetVProofAlphaY()))
 	if err != nil {

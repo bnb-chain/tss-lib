@@ -7,6 +7,7 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -89,9 +90,9 @@ func (m *SignRound2Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound2Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound2Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {

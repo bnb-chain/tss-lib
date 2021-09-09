@@ -7,6 +7,7 @@
 package keygen
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -110,9 +111,9 @@ func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *KGRound2Message2) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *KGRound2Message2) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {

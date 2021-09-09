@@ -41,47 +41,47 @@ func (round *round7) Start() *tss.Error {
 			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
 		}
 		bigVjX, bigVjY, bigAjX, bigAjY := values[0], values[1], values[2], values[3]
-		bigVj, err := crypto.NewECPoint(tss.EC(), bigVjX, bigVjY)
+		bigVj, err := crypto.NewECPoint(round.Params().EC(), bigVjX, bigVjY)
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigVj)"), Pj)
 		}
 		bigVjs[j] = bigVj
-		bigAj, err := crypto.NewECPoint(tss.EC(), bigAjX, bigAjY)
+		bigAj, err := crypto.NewECPoint(round.Params().EC(), bigAjX, bigAjY)
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigAj)"), Pj)
 		}
 		bigAjs[j] = bigAj
-		pijA, err := r6msg.UnmarshalZKProof()
+		pijA, err := r6msg.UnmarshalZKProof(round.Params().EC())
 		if err != nil || !pijA.Verify(bigAj) {
 			return round.WrapError(errors.New("schnorr verify for Aj failed"), Pj)
 		}
-		pijV, err := r6msg.UnmarshalZKVProof()
+		pijV, err := r6msg.UnmarshalZKVProof(round.Params().EC())
 		if err != nil || !pijV.Verify(bigVj, round.temp.bigR) {
 			return round.WrapError(errors.New("vverify for Vj failed"), Pj)
 		}
 	}
 
-	modN := common.ModInt(tss.EC().Params().N)
+	modN := common.ModInt(round.Params().EC().Params().N)
 	AX, AY := round.temp.bigAi.X(), round.temp.bigAi.Y()
 	minusM := modN.Sub(big.NewInt(0), round.temp.m)
-	gToMInvX, gToMInvY := tss.EC().ScalarBaseMult(minusM.Bytes())
+	gToMInvX, gToMInvY := round.Params().EC().ScalarBaseMult(minusM.Bytes())
 	minusR := modN.Sub(big.NewInt(0), round.temp.rx)
-	yToRInvX, yToRInvY := tss.EC().ScalarMult(round.key.ECDSAPub.X(), round.key.ECDSAPub.Y(), minusR.Bytes())
-	VX, VY := tss.EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
-	VX, VY = tss.EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())
+	yToRInvX, yToRInvY := round.Params().EC().ScalarMult(round.key.ECDSAPub.X(), round.key.ECDSAPub.Y(), minusR.Bytes())
+	VX, VY := round.Params().EC().Add(gToMInvX, gToMInvY, yToRInvX, yToRInvY)
+	VX, VY = round.Params().EC().Add(VX, VY, round.temp.bigVi.X(), round.temp.bigVi.Y())
 
 	for j := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
-		VX, VY = tss.EC().Add(VX, VY, bigVjs[j].X(), bigVjs[j].Y())
-		AX, AY = tss.EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
+		VX, VY = round.Params().EC().Add(VX, VY, bigVjs[j].X(), bigVjs[j].Y())
+		AX, AY = round.Params().EC().Add(AX, AY, bigAjs[j].X(), bigAjs[j].Y())
 	}
 
-	UiX, UiY := tss.EC().ScalarMult(VX, VY, round.temp.roi.Bytes())
-	TiX, TiY := tss.EC().ScalarMult(AX, AY, round.temp.li.Bytes())
-	round.temp.Ui = crypto.NewECPointNoCurveCheck(tss.EC(), UiX, UiY)
-	round.temp.Ti = crypto.NewECPointNoCurveCheck(tss.EC(), TiX, TiY)
+	UiX, UiY := round.Params().EC().ScalarMult(VX, VY, round.temp.roi.Bytes())
+	TiX, TiY := round.Params().EC().ScalarMult(AX, AY, round.temp.li.Bytes())
+	round.temp.Ui = crypto.NewECPointNoCurveCheck(round.Params().EC(), UiX, UiY)
+	round.temp.Ti = crypto.NewECPointNoCurveCheck(round.Params().EC(), TiX, TiY)
 	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
 	r7msg := NewSignRound7Message(round.PartyID(), cmt.C)
 	round.temp.signRound7Messages[round.PartyID().Index] = r7msg

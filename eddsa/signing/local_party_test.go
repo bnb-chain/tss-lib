@@ -32,12 +32,13 @@ func setUp(level string) {
 	if err := log.SetLogLevel("tss-lib", level); err != nil {
 		panic(err)
 	}
+
+	// only for test
+	tss.SetCurve(tss.Edwards())
 }
 
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
-
-	tss.SetCurve(edwards.Edwards())
 
 	threshold := testThreshold
 
@@ -61,7 +62,7 @@ func TestE2EConcurrent(t *testing.T) {
 	msg := big.NewInt(200)
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
-		params := tss.NewParameters(p2pCtx, signPIDs[i], len(signPIDs), threshold)
+		params := tss.NewParameters(tss.Edwards(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
 
 		P := NewLocalParty(msg, params, keys[i], outCh, endCh).(*LocalParty)
 		parties = append(parties, P)
@@ -121,7 +122,7 @@ signing:
 				// BEGIN EDDSA verify
 				pkX, pkY := keys[0].EDDSAPub.X(), keys[0].EDDSAPub.Y()
 				pk := edwards.PublicKey{
-					Curve: tss.EC(),
+					Curve: tss.Edwards(),
 					X:     pkX,
 					Y:     pkY,
 				}

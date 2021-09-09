@@ -7,6 +7,7 @@
 package resharing
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -61,9 +62,9 @@ func (m *DGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.VCommitment)
 }
 
-func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
+func (m *DGRound1Message) UnmarshalECDSAPub(ec elliptic.Curve) (*crypto.ECPoint, error) {
 	return crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.EcdsaPubX),
 		new(big.Int).SetBytes(m.EcdsaPubY))
 }

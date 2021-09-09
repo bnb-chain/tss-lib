@@ -5,9 +5,7 @@
 // file LICENSE at the root of the source code distribution tree.
 
 syntax = "proto3";
-
-package eddsa;
-
+package binance.tsslib.eddsa.resharing;
 option go_package = "eddsa/resharing";
 
 /*
@@ -22,7 +20,7 @@ message DGRound1Message {
 /*
  * The Round 2 "ACK" is broadcast to peers of the Old Committee in this message.
  */
-message DGRound2Message2 {
+message DGRound2Message {
 }
 
 /*

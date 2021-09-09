@@ -68,6 +68,10 @@ func (p *ECPoint) IsOnCurve() bool {
 	return isOnCurve(p.curve, p.coords[0], p.coords[1])
 }
 
+func (p *ECPoint) Curve() elliptic.Curve {
+	return p.curve
+}
+
 func (p *ECPoint) Equals(p2 *ECPoint) bool {
 	if p == nil || p2 == nil {
 		return false
@@ -210,24 +214,44 @@ func (p *ECPoint) GobDecode(buf []byte) error {
 
 // crypto.ECPoint is not inherently json marshal-able
 func (p *ECPoint) MarshalJSON() ([]byte, error) {
+	ecName, ok := tss.GetCurveName(p.curve)
+	if !ok {
+		return nil, fmt.Errorf("cannot find %T name in curve registry, please call tss.RegisterCurve(name, curve) to register it first", p.curve)
+	}
+
 	return json.Marshal(&struct {
+		Curve  string
 		Coords [2]*big.Int
 	}{
+		Curve:  string(ecName),
 		Coords: p.coords,
 	})
 }
 
 func (p *ECPoint) UnmarshalJSON(payload []byte) error {
 	aux := &struct {
+		Curve  string
 		Coords [2]*big.Int
 	}{}
 	if err := json.Unmarshal(payload, &aux); err != nil {
 		return err
 	}
-	p.curve = tss.EC()
 	p.coords = [2]*big.Int{aux.Coords[0], aux.Coords[1]}
-	if !p.IsOnCurve() {
-		return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
+
+	if len(aux.Curve) > 0 {
+		ec, ok := tss.GetCurveByName(tss.CurveName(aux.Curve))
+		if !ok {
+			return fmt.Errorf("cannot find curve named with %s in curve registry, please call tss.RegisterCurve(name, curve) to register it first", aux.Curve)
+		}
+		p.curve = ec
+	} else {
+		// forward compatible, use global ec as default value
+		p.curve = tss.EC()
 	}
+
+	if !p.IsOnCurve() {
+		return fmt.Errorf("ECPoint.UnmarshalJSON: the point is not on the elliptic curve (%T) ", p.curve)
+	}
+
 	return nil
 }
