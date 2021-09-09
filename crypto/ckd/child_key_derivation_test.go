@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	. "github.com/binance-chain/tss-lib/crypto/ckd"
+	"github.com/btcsuite/btcd/btcec"
 )
+
 func TestPublicDerivation(t *testing.T) {
 	// port from https://github.com/btcsuite/btcutil/blob/master/hdkeychain/extendedkey_test.go
 	// The public extended keys for test vectors in [BIP32].
@@ -102,7 +104,7 @@ func TestPublicDerivation(t *testing.T) {
 
 tests:
 	for i, test := range tests {
-		extKey, err := NewExtendedKeyFromString(test.master)
+		extKey, err := NewExtendedKeyFromString(test.master, btcec.S256())
 		if err != nil {
 			t.Errorf("NewKeyFromString #%d (%s): unexpected error "+
 				"creating extended key: %v", i, test.name,
@@ -112,7 +114,7 @@ tests:
 
 		for _, childNum := range test.path {
 			var err error
-			_, extKey, err = DeriveChildKey(childNum, extKey)
+			_, extKey, err = DeriveChildKey(childNum, extKey, btcec.S256())
 			if err != nil {
 				t.Errorf("err: %v", err)
 				continue tests
