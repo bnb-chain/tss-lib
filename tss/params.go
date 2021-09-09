@@ -7,12 +7,14 @@
 package tss
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"time"
 )
 
 type (
 	Parameters struct {
+		ec                  elliptic.Curve
 		partyID             *PartyID
 		parties             *PeerContext
 		partyCount          int
@@ -33,7 +35,7 @@ const (
 )
 
 // Exported, used in `tss` client
-func NewParameters(ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
+func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
 	var safePrimeGenTimeout time.Duration
 	if 0 < len(optionalSafePrimeGenTimeout) {
 		if 1 < len(optionalSafePrimeGenTimeout) {
@@ -44,12 +46,17 @@ func NewParameters(ctx *PeerContext, partyID *PartyID, partyCount, threshold int
 		safePrimeGenTimeout = defaultSafePrimeGenTimeout
 	}
 	return &Parameters{
+		ec:                  ec,
 		parties:             ctx,
 		partyID:             partyID,
 		partyCount:          partyCount,
 		threshold:           threshold,
 		safePrimeGenTimeout: safePrimeGenTimeout,
 	}
+}
+
+func (params *Parameters) EC() elliptic.Curve {
+	return params.ec
 }
 
 func (params *Parameters) Parties() *PeerContext {
@@ -75,8 +82,8 @@ func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 // ----- //
 
 // Exported, used in `tss` client
-func NewReSharingParameters(ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
-	params := NewParameters(ctx, partyID, partyCount, threshold)
+func NewReSharingParameters(ec elliptic.Curve, ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
+	params := NewParameters(ec, ctx, partyID, partyCount, threshold)
 	return &ReSharingParameters{
 		Parameters:    params,
 		newParties:    newCtx,
