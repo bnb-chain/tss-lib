@@ -7,6 +7,7 @@ require (
 	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
+	github.com/golang/protobuf v1.5.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/ipfs/go-log v0.0.1
 	github.com/mattn/go-colorable v0.1.2 // indirect

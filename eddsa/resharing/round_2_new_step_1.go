@@ -38,7 +38,7 @@ func (round *round2) Start() *tss.Error {
 }
 
 func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
-	if _, ok := msg.Content().(*DGRound2Message2); ok {
+	if _, ok := msg.Content().(*DGRound2Message); ok {
 		return msg.IsBroadcast()
 	}
 	return false

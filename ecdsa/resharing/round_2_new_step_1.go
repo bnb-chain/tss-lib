@@ -96,7 +96,7 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 		}
 	}
 	if round.ReSharingParams().IsOldCommittee() {
-		if _, ok := msg.Content().(*DGRound2Message2); ok {
+		if _, ok := msg.Content().(*DGRound2Message); ok {
 			return msg.IsBroadcast()
 		}
 	}
