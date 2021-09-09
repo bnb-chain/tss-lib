@@ -7,15 +7,15 @@
 package signing
 
 import (
-	"crypto/elliptic"
-	"math/big"
+    "crypto/elliptic"
+    "math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	zkpaffg "github.com/binance-chain/tss-lib/crypto/zkp/affg"
-	zkpenc "github.com/binance-chain/tss-lib/crypto/zkp/enc"
-	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
-	"github.com/binance-chain/tss-lib/tss"
+    "github.com/binance-chain/tss-lib/common"
+    "github.com/binance-chain/tss-lib/crypto"
+    zkpaffg "github.com/binance-chain/tss-lib/crypto/zkp/affg"
+    zkpenc "github.com/binance-chain/tss-lib/crypto/zkp/enc"
+    zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
+    "github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-signing.pb.go
@@ -91,12 +91,12 @@ func NewSignRound2Message(
         To:          []*tss.PartyID{to},
         IsBroadcast: false,
     }
-    BigGammaBytes, _ := BigGammaShare.MarshalJSON()
+    BigGammaBytes := BigGammaShare.Bytes()
     AffgDeltaBz := AffgProofDelta.Bytes()
     AffgChiBz := AffgProofChi.Bytes()
     LogstarBz := LogstarProof.Bytes()
     content := &SignRound2Message{
-        BigGammaShare: 	BigGammaBytes,
+        BigGammaShare: 	BigGammaBytes[:],
         DjiDelta:       DjiDelta.Bytes(),
         FjiDelta:       FjiDelta.Bytes(),
         DjiChi:         DjiChi.Bytes(),
@@ -111,7 +111,7 @@ func NewSignRound2Message(
 
 func (m *SignRound2Message) ValidateBasic() bool {
     return m != nil &&
-        common.NonEmptyBytes(m.BigGammaShare) &&
+        common.NonEmptyMultiBytes(m.BigGammaShare, 2) &&
         common.NonEmptyBytes(m.DjiDelta) &&
         common.NonEmptyBytes(m.FjiDelta) &&
         common.NonEmptyBytes(m.DjiChi) &&
@@ -121,10 +121,8 @@ func (m *SignRound2Message) ValidateBasic() bool {
         common.NonEmptyMultiBytes(m.LogstarProof, zkplogstar.ProofLogstarBytesParts)
 }
 
-func (m *SignRound2Message) UnmarshalBigGammaShare(ec elliptic.Curve) *crypto.ECPoint {
-    point := crypto.NewECPointNoCurveCheck(ec, big.NewInt(0), big.NewInt(0))
-    point.UnmarshalJSON(m.GetBigGammaShare())
-    return point
+func (m *SignRound2Message) UnmarshalBigGammaShare(ec elliptic.Curve) (*crypto.ECPoint, error) {
+    return crypto.NewECPointFromBytes(ec, m.GetBigGammaShare())
 }
 
 func (m *SignRound2Message) UnmarshalDjiDelta() *big.Int {
@@ -165,15 +163,14 @@ func NewSignRound3Message(
 ) tss.ParsedMessage {
     meta := tss.MessageRouting{
         From:        from,
-		To:          []*tss.PartyID{to},
+        To:          []*tss.PartyID{to},
         IsBroadcast: false,
     }
-    BigDeltaShareDmp, _ := BigDeltaShare.MarshalJSON()
-	// BDBz := [2][]byte{BigDeltaShare.X().Bytes(), BigDeltaShare.Y().Bytes()} //TODO
+    BigDeltaShareBzs := BigDeltaShare.Bytes()
     ProofBz := ProofLogstar.Bytes()
     content := &SignRound3Message{
         DeltaShare: DeltaShare.Bytes(),
-        BigDeltaShare: BigDeltaShareDmp,
+        BigDeltaShare: BigDeltaShareBzs[:],
         ProofLogstar: ProofBz[:],
     }
     msg := tss.NewMessageWrapper(meta, content)
@@ -183,7 +180,7 @@ func NewSignRound3Message(
 func (m *SignRound3Message) ValidateBasic() bool {
     return m != nil &&
         common.NonEmptyBytes(m.DeltaShare) &&
-        common.NonEmptyBytes(m.BigDeltaShare) &&
+        common.NonEmptyMultiBytes(m.BigDeltaShare, 2) &&
         common.NonEmptyMultiBytes(m.ProofLogstar, zkplogstar.ProofLogstarBytesParts)
 }
 
@@ -191,10 +188,8 @@ func (m *SignRound3Message) UnmarshalDeltaShare() *big.Int {
     return new(big.Int).SetBytes(m.GetDeltaShare())
 }
 
-func (m *SignRound3Message) UnmarshalBigDeltaShare(ec elliptic.Curve) *crypto.ECPoint {
-    point := crypto.NewECPointNoCurveCheck(ec, big.NewInt(0), big.NewInt(0))
-    point.UnmarshalJSON(m.GetBigDeltaShare())
-    return point
+func (m *SignRound3Message) UnmarshalBigDeltaShare(ec elliptic.Curve) (*crypto.ECPoint, error) {
+    return crypto.NewECPointFromBytes(ec, m.GetBigDeltaShare())
 }
 
 func (m *SignRound3Message) UnmarshalProofLogstar(ec elliptic.Curve) (*zkplogstar.ProofLogstar, error) {

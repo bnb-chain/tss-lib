@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	sync "sync"
 
 	"github.com/binance-chain/tss-lib/common"
 	zkpenc "github.com/binance-chain/tss-lib/crypto/zkp/enc"
@@ -36,11 +37,11 @@ func (round *round1) Start() *tss.Error {
     round.resetOK()
 
     i := round.PartyID().Index
-	//round.ok[i] = true
+    round.ok[i] = true
 
-    // Round 1. sample
-    KShare := common.GetRandomPositiveInt(round.Params().EC().Params().N)
-    GammaShare := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+    // Fig 7. Round 1. sample k and gamma
+    KShare := common.GetRandomPositiveInt(round.EC().Params().N)
+    GammaShare := common.GetRandomPositiveInt(round.EC().Params().N)
     K, KNonce, err := round.key.PaillierSK.EncryptAndReturnRandomness(KShare)
     if err != nil {
         return round.WrapError(fmt.Errorf("paillier encryption failed"))
@@ -49,29 +50,43 @@ func (round *round1) Start() *tss.Error {
     if err != nil {
         return round.WrapError(fmt.Errorf("paillier encryption failed"))
     }
-    
-    // Round 1. enc_proof
+
+    // Fig 7. Round 1. create proof enc
+    errChs := make(chan *tss.Error, len(round.Parties().IDs())-1)
+    wg := sync.WaitGroup{}
     for j, Pj := range round.Parties().IDs() {
         if j == i {
             continue
         }
-		proof, err := zkpenc.NewProof(round.EC(), &round.key.PaillierSK.PublicKey, K, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j], KShare, KNonce)
-		if err != nil {
-			return round.WrapError(fmt.Errorf("ProofEnc failed: %v", err))
-		}
+        wg.Add(1)
+        go func(j int, Pj *tss.PartyID) {
+            defer wg.Done()
 
-		r1msg := NewSignRound1Message(Pj, round.PartyID(), K, G, proof)
-		round.out <- r1msg
+            proof, err := zkpenc.NewProof(round.EC(), &round.key.PaillierSK.PublicKey, K, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j], KShare, KNonce)
+            if err != nil {
+                errChs <- round.WrapError(fmt.Errorf("ProofEnc failed: %v", err))
+                return
+            }
+
+            r1msg := NewSignRound1Message(Pj, round.PartyID(), K, G, proof)
+            round.out <- r1msg
+        }(j, Pj)
+    }
+    wg.Wait()
+    close(errChs)
+    for err := range errChs {
+        return err
     }
 
     round.temp.KShare = KShare
     round.temp.GammaShare = GammaShare
-	round.temp.G = G
-	round.temp.K = K
+    round.temp.G = G
+    round.temp.K = K
     round.temp.KNonce = KNonce
     round.temp.GNonce = GNonce
+	// retire unused variables
+    round.temp.keyDerivationDelta = nil
 
-	round.ok[i] = true
     return nil
 }
 

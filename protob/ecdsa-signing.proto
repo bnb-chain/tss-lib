@@ -21,7 +21,7 @@ message SignRound1Message {
  * Represents a P2P message sent to each party during Round 2 of the ECDSA TSS signing protocol.
  */
 message SignRound2Message {
-    bytes BigGammaShare = 1;
+    repeated bytes BigGammaShare = 1;
     bytes DjiDelta = 2;
     bytes FjiDelta = 3;
     bytes DjiChi = 4;
@@ -36,7 +36,7 @@ message SignRound2Message {
  */
 message SignRound3Message {
     bytes DeltaShare = 1;
-    bytes BigDeltaShare = 2;
+    repeated bytes BigDeltaShare = 2;
     repeated bytes ProofLogstar = 3;
 }
 

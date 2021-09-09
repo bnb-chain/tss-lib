@@ -7,26 +7,26 @@
 package signing
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"errors"
-	"fmt"
-	"math/big"
+    "crypto/ecdsa"
+    "crypto/elliptic"
+    "errors"
+    "fmt"
+    "math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
+    "github.com/binance-chain/tss-lib/common"
+    "github.com/binance-chain/tss-lib/crypto"
+    "github.com/binance-chain/tss-lib/tss"
 )
 
 func VerirySig(ec elliptic.Curve, R *crypto.ECPoint, S *big.Int, m *big.Int, PK *crypto.ECPoint) bool {
-	modN := common.ModInt(ec.Params().N)
-	SInv := modN.ModInverse(S)
-	mG := crypto.ScalarBaseMult(ec, m)
-	rx := R.X()
-	rxPK := PK.ScalarMult(rx)
-	R2, _ := mG.Add(rxPK)
-	R2 = R2.ScalarMult(SInv)
-	return R2.Equals(R)
+    modN := common.ModInt(ec.Params().N)
+    SInv := modN.ModInverse(S)
+    mG := crypto.ScalarBaseMult(ec, m)
+    rx := R.X()
+    rxPK := PK.ScalarMult(rx)
+    R2, _ := mG.Add(rxPK)
+    R2 = R2.ScalarMult(SInv)
+    return R2.Equals(R)
 }
 
 func (round *finalization) Start() *tss.Error {
@@ -37,7 +37,7 @@ func (round *finalization) Start() *tss.Error {
     round.started = true
     round.resetOK()
 
-	// Signing Round. Output
+    // Fig 8. Output. combine signature shares verify and output
     Sigma := round.temp.SigmaShare
     modN := common.ModInt(round.Params().EC().Params().N)
     for j := range round.Parties().IDs() {

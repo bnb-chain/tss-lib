@@ -10,7 +10,7 @@ import (
     "crypto/ecdsa"
     "fmt"
     "math/big"
-    //"runtime" // TODO uncomment
+    "runtime"
     "sync/atomic"
     "testing"
 
@@ -41,7 +41,6 @@ func TestE2EConcurrent(t *testing.T) {
 
     // PHASE: load keygen fixtures
     keys, signPIDs, err := keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
-	fmt.Println("TODO len(signPIDs):", len(signPIDs))
     assert.NoError(t, err, "should load keygen fixtures")
     assert.Equal(t, testThreshold+1, len(keys))
     assert.Equal(t, testThreshold+1, len(signPIDs))
@@ -74,7 +73,7 @@ func TestE2EConcurrent(t *testing.T) {
     var ended int32
 signing:
     for {
-        //fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine()) // TODO uncomment
+        fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
         select {
         case err := <-errCh:
             common.Logger.Errorf("Error: %s", err)

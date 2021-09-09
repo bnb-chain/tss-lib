@@ -13,7 +13,6 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -62,7 +61,6 @@ type (
         // round 2
         DeltaShareBetas         []*big.Int
         ChiShareBetas			  []*big.Int
-		Proofs            []*zkplogstar.ProofLogstar
 
         // round 3
         BigGamma          *crypto.ECPoint
@@ -109,7 +107,6 @@ func NewLocalParty(
     p.temp.BigWs = make([]*crypto.ECPoint, partyCount)
     p.temp.DeltaShareBetas = make([]*big.Int, partyCount)
     p.temp.ChiShareBetas = make([]*big.Int, partyCount)
-	p.temp.Proofs = make([]*zkplogstar.ProofLogstar, partyCount)
     p.temp.DeltaShareAlphas = make([]*big.Int, partyCount)
     p.temp.ChiShareAlphas = make([]*big.Int, partyCount)
     return p
