@@ -63,7 +63,7 @@ func NewProof(ec elliptic.Curve, pk *paillier.PublicKey, K, NCap, s, t, k, rho *
         e = common.RejectionSample(q, eHash)
     }
 
-    // fig 14.3
+    // Fig 14.3
     z1 := new(big.Int).Mul(e, k)
     z1 = new(big.Int).Add(z1, alpha)
 

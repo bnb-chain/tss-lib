@@ -56,7 +56,6 @@ func NewProof(ec elliptic.Curve, pk *paillier.PublicKey, C *big.Int, X *crypto.E
     A := modNSquared.Exp(pk.Gamma(), alpha)
     A = modNSquared.Mul(A, modNSquared.Exp(r, pk.N))
 
-    // Y := crypto.ScalarBaseMult(ec, alpha)
 	Y := g.ScalarMult(alpha)
 
     D := modNCap.Exp(s, alpha)

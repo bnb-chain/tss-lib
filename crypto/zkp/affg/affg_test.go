@@ -55,7 +55,6 @@ func TestAffg(test *testing.T) {
     C, _, err := pk0.EncryptAndReturnRandomness(a)
     assert.NoError(test, err)
 
-	// yn := common.ModInt(q).Sub(big.NewInt(0), y)
     cw, rho, err := pk0.EncryptAndReturnRandomness(y)
     assert.NoError(test, err)
 
