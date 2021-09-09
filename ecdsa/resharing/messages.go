@@ -26,7 +26,7 @@ var (
 	_ = []tss.MessageContent{
 		(*DGRound1Message)(nil),
 		(*DGRound2Message1)(nil),
-		(*DGRound2Message)(nil),
+		(*DGRound2Message2)(nil),
 		(*DGRound3Message1)(nil),
 		(*DGRound3Message2)(nil),
 	}
@@ -168,12 +168,12 @@ func NewDGRound2Message2(
 		IsBroadcast:      true,
 		IsToOldCommittee: true,
 	}
-	content := &DGRound2Message{}
+	content := &DGRound2Message2{}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *DGRound2Message) ValidateBasic() bool {
+func (m *DGRound2Message2) ValidateBasic() bool {
 	return true
 }
 

@@ -190,14 +190,14 @@ func (x *DGRound2Message1) GetDlnproof_2() [][]byte {
 
 //
 // The Round 2 "ACK" is broadcast to peers of the Old Committee in this message.
-type DGRound2Message struct {
+type DGRound2Message2 struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 }
 
-func (x *DGRound2Message) Reset() {
-	*x = DGRound2Message{}
+func (x *DGRound2Message2) Reset() {
+	*x = DGRound2Message2{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_protob_ecdsa_resharing_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -205,13 +205,13 @@ func (x *DGRound2Message) Reset() {
 	}
 }
 
-func (x *DGRound2Message) String() string {
+func (x *DGRound2Message2) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DGRound2Message) ProtoMessage() {}
+func (*DGRound2Message2) ProtoMessage() {}
 
-func (x *DGRound2Message) ProtoReflect() protoreflect.Message {
+func (x *DGRound2Message2) ProtoReflect() protoreflect.Message {
 	mi := &file_protob_ecdsa_resharing_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -223,8 +223,8 @@ func (x *DGRound2Message) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DGRound2Message.ProtoReflect.Descriptor instead.
-func (*DGRound2Message) Descriptor() ([]byte, []int) {
+// Deprecated: Use DGRound2Message2.ProtoReflect.Descriptor instead.
+func (*DGRound2Message2) Descriptor() ([]byte, []int) {
 	return file_protob_ecdsa_resharing_proto_rawDescGZIP(), []int{2}
 }
 
@@ -422,7 +422,7 @@ var file_protob_ecdsa_resharing_proto_msgTypes = make([]protoimpl.MessageInfo, 6
 var file_protob_ecdsa_resharing_proto_goTypes = []interface{}{
 	(*DGRound1Message)(nil),  // 0: binance.tsslib.ecdsa.resharing.DGRound1Message
 	(*DGRound2Message1)(nil), // 1: binance.tsslib.ecdsa.resharing.DGRound2Message1
-	(*DGRound2Message)(nil),  // 2: binance.tsslib.ecdsa.resharing.DGRound2Message
+	(*DGRound2Message2)(nil), // 2: binance.tsslib.ecdsa.resharing.DGRound2Message2
 	(*DGRound3Message1)(nil), // 3: binance.tsslib.ecdsa.resharing.DGRound3Message1
 	(*DGRound3Message2)(nil), // 4: binance.tsslib.ecdsa.resharing.DGRound3Message2
 	(*DGRound4Message)(nil),  // 5: binance.tsslib.ecdsa.resharing.DGRound4Message
@@ -466,7 +466,7 @@ func file_protob_ecdsa_resharing_proto_init() {
 			}
 		}
 		file_protob_ecdsa_resharing_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DGRound2Message); i {
+			switch v := v.(*DGRound2Message2); i {
 			case 0:
 				return &v.state
 			case 1:
