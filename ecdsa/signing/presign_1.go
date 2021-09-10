@@ -91,18 +91,30 @@ func (round *presign1) Start() *tss.Error {
 }
 
 func (round *presign1) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.presignRound1Messages {
+	// for j, msg := range round.temp.presignRound1Messages {
+	// 	if round.ok[j] {
+	// 		continue
+	// 	}
+	// 	if msg == nil || !round.CanAccept(msg) {
+	// 		return false, nil
+	// 	}
+	// 	round.ok[j] = true
+	// }
+	// return true, nil
+	for j, msg := range round.temp.r1msgG {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
 		round.ok[j] = true
 	}
+	fmt.Println("presign1: update success")
 	return true, nil
 }
 
+// TODO modify CanAccept
 func (round *presign1) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*PreSignRound1Message); ok {
 		return !msg.IsBroadcast()

@@ -45,8 +45,9 @@ func (round *signout) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		r4msg := round.temp.signRound1Messages[j].Content().(*SignRound4Message)
-		Sigma = modN.Add(Sigma, r4msg.UnmarshalSigmaShare())
+		// r4msg := round.temp.signRound1Messages[j].Content().(*SignRound4Message)
+		// Sigma = modN.Add(Sigma, r4msg.UnmarshalSigmaShare())
+		Sigma = modN.Add(Sigma, round.temp.r4msgSigmaShare[j])
 	}
 	recid := 0
 	// byte v = if(R.X > curve.N) then 2 else 0) | (if R.Y.IsEven then 0 else 1);

@@ -38,13 +38,8 @@ func (round *presign2) Start() *tss.Error {
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
 			
-			r1msg := round.temp.presignRound1Messages[j].Content().(*PreSignRound1Message)
-			Kj := r1msg.UnmarshalK()
-			proof, err := r1msg.UnmarshalEncProof()
-			if err != nil {
-				errChs <- round.WrapError(errors.New("round2: proofenc verity failed"), Pj)
-				return
-			}
+			Kj := round.temp.r1msgK[j]
+			proof := round.temp.r1msgProof[j]
 			ok := proof.Verify(round.EC(), round.key.PaillierPKs[j], round.key.NTildei, round.key.H1i, round.key.H2i, Kj)
 			if !ok {
 				errChs <- round.WrapError(errors.New("round2: proofenc verify failed"), Pj)
@@ -70,9 +65,7 @@ func (round *presign2) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-
-		r1msg := round.temp.presignRound1Messages[j].Content().(*PreSignRound1Message)
-		Kj := r1msg.UnmarshalK()
+		Kj := round.temp.r1msgK[j]
 
 		DeltaOut := make(chan *MtAOut, 1)
 		ChiOut := make(chan *MtAOut, 1)
@@ -132,15 +125,26 @@ func (round *presign2) Start() *tss.Error {
 	// retire unused variables
 	round.temp.G = nil
 	round.temp.GNonce = nil
+	// round.temp.r1msgProof = make([]*zkpenc.ProofEnc, round.PartyCount())
 	return nil
 }
 
 func (round *presign2) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.presignRound2Messages {
+	// for j, msg := range round.temp.presignRound2Messages {
+	// 	if round.ok[j] {
+	// 		continue
+	// 	}
+	// 	if msg == nil || !round.CanAccept(msg) {
+	// 		return false, nil
+	// 	}
+	// 	round.ok[j] = true
+	// }
+	// return true, nil
+	for j, msg := range round.temp.r2msgDeltaD {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
 		round.ok[j] = true

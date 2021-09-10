@@ -37,19 +37,21 @@ func (round *sign4) Start() *tss.Error {
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
 
-			r1msg := round.temp.presignRound1Messages[j].Content().(*PreSignRound1Message)
-			r3msg := round.temp.presignRound3Messages[j].Content().(*PreSignRound3Message)
-			Kj := r1msg.UnmarshalK()
-			BigDeltaSharej, err := r3msg.UnmarshalBigDeltaShare(round.EC())
-			if err != nil {
-				errChs <- round.WrapError(errors.New("proof verify failed"), Pj)
-				return
-			}
-			proofLogstar, err := r3msg.UnmarshalProofLogstar(round.EC())
-			if err != nil {
-				errChs <- round.WrapError(errors.New("proof verify failed"), Pj)
-				return
-			}
+			// r3msg := round.temp.presignRound3Messages[j].Content().(*PreSignRound3Message)
+			// Kj := round.temp.r1msgK[j]
+			// BigDeltaSharej, err := r3msg.UnmarshalBigDeltaShare(round.EC())
+			// if err != nil {
+			// 	errChs <- round.WrapError(errors.New("proof verify failed"), Pj)
+			// 	return
+			// }
+			// proofLogstar, err := r3msg.UnmarshalProofLogstar(round.EC())
+			// if err != nil {
+			// 	errChs <- round.WrapError(errors.New("proof verify failed"), Pj)
+			// 	return
+			// }
+			Kj := round.temp.r1msgK[j]
+			BigDeltaSharej := round.temp.r3msgBigDeltaShare[j]
+			proofLogstar := round.temp.r3msgProofLogstar[j]
 
 			ok := proofLogstar.Verify(round.EC(), round.key.PaillierPKs[j], Kj, BigDeltaSharej, round.temp.BigGamma, round.key.NTildei, round.key.H1i, round.key.H2i)
 			if !ok {
@@ -77,13 +79,16 @@ func (round *sign4) Start() *tss.Error {
 			continue
 		}
 		// verify zklog received
-		r3msg := round.temp.presignRound3Messages[j].Content().(*PreSignRound3Message)
+		// r3msg := round.temp.presignRound3Messages[j].Content().(*PreSignRound3Message)
 
-		Delta = modN.Add(Delta, r3msg.UnmarshalDeltaShare())
-		BigDeltaShare, err := r3msg.UnmarshalBigDeltaShare(round.EC())
-		if err != nil {
-			return round.WrapError(errors.New("round4: failed to collect BigDelta"))
-		}
+		// Delta = modN.Add(Delta, r3msg.UnmarshalDeltaShare())
+		// BigDeltaShare, err := r3msg.UnmarshalBigDeltaShare(round.EC())
+		// if err != nil {
+		// 	return round.WrapError(errors.New("round4: failed to collect BigDelta"))
+		// }
+		Delta = modN.Add(Delta, round.temp.r3msgDeltaShare[j])
+		BigDeltaShare := round.temp.r3msgBigDeltaShare[j]
+		var err error
 		BigDelta, err = BigDelta.Add(BigDeltaShare)
 		if err != nil {
 			return round.WrapError(errors.New("round4: failed to collect BigDelta"))
@@ -109,16 +114,31 @@ func (round *sign4) Start() *tss.Error {
 	round.temp.BigR = BigR
 	round.temp.Rx = Rx
 	round.temp.SigmaShare = SigmaShare
+	// retire unused variables
+	// round.temp.r1msgK = make([]*big.Int, round.PartyCount())
+	// round.temp.r3msgBigDeltaShare = make([]*crypto.ECPoint, round.PartyCount())
+	// round.temp.r3msgDeltaShare = make([]*big.Int, round.PartyCount())
+	// round.temp.r3msgProofLogstar = make([]*zkplogstar.ProofLogstar, round.PartyCount())
 	
 	return nil
 }
 
 func (round *sign4) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.signRound1Messages {
+	// for j, msg := range round.temp.signRound1Messages {
+	// 	if round.ok[j] {
+	// 		continue
+	// 	}
+	// 	if msg == nil || !round.CanAccept(msg) {
+	// 		return false, nil
+	// 	}
+	// 	round.ok[j] = true
+	// }
+	// return true, nil
+	for j, msg := range round.temp.r4msgSigmaShare {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
 		round.ok[j] = true
