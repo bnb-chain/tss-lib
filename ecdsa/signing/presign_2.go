@@ -11,10 +11,17 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
+
+func newRound2(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+	return &presign2{&presign1{
+		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 2}}}
+}
 
 func (round *presign2) Start() *tss.Error {
 	if round.started {
@@ -61,61 +68,70 @@ func (round *presign2) Start() *tss.Error {
 	BigGammaShare := crypto.ScalarBaseMult(round.Params().EC(), round.temp.GammaShare)
 	g := crypto.ScalarBaseMult(round.EC(), big.NewInt(1)) // used in prooflogstar
 	errChs = make(chan *tss.Error, (len(round.Parties().IDs())-1)*3)
+	wg = sync.WaitGroup{}
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		Kj := round.temp.r1msgK[j]
-
-		DeltaOut := make(chan *MtAOut, 1)
-		ChiOut := make(chan *MtAOut, 1)
-		ProofOut := make(chan *zkplogstar.ProofLogstar, 1)
-		wgj := sync.WaitGroup{}
-
-		wgj.Add(1)
+		wg.Add(1)
 		go func(j int, Pj *tss.PartyID) {
-			defer wgj.Done()
-			DeltaMtA, err := NewMtA(round.EC(), Kj, round.temp.GammaShare, BigGammaShare, round.key.PaillierPKs[j], &round.key.PaillierSK.PublicKey, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
-			if err != nil {
-				errChs <- round.WrapError(errors.New("MtADelta failed"))
-				return
-			}
-			DeltaOut <- DeltaMtA
+			defer wg.Done()
+			Kj := round.temp.r1msgK[j]
+
+			DeltaOut := make(chan *MtAOut, 1)
+			ChiOut := make(chan *MtAOut, 1)
+			ProofOut := make(chan *zkplogstar.ProofLogstar, 1)
+			wgj := sync.WaitGroup{}
+
+			wgj.Add(1)
+			go func(j int, Pj *tss.PartyID) {
+				defer wgj.Done()
+				DeltaMtA, err := NewMtA(round.EC(), Kj, round.temp.GammaShare, BigGammaShare, round.key.PaillierPKs[j], &round.key.PaillierSK.PublicKey, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+				if err != nil {
+					errChs <- round.WrapError(errors.New("MtADelta failed"))
+					return
+				}
+				DeltaOut <- DeltaMtA
+			}(j, Pj)
+
+			wgj.Add(1)
+			go func(j int, Pj *tss.PartyID) {
+				defer wgj.Done()
+				ChiMtA, err := NewMtA(round.EC(), Kj, round.temp.w, round.temp.BigWs[i], round.key.PaillierPKs[j], &round.key.PaillierSK.PublicKey, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+				if err != nil {
+					errChs <- round.WrapError(errors.New("MtAChi failed"))
+					return
+				}
+				ChiOut <- ChiMtA
+			}(j, Pj)
+
+			wgj.Add(1)
+			go func(j int, Pj *tss.PartyID) {
+				defer wgj.Done()
+				ProofLogstar, err := zkplogstar.NewProof(round.EC(), &round.key.PaillierSK.PublicKey, round.temp.G, BigGammaShare, g ,round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j], round.temp.GammaShare, round.temp.GNonce)
+				if err != nil {
+					errChs <- round.WrapError(errors.New("prooflogstar failed"))
+					return
+				}
+				ProofOut <- ProofLogstar
+			}(j, Pj)
+			
+			wgj.Wait()
+			DeltaMtA := <-DeltaOut
+			ChiMtA := <-ChiOut
+			ProofLogstar := <- ProofOut
+
+			r2msg := NewPreSignRound2Message(Pj, round.PartyID(), BigGammaShare, DeltaMtA.Dji, DeltaMtA.Fji, ChiMtA.Dji, ChiMtA.Fji, DeltaMtA.Proofji, ChiMtA.Proofji, ProofLogstar)
+			round.out <- r2msg
+
+			round.temp.DeltaShareBetas[j] = DeltaMtA.Beta
+			round.temp.ChiShareBetas[j] = ChiMtA.Beta
+
+			round.temp.DeltaMtAF = DeltaMtA.Fji // for identification 6
+			round.temp.ChiMtAF = ChiMtA.Fji // for identification 6
 		}(j, Pj)
-
-		wgj.Add(1)
-		go func(j int, Pj *tss.PartyID) {
-			defer wgj.Done()
-			ChiMtA, err := NewMtA(round.EC(), Kj, round.temp.w, round.temp.BigWs[i], round.key.PaillierPKs[j], &round.key.PaillierSK.PublicKey, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
-			if err != nil {
-				errChs <- round.WrapError(errors.New("MtAChi failed"))
-				return
-			}
-			ChiOut <- ChiMtA
-		}(j, Pj)
-
-		wgj.Add(1)
-		go func(j int, Pj *tss.PartyID) {
-			defer wgj.Done()
-			ProofLogstar, err := zkplogstar.NewProof(round.EC(), &round.key.PaillierSK.PublicKey, round.temp.G, BigGammaShare, g ,round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j], round.temp.GammaShare, round.temp.GNonce)
-			if err != nil {
-				errChs <- round.WrapError(errors.New("prooflogstar failed"))
-				return
-			}
-			ProofOut <- ProofLogstar
-		}(j, Pj)
-		
-		wgj.Wait()
-		DeltaMtA := <-DeltaOut
-		ChiMtA := <-ChiOut
-		ProofLogstar := <- ProofOut
-
-		r2msg := NewPreSignRound2Message(Pj, round.PartyID(), BigGammaShare, DeltaMtA.Dji, DeltaMtA.Fji, ChiMtA.Dji, ChiMtA.Fji, DeltaMtA.Proofji, ChiMtA.Proofji, ProofLogstar)
-		round.out <- r2msg
-
-		round.temp.DeltaShareBetas[j] = DeltaMtA.Beta
-		round.temp.ChiShareBetas[j] = ChiMtA.Beta
 	}
+	wg.Wait()
 	close(errChs)
 	for err := range errChs {
 		return err
@@ -125,21 +141,12 @@ func (round *presign2) Start() *tss.Error {
 	// retire unused variables
 	round.temp.G = nil
 	round.temp.GNonce = nil
-	// round.temp.r1msgProof = make([]*zkpenc.ProofEnc, round.PartyCount())
+	round.temp.r1msgProof = nil
+
 	return nil
 }
 
 func (round *presign2) Update() (bool, *tss.Error) {
-	// for j, msg := range round.temp.presignRound2Messages {
-	// 	if round.ok[j] {
-	// 		continue
-	// 	}
-	// 	if msg == nil || !round.CanAccept(msg) {
-	// 		return false, nil
-	// 	}
-	// 	round.ok[j] = true
-	// }
-	// return true, nil
 	for j, msg := range round.temp.r2msgDeltaD {
 		if round.ok[j] {
 			continue

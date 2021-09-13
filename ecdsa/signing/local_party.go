@@ -14,8 +14,10 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	zkpaffg "github.com/binance-chain/tss-lib/crypto/zkp/affg"
+	zkpdec "github.com/binance-chain/tss-lib/crypto/zkp/dec"
 	zkpenc "github.com/binance-chain/tss-lib/crypto/zkp/enc"
 	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
+	zkpmul "github.com/binance-chain/tss-lib/crypto/zkp/mul"
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -37,18 +39,18 @@ type (
 		// outbound messaging
 		out chan<- tss.Message
 		end chan<- common.SignatureData
+		startRndNum int
 	}
 
-	localMessageStore struct {
-		presignRound1Messages,
-		presignRound2Messages,
-		presignRound3Messages,
-		signRound1Messages []tss.ParsedMessage
-	}
+	// localMessageStore struct {
+	// 	presignRound1Messages,
+	// 	presignRound2Messages,
+	// 	presignRound3Messages,
+	// 	signRound1Messages []tss.ParsedMessage
+	// }
 
 	localTempData struct {
-		localMessageStore
-
+		// localMessageStore
 		// temp data (thrown away after sign) / round 1
 		w                   *big.Int
 		BigWs               []*crypto.ECPoint
@@ -65,6 +67,8 @@ type (
 		GammaShare          *big.Int
 		DeltaShareBetas     []*big.Int
 		ChiShareBetas       []*big.Int
+		DeltaMtAF           *big.Int
+		ChiMtAF             *big.Int
 
 		// round 3
 		BigGamma            *crypto.ECPoint
@@ -96,6 +100,11 @@ type (
 		r3msgBigDeltaShare  []*crypto.ECPoint
 		r3msgProofLogstar   []*zkplogstar.ProofLogstar
 		r4msgSigmaShare     []*big.Int
+		// for identification
+		r6msgH              []*big.Int
+		r6msgProofMul       []*zkpmul.ProofMul
+		r6msgDeltaShareEnc  []*big.Int
+		r6msgProofDec       []*zkpdec.ProofDec
 	}
 )
 
@@ -106,7 +115,7 @@ func NewLocalParty(
 	keyDerivationDelta *big.Int,
 	out chan<- tss.Message,
 	end chan<- common.SignatureData,
-	dump chan<- []byte,
+	startRndNums ...int,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -118,11 +127,16 @@ func NewLocalParty(
 		out:       out,
 		end:       end,
 	}
+	if len(startRndNums) > 0 {
+		p.startRndNum = startRndNums[0]
+	} else {
+		p.startRndNum = 1
+	}
 	// msgs init
-	p.temp.presignRound1Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.presignRound2Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.presignRound3Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.signRound1Messages = make([]tss.ParsedMessage, partyCount)
+	// p.temp.presignRound1Messages = make([]tss.ParsedMessage, partyCount)
+	// p.temp.presignRound2Messages = make([]tss.ParsedMessage, partyCount)
+	// p.temp.presignRound3Messages = make([]tss.ParsedMessage, partyCount)
+	// p.temp.signRound1Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.keyDerivationDelta = keyDerivationDelta
 	p.temp.m = msg
@@ -147,25 +161,38 @@ func NewLocalParty(
 	p.temp.r3msgBigDeltaShare = make([]*crypto.ECPoint, partyCount)
 	p.temp.r3msgProofLogstar = make([]*zkplogstar.ProofLogstar, partyCount)
 	p.temp.r4msgSigmaShare = make([]*big.Int, partyCount)
+	// for identification
+	p.temp.r6msgH = make([]*big.Int, partyCount)
+	p.temp.r6msgProofMul = make([]*zkpmul.ProofMul, partyCount)
+	p.temp.r6msgDeltaShareEnc = make([]*big.Int, partyCount)
+	p.temp.r6msgProofDec = make([]*zkpdec.ProofDec, partyCount)
 
 	return p
 }
 
 func (p *LocalParty) FirstRound() tss.Round {
-	return newRound1(p.params, &p.keys, &p.data, &p.temp, p.out, p.end)
+	newRound := []interface{}{newRound1, newRound2, newRound3, newRound4, newRound5}
+	return newRound[p.startRndNum-1].(func(*tss.Parameters, *keygen.LocalPartySaveData, *common.SignatureData, *localTempData, chan<- tss.Message, chan<- common.SignatureData) tss.Round)(p.params, &p.keys, &p.data, &p.temp, p.out, p.end)
+}
+
+func (p *LocalParty) SetTempData(tempNew localTempData) {
+	p.temp = tempNew
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	return tss.BaseStart(p, TaskName, func(round tss.Round) *tss.Error {
-		round1, ok := round.(*presign1)
-		if !ok {
-			return round.WrapError(errors.New("unable to Start(). party is in an unexpected round"))
-		}
-		if err := round1.prepare(); err != nil {
-			return round.WrapError(err)
-		}
-		return nil
-	})
+	if p.startRndNum == 1 {
+		return tss.BaseStart(p, TaskName, func(round tss.Round) *tss.Error {
+			round1, ok := round.(*presign1)
+			if !ok {
+				return round.WrapError(errors.New("unable to Start(). party is in an unexpected round"))
+			}
+			if err := round1.prepare(); err != nil {
+				return round.WrapError(err)
+			}
+			return nil
+		})
+	}
+	return tss.BaseStart(p, TaskName)
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
@@ -203,8 +230,6 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
 	case *PreSignRound1Message:
-		/// p.temp.presignRound1Messages[fromPIdx] = msg
-		// Store message data
 		r1msg := msg.Content().(*PreSignRound1Message)
 		p.temp.r1msgG[fromPIdx] = r1msg.UnmarshalG()
 		p.temp.r1msgK[fromPIdx] = r1msg.UnmarshalK()
@@ -214,7 +239,6 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		}
 		p.temp.r1msgProof[fromPIdx] = Proof
 	case *PreSignRound2Message:
-		/// p.temp.presignRound2Messages[fromPIdx] = msg
 		r2msg := msg.Content().(*PreSignRound2Message)
 		BigGammaShare, err := r2msg.UnmarshalBigGammaShare(p.params.EC())
 		if err != nil {
@@ -236,7 +260,6 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		}
 		p.temp.r2msgChiProof[fromPIdx] = proofChi
 	case *PreSignRound3Message:
-		/// p.temp.presignRound3Messages[fromPIdx] = msg
 		r3msg := msg.Content().(*PreSignRound3Message)
 		p.temp.r3msgDeltaShare[fromPIdx] = r3msg.UnmarshalDeltaShare()
 		BigDeltaShare, err := r3msg.UnmarshalBigDeltaShare(p.params.EC())
@@ -250,9 +273,22 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		}
 		p.temp.r3msgProofLogstar[fromPIdx] = proofLogStar
 	case *SignRound4Message:
-		/// p.temp.signRound1Messages[fromPIdx] = msg
 		r4msg := msg.Content().(*SignRound4Message)
 		p.temp.r4msgSigmaShare[fromPIdx] = r4msg.UnmarshalSigmaShare()
+	case *IdentificationRound6Message:
+		r6msg := msg.Content().(*IdentificationRound6Message)
+		p.temp.r6msgH[fromPIdx] = r6msg.UnmarshalH()
+		p.temp.r6msgDeltaShareEnc[fromPIdx] = r6msg.UnmarshalDeltaShareEnc()
+		proofMul, err := r6msg.UnmarshalProofMul()
+		if err != nil {
+			return false, p.WrapError(err, msg.GetFrom())
+		}
+		p.temp.r6msgProofMul[fromPIdx] = proofMul
+		proofDec, err := r6msg.UnmarshalProofDec()
+		if err != nil {
+			return false, p.WrapError(err, msg.GetFrom())
+		}
+		p.temp.r6msgProofDec[fromPIdx] = proofDec
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

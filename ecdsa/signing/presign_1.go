@@ -101,7 +101,7 @@ func (round *presign1) Update() (bool, *tss.Error) {
 	// 	round.ok[j] = true
 	// }
 	// return true, nil
-	for j, msg := range round.temp.r1msgG {
+	for j, msg := range round.temp.r1msgK {
 		if round.ok[j] {
 			continue
 		}
@@ -124,6 +124,9 @@ func (round *presign1) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *presign1) NextRound() tss.Round {
 	round.started = false
+	// if round.runToDump {
+	// 	return nil
+	// }
 	return &presign2{round}
 }
 

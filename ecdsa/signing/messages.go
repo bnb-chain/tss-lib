@@ -7,14 +7,18 @@
 package signing
 
 import (
+	"bytes"
 	"crypto/elliptic"
+	"encoding/gob"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	zkpaffg "github.com/binance-chain/tss-lib/crypto/zkp/affg"
+	zkpdec "github.com/binance-chain/tss-lib/crypto/zkp/dec"
 	zkpenc "github.com/binance-chain/tss-lib/crypto/zkp/enc"
 	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
+	zkpmul "github.com/binance-chain/tss-lib/crypto/zkp/mul"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -220,4 +224,92 @@ func (m *SignRound4Message) ValidateBasic() bool {
 
 func (m *SignRound4Message) UnmarshalSigmaShare() *big.Int {
 	return new(big.Int).SetBytes(m.GetSigmaShare())
+}
+
+// ----- //
+
+func NewIdentificationRound6Message(
+	to, from *tss.PartyID,
+	H *big.Int,
+	MulProof *zkpmul.ProofMul,
+	DeltaShareEnc *big.Int,
+	DecProof *zkpdec.ProofDec,
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:        from,
+		To:          []*tss.PartyID{to},
+		IsBroadcast: false,
+	}
+	MulProofBzs := MulProof.Bytes()
+	DecProofBzs := DecProof.Bytes()
+	content := &IdentificationRound6Message{
+		H:             H.Bytes(),
+		MulProof:      MulProofBzs[:],
+		DeltaShareEnc: DeltaShareEnc.Bytes(),
+		DecProof:      DecProofBzs[:],
+	}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
+}
+
+func (m *IdentificationRound6Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.H) &&
+		common.NonEmptyBytes(m.DeltaShareEnc) &&
+		common.NonEmptyMultiBytes(m.MulProof, zkpmul.ProofMulBytesParts) &&
+		common.NonEmptyMultiBytes(m.DecProof, zkpdec.ProofDecBytesParts)
+}
+
+func (m *IdentificationRound6Message) UnmarshalH() *big.Int {
+	return new(big.Int).SetBytes(m.GetH())
+}
+
+func (m *IdentificationRound6Message) UnmarshalDeltaShareEnc() *big.Int {
+	return new(big.Int).SetBytes(m.GetDeltaShareEnc())
+}
+
+func (m *IdentificationRound6Message) UnmarshalProofMul() (*zkpmul.ProofMul, error) {
+	return zkpmul.NewProofFromBytes(m.GetMulProof())
+}
+
+func (m *IdentificationRound6Message) UnmarshalProofDec() (*zkpdec.ProofDec, error) {
+	return zkpdec.NewProofFromBytes(m.GetDecProof())
+}
+
+
+// ----- //
+
+func NewTempDataDumpMessage(
+	from *tss.PartyID,
+	tempDump localTempData,
+	roundNum int,
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: false,
+	}
+	var buffer bytes.Buffer
+	dataEnc := gob.NewEncoder(&buffer)
+	err := dataEnc.Encode(tempDump)
+	if err != nil {
+		return nil
+	}
+	content := &TempDataDumpMessage{
+		DataDump: buffer.Bytes(),
+		RoundNum: int32(roundNum),
+	}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
+}
+
+func (m *TempDataDumpMessage) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.DataDump)
+}
+
+func (m *TempDataDumpMessage) UnmarshalTempDump() localTempData {
+	dataDec := gob.NewDecoder(bytes.NewReader(m.GetDataDump()))
+	var tempData localTempData
+	dataDec.Decode(&tempData)
+	return tempData
 }

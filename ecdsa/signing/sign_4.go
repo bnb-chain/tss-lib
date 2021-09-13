@@ -12,8 +12,14 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
+
+func newRound4(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+	return &sign4{&presign3{&presign2{&presign1{
+		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 4}}}}}
+}
 
 func (round *sign4) Start() *tss.Error {
 	if round.started {
@@ -36,19 +42,6 @@ func (round *sign4) Start() *tss.Error {
 		wg.Add(1)
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
-
-			// r3msg := round.temp.presignRound3Messages[j].Content().(*PreSignRound3Message)
-			// Kj := round.temp.r1msgK[j]
-			// BigDeltaSharej, err := r3msg.UnmarshalBigDeltaShare(round.EC())
-			// if err != nil {
-			// 	errChs <- round.WrapError(errors.New("proof verify failed"), Pj)
-			// 	return
-			// }
-			// proofLogstar, err := r3msg.UnmarshalProofLogstar(round.EC())
-			// if err != nil {
-			// 	errChs <- round.WrapError(errors.New("proof verify failed"), Pj)
-			// 	return
-			// }
 			Kj := round.temp.r1msgK[j]
 			BigDeltaSharej := round.temp.r3msgBigDeltaShare[j]
 			proofLogstar := round.temp.r3msgProofLogstar[j]
@@ -78,14 +71,6 @@ func (round *sign4) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		// verify zklog received
-		// r3msg := round.temp.presignRound3Messages[j].Content().(*PreSignRound3Message)
-
-		// Delta = modN.Add(Delta, r3msg.UnmarshalDeltaShare())
-		// BigDeltaShare, err := r3msg.UnmarshalBigDeltaShare(round.EC())
-		// if err != nil {
-		// 	return round.WrapError(errors.New("round4: failed to collect BigDelta"))
-		// }
 		Delta = modN.Add(Delta, round.temp.r3msgDeltaShare[j])
 		BigDeltaShare := round.temp.r3msgBigDeltaShare[j]
 		var err error
@@ -108,32 +93,21 @@ func (round *sign4) Start() *tss.Error {
 	SigmaShare := modN.Add(modN.Mul(round.temp.KShare, round.temp.m), modN.Mul(Rx, round.temp.ChiShare))
 
 	r4msg := NewSignRound4Message(round.PartyID(), SigmaShare)
-	round.temp.signRound1Messages[round.PartyID().Index] = r4msg
 	round.out <- r4msg
 
 	round.temp.BigR = BigR
 	round.temp.Rx = Rx
 	round.temp.SigmaShare = SigmaShare
 	// retire unused variables
-	// round.temp.r1msgK = make([]*big.Int, round.PartyCount())
-	// round.temp.r3msgBigDeltaShare = make([]*crypto.ECPoint, round.PartyCount())
-	// round.temp.r3msgDeltaShare = make([]*big.Int, round.PartyCount())
-	// round.temp.r3msgProofLogstar = make([]*zkplogstar.ProofLogstar, round.PartyCount())
+	round.temp.r1msgK = nil
+	round.temp.r3msgBigDeltaShare = nil
+	round.temp.r3msgDeltaShare = nil
+	round.temp.r3msgProofLogstar = nil
 	
 	return nil
 }
 
 func (round *sign4) Update() (bool, *tss.Error) {
-	// for j, msg := range round.temp.signRound1Messages {
-	// 	if round.ok[j] {
-	// 		continue
-	// 	}
-	// 	if msg == nil || !round.CanAccept(msg) {
-	// 		return false, nil
-	// 	}
-	// 	round.ok[j] = true
-	// }
-	// return true, nil
 	for j, msg := range round.temp.r4msgSigmaShare {
 		if round.ok[j] {
 			continue

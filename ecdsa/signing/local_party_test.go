@@ -53,7 +53,7 @@ func TestE2EConcurrent(t *testing.T) {
 	errCh := make(chan *tss.Error, len(signPIDs))
 	outCh := make(chan tss.Message, len(signPIDs))
 	endCh := make(chan common.SignatureData, len(signPIDs))
-	dumpCh := make(chan []byte, len(signPIDs))
+	dumpCh := make(chan tss.Message, len(signPIDs))
 
 	updater := test.SharedPartyUpdater
 
@@ -62,7 +62,7 @@ func TestE2EConcurrent(t *testing.T) {
 		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
 
 		keyDerivationDelta := big.NewInt(0)
-		P := NewLocalParty(big.NewInt(42), params, keys[i], keyDerivationDelta, outCh, endCh, dumpCh).(*LocalParty)
+		P := NewLocalParty(big.NewInt(42), params, keys[i], keyDerivationDelta, outCh, endCh).(*LocalParty)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {
@@ -96,119 +96,12 @@ signing:
 				}
 				go updater(parties[dest[0].Index], msg, errCh)
 			}
-
-		case <-endCh:
-			atomic.AddInt32(&ended, 1)
-			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
-				t.Logf("Done. Received signature data from %d participants", ended)
-				R := parties[0].temp.BigR
-				r := parties[0].temp.Rx
-				fmt.Printf("sign result: R(%s, %s), r=%s\n", R.X().String(), R.Y().String(), r.String())
-
-				modN := common.ModInt(tss.S256().Params().N)
-
-				// BEGIN check s correctness
-				sumS := big.NewInt(0)
-				for _, p := range parties {
-					sumS = modN.Add(sumS, p.temp.SigmaShare)
-				}
-				fmt.Printf("S: %s\n", sumS.String())
-				// END check s correctness
-
-				// BEGIN ECDSA verify
-				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
-				pk := ecdsa.PublicKey{
-					Curve: tss.EC(),
-					X:     pkX,
-					Y:     pkY,
-				}
-				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), R.X(), sumS)
-				assert.True(t, ok, "ecdsa verify must pass")
-				t.Log("ECDSA signing test done.")
-				// END ECDSA verify
-
-				break signing
-			}
-		}
-	}
-}
-
-func TestRoundByRound(t *testing.T) {
-	setUp("info")
-	threshold := testThreshold
-
-	// PHASE: load keygen fixtures
-	keys, signPIDs, err := keygen.LoadKeygenTestFixturesRandomSet(testThreshold+1, testParticipants)
-	assert.NoError(t, err, "should load keygen fixtures")
-	assert.Equal(t, testThreshold+1, len(keys))
-	assert.Equal(t, testThreshold+1, len(signPIDs))
-
-	// PHASE: signing
-	// use a shuffled selection of the list of parties for this test
-	p2pCtx := tss.NewPeerContext(signPIDs)
-	parties := make([]*LocalParty, 0, len(signPIDs))
-
-	errCh := make(chan *tss.Error, len(signPIDs))
-	outCh := make(chan tss.Message, len(signPIDs))
-	endCh := make(chan common.SignatureData, len(signPIDs))
-	dumpCh := make(chan []byte, len(signPIDs))
-
-	updater := test.SharedPartyUpdater
-
-	// init the parties
-	for i := 0; i < len(signPIDs); i++ {
-		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
-
-		// P@pre1 = NewLocalParty(..., ssid)
-		//     dump_pre1 <- P@pre1.Start()
-		// P@pre2 = NewLocalParty(..., ssid, dump_pre1)
-		//     dump_pre2 <- P@pre2.Start()
-		// P@pre3 = NewLocalParty(..., ssid, dump_pre2)
-		//     dump_pre3(ssid, R, KShare, ChiShare) <- P@pre3.Start
-		// P@sign = NewLocalParty(..., ssid)
-		//     signature <- P@sign.Start()
-		// 1. message store in round.temp.xxx and same life cycle management like round.temp.*
-		// r1msg.K@2, r1msg.Proof@2, r1msg.G@3, r1msg.K@4
-		// r2msg.BigGammaShare@3, .DeltaD@3, .DeltaF@3, .DeltaPaffg@3, .ChiD@3, .ChiF@3, .Chiaffg@3, .Pfstar@3, .Pflogstar@3, .BigGammaShare@4
-		// r3msg.BigDeltaShare@4, .Pfstar@4, .DeltaShare@4
-
-		// 2. implement NewLocalParty( ) for each round
-
-		keyDerivationDelta := big.NewInt(0)
-		P := NewLocalParty(big.NewInt(42), params, keys[i], keyDerivationDelta, outCh, endCh, dumpCh).(*LocalParty)
-		parties = append(parties, P)
-		go func(P *LocalParty) {
-			if err := P.Start(); err != nil {
-				errCh <- err
-			}
-		}(P)
-	}
-
-	var ended int32
-signing:
-	for {
-		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
-		select {
-		case err := <-errCh:
-			common.Logger.Errorf("Error: %s", err)
-			assert.FailNow(t, err.Error())
-			break signing
-
-		case msg := <-outCh:
-			dest := msg.GetTo()
-			if dest == nil {
-				for _, P := range parties {
-					if P.PartyID().Index == msg.GetFrom().Index {
-						continue
-					}
-					go updater(P, msg, errCh)
-				}
-			} else {
-				if dest[0].Index == msg.GetFrom().Index {
-					t.Fatalf("party %d tried to send a message to itself (%d)", dest[0].Index, msg.GetFrom().Index)
-				}
-				go updater(parties[dest[0].Index], msg, errCh)
-			}
+		
+		case dtemp := <-dumpCh:
+			fmt.Println("got from dump")
+			fmt.Println(dtemp)
+			// P = ...... with dtemp
+			// P.start
 
 		case <-endCh:
 			atomic.AddInt32(&ended, 1)
@@ -277,7 +170,7 @@ func TestE2EWithHDKeyDerivation(t *testing.T) {
 	errCh := make(chan *tss.Error, len(signPIDs))
 	outCh := make(chan tss.Message, len(signPIDs))
 	endCh := make(chan common.SignatureData, len(signPIDs))
-	dumpCh := make(chan []byte, len(signPIDs))
+	// dumpCh := make(chan tss.Message, len(signPIDs))
 
 	updater := test.SharedPartyUpdater
 
@@ -285,7 +178,7 @@ func TestE2EWithHDKeyDerivation(t *testing.T) {
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
 		
-		P := NewLocalParty(big.NewInt(42), params, keys[i], keyDerivationDelta, outCh, endCh, dumpCh).(*LocalParty)
+		P := NewLocalParty(big.NewInt(42), params, keys[i], keyDerivationDelta, outCh, endCh).(*LocalParty)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {

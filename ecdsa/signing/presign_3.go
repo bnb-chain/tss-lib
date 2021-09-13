@@ -7,18 +7,21 @@
 package signing
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
-	"fmt"
 	"math/big"
 	"sync"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	zkplogstar "github.com/binance-chain/tss-lib/crypto/zkp/logstar"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
+
+func newRound3(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+	return &presign3{&presign2{&presign1{
+		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 3}}}}
+}
 
 func (round *presign3) Start() *tss.Error {
 	if round.started {
@@ -39,25 +42,11 @@ func (round *presign3) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		// r2msg := round.temp.presignRound2Messages[j].Content().(*PreSignRound2Message)
-		// BigGammaSharej, err := r2msg.UnmarshalBigGammaShare(round.EC())
-		// if err != nil {
-		// 	errChs <- round.WrapError(errors.New("round3: received broken message"))
-		// 	break
-		// }
 		BigGammaSharej := round.temp.r2msgBigGammaShare[j]
 
 		wg.Add(1)
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
-
-			// DeltaD := r2msg.UnmarshalDjiDelta()
-			// DeltaF := r2msg.UnmarshalFjiDelta()
-			// proofAffgDelta, err := r2msg.UnmarshalAffgProofDelta(round.EC())
-			// if err != nil {
-			// 	errChs <- round.WrapError(errors.New("failed to unmarshal affg_delta in r2msg"))
-			// 	return
-			// }
 			DeltaD := round.temp.r2msgDeltaD[j]
 			DeltaF := round.temp.r2msgDeltaF[j]
 			proofAffgDelta := round.temp.r2msgDeltaProof[j]
@@ -77,14 +66,6 @@ func (round *presign3) Start() *tss.Error {
 		wg.Add(1)
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
-
-			// ChiD := r2msg.UnmarshalDjiChi()
-			// ChiF := r2msg.UnmarshalFjiChi()
-			// proofAffgChi, err := r2msg.UnmarshalAffgProofChi(round.EC())
-			// if err != nil {
-			// 	errChs <- round.WrapError(errors.New("failed to unmarshal affg chi from r2msg"))
-			// 	return
-			// }
 			ChiD := round.temp.r2msgChiD[j]
 			ChiF := round.temp.r2msgChiF[j]
 			proofAffgChi := round.temp.r2msgChiProof[j]
@@ -104,12 +85,6 @@ func (round *presign3) Start() *tss.Error {
 		wg.Add(1)
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
-
-			// proofLogstar, err := r2msg.UnmarshalLogstarProof(round.EC())
-			// if err != nil {
-			// 	errChs <- round.WrapError(errors.New("failed to verify logstar"))
-			// 	return
-			// }
 			proofLogstar := round.temp.r2msgProofLogstar[j]
 			Gj := round.temp.r1msgG[j]
 			ok := proofLogstar.Verify(round.EC(), round.key.PaillierPKs[j], Gj, BigGammaSharej, g, round.key.NTildei, round.key.H1i, round.key.H2i)
@@ -135,11 +110,6 @@ func (round *presign3) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		// r2msg := round.temp.presignRound2Messages[j].Content().(*PreSignRound2Message)
-		// BigGammaShare, err := r2msg.UnmarshalBigGammaShare(round.EC())
-		// if err != nil {
-		// 	return round.WrapError(errors.New("round3: failed to collect BigGamma"))
-		// }
 		BigGammaShare := round.temp.r2msgBigGammaShare[j]
 		var err error
 		BigGamma, err = BigGamma.Add(BigGammaShare)
@@ -205,39 +175,19 @@ func (round *presign3) Start() *tss.Error {
 	round.temp.ChiShareBetas = nil
 	round.temp.DeltaShareAlphas = nil
 	round.temp.ChiShareAlphas = nil
-	// round.temp.r1msgG = make([]*big.Int, round.PartyCount())
-	// round.temp.r2msgDeltaD = make([]*big.Int, round.PartyCount())
-	// round.temp.r2msgDeltaF = make([]*big.Int, round.PartyCount())
-	// round.temp.r2msgChiD = make([]*big.Int, round.PartyCount())
-	// round.temp.r2msgChiF = make([]*big.Int, round.PartyCount())
-	// round.temp.r2msgDeltaProof = make([]*zkpaffg.ProofAffg, round.PartyCount())
-	// round.temp.r2msgChiProof = make([]*zkpaffg.ProofAffg, round.PartyCount())
-	// round.temp.r2msgProofLogstar = make([]*zkplogstar.ProofLogstar, round.PartyCount())
-
-	var buffer bytes.Buffer
-	tempenc := gob.NewEncoder(&buffer)
-	//tempdec := gob.NewDecoder(&buffer)
-	err := tempenc.Encode(round.temp)
-
-	if err != nil {
-		fmt.Println("GOB failed")
-	}
-
+	round.temp.r1msgG = nil
+	round.temp.r2msgDeltaD = nil
+	round.temp.r2msgDeltaF = nil
+	round.temp.r2msgChiD = nil
+	round.temp.r2msgChiF = nil
+	round.temp.r2msgDeltaProof = nil
+	round.temp.r2msgChiProof = nil
+	round.temp.r2msgProofLogstar = nil
 
 	return nil
 }
 
 func (round *presign3) Update() (bool, *tss.Error) {
-	// for j, msg := range round.temp.presignRound3Messages {
-	// 	if round.ok[j] {
-	// 		continue
-	// 	}
-	// 	if msg == nil || !round.CanAccept(msg) {
-	// 		return false, nil
-	// 	}
-	// 	round.ok[j] = true
-	// }
-	// return true, nil
 	for j, msg := range round.temp.r3msgDeltaShare {
 		if round.ok[j] {
 			continue

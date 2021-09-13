@@ -43,6 +43,14 @@ type (
 	signout struct {
 		*sign4
 	}
+
+	// identification rounds
+	identification6 struct {
+		*sign4
+	}
+	identification7 struct {
+		*identification6
+	}
 )
 
 var (
@@ -51,6 +59,8 @@ var (
 	_ tss.Round = (*presign3)(nil)
 	_ tss.Round = (*sign4)(nil)
 	_ tss.Round = (*signout)(nil)
+	_ tss.Round = (*identification6)(nil)
+	_ tss.Round = (*identification7)(nil)
 )
 
 // ----- //
@@ -100,4 +110,9 @@ func (round *base) resetOK() {
 	for j := range round.ok {
 		round.ok[j] = false
 	}
+}
+
+func (round *base) Dump(dumpCh chan tss.ParsedMessage) {
+	DumpMsg := NewTempDataDumpMessage(round.PartyID(), *round.temp, round.number)
+	dumpCh <- DumpMsg
 }

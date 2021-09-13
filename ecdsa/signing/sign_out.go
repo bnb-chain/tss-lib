@@ -15,6 +15,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -27,6 +28,11 @@ func VerirySig(ec elliptic.Curve, R *crypto.ECPoint, S *big.Int, m *big.Int, PK 
 	R2, _ := mG.Add(rxPK)
 	R2 = R2.ScalarMult(SInv)
 	return R2.Equals(R)
+}
+
+func newRound5(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+	return &signout{&sign4{&presign3{&presign2{&presign1{
+		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 5}}}}}}
 }
 
 func (round *signout) Start() *tss.Error {
@@ -45,8 +51,6 @@ func (round *signout) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		// r4msg := round.temp.signRound1Messages[j].Content().(*SignRound4Message)
-		// Sigma = modN.Add(Sigma, r4msg.UnmarshalSigmaShare())
 		Sigma = modN.Add(Sigma, round.temp.r4msgSigmaShare[j])
 	}
 	recid := 0
