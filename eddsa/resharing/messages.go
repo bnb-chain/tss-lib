@@ -26,6 +26,7 @@ var (
 		(*DGRound2Message)(nil),
 		(*DGRound3Message1)(nil),
 		(*DGRound3Message2)(nil),
+		(*DGRound4Message)(nil),
 	}
 )
 

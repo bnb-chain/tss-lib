@@ -7,7 +7,7 @@
 syntax = "proto3";
 
 package binance.tsslib;
-option go_package = "common";
+option go_package = "./common";
 
 /*
  * Container for output signatures, mostly used for marshalling this data structure to a mobile app
