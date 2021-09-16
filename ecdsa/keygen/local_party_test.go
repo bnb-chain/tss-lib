@@ -47,8 +47,19 @@ func TestStartRound1Paillier(t *testing.T) {
 	threshold := 1
 	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
 
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil).(*LocalParty)
+	if 0 < len(fixtures) {
+		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
+	} else {
+		lp = NewLocalParty(params, out, nil).(*LocalParty)
+	}
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -76,8 +87,19 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	threshold := 1
 	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
 
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil).(*LocalParty)
+	if 0 < len(fixtures) {
+		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
+	} else {
+		lp = NewLocalParty(params, out, nil).(*LocalParty)
+	}
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -112,22 +134,35 @@ func TestBadMessageCulprits(t *testing.T) {
 	p2pCtx := tss.NewPeerContext(pIDs)
 	params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[0], len(pIDs), 1)
 
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
+	if 0 < len(fixtures) {
+		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
+	} else {
+		lp = NewLocalParty(params, out, nil).(*LocalParty)
+	}
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
 
 	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
-	ok, err := lp.Update(badMsg)
-	t.Log(err)
+	ok, err2 := lp.Update(badMsg)
+	t.Log(err2)
 	assert.False(t, ok)
-	assert.Error(t, err)
-	assert.Equal(t, 1, len(err.Culprits()))
-	assert.Equal(t, pIDs[1], err.Culprits()[0])
+	if !assert.Error(t, err2) {
+		return
+	}
+	assert.Equal(t, 1, len(err2.Culprits()))
+	assert.Equal(t, pIDs[1], err2.Culprits()[0])
 	assert.Equal(t,
-		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
-		err.Error())
+		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,2}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,2}, To: all",
+		err2.Error())
 }
 
 func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
@@ -139,6 +174,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
 		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
 	}
 
 	p2pCtx := tss.NewPeerContext(pIDs)
