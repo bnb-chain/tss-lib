@@ -114,7 +114,6 @@ func (round *presign1) Update() (bool, *tss.Error) {
 	return true, nil
 }
 
-// TODO modify CanAccept
 func (round *presign1) CanAccept(msg tss.ParsedMessage) bool {
 	if _, ok := msg.Content().(*PreSignRound1Message); ok {
 		return !msg.IsBroadcast()

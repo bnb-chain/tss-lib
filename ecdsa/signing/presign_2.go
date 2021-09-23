@@ -8,7 +8,6 @@ package signing
 
 import (
 	"errors"
-	"math/big"
 	"sync"
 
 	"github.com/binance-chain/tss-lib/common"
@@ -66,7 +65,7 @@ func (round *presign2) Start() *tss.Error {
 
 	// Fig 7. Round 2.2 compute MtA and generate proofs
 	BigGammaShare := crypto.ScalarBaseMult(round.Params().EC(), round.temp.GammaShare)
-	g := crypto.ScalarBaseMult(round.EC(), big.NewInt(1)) // used in prooflogstar
+	g := crypto.NewECPointNoCurveCheck(round.EC(), round.EC().Params().Gx, round.EC().Params().Gy)
 	errChs = make(chan *tss.Error, (len(round.Parties().IDs())-1)*3)
 	wg = sync.WaitGroup{}
 	for j, Pj := range round.Parties().IDs() {

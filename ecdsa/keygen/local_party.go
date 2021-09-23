@@ -52,8 +52,9 @@ type (
 		KGCs          []cmt.HashCommitment
 		// vs            vss.Vs
 		shares        vss.Shares
-		deCommitPolyG cmt.HashDeCommitment
+		// deCommitPolyG cmt.HashDeCommitment
 
+		vs                 vss.Vs
 		r1msgVHashs        []*big.Int
 		r2msgVss           [][]*crypto.ECPoint
 		r3msgxij           []*big.Int
@@ -160,7 +161,7 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		}
 	case *KGRound3Message:
 		p.temp.kgRound3Messages[fromPIdx] = msg
-		r3msg := p.temp.kgRound3Messages[fromPIdx].Content().(*KGRound3Message)
+		r3msg := msg.Content().(*KGRound3Message)
 		xij, err := p.data.PaillierSK.Decrypt(r3msg.UnmarshalShare())
 		if err != nil {
 			return false, p.WrapError(err)

@@ -63,7 +63,7 @@ func NewProof(N, P, Q *big.Int) (*ProofMod, error) {
 	for i := range(Y) {
 		for j := 0; j < 4; j++ {
 			a, b := j&1, j&2 >> 1
-			Yi := new(big.Int).SetBytes(Y[i].Bytes()) // TODO
+			Yi := new(big.Int).SetBytes(Y[i].Bytes()) // TODO use bool instead
 			if a > 0 {
 				Yi = modN.Mul(big.NewInt(-1), Yi)
 			}

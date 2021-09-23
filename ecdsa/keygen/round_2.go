@@ -29,8 +29,10 @@ func (round *round2) Start() *tss.Error {
 	// Fig 5. Round 2. / Fig 6. Round 2.
 	// BROADCAST message
 	{
-		msg := NewKGRound2Message(round.PartyID(), round.temp.r2msgVss[i], &round.save.PaillierSK.PublicKey, round.save.NTildei, round.save.H1i, round.save.H2i)
-		round.temp.kgRound2Messages[i] = msg
+		//TODO
+		// fmt.Println("vs[0].x", i, round.temp.vs[0].X()) //TODO
+		msg := NewKGRound2Message(round.PartyID(), round.temp.vs, &round.save.PaillierSK.PublicKey, round.save.NTildei, round.save.H1i, round.save.H2i)
+		// round.temp.kgRound2Messages[i] = msg
 		round.out <- msg
 	}
 
@@ -38,21 +40,20 @@ func (round *round2) Start() *tss.Error {
 }
 
 func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
-	if _, ok := msg.Content().(*KGRound1Message); ok {
+	if _, ok := msg.Content().(*KGRound2Message); ok {
 		return msg.IsBroadcast()
 	}
 	return false
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.kgRound1Messages {
+	for j, msg := range round.temp.r2msgVss {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
-		// vss check is in round 2
 		round.ok[j] = true
 	}
 	return true, nil

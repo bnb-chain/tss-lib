@@ -38,7 +38,7 @@ func (round *round1) Start() *tss.Error {
 	round.ok[i] = true
 
 	// Fig 5. Round 1. private key part
-	ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	ui := common.GetRandomPositiveInt(round.EC().Params().N)
 
 	// Fig 5. Round 1. pub key part, vss shares
 	ids := round.Parties().IDs().Keys()
@@ -47,16 +47,16 @@ func (round *round1) Start() *tss.Error {
 		return round.WrapError(err, Pi)
 	}
 
-	// security: the original u_i may be discarded
-	ui = zero // clears the secret data from memory
-	_ = ui    // silences a linter warning
+	// // security: the original u_i may be discarded
+	// ui = zero // clears the secret data from memory
+	// _ = ui    // silences a linter warning
 
 	// Fig 6. Round 1. // TODO modify GeneartePreParams accordingly
 	var preParams *LocalPreParams
 	if round.save.LocalPreParams.Validate() {
 		preParams = &round.save.LocalPreParams
 	} else {
-		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout(), 3)
+		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout())
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
@@ -71,11 +71,12 @@ func (round *round1) Start() *tss.Error {
 	// BROADCAST VHash
 	{
 		msg := NewKGRound1Message(round.PartyID(), VHash)
-		round.temp.kgRound1Messages[i] = msg // TODO remove
+		// round.temp.kgRound1Messages[i] = msg // TODO remove
 		round.out <- msg
 	}
 
-	// round.temp.ui = ui
+	round.temp.vs = vs
+	round.temp.ui = ui
 	round.temp.r1msgVHashs[i] = VHash
 	round.save.Ks = ids
 	round.save.LocalPreParams = *preParams
@@ -87,7 +88,6 @@ func (round *round1) Start() *tss.Error {
 	// - VSS Vs
 	// - our set of Shamir shares
 	round.save.ShareID = ids[i]
-	round.temp.r2msgVss[i] = vs
 	round.temp.shares = shares
 	// for this P: SAVE paillier keys
 	round.save.PaillierSK = preParams.PaillierSK
@@ -105,14 +105,13 @@ func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.kgRound1Messages {
+	for j, msg := range round.temp.r1msgVHashs {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
-		// vss check is in round 2
 		round.ok[j] = true
 	}
 	return true, nil

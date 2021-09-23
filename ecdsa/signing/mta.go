@@ -29,8 +29,6 @@ func NewMtA(ec elliptic.Curve, Kj *big.Int, gammai *big.Int, BigGammai *crypto.E
 	q := ec.Params().N
     q3 := new(big.Int).Mul(q, q)
     q3 = new(big.Int).Mul(q, q3)
-
-    // betaNeg := common.GetRandomPositiveInt(pki.N) //TODO
 	
 	betaNeg := common.GetRandomPositiveInt(q3)
 

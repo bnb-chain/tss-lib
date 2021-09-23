@@ -10,7 +10,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"os"
 	"runtime"
@@ -209,7 +208,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	var ended int32
 keygen:
 	for {
-		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
+		// fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine()) //TODO uncomment
 		select {
 		case err := <-errCh:
 			common.Logger.Errorf("Error: %s", err)
@@ -252,22 +251,27 @@ keygen:
 						if j2 == j {
 							continue
 						}
-						vssMsgs := P.temp.kgRound3Messages
-						share := vssMsgs[j].Content().(*KGRound3Message).Share
+						// vssMsgs := P.temp.kgRound3Messages
+						// share := vssMsgs[j].Content().(*KGRound3Message).Share
+						share := P.temp.r3msgxij[j]
 						shareStruct := &vss.Share{
 							Threshold: threshold,
 							ID:        P.PartyID().KeyInt(),
-							Share:     new(big.Int).SetBytes(share),
+							Share:     share, //new(big.Int).SetBytes(share),
 						}
 						pShares = append(pShares, shareStruct)
 					}
-					uj, err := pShares[:threshold+1].ReConstruct(tss.S256())
+					uj, err := pShares[:threshold+1].ReConstruct(tss.EC())
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
 					uG := crypto.ScalarBaseMult(tss.EC(), uj)
-					assert.True(t, uG.Equals(Pj.temp.r2msgVss[j][0]), "ensure u*G[j] == V_0")
+					V0 := Pj.temp.vs[0]
+					if Pj.temp.r2msgVss[j] != nil {
+						V0 = Pj.temp.r2msgVss[j][0]
+					}
+					assert.True(t, uG.Equals(V0), "ensure u*G[j] == V_0")
 
 					// xj tests: BigXj == xj*G
 					xj := Pj.data.Xi
@@ -283,8 +287,12 @@ keygen:
 						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
-						assert.NotEqual(t, BigXjX, Pj.temp.r2msgVss[j][0].X())
-						assert.NotEqual(t, BigXjY, Pj.temp.r2msgVss[j][0].Y())
+						V_0 := Pj.temp.vs[0]
+						if Pj.temp.r2msgVss[j] != nil {
+							V_0 = Pj.temp.r2msgVss[j][0]
+						}
+						assert.NotEqual(t, BigXjX, V_0.X())
+						assert.NotEqual(t, BigXjY, V_0.Y())
 					}
 					u = new(big.Int).Add(u, uj)
 				}

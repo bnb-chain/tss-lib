@@ -8,6 +8,7 @@ package keygen
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -23,37 +24,44 @@ func (round *round3) Start() *tss.Error {
 	round.resetOK()
 
 	i := round.PartyID().Index
-	round.ok[i] = true
+	//round.ok[i] = true
 
 	// Fig 5. Round 3.1 / Fig 6. Round 3.1
 	for j, Pj := range round.Parties().IDs() {
+		if j == i {
+			continue
+		}
+
 		listToHash, err := crypto.FlattenECPoints(round.temp.r2msgVss[j])
 		if err != nil {
+			fmt.Println("fletten failed", i, j) //TODO
 			return round.WrapError(err, Pj)
 		}
 		listToHash = append(listToHash, round.save.PaillierPKs[j].N, round.save.NTildej[j], round.save.H1j[j], round.save.H2j[j])
 		VjHash := common.SHA512_256i(listToHash...)
-		if VjHash != round.temp.r1msgVHashs[j] {
+		//TODO
+		fmt.Println(i, "vhash from", j, VjHash) //TODO
+		if VjHash.Cmp(round.temp.r1msgVHashs[j]) != 0 {
 			return round.WrapError(errors.New("verify hash failed"), Pj)
 		}
 	}
 
 	// Fig 5. Round 3.2 TODO / Fig 6. Round 3.2 TODO_proofs 
 	for j, Pj := range round.Parties().IDs() {
+		if j == i {
+			continue
+		}
 		Cij, err := round.save.PaillierPKs[j].Encrypt(round.temp.shares[j].Share)
 		if err != nil {
 			return round.WrapError(errors.New("encrypt error"))
 		}
-		r3msg1 := NewKGRound3Message(Pj, round.PartyID(), Cij)
-		// do not send to this Pj, but store for round 3
-		if j == i {
-			round.temp.kgRound3Messages[i] = r3msg1
-			continue
-		}
-		round.temp.kgRound3Messages[j] = r3msg1
-		round.out <- r3msg1
+		r3msg := NewKGRound3Message(Pj, round.PartyID(), Cij)
+
+		round.temp.kgRound3Messages[j] = r3msg // TODO remove
+		round.out <- r3msg
 	}
 
+	round.ok[i] = true
 	return nil
 }
 
@@ -65,12 +73,11 @@ func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
-	// guard - VERIFY de-commit for all Pj
-	for j, msg := range round.temp.kgRound3Messages {
+	for j, msg := range round.temp.r3msgxij {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
 		round.ok[j] = true

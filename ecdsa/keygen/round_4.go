@@ -29,7 +29,7 @@ func (round *round4) Start() *tss.Error {
 
 	Ps := round.Parties().IDs() // TODO change Ps
 	i := round.PartyID().Index
-	round.ok[i] = true
+	//round.ok[i] = true
 
 	// Fig 5. Output 2. / Fig 6. Output 2.
 	xi := new(big.Int).Set(round.temp.shares[i].Share)
@@ -41,9 +41,9 @@ func (round *round4) Start() *tss.Error {
 	}
 	round.save.Xi = new(big.Int).Mod(xi, round.EC().Params().N)
 
-	Vc := make(vss.Vs, round.Threshold()+1)
+	Vc := make([]*crypto.ECPoint, round.Threshold()+1)
 	for c := range Vc {
-		Vc[c] = round.temp.r2msgVss[i][c] // ours
+		Vc[c] = round.temp.vs[c]
 	}
 
 	type vssOut struct {
@@ -160,8 +160,10 @@ func (round *round4) Start() *tss.Error {
 	ki := round.PartyID().KeyInt()
 	proof := round.save.PaillierSK.Proof(ki, ecdsaPubKey)
 	r4msg := NewKGRound4Message(round.PartyID(), proof)
-	round.temp.kgRound3Messages[i] = r4msg
+	round.temp.kgRound4Messages[i] = r4msg
 	round.out <- r4msg
+
+	round.ok[i] = true
 	return nil
 }
 

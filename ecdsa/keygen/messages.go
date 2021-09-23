@@ -69,7 +69,7 @@ func NewKGRound2Message(
 		IsBroadcast: true,
 	}
 	vs_flat, _ := crypto.FlattenECPoints(vs)
-	var vsbzs [][]byte
+	vsbzs := make([][]byte, len(vs_flat))
 	for i, item := range(vs_flat) {
 		vsbzs[i] = item.Bytes()
 	}
@@ -93,7 +93,8 @@ func (m *KGRound2Message) ValidateBasic() bool {
 }
 
 func (m *KGRound2Message) UnmarshalVs(ec elliptic.Curve) ([]*crypto.ECPoint, error) {
-	var vs_points []*big.Int
+	bzs := m.GetVs()
+	vs_points := make([]*big.Int, len(bzs))
 	for i, item := range(m.GetVs()) {
 		vs_points[i] = new(big.Int).SetBytes(item)
 	}

@@ -33,7 +33,7 @@ func (round *roundout) Start() *tss.Error {
 	for i := range chs {
 		chs[i] = make(chan bool)
 	}
-	for j, msg := range round.temp.kgRound3Messages {
+	for j, msg := range round.temp.kgRound4Messages {
 		if j == i {
 			continue
 		}
