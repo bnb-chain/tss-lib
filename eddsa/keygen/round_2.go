@@ -11,7 +11,7 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	zkpsch "github.com/binance-chain/tss-lib/crypto/zkp/sch"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -45,7 +45,7 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 5. compute Schnorr prove
-	pii, err := schnorr.NewZKProof(round.temp.ui, round.temp.vs[0])
+	pii, err := zkpsch.NewProof(round.temp.vs[0], round.temp.ui)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(ui, vi0)"))
 	}

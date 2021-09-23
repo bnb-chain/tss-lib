@@ -11,9 +11,8 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	zkpsch "github.com/binance-chain/tss-lib/crypto/zkp/sch"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -60,18 +59,17 @@ func (m *SignRound1Message) UnmarshalCommitment() *big.Int {
 func NewSignRound2Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *schnorr.ZKProof,
+	proof *zkpsch.ProofSch,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
+	proofBzs := proof.Bytes()
 	content := &SignRound2Message{
 		DeCommitment: dcBzs,
-		ProofAlphaX:  proof.Alpha.X().Bytes(),
-		ProofAlphaY:  proof.Alpha.Y().Bytes(),
-		ProofT:       proof.T.Bytes(),
+		Proof:        proofBzs[:],
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -80,9 +78,7 @@ func NewSignRound2Message(
 func (m *SignRound2Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyMultiBytes(m.DeCommitment, 3) &&
-		common.NonEmptyBytes(m.ProofAlphaX) &&
-		common.NonEmptyBytes(m.ProofAlphaY) &&
-		common.NonEmptyBytes(m.ProofT)
+		common.NonEmptyMultiBytes(m.Proof, zkpsch.ProofSchBytesParts)
 }
 
 func (m *SignRound2Message) UnmarshalDeCommitment() []*big.Int {
@@ -90,18 +86,8 @@ func (m *SignRound2Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound2Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
-	point, err := crypto.NewECPoint(
-		ec,
-		new(big.Int).SetBytes(m.GetProofAlphaX()),
-		new(big.Int).SetBytes(m.GetProofAlphaY()))
-	if err != nil {
-		return nil, err
-	}
-	return &schnorr.ZKProof{
-		Alpha: point,
-		T:     new(big.Int).SetBytes(m.GetProofT()),
-	}, nil
+func (m *SignRound2Message) UnmarshalZKProof(ec elliptic.Curve) (*zkpsch.ProofSch, error) {
+	return zkpsch.NewProofFromBytes(ec, m.GetProof())
 }
 
 // ----- //

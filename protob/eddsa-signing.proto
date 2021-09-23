@@ -20,9 +20,7 @@ message SignRound1Message {
  */
 message SignRound2Message {
     repeated bytes de_commitment = 1;
-    bytes proof_alpha_x = 2;
-    bytes proof_alpha_y = 3;
-    bytes proof_t = 4;
+    repeated bytes proof = 2;
 }
 
 /*

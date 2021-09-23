@@ -11,7 +11,7 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
+	zkpsch "github.com/binance-chain/tss-lib/crypto/zkp/sch"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -32,7 +32,7 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 2. compute Schnorr prove
-	pir, err := schnorr.NewZKProof(round.temp.ri, round.temp.pointRi)
+	pir, err := zkpsch.NewProof(round.temp.pointRi, round.temp.ri)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(ri, pointRi)"))
 	}
