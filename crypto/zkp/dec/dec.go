@@ -29,7 +29,7 @@ type (
 // NewProof implements proofenc
 func NewProof(ec elliptic.Curve, pk *paillier.PublicKey, C, x, NCap, s, t, y, rho *big.Int) (*ProofDec, error) {
     if ec == nil || pk == nil || C == nil || x == nil || NCap == nil || s == nil || t == nil || y == nil || rho == nil {
-        return nil, errors.New("ProveEnc constructor received nil value(s)")
+        return nil, errors.New("ProveDec constructor received nil value(s)")
     }
 
     q := ec.Params().N

@@ -45,3 +45,10 @@ func TestGetRandomPrimeInt(t *testing.T) {
 	assert.NotZero(t, prime, "rand prime should not be zero")
 	assert.True(t, prime.ProbablyPrime(50), "rand prime should be prime")
 }
+
+func TestGetRandomQuandraticNonResidue(t *testing.T) {
+	rnd := common.MustGetRandomInt(randomIntBitLen)
+	N := common.GetRandomPositiveRelativelyPrimeInt(rnd)
+	w := common.GetRandomQuandraticNonResidue(N)
+	assert.Equal(t, big.Jacobi(w, N), -1, "must get quandratic non residue")
+}

@@ -12,7 +12,6 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -21,7 +20,6 @@ var (
 	zero = big.NewInt(0)
 )
 
-// round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- LocalPartySaveData) tss.Round {
 	return &round1{
 		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
@@ -37,35 +35,23 @@ func (round *round1) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
+	round.ok[i] = true
 
-	// 1. calculate "partial" key share ui
+	// Fig 5. Round 1. private key part
 	ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
 
-	round.temp.ui = ui
-
-	// 2. compute the vss shares
+	// Fig 5. Round 1. pub key part, vss shares
 	ids := round.Parties().IDs().Keys()
 	vs, shares, err := vss.Create(round.Params().EC(), round.Threshold(), ui, ids)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	round.save.Ks = ids
 
 	// security: the original u_i may be discarded
 	ui = zero // clears the secret data from memory
 	_ = ui    // silences a linter warning
 
-	// make commitment -> (C, D)
-	pGFlat, err := crypto.FlattenECPoints(vs)
-	if err != nil {
-		return round.WrapError(err, Pi)
-	}
-	cmt := cmts.NewHashCommitment(pGFlat...)
-
-	// 4. generate Paillier public key E_i, private key and proof
-	// 5-7. generate safe primes for ZKPs used later on
-	// 9-11. compute ntilde, h1, h2 (uses safe primes)
-	// use the pre-params if they were provided to the LocalParty constructor
+	// Fig 6. Round 1. // TODO modify GeneartePreParams accordingly
 	var preParams *LocalPreParams
 	if round.save.LocalPreParams.Validate() {
 		preParams = &round.save.LocalPreParams
@@ -75,30 +61,39 @@ func (round *round1) Start() *tss.Error {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
 	}
+
+	listToHash, err := crypto.FlattenECPoints(vs)
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+	listToHash = append(listToHash, preParams.PaillierSK.PublicKey.N, preParams.NTildei, preParams.H1i, preParams.H2i)
+	VHash := common.SHA512_256i(listToHash...)
+	// BROADCAST VHash
+	{
+		msg := NewKGRound1Message(round.PartyID(), VHash)
+		round.temp.kgRound1Messages[i] = msg // TODO remove
+		round.out <- msg
+	}
+
+	// round.temp.ui = ui
+	round.temp.r1msgVHashs[i] = VHash
+	round.save.Ks = ids
 	round.save.LocalPreParams = *preParams
 	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
-
 	// for this P: SAVE
 	// - shareID
 	// and keep in temporary storage:
 	// - VSS Vs
 	// - our set of Shamir shares
 	round.save.ShareID = ids[i]
-	round.temp.vs = vs
+	round.temp.r2msgVss[i] = vs
 	round.temp.shares = shares
-
-	// for this P: SAVE de-commitments, paillier keys for round 2
+	// for this P: SAVE paillier keys
 	round.save.PaillierSK = preParams.PaillierSK
 	round.save.PaillierPKs[i] = &preParams.PaillierSK.PublicKey
-	round.temp.deCommitPolyG = cmt.D
+	//round.temp.deCommitPolyG = cmt.D
 
-	// BROADCAST commitments, paillier pk + proof; round 1 message
-	{
-		msg := NewKGRound1Message(round.PartyID(), cmt.C, &preParams.PaillierSK.PublicKey, preParams.NTildei, preParams.H1i, preParams.H2i)
-		round.temp.kgRound1Messages[i] = msg
-		round.out <- msg
-	}
 	return nil
 }
 

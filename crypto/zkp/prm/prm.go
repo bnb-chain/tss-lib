@@ -57,13 +57,11 @@ func NewProofFromBytes(bzs [][]byte) (*ProofPrm, error) {
 		bis[i] = new(big.Int).SetBytes(bzs[i])
 	}
 	A := [Iterations]*big.Int{}
-	for i := range A {
-		A[i] = bis[i]
-	}
+	copy(A[:], bis[:Iterations])
+
 	Z := [Iterations]*big.Int{}
-	for i := range Z {
-		Z[i] = bis[i+Iterations]
-	}
+	copy(Z[:], bis[Iterations:])
+
     return &ProofPrm{
         A: A,
         Z: Z,

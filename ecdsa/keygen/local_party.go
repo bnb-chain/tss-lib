@@ -13,6 +13,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -35,11 +36,12 @@ type (
 		end chan<- LocalPartySaveData
 	}
 
+	// TODO remove localMessageStore
 	localMessageStore struct {
 		kgRound1Messages,
-		kgRound2Message1s,
-		kgRound2Message2s,
-		kgRound3Messages []tss.ParsedMessage
+		kgRound2Messages,
+		kgRound3Messages,
+		kgRound4Messages []tss.ParsedMessage
 	}
 
 	localTempData struct {
@@ -48,9 +50,13 @@ type (
 		// temp data (thrown away after keygen)
 		ui            *big.Int // used for tests
 		KGCs          []cmt.HashCommitment
-		vs            vss.Vs
+		// vs            vss.Vs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
+
+		r1msgVHashs        []*big.Int
+		r2msgVss           [][]*crypto.ECPoint
+		r3msgxij           []*big.Int
 	}
 )
 
@@ -83,11 +89,15 @@ func NewLocalParty(
 	}
 	// msgs init
 	p.temp.kgRound1Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.kgRound2Message1s = make([]tss.ParsedMessage, partyCount)
-	p.temp.kgRound2Message2s = make([]tss.ParsedMessage, partyCount)
+	p.temp.kgRound2Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.kgRound4Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
+
+	p.temp.r1msgVHashs = make([]*big.Int, partyCount)
+	p.temp.r2msgVss = make([][]*crypto.ECPoint, partyCount)
+	p.temp.r3msgxij = make([]*big.Int, partyCount)
 	return p
 }
 
@@ -134,13 +144,30 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
 	case *KGRound1Message:
-		p.temp.kgRound1Messages[fromPIdx] = msg
-	case *KGRound2Message1:
-		p.temp.kgRound2Message1s[fromPIdx] = msg
-	case *KGRound2Message2:
-		p.temp.kgRound2Message2s[fromPIdx] = msg
+		p.temp.kgRound1Messages[fromPIdx] = msg // TODO remove
+		r1msg := msg.Content().(*KGRound1Message)
+		p.temp.r1msgVHashs[fromPIdx] = r1msg.UnmarshalVHash()
+	case *KGRound2Message:
+		p.temp.kgRound2Messages[fromPIdx] = msg
+		r2msg := msg.Content().(*KGRound2Message)
+		p.data.PaillierPKs[fromPIdx] = r2msg.UnmarshalPaillierPK() // used in round 4
+		p.data.NTildej[fromPIdx] = r2msg.UnmarshalNTilde()
+		p.data.H1j[fromPIdx], p.data.H2j[fromPIdx] = r2msg.UnmarshalH1(), r2msg.UnmarshalH2()
+		var err error
+		p.temp.r2msgVss[fromPIdx], err = r2msg.UnmarshalVs(p.params.EC())
+		if err != nil {
+			return false, p.WrapError(err)
+		}
 	case *KGRound3Message:
 		p.temp.kgRound3Messages[fromPIdx] = msg
+		r3msg := p.temp.kgRound3Messages[fromPIdx].Content().(*KGRound3Message)
+		xij, err := p.data.PaillierSK.Decrypt(r3msg.UnmarshalShare())
+		if err != nil {
+			return false, p.WrapError(err)
+		}
+		p.temp.r3msgxij[fromPIdx] = xij
+	case *KGRound4Message:
+		p.temp.kgRound4Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

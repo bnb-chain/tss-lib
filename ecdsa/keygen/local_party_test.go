@@ -22,7 +22,6 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/test"
 	"github.com/binance-chain/tss-lib/tss"
@@ -151,7 +150,8 @@ func TestBadMessageCulprits(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	}
 
-	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
+	// badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
+	badMsg := NewKGRound1Message(pIDs[1], zero)
 	ok, err2 := lp.Update(badMsg)
 	t.Log(err2)
 	assert.False(t, ok)
@@ -252,8 +252,8 @@ keygen:
 						if j2 == j {
 							continue
 						}
-						vssMsgs := P.temp.kgRound2Message1s
-						share := vssMsgs[j].Content().(*KGRound2Message1).Share
+						vssMsgs := P.temp.kgRound3Messages
+						share := vssMsgs[j].Content().(*KGRound3Message).Share
 						shareStruct := &vss.Share{
 							Threshold: threshold,
 							ID:        P.PartyID().KeyInt(),
@@ -267,7 +267,7 @@ keygen:
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
 					uG := crypto.ScalarBaseMult(tss.EC(), uj)
-					assert.True(t, uG.Equals(Pj.temp.vs[0]), "ensure u*G[j] == V_0")
+					assert.True(t, uG.Equals(Pj.temp.r2msgVss[j][0]), "ensure u*G[j] == V_0")
 
 					// xj tests: BigXj == xj*G
 					xj := Pj.data.Xi
@@ -283,8 +283,8 @@ keygen:
 						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
-						assert.NotEqual(t, BigXjX, Pj.temp.vs[0].X())
-						assert.NotEqual(t, BigXjY, Pj.temp.vs[0].Y())
+						assert.NotEqual(t, BigXjX, Pj.temp.r2msgVss[j][0].X())
+						assert.NotEqual(t, BigXjY, Pj.temp.r2msgVss[j][0].Y())
 					}
 					u = new(big.Int).Add(u, uj)
 				}

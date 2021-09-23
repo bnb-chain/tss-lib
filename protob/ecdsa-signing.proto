@@ -46,3 +46,15 @@ message PreSignRound3Message {
 message SignRound4Message {
     bytes SigmaShare = 1;
 }
+
+message IdentificationRound6Message {
+    bytes H = 1;
+    repeated bytes MulProof = 2;
+    bytes DeltaShareEnc = 3;
+    repeated bytes DecProof = 4;
+}
+
+message TempDataDumpMessage {
+    bytes DataDump = 1;
+    int32 RoundNum = 2;
+}

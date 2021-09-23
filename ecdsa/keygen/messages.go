@@ -7,10 +7,11 @@
 package keygen
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
@@ -23,9 +24,9 @@ var (
 	// Ensure that keygen messages implement ValidateBasic
 	_ = []tss.MessageContent{
 		(*KGRound1Message)(nil),
-		(*KGRound2Message1)(nil),
-		(*KGRound2Message2)(nil),
+		(*KGRound2Message)(nil),
 		(*KGRound3Message)(nil),
+		(*KGRound4Message)(nil),
 	}
 )
 
@@ -33,7 +34,33 @@ var (
 
 func NewKGRound1Message(
 	from *tss.PartyID,
-	ct cmt.HashCommitment,
+	VHash *big.Int,
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:        from,
+		IsBroadcast: true,
+	}
+	content := &KGRound1Message{
+		VHash: VHash.Bytes(),
+	}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
+}
+
+func (m *KGRound1Message) ValidateBasic() bool {
+	return m != nil &&
+		common.NonEmptyBytes(m.GetVHash())
+}
+
+func (m *KGRound1Message) UnmarshalVHash() *big.Int {
+	return new(big.Int).SetBytes(m.GetVHash())
+}
+
+// ----- //
+
+func NewKGRound2Message(
+	from *tss.PartyID,
+	vs vss.Vs,
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
 ) tss.ParsedMessage {
@@ -41,8 +68,13 @@ func NewKGRound1Message(
 		From:        from,
 		IsBroadcast: true,
 	}
-	content := &KGRound1Message{
-		Commitment: ct.Bytes(),
+	vs_flat, _ := crypto.FlattenECPoints(vs)
+	var vsbzs [][]byte
+	for i, item := range(vs_flat) {
+		vsbzs[i] = item.Bytes()
+	}
+	content := &KGRound2Message{
+		Vs:         vsbzs[:],
 		PaillierN:  paillierPK.N.Bytes(),
 		NTilde:     nTildeI.Bytes(),
 		H1:         h1I.Bytes(),
@@ -52,93 +84,72 @@ func NewKGRound1Message(
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *KGRound1Message) ValidateBasic() bool {
+func (m *KGRound2Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.GetCommitment()) &&
 		common.NonEmptyBytes(m.GetPaillierN()) &&
 		common.NonEmptyBytes(m.GetNTilde()) &&
 		common.NonEmptyBytes(m.GetH1()) &&
 		common.NonEmptyBytes(m.GetH2())
 }
 
-func (m *KGRound1Message) UnmarshalCommitment() *big.Int {
-	return new(big.Int).SetBytes(m.GetCommitment())
+func (m *KGRound2Message) UnmarshalVs(ec elliptic.Curve) ([]*crypto.ECPoint, error) {
+	var vs_points []*big.Int
+	for i, item := range(m.GetVs()) {
+		vs_points[i] = new(big.Int).SetBytes(item)
+	}
+	vs, err := crypto.UnFlattenECPoints(ec, vs_points)
+	if err != nil {
+		return nil, err
+	}
+	return vs, nil
 }
 
-func (m *KGRound1Message) UnmarshalPaillierPK() *paillier.PublicKey {
+func (m *KGRound2Message) UnmarshalPaillierPK() *paillier.PublicKey {
 	return &paillier.PublicKey{N: new(big.Int).SetBytes(m.GetPaillierN())}
 }
 
-func (m *KGRound1Message) UnmarshalNTilde() *big.Int {
+func (m *KGRound2Message) UnmarshalNTilde() *big.Int {
 	return new(big.Int).SetBytes(m.GetNTilde())
 }
 
-func (m *KGRound1Message) UnmarshalH1() *big.Int {
+func (m *KGRound2Message) UnmarshalH1() *big.Int {
 	return new(big.Int).SetBytes(m.GetH1())
 }
 
-func (m *KGRound1Message) UnmarshalH2() *big.Int {
+func (m *KGRound2Message) UnmarshalH2() *big.Int {
 	return new(big.Int).SetBytes(m.GetH2())
 }
 
 // ----- //
 
-func NewKGRound2Message1(
+func NewKGRound3Message(
 	to, from *tss.PartyID,
-	share *vss.Share,
+	share *big.Int,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		To:          []*tss.PartyID{to},
 		IsBroadcast: false,
 	}
-	content := &KGRound2Message1{
-		Share: share.Share.Bytes(),
+	content := &KGRound3Message{
+		Share: share.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *KGRound2Message1) ValidateBasic() bool {
+func (m *KGRound3Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyBytes(m.GetShare())
 }
 
-func (m *KGRound2Message1) UnmarshalShare() *big.Int {
+func (m *KGRound3Message) UnmarshalShare() *big.Int {
 	return new(big.Int).SetBytes(m.Share)
 }
 
 // ----- //
 
-func NewKGRound2Message2(
-	from *tss.PartyID,
-	deCommitment cmt.HashDeCommitment,
-) tss.ParsedMessage {
-	meta := tss.MessageRouting{
-		From:        from,
-		IsBroadcast: true,
-	}
-	dcBzs := common.BigIntsToBytes(deCommitment)
-	content := &KGRound2Message2{
-		DeCommitment: dcBzs,
-	}
-	msg := tss.NewMessageWrapper(meta, content)
-	return tss.NewMessage(meta, content, msg)
-}
-
-func (m *KGRound2Message2) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyMultiBytes(m.GetDeCommitment())
-}
-
-func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
-	deComBzs := m.GetDeCommitment()
-	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
-}
-
-// ----- //
-
-func NewKGRound3Message(
+func NewKGRound4Message(
 	from *tss.PartyID,
 	proof paillier.Proof,
 ) tss.ParsedMessage {
@@ -153,19 +164,19 @@ func NewKGRound3Message(
 		}
 		pfBzs[i] = proof[i].Bytes()
 	}
-	content := &KGRound3Message{
+	content := &KGRound4Message{
 		PaillierProof: pfBzs,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *KGRound3Message) ValidateBasic() bool {
+func (m *KGRound4Message) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyMultiBytes(m.GetPaillierProof(), paillier.ProofIters)
 }
 
-func (m *KGRound3Message) UnmarshalProofInts() paillier.Proof {
+func (m *KGRound4Message) UnmarshalProofInts() paillier.Proof {
 	var pf paillier.Proof
 	proofBzs := m.GetPaillierProof()
 	for i := range pf {
