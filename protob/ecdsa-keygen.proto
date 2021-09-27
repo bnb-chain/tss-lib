@@ -31,6 +31,8 @@ message KGRound2Message {
  */
 message KGRound3Message {
     bytes share = 1;
+    repeated bytes mod_proof = 2;
+    repeated bytes prm_proof = 3;
 }
 
 /*

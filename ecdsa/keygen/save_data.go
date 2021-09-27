@@ -22,7 +22,8 @@ type (
 		NTildei,
 		H1i, H2i,
 		Alpha, Beta,
-		P, Q *big.Int
+		P, Q,
+		SP, SQ *big.Int
 	}
 
 	LocalSecrets struct {

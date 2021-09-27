@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"runtime"
@@ -208,7 +209,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	var ended int32
 keygen:
 	for {
-		// fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine()) //TODO uncomment
+		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
 		select {
 		case err := <-errCh:
 			common.Logger.Errorf("Error: %s", err)

@@ -14,6 +14,8 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	zkpmod "github.com/binance-chain/tss-lib/crypto/zkp/mod"
+	zkpprm "github.com/binance-chain/tss-lib/crypto/zkp/prm"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -126,14 +128,20 @@ func (m *KGRound2Message) UnmarshalH2() *big.Int {
 func NewKGRound3Message(
 	to, from *tss.PartyID,
 	share *big.Int,
+	proofMod *zkpmod.ProofMod,
+	proofPrm *zkpprm.ProofPrm,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		To:          []*tss.PartyID{to},
 		IsBroadcast: false,
 	}
+	proofModBzs := proofMod.Bytes()
+	proofPrmBzs := proofPrm.Bytes()
 	content := &KGRound3Message{
 		Share: share.Bytes(),
+		ModProof: proofModBzs[:],
+		PrmProof: proofPrmBzs[:],
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -141,11 +149,21 @@ func NewKGRound3Message(
 
 func (m *KGRound3Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.GetShare())
+		common.NonEmptyBytes(m.GetShare()) &&
+		common.NonEmptyMultiBytes(m.GetModProof(), zkpmod.ProofModBytesParts) &&
+		common.NonEmptyMultiBytes(m.GetPrmProof(), zkpprm.ProofPrmBytesParts)
 }
 
 func (m *KGRound3Message) UnmarshalShare() *big.Int {
 	return new(big.Int).SetBytes(m.Share)
+}
+
+func (m *KGRound3Message) UnmarshalProofMod() (*zkpmod.ProofMod, error) {
+	return zkpmod.NewProofFromBytes(m.GetModProof())
+}
+
+func (m *KGRound3Message) UnmarshalProofPrm() (*zkpprm.ProofPrm, error) {
+	return zkpprm.NewProofFromBytes(m.GetPrmProof())
 }
 
 // ----- //

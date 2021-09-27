@@ -12,8 +12,8 @@ import (
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	"github.com/binance-chain/tss-lib/tss"
 )
@@ -164,9 +164,25 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		r3msg := msg.Content().(*KGRound3Message)
 		xij, err := p.data.PaillierSK.Decrypt(r3msg.UnmarshalShare())
 		if err != nil {
-			return false, p.WrapError(err)
+			return false, p.WrapError(err, p.params.Parties().IDs()[fromPIdx])
 		}
 		p.temp.r3msgxij[fromPIdx] = xij
+		proofMod, err := r3msg.UnmarshalProofMod()
+		if err != nil {
+			return false, p.WrapError(err, p.params.Parties().IDs()[fromPIdx])
+		}
+		if ok := proofMod.Verify(p.data.NTildej[fromPIdx]); !ok {
+			return false, p.WrapError(errors.New("proofMod verify failed"), p.params.Parties().IDs()[fromPIdx])
+		}
+
+		proofPrm, err := r3msg.UnmarshalProofPrm()
+		if err != nil {
+			return false, p.WrapError(err, p.params.Parties().IDs()[fromPIdx])
+		}
+		if ok := proofPrm.Verify(p.data.H1j[fromPIdx], p.data.H2j[fromPIdx], p.data.NTildej[fromPIdx]); !ok {
+			return false, p.WrapError(errors.New("proofPrm verify failed"), p.params.Parties().IDs()[fromPIdx])
+		}
+
 	case *KGRound4Message:
 		p.temp.kgRound4Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!

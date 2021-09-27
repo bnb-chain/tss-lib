@@ -127,6 +127,8 @@ consumer:
 		Beta:       beta,
 		P:          p,
 		Q:          q,
+		SP:         P,
+		SQ:         Q,
 	}
 	return preParams, nil
 }

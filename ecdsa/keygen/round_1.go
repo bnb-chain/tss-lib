@@ -77,7 +77,7 @@ func (round *round1) Start() *tss.Error {
 
 	round.temp.vs = vs
 	round.temp.ui = ui
-	round.temp.r1msgVHashs[i] = VHash
+	//round.temp.r1msgVHashs[i] = VHash
 	round.save.Ks = ids
 	round.save.LocalPreParams = *preParams
 	round.save.NTildej[i] = preParams.NTildei
