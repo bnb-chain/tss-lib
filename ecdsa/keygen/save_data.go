@@ -22,8 +22,7 @@ type (
 		NTildei,
 		H1i, H2i,
 		Alpha, Beta,
-		P, Q,
-		SP, SQ *big.Int
+		P, Q *big.Int
 	}
 
 	LocalSecrets struct {
@@ -69,7 +68,7 @@ func (preParams LocalPreParams) Validate() bool {
 
 func (preParams LocalPreParams) ValidateWithProof() bool {
 	return preParams.Validate() &&
-		preParams.Alpha != nil &&
+		//preParams.Alpha != nil &&
 		preParams.Beta != nil &&
 		preParams.P != nil &&
 		preParams.Q != nil

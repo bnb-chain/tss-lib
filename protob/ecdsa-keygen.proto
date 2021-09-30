@@ -39,5 +39,5 @@ message KGRound3Message {
  * Represents a BROADCAST message sent to each party during Round 3 of the ECDSA TSS keygen protocol.
  */
 message KGRound4Message {
-    repeated bytes paillier_proof = 1;
+    repeated bytes proof = 1;
 }

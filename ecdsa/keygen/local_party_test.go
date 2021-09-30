@@ -126,45 +126,6 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	assert.NotZero(t, lp.data.NTildei, "n-tilde should be non-zero")
 }
 
-func TestBadMessageCulprits(t *testing.T) {
-	setUp("debug")
-
-	pIDs := tss.GenerateTestPartyIDs(2)
-	p2pCtx := tss.NewPeerContext(pIDs)
-	params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[0], len(pIDs), 1)
-
-	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
-	if err != nil {
-		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
-		pIDs = tss.GenerateTestPartyIDs(testParticipants)
-	}
-
-	var lp *LocalParty
-	out := make(chan tss.Message, len(pIDs))
-	if 0 < len(fixtures) {
-		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
-	} else {
-		lp = NewLocalParty(params, out, nil).(*LocalParty)
-	}
-	if err := lp.Start(); err != nil {
-		assert.FailNow(t, err.Error())
-	}
-
-	// badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
-	badMsg := NewKGRound1Message(pIDs[1], zero)
-	ok, err2 := lp.Update(badMsg)
-	t.Log(err2)
-	assert.False(t, ok)
-	if !assert.Error(t, err2) {
-		return
-	}
-	assert.Equal(t, 1, len(err2.Culprits()))
-	assert.Equal(t, pIDs[1], err2.Culprits()[0])
-	assert.Equal(t,
-		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,2}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,2}, To: all",
-		err2.Error())
-}
-
 func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	setUp("info")
 

@@ -8,9 +8,8 @@ package keygen
 
 import (
 	"errors"
+	"sync"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -23,53 +22,31 @@ func (round *roundout) Start() *tss.Error {
 	round.resetOK()
 
 	i := round.PartyID().Index
-	Ps := round.Parties().IDs()
-	PIDs := Ps.Keys()
+	round.ok[i] = true
 
-	// 1-3. (concurrent)
-	// r3 messages are assumed to be available and != nil in this function
-	r3msgs := round.temp.kgRound3Messages
-	chs := make([]chan bool, len(r3msgs))
-	for i := range chs {
-		chs[i] = make(chan bool)
-	}
-	for j, msg := range round.temp.kgRound4Messages {
+	wg := sync.WaitGroup{}
+	errChs := make(chan *tss.Error, len(round.Parties().IDs())-1)
+	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		r4msg := msg.Content().(*KGRound4Message)
-		go func(prf paillier.Proof, j int, ch chan<- bool) {
-			ppk := round.save.PaillierPKs[j]
-			ok, err := prf.Verify(ppk.N, PIDs[j], round.save.ECDSAPub)
-			if err != nil {
-				common.Logger.Error(round.WrapError(err, Ps[j]).Error())
-				ch <- false
-				return
+
+		wg.Add(1)
+		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
+			if ok := round.temp.r4msgpf[j].Verify(round.save.BigXj[j]); !ok {
+				errChs <- round.WrapError(errors.New("proof sch verify failed"), Pj)
 			}
-			ch <- ok
-		}(r4msg.UnmarshalProofInts(), j, chs[j])
+		}(j, Pj)
 	}
-
-	// consume unbuffered channels (end the goroutines)
-	for j, ch := range chs {
-		if j == i {
-			round.ok[j] = true
-			continue
-		}
-		round.ok[j] = <-ch
-	}
-	culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
-	for j, ok := range round.ok {
-		if !ok {
-			culprits = append(culprits, Ps[j])
-			common.Logger.Warningf("paillier verify failed for party %s", Ps[j])
-			continue
-		}
-		common.Logger.Debugf("paillier verify passed for party %s", Ps[j])
-
+	wg.Wait()
+	close(errChs)
+	culprits := make([]*tss.PartyID, 0)
+	for err := range errChs {
+		culprits = append(culprits, err.Culprits()...)
 	}
 	if len(culprits) > 0 {
-		return round.WrapError(errors.New("paillier verify failed"), culprits...)
+		return round.WrapError(errors.New("round_out: proof sch verify failed"), culprits...)
 	}
 
 	round.end <- *round.save

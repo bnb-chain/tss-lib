@@ -12,8 +12,6 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-// round 2 represents round 2 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-
 func (round *round2) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -27,12 +25,8 @@ func (round *round2) Start() *tss.Error {
 	round.ok[i] = true
 
 	// Fig 5. Round 2. / Fig 6. Round 2.
-	// BROADCAST message
 	{
-		//TODO
-		// fmt.Println("vs[0].x", i, round.temp.vs[0].X()) //TODO
 		msg := NewKGRound2Message(round.PartyID(), round.temp.vs, &round.save.PaillierSK.PublicKey, round.save.NTildei, round.save.H1i, round.save.H2i)
-		// round.temp.kgRound2Messages[i] = msg
 		round.out <- msg
 	}
 

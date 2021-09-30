@@ -9,13 +9,12 @@ package keygen
 import (
 	"errors"
 	"math/big"
-
-	"github.com/hashicorp/go-multierror"
-	errors2 "github.com/pkg/errors"
+	sync "sync"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	zkpsch "github.com/binance-chain/tss-lib/crypto/zkp/sch"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -27,13 +26,60 @@ func (round *round4) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	Ps := round.Parties().IDs() // TODO change Ps
 	i := round.PartyID().Index
-	//round.ok[i] = true
+	round.ok[i] = true
+
+	// Fig 5. Output 1. / Fig 6. Output 1.
+	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*3)
+	wg := sync.WaitGroup{}
+	for j, Pj := range round.Parties().IDs() {
+		if j == i {
+			continue
+		}
+
+		wg.Add(1)
+		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
+			if ok := round.temp.r3msgpfmod[j].Verify(round.save.NTildej[j]); !ok {
+				errChs <- round.WrapError(errors.New("proofMod verify failed"), Pj)
+			}
+		}(j, Pj)
+
+		wg.Add(1)
+		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
+			if ok := round.temp.r3msgpfprm[j].Verify(round.save.H1j[j], round.save.H2j[j], round.save.NTildej[j]); !ok {
+				errChs <- round.WrapError(errors.New("proofPrm verify failed"), Pj)
+			}
+		}(j, Pj)
+
+		wg.Add(1)
+		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
+			share := vss.Share{
+				Threshold: round.Threshold(),
+				ID:        round.PartyID().KeyInt(),
+				Share:     round.temp.r3msgxij[j],
+			}
+			if ok := share.Verify(round.EC(), round.Threshold(), round.temp.r2msgVss[j]); !ok {
+				errChs <- round.WrapError(errors.New("vss verify failed"), Pj)
+			}
+
+		}(j, Pj)
+	}
+	wg.Wait()
+	close(errChs)
+	culprits := make([]*tss.PartyID, 0)
+	for err := range errChs {
+		culprits = append(culprits, err.Culprits()...)
+	}
+	if len(culprits) > 0 {
+		return round.WrapError(errors.New("round4: failed to verify proofs"), culprits...)
+	}
 
 	// Fig 5. Output 2. / Fig 6. Output 2.
 	xi := new(big.Int).Set(round.temp.shares[i].Share)
-	for j := range Ps {
+	for j := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
@@ -46,69 +92,14 @@ func (round *round4) Start() *tss.Error {
 		Vc[c] = round.temp.vs[c]
 	}
 
-	type vssOut struct {
-		unWrappedErr error
-		pjVs         vss.Vs
-	}
-	chs := make([]chan vssOut, len(Ps))
-	for j := range chs {
-		if j == i {
-			continue
-		}
-		chs[j] = make(chan vssOut)
-	}
-	for j := range Ps {
-		if j == i {
-			continue
-		}
-		go func(j int, ch chan<- vssOut) {
-			PjVs := round.temp.r2msgVss[j]
-			PjShare := vss.Share{
-				Threshold: round.Threshold(),
-				ID:        round.PartyID().KeyInt(),
-				Share:     round.temp.r3msgxij[j],
-			}
-			if ok := PjShare.Verify(round.Params().EC(), round.Threshold(), PjVs); !ok {
-				ch <- vssOut{errors.New("vss verify failed"), nil}
-				return
-			}
-			ch <- vssOut{nil, PjVs}
-		}(j, chs[j])
-	}
-
-	// consume unbuffered channels (end the goroutines)
-	vssResults := make([]vssOut, len(Ps))
-	{
-		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
-		for j, Pj := range Ps {
-			if j == i {
-				continue
-			}
-			vssResults[j] = <-chs[j]
-			// collect culprits to error out with
-			if err := vssResults[j].unWrappedErr; err != nil {
-				culprits = append(culprits, Pj)
-			}
-		}
-		var multiErr error
-		if len(culprits) > 0 {
-			for _, vssResult := range vssResults {
-				if vssResult.unWrappedErr == nil {
-					continue
-				}
-				multiErr = multierror.Append(multiErr, vssResult.unWrappedErr)
-			}
-			return round.WrapError(multiErr, culprits...)
-		}
-	}
 	{
 		var err error
-		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
-		for j, Pj := range Ps {
+		culprits := make([]*tss.PartyID, 0)
+		for j, Pj := range round.Parties().IDs() {
 			if j == i {
 				continue
 			}
-			PjVs := vssResults[j].pjVs
+			PjVs := round.temp.r2msgVss[j]
 			for c := 0; c <= round.Threshold(); c++ {
 				Vc[c], err = Vc[c].Add(PjVs[c])
 				if err != nil {
@@ -124,13 +115,11 @@ func (round *round4) Start() *tss.Error {
 	{
 		var err error
 		modQ := common.ModInt(round.EC().Params().N)
-		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
-		bigXj := round.save.BigXj
-		for j := 0; j < round.PartyCount(); j++ {
-			Pj := round.Parties().IDs()[j]
+		culprits := make([]*tss.PartyID, 0)
+		for j, Pj := range round.Parties().IDs() {
 			kj := Pj.KeyInt()
 			BigXj := Vc[0]
-			z := new(big.Int).SetInt64(int64(1))
+			z := big.NewInt(1)
 			for c := 1; c <= round.Threshold(); c++ {
 				z = modQ.Mul(z, kj)
 				BigXj, err = BigXj.Add(Vc[c].ScalarMult(z))
@@ -138,32 +127,31 @@ func (round *round4) Start() *tss.Error {
 					culprits = append(culprits, Pj)
 				}
 			}
-			bigXj[j] = BigXj
+			round.save.BigXj[j] = BigXj
 		}
 		if len(culprits) > 0 {
 			return round.WrapError(errors.New("adding Vc[c].ScalarMult(z) to BigXj resulted in a point not on the curve"), culprits...)
 		}
-		round.save.BigXj = bigXj
 	}
 
 	// Compute and SAVE the ECDSA public key `y`
 	ecdsaPubKey, err := crypto.NewECPoint(round.Params().EC(), Vc[0].X(), Vc[0].Y())
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "public key is not on the curve"))
+		return round.WrapError(err)
 	}
 	round.save.ECDSAPub = ecdsaPubKey
 
 	// PRINT public key & private share
 	common.Logger.Debugf("%s public key: %x", round.PartyID(), ecdsaPubKey)
 
-	// BROADCAST paillier proof for Pi
-	ki := round.PartyID().KeyInt()
-	proof := round.save.PaillierSK.Proof(ki, ecdsaPubKey)
+	proof, err := zkpsch.NewProof(round.save.BigXj[i], round.save.Xi)
+	if err != nil {
+		return round.WrapError(err)
+	}
+
 	r4msg := NewKGRound4Message(round.PartyID(), proof)
-	round.temp.kgRound4Messages[i] = r4msg
 	round.out <- r4msg
 
-	round.ok[i] = true
 	return nil
 }
 
@@ -175,11 +163,11 @@ func (round *round4) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round4) Update() (bool, *tss.Error) {
-	for j, msg := range round.temp.kgRound4Messages {
+	for j, msg := range round.temp.r4msgpf {
 		if round.ok[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg == nil {
 			return false, nil
 		}
 		// proof check is in round 4

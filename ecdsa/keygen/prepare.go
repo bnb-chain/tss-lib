@@ -17,12 +17,11 @@ import (
 )
 
 const (
-	// Using a modulus length of 2048 is recommended in the GG18 spec
-	paillierModulusLen = 2048
-	// Two 1024-bit safe primes to produce NTilde
 	safePrimeBitLen = 1024
-	// Ticker for printing log statements while generating primes/modulus
-	logProgressTickInterval = 8 * time.Second
+)
+
+var (
+	one  = big.NewInt(1)
 )
 
 // GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.
@@ -42,71 +41,30 @@ func GeneratePreParams(timeout time.Duration, optionalConcurrency ...int) (*Loca
 		concurrency = 1
 	}
 
-	// prepare for concurrent Paillier and safe prime generation
-	paiCh := make(chan *paillier.PrivateKey, 1)
-	sgpCh := make(chan []*common.GermainSafePrime, 1)
-
-	// 4. generate Paillier public key E_i, private key and proof
-	go func(ch chan<- *paillier.PrivateKey) {
-		common.Logger.Info("generating the Paillier modulus, please wait...")
-		start := time.Now()
-		// more concurrency weight is assigned here because the paillier primes have a requirement of having "large" P-Q
-		PiPaillierSk, _, err := paillier.GenerateKeyPair(paillierModulusLen, timeout, concurrency*2)
-		if err != nil {
-			ch <- nil
-			return
-		}
-		common.Logger.Infof("paillier modulus generated. took %s\n", time.Since(start))
-		ch <- PiPaillierSk
-	}(paiCh)
-
-	// 5-7. generate safe primes for ZKPs used later on
-	go func(ch chan<- []*common.GermainSafePrime) {
-		var err error
-		common.Logger.Info("generating the safe primes for the signing proofs, please wait...")
-		start := time.Now()
-		sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency)
-		if err != nil {
-			ch <- nil
-			return
-		}
-		common.Logger.Infof("safe primes generated. took %s\n", time.Since(start))
-		ch <- sgps
-	}(sgpCh)
-
-	// this ticker will print a log statement while the generating is still in progress
-	logProgressTicker := time.NewTicker(logProgressTickInterval)
-
-	// errors can be thrown in the following code; consume chans to end goroutines here
-	var sgps []*common.GermainSafePrime
-	var paiSK *paillier.PrivateKey
-consumer:
-	for {
-		select {
-		case <-logProgressTicker.C:
-			common.Logger.Info("still generating primes...")
-		case sgps = <-sgpCh:
-			if sgps == nil ||
-				sgps[0] == nil || sgps[1] == nil ||
-				!sgps[0].Prime().ProbablyPrime(30) || !sgps[1].Prime().ProbablyPrime(30) ||
-				!sgps[0].SafePrime().ProbablyPrime(30) || !sgps[1].SafePrime().ProbablyPrime(30) {
-				return nil, errors.New("timeout or error while generating the safe primes")
-			}
-			if paiSK != nil {
-				break consumer
-			}
-		case paiSK = <-paiCh:
-			if paiSK == nil {
-				return nil, errors.New("timeout or error while generating the Paillier secret key")
-			}
-			if sgps != nil {
-				break consumer
-			}
-		}
+	common.Logger.Info("generating the safe primes for the signing proofs, please wait...")
+	start := time.Now()
+	sgps, err := common.GetRandomSafePrimesConcurrent(safePrimeBitLen, 2, timeout, concurrency)
+	if err != nil {
+		// ch <- nil
+		return nil, err
 	}
-	logProgressTicker.Stop()
+	common.Logger.Infof("safe primes generated. took %s\n", time.Since(start))
+
+	if sgps == nil || sgps[0] == nil || sgps[1] == nil ||
+		!sgps[0].Prime().ProbablyPrime(30) || !sgps[1].Prime().ProbablyPrime(30) ||
+		!sgps[0].SafePrime().ProbablyPrime(30) || !sgps[1].SafePrime().ProbablyPrime(30) {
+		return nil, errors.New("error while generating the safe primes")
+	}
 
 	P, Q := sgps[0].SafePrime(), sgps[1].SafePrime()
+	paiPK := &paillier.PublicKey{N: new(big.Int).Mul(P, Q)}
+	// phiN = P-1 * Q-1
+	PMinus1, QMinus1 := new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one)
+	phiN := new(big.Int).Mul(PMinus1, QMinus1)
+	// lambdaN = lcm(P−1, Q−1)
+	gcd := new(big.Int).GCD(nil, nil, PMinus1, QMinus1)
+	lambdaN := new(big.Int).Div(phiN, gcd)
+	paiSK := &paillier.PrivateKey{PublicKey: *paiPK, LambdaN: lambdaN, PhiN: phiN}
 	NTildei := new(big.Int).Mul(P, Q)
 	modNTildeI := common.ModInt(NTildei)
 
@@ -127,8 +85,6 @@ consumer:
 		Beta:       beta,
 		P:          p,
 		Q:          q,
-		SP:         P,
-		SQ:         Q,
 	}
 	return preParams, nil
 }

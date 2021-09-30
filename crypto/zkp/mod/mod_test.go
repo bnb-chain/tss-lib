@@ -21,7 +21,8 @@ func TestMod(test *testing.T) {
 	assert.NoError(test, err)
 
 	p, q, N := preParams.P, preParams.Q, preParams.NTildei
-	p2, q2 := new(big.Int).Mul(p, big.NewInt(2)), new(big.Int).Mul(q, big.NewInt(2))
+	// p2, q2 := new(big.Int).Mul(p, big.NewInt(2)), new(big.Int).Mul(q, big.NewInt(2))
+	p2, q2 := new(big.Int).Lsh(p, 1), new(big.Int).Lsh(q, 1)
 	P, Q := new(big.Int).Add(p2, big.NewInt(1)), new(big.Int).Add(q2, big.NewInt(1))
 
 	proof, err := NewProof(N, P, Q)

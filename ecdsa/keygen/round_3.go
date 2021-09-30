@@ -8,8 +8,8 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
+	sync "sync"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -28,29 +28,49 @@ func (round *round3) Start() *tss.Error {
 	round.resetOK()
 
 	i := round.PartyID().Index
-	//round.ok[i] = true
+	Pi := round.Parties().IDs()[i]
+	round.ok[i] = true
 
 	// Fig 5. Round 3.1 / Fig 6. Round 3.1
-	// TODO check NTildej[j] >= 2**(8kappa)
+	toCmp := new(big.Int).Lsh(big.NewInt(1), 1024)
+	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*3)
+	wg := sync.WaitGroup{}
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
+		wg.Add(1)
+		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
 
-		listToHash, err := crypto.FlattenECPoints(round.temp.r2msgVss[j])
-		if err != nil {
-			fmt.Println("fletten failed", i, j) //TODO
-			return round.WrapError(err, Pj)
-		}
-		listToHash = append(listToHash, round.save.PaillierPKs[j].N, round.save.NTildej[j], round.save.H1j[j], round.save.H2j[j])
-		VjHash := common.SHA512_256i(listToHash...)
-		if VjHash.Cmp(round.temp.r1msgVHashs[j]) != 0 {
-			return round.WrapError(errors.New("verify hash failed"), Pj)
-		}
+			if round.save.NTildej[j].Cmp(toCmp) < 0 {
+				errChs <- round.WrapError(errors.New("paillier-blum modulus too small"), Pj)
+			}
+			listToHash, err := crypto.FlattenECPoints(round.temp.r2msgVss[j])
+			if err != nil {
+				errChs <- round.WrapError(err, Pj)
+			}
+			listToHash = append(listToHash, round.save.PaillierPKs[j].N, round.save.NTildej[j], round.save.H1j[j], round.save.H2j[j])
+			VjHash := common.SHA512_256i(listToHash...)
+			if VjHash.Cmp(round.temp.r1msgVHashs[j]) != 0 {
+				errChs <- round.WrapError(errors.New("verify hash failed"), Pj)
+			}
+		}(j, Pj)
+	}
+	wg.Wait()
+	close(errChs)
+	culprits := make([]*tss.PartyID, 0)
+	for err := range errChs {
+		culprits = append(culprits, err.Culprits()...)
+	}
+	if len(culprits) > 0 {
+		return round.WrapError(errors.New("round3: failed stage 3.1"), culprits...)
 	}
 
-	// Fig 5. Round 3.2 TODO / Fig 6. Round 3.2 TODO_proofs
-	proofMod, err := zkpmod.NewProof(round.save.NTildei, round.save.SP, round.save.SQ)
+	// Fig 5. Round 3.2 / Fig 6. Round 3.2
+	SP := new(big.Int).Add(new(big.Int).Lsh(round.save.P, 1), big.NewInt(1))
+	SQ := new(big.Int).Add(new(big.Int).Lsh(round.save.Q, 1), big.NewInt(1))
+	proofMod, err := zkpmod.NewProof(round.save.NTildei, SP, SQ)
 	if err != nil {
 		return round.WrapError(errors.New("create proofmod failed"))
 	}
@@ -59,23 +79,32 @@ func (round *round3) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(errors.New("create proofPrm failed"))
 	}
+
+	errChs = make(chan *tss.Error, len(round.Parties().IDs())-1)
+	wg = sync.WaitGroup{}
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
 		}
-		Cij, err := round.save.PaillierPKs[j].Encrypt(round.temp.shares[j].Share)
-		if err != nil {
-			return round.WrapError(errors.New("encrypt error"))
-		}
-		
+		wg.Add(1)
+		go func(j int, Pj *tss.PartyID) {
+			defer wg.Done()
 
-		r3msg := NewKGRound3Message(Pj, round.PartyID(), Cij, proofMod, proofPrm)
-
-		round.temp.kgRound3Messages[j] = r3msg // TODO remove
-		round.out <- r3msg
+			Cij, err := round.save.PaillierPKs[j].Encrypt(round.temp.shares[j].Share)
+			if err != nil {
+				errChs <- round.WrapError(errors.New("encrypt error"), Pi)
+			}
+			
+			r3msg := NewKGRound3Message(Pj, round.PartyID(), Cij, proofMod, proofPrm)
+			round.out <- r3msg
+		}(j, Pj)
+	}
+	wg.Wait()
+	close(errChs)
+	for err := range errChs {
+		return err
 	}
 
-	round.ok[i] = true
 	return nil
 }
 

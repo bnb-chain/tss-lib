@@ -16,6 +16,7 @@ import (
 	"github.com/binance-chain/tss-lib/crypto/vss"
 	zkpmod "github.com/binance-chain/tss-lib/crypto/zkp/mod"
 	zkpprm "github.com/binance-chain/tss-lib/crypto/zkp/prm"
+	zkpsch "github.com/binance-chain/tss-lib/crypto/zkp/sch"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -170,21 +171,15 @@ func (m *KGRound3Message) UnmarshalProofPrm() (*zkpprm.ProofPrm, error) {
 
 func NewKGRound4Message(
 	from *tss.PartyID,
-	proof paillier.Proof,
+	proof *zkpsch.ProofSch,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
-	pfBzs := make([][]byte, len(proof))
-	for i := range pfBzs {
-		if proof[i] == nil {
-			continue
-		}
-		pfBzs[i] = proof[i].Bytes()
-	}
+	pfBzs := proof.Bytes()
 	content := &KGRound4Message{
-		PaillierProof: pfBzs,
+		Proof: pfBzs[:],
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -192,14 +187,9 @@ func NewKGRound4Message(
 
 func (m *KGRound4Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyMultiBytes(m.GetPaillierProof(), paillier.ProofIters)
+		common.NonEmptyMultiBytes(m.GetProof(), zkpsch.ProofSchBytesParts)
 }
 
-func (m *KGRound4Message) UnmarshalProofInts() paillier.Proof {
-	var pf paillier.Proof
-	proofBzs := m.GetPaillierProof()
-	for i := range pf {
-		pf[i] = new(big.Int).SetBytes(proofBzs[i])
-	}
-	return pf
+func (m *KGRound4Message) UnmarshalProof(ec elliptic.Curve) (*zkpsch.ProofSch, error) {
+	return zkpsch.NewProofFromBytes(ec, m.GetProof())
 }

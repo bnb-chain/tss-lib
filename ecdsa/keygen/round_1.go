@@ -47,11 +47,7 @@ func (round *round1) Start() *tss.Error {
 		return round.WrapError(err, Pi)
 	}
 
-	// // security: the original u_i may be discarded
-	// ui = zero // clears the secret data from memory
-	// _ = ui    // silences a linter warning
-
-	// Fig 6. Round 1. // TODO modify GeneartePreParams accordingly
+	// Fig 6. Round 1.
 	var preParams *LocalPreParams
 	if round.save.LocalPreParams.Validate() {
 		preParams = &round.save.LocalPreParams
@@ -68,31 +64,21 @@ func (round *round1) Start() *tss.Error {
 	}
 	listToHash = append(listToHash, preParams.PaillierSK.PublicKey.N, preParams.NTildei, preParams.H1i, preParams.H2i)
 	VHash := common.SHA512_256i(listToHash...)
-	// BROADCAST VHash
 	{
 		msg := NewKGRound1Message(round.PartyID(), VHash)
-		// round.temp.kgRound1Messages[i] = msg // TODO remove
 		round.out <- msg
 	}
 
 	round.temp.vs = vs
 	round.temp.ui = ui
-	//round.temp.r1msgVHashs[i] = VHash
 	round.save.Ks = ids
 	round.save.LocalPreParams = *preParams
 	round.save.NTildej[i] = preParams.NTildei
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
-	// for this P: SAVE
-	// - shareID
-	// and keep in temporary storage:
-	// - VSS Vs
-	// - our set of Shamir shares
 	round.save.ShareID = ids[i]
 	round.temp.shares = shares
-	// for this P: SAVE paillier keys
 	round.save.PaillierSK = preParams.PaillierSK
 	round.save.PaillierPKs[i] = &preParams.PaillierSK.PublicKey
-	//round.temp.deCommitPolyG = cmt.D
 
 	return nil
 }
