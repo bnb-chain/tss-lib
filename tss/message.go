@@ -9,8 +9,8 @@ package tss
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type (
@@ -81,7 +81,7 @@ var (
 // NewMessageWrapper constructs a MessageWrapper from routing metadata and content
 func NewMessageWrapper(routing MessageRouting, content MessageContent) *MessageWrapper {
 	// marshal the content to the ProtoBuf Any type
-	any, _ := ptypes.MarshalAny(content)
+	any, _ := anypb.New(content)
 	// convert given PartyIDs to the wire format
 	var to []*MessageWrapper_PartyID
 	if routing.To != nil {
@@ -111,7 +111,7 @@ func NewMessage(meta MessageRouting, content MessageContent, wire *MessageWrappe
 }
 
 func (mm *MessageImpl) Type() string {
-	return proto.MessageName(mm.content)
+	return string(proto.MessageName(mm.content))
 }
 
 func (mm *MessageImpl) GetTo() []*PartyID {

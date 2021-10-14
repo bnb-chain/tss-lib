@@ -7,9 +7,8 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"math/big"
-
-	"github.com/golang/protobuf/proto"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -29,12 +28,6 @@ var (
 		(*SignRound3Message)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*SignRound1Message)(nil), tss.EDDSAProtoNamePrefix+"signing.SignRound1Message")
-	proto.RegisterType((*SignRound2Message)(nil), tss.EDDSAProtoNamePrefix+"signing.SignRound2Message")
-	proto.RegisterType((*SignRound3Message)(nil), tss.EDDSAProtoNamePrefix+"signing.SignRound3Message")
-}
 
 // ----- //
 
@@ -97,9 +90,9 @@ func (m *SignRound2Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound2Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound2Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {

@@ -7,16 +7,16 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"fmt"
 	"math/big"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 // PrepareForSigning(), Fig. 7
-func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int) (wi *big.Int) {
-	modQ := common.ModInt(tss.EC().Params().N)
+func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int) (wi *big.Int) {
+	modQ := common.ModInt(ec.Params().N)
 	if len(ks) != pax {
 		panic(fmt.Errorf("PrepareForSigning: len(ks) != pax (%d != %d)", len(ks), pax))
 	}

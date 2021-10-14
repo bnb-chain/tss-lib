@@ -7,9 +7,8 @@
 package resharing
 
 import (
+	"crypto/elliptic"
 	"math/big"
-
-	"github.com/golang/protobuf/proto"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -32,14 +31,6 @@ var (
 		(*DGRound3Message2)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message1)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound2Message1")
-	proto.RegisterType((*DGRound2Message2)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound2Message2")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.ECDSAProtoNamePrefix+"resharing.DGRound3Message2")
-}
 
 // ----- //
 
@@ -71,9 +62,9 @@ func (m *DGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.VCommitment)
 }
 
-func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
+func (m *DGRound1Message) UnmarshalECDSAPub(ec elliptic.Curve) (*crypto.ECPoint, error) {
 	return crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.EcdsaPubX),
 		new(big.Int).SetBytes(m.EcdsaPubY))
 }
