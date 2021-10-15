@@ -6,6 +6,7 @@
 
 syntax = "proto3";
 
+package binance.tsslib;
 option go_package = "./common";
 
 /*

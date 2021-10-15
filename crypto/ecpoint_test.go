@@ -7,9 +7,15 @@
 package crypto_test
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"reflect"
 	"testing"
+
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
+	"github.com/stretchr/testify/assert"
 
 	. "github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/tss"
@@ -112,4 +118,50 @@ func TestUnFlattenECPoints(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestS256EcpointJsonSerialization(t *testing.T) {
+	ec := btcec.S256()
+	tss.RegisterCurve("secp256k1", ec)
+
+	pubKeyBytes, err := hex.DecodeString("03935336acb03b2b801d8f8ac5e92c56c4f6e93319901fdfffba9d340a874e2879")
+	assert.NoError(t, err)
+	pbk, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	assert.NoError(t, err)
+
+	point, err := NewECPoint(ec, pbk.X, pbk.Y)
+	assert.NoError(t, err)
+	bz, err := json.Marshal(point)
+	assert.NoError(t, err)
+	assert.True(t, len(bz) > 0)
+
+	var umpoint ECPoint
+	err = json.Unmarshal(bz, &umpoint)
+	assert.NoError(t, err)
+
+	assert.True(t, point.Equals(&umpoint))
+	assert.True(t, reflect.TypeOf(point.Curve()) == reflect.TypeOf(umpoint.Curve()))
+}
+
+func TestEdwardsEcpointJsonSerialization(t *testing.T) {
+	ec := edwards.Edwards()
+	tss.RegisterCurve("ed25519", ec)
+
+	pubKeyBytes, err := hex.DecodeString("ae1e5bf5f3d6bf58b5c222088671fcbe78b437e28fae944c793897b26091f249")
+	assert.NoError(t, err)
+	pbk, err := edwards.ParsePubKey(pubKeyBytes)
+	assert.NoError(t, err)
+
+	point, err := NewECPoint(ec, pbk.X, pbk.Y)
+	assert.NoError(t, err)
+	bz, err := json.Marshal(point)
+	assert.NoError(t, err)
+	assert.True(t, len(bz) > 0)
+
+	var umpoint ECPoint
+	err = json.Unmarshal(bz, &umpoint)
+	assert.NoError(t, err)
+
+	assert.True(t, point.Equals(&umpoint))
+	assert.True(t, reflect.TypeOf(point.Curve()) == reflect.TypeOf(umpoint.Curve()))
 }

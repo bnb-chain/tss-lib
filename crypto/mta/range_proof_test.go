@@ -37,9 +37,9 @@ func TestProveRangeAlice(t *testing.T) {
 	primes := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
 	NTildei, h1i, h2i, err := crypto.GenerateNTildei(primes)
 	assert.NoError(t, err)
-	proof, err := ProveRangeAlice(pk, c, NTildei, h1i, h2i, m, r)
+	proof, err := ProveRangeAlice(tss.EC(), pk, c, NTildei, h1i, h2i, m, r)
 	assert.NoError(t, err)
 
-	ok := proof.Verify(pk, NTildei, h1i, h2i, c)
+	ok := proof.Verify(tss.EC(), pk, NTildei, h1i, h2i, c)
 	assert.True(t, ok, "proof must verify")
 }

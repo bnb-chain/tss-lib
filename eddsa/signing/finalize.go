@@ -46,7 +46,7 @@ func (round *finalization) Start() *tss.Error {
 	round.data.M = round.temp.m.Bytes()
 
 	pk := edwards.PublicKey{
-		Curve: tss.EC(),
+		Curve: round.Params().EC(),
 		X:     round.key.EDDSAPub.X(),
 		Y:     round.key.EDDSAPub.Y(),
 	}

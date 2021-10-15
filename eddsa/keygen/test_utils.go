@@ -52,6 +52,10 @@ func LoadKeygenTestFixtures(qty int, optionalStart ...int) ([]LocalPartySaveData
 				"could not unmarshal fixture data for party %d located at: %s",
 				i, fixtureFilePath)
 		}
+		for _, kbxj := range key.BigXj {
+			kbxj.SetCurve(tss.Edwards())
+		}
+		key.EDDSAPub.SetCurve(tss.Edwards())
 		keys = append(keys, key)
 	}
 	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
@@ -86,6 +90,10 @@ func LoadKeygenTestFixturesRandomSet(qty, fixtureCount int) ([]LocalPartySaveDat
 				"could not unmarshal fixture data for party %d located at: %s",
 				i, fixtureFilePath)
 		}
+		for _, kbxj := range key.BigXj {
+			kbxj.SetCurve(tss.Edwards())
+		}
+		key.EDDSAPub.SetCurve(tss.Edwards())
 		keys = append(keys, key)
 	}
 	partyIDs := make(tss.UnSortedPartyIDs, len(keys))

@@ -12,7 +12,6 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
@@ -32,12 +31,13 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 	if x == nil || X == nil || !X.ValidateBasic() {
 		return nil, errors.New("ZKProof constructor received nil or invalid value(s)")
 	}
-	ecParams := tss.EC().Params()
+	ec := X.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy) // already on the curve.
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy) // already on the curve.
 
 	a := common.GetRandomPositiveInt(q)
-	alpha := crypto.ScalarBaseMult(tss.EC(), a)
+	alpha := crypto.ScalarBaseMult(ec, a)
 
 	var c *big.Int
 	{
@@ -55,16 +55,17 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
-	ecParams := tss.EC().Params()
+	ec := X.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
 	{
 		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
-	tG := crypto.ScalarBaseMult(tss.EC(), pf.T)
+	tG := crypto.ScalarBaseMult(ec, pf.T)
 	Xc := X.ScalarMult(c)
 	aXc, err := pf.Alpha.Add(Xc)
 	if err != nil {
@@ -82,13 +83,14 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	if V == nil || R == nil || s == nil || l == nil || !V.ValidateBasic() || !R.ValidateBasic() {
 		return nil, errors.New("ZKVProof constructor received nil value(s)")
 	}
-	ecParams := tss.EC().Params()
+	ec := V.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
 	a, b := common.GetRandomPositiveInt(q), common.GetRandomPositiveInt(q)
 	aR := R.ScalarMult(a)
-	bG := crypto.ScalarBaseMult(tss.EC(), b)
+	bG := crypto.ScalarBaseMult(ec, b)
 	alpha, _ := aR.Add(bG) // already on the curve.
 
 	var c *big.Int
@@ -107,9 +109,10 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
-	ecParams := tss.EC().Params()
+	ec := V.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
 	{
@@ -117,7 +120,7 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 		c = common.RejectionSample(q, cHash)
 	}
 	tR := R.ScalarMult(pf.T)
-	uG := crypto.ScalarBaseMult(tss.EC(), pf.U)
+	uG := crypto.ScalarBaseMult(ec, pf.U)
 	tRuG, _ := tR.Add(uG) // already on the curve.
 
 	Vc := V.ScalarMult(c)

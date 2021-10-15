@@ -44,6 +44,7 @@ func (round *round2) Start() *tss.Error {
 				return
 			}
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
+				round.Parameters.EC(),
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
 				round.temp.gamma,
@@ -72,6 +73,7 @@ func (round *round2) Start() *tss.Error {
 				return
 			}
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
+				round.Parameters.EC(),
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
 				round.temp.w,

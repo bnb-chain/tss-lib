@@ -7,9 +7,8 @@
 package keygen
 
 import (
+	"crypto/elliptic"
 	"math/big"
-
-	"github.com/golang/protobuf/proto"
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -30,12 +29,6 @@ var (
 		(*KGRound2Message2)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*KGRound1Message)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound1Message")
-	proto.RegisterType((*KGRound2Message1)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound2Message1")
-	proto.RegisterType((*KGRound2Message2)(nil), tss.EDDSAProtoNamePrefix+"keygen.KGRound2Message2")
-}
 
 // ----- //
 
@@ -118,9 +111,9 @@ func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *KGRound2Message2) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *KGRound2Message2) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {

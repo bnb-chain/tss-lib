@@ -47,6 +47,9 @@ func (round *round2) Start() *tss.Error {
 		if H1j.Cmp(H2j) == 0 {
 			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
 		}
+		if NTildej.BitLen() != paillierBitsLen {
+			return round.WrapError(errors.New("NTildej do not have enought bits"), msg.GetFrom())
+		}
 		h1JHex, h2JHex := hex.EncodeToString(H1j.Bytes()), hex.EncodeToString(H2j.Bytes())
 		if _, found := h1H2Map[h1JHex]; found {
 			return round.WrapError(errors.New("this h1j was already used by another party"), msg.GetFrom())

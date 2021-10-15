@@ -27,7 +27,7 @@ func TestCreate(t *testing.T) {
 		ids = append(ids, common.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
-	vs, _, err := Create(threshold, secret, ids)
+	vs, _, err := Create(tss.EC(), threshold, secret, ids)
 	assert.Nil(t, err)
 
 	assert.Equal(t, threshold+1, len(vs))
@@ -55,11 +55,11 @@ func TestVerify(t *testing.T) {
 		ids = append(ids, common.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
-	vs, shares, err := Create(threshold, secret, ids)
+	vs, shares, err := Create(tss.EC(), threshold, secret, ids)
 	assert.NoError(t, err)
 
 	for i := 0; i < num; i++ {
-		assert.True(t, shares[i].Verify(threshold, vs))
+		assert.True(t, shares[i].Verify(tss.EC(), threshold, vs))
 	}
 }
 
@@ -73,18 +73,18 @@ func TestReconstruct(t *testing.T) {
 		ids = append(ids, common.GetRandomPositiveInt(tss.EC().Params().N))
 	}
 
-	_, shares, err := Create(threshold, secret, ids)
+	_, shares, err := Create(tss.EC(), threshold, secret, ids)
 	assert.NoError(t, err)
 
-	secret2, err2 := shares[:threshold-1].ReConstruct()
+	secret2, err2 := shares[:threshold-1].ReConstruct(tss.EC())
 	assert.Error(t, err2) // not enough shares to satisfy the threshold
 	assert.Nil(t, secret2)
 
-	secret3, err3 := shares[:threshold].ReConstruct()
+	secret3, err3 := shares[:threshold].ReConstruct(tss.EC())
 	assert.NoError(t, err3)
 	assert.NotZero(t, secret3)
 
-	secret4, err4 := shares[:num].ReConstruct()
+	secret4, err4 := shares[:num].ReConstruct(tss.EC())
 	assert.NoError(t, err4)
 	assert.NotZero(t, secret4)
 }
