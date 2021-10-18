@@ -42,13 +42,13 @@ func (round *round2) Start() *tss.Error {
 			r1msg.UnmarshalNTilde(),
 			r1msg.UnmarshalPaillierPK()
 		if paillierPKj.N.BitLen() != paillierBitsLen {
-			return round.WrapError(errors.New("got paillier modulus with not enough bits"))
+			return round.WrapError(errors.New("got paillier modulus with insufficient bits for this party"), msg.GetFrom())
 		}
 		if H1j.Cmp(H2j) == 0 {
 			return round.WrapError(errors.New("h1j and h2j were equal for this party"), msg.GetFrom())
 		}
 		if NTildej.BitLen() != paillierBitsLen {
-			return round.WrapError(errors.New("NTildej do not have enought bits"), msg.GetFrom())
+			return round.WrapError(errors.New("got NTildej with insufficient bits for this party"), msg.GetFrom())
 		}
 		h1JHex, h2JHex := hex.EncodeToString(H1j.Bytes()), hex.EncodeToString(H2j.Bytes())
 		if _, found := h1H2Map[h1JHex]; found {
@@ -58,19 +58,18 @@ func (round *round2) Start() *tss.Error {
 			return round.WrapError(errors.New("this h2j was already used by another party"), msg.GetFrom())
 		}
 		h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
-		wg.Add(1)
+		wg.Add(2)
 		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
-			defer wg.Done()
 			if dlnProof1, err := r1msg.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
 				dlnProof1FailCulprits[j] = msg.GetFrom()
 			}
+			wg.Done()
 		}(j, msg, r1msg, H1j, H2j, NTildej)
-		wg.Add(1)
 		go func(j int, msg tss.ParsedMessage, r1msg *KGRound1Message, H1j, H2j, NTildej *big.Int) {
-			defer wg.Done()
 			if dlnProof2, err := r1msg.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
 				dlnProof2FailCulprits[j] = msg.GetFrom()
 			}
+			wg.Done()
 		}(j, msg, r1msg, H1j, H2j, NTildej)
 	}
 	wg.Wait()
