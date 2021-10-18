@@ -12,6 +12,10 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
+const (
+	paillierBitsLen = 2048
+)
+
 func (round *round2) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -25,7 +29,11 @@ func (round *round2) Start() *tss.Error {
 	// 4. store r1 message pieces
 	for j, msg := range round.temp.kgRound1Messages {
 		r1msg := msg.Content().(*KGRound1Message)
-		round.save.PaillierPKs[j] = r1msg.UnmarshalPaillierPK() // used in round 4
+		paillierPKj := r1msg.UnmarshalPaillierPK() // used in round 4
+		if paillierPKj.N.BitLen() != paillierBitsLen {
+			return round.WrapError(errors.New("got paillier modulus with insufficient bits for this party"), msg.GetFrom())
+		}
+		round.save.PaillierPKs[j] = paillierPKj
 		round.save.NTildej[j] = r1msg.UnmarshalNTilde()
 		round.save.H1j[j], round.save.H2j[j] = r1msg.UnmarshalH1(), r1msg.UnmarshalH2()
 		round.temp.KGCs[j] = r1msg.UnmarshalCommitment()
