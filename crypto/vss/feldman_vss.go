@@ -63,7 +63,8 @@ func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.In
 
 	shares := make(Shares, num)
 	for i := 0; i < num; i++ {
-		if indexes[i].Cmp(big.NewInt(0)) == 0 {
+		idx := new(big.Int).Mod(indexes[i], ec.Params().N)
+		if idx.Cmp(big.NewInt(0)) == 0 {
 			return nil, nil, fmt.Errorf("party index should not be 0")
 		}
 		share := evaluatePolynomial(ec, threshold, poly, indexes[i])
