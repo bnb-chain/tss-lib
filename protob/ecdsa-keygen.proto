@@ -17,6 +17,8 @@ message KGRound1Message {
     bytes n_tilde = 3;
     bytes h1 = 4;
     bytes h2 = 5;
+    repeated bytes dlnproof_1 = 6;
+    repeated bytes dlnproof_2 = 7;
 }
 
 /*

@@ -68,7 +68,7 @@ func NewLocalParty(
 		if 1 < len(optionalPreParams) {
 			panic(errors.New("keygen.NewLocalParty expected 0 or 1 item in `optionalPreParams`"))
 		}
-		if !optionalPreParams[0].Validate() {
+		if !optionalPreParams[0].ValidateWithProof() {
 			panic(errors.New("keygen.NewLocalParty: `optionalPreParams` failed to validate"))
 		}
 		data.LocalPreParams = optionalPreParams[0]
