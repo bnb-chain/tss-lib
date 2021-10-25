@@ -100,7 +100,7 @@ func (round *round1) Update() (bool, *tss.Error) {
 		round.oldOK[j] = true
 
 		// save the ecdsa pub received from the old committee
-		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
+		r1msg := msg.Content().(*DGRound1Message)
 		candidate, err := r1msg.UnmarshalECDSAPub(round.Params().EC())
 		if err != nil {
 			return false, round.WrapError(errors.New("unable to unmarshal the ecdsa pub key"), msg.GetFrom())
@@ -117,5 +117,8 @@ func (round *round1) Update() (bool, *tss.Error) {
 
 func (round *round1) NextRound() tss.Round {
 	round.started = false
-	return &round2{round}
+	if round.IsNewCommittee() {
+		return &round2{round}
+	}
+	return &round3{&round2{round}}
 }

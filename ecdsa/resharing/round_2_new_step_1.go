@@ -28,6 +28,7 @@ func (round *round2) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
+	//round.newOK[i] = true
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2Message2(
@@ -131,5 +132,8 @@ func (round *round2) Update() (bool, *tss.Error) {
 
 func (round *round2) NextRound() tss.Round {
 	round.started = false
-	return &round3{round}
+	if round.IsOldCommittee() {
+		return &round3{round}
+	}
+	return &round4{&round3{round}}
 }

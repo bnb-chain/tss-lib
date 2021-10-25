@@ -19,7 +19,7 @@ import (
 type (
 	LocalPreParams struct {
 		PaillierSK        *paillier.PrivateKey // ski
-		NTildei, H1i, H2i *big.Int             // n-tilde, h1, h2
+		NTildei, H1i, H2i, Alpha, Beta, P, Q *big.Int             // n-tilde, h1, h2
 	}
 
 	LocalSecrets struct {

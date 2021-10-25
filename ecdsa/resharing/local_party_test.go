@@ -46,6 +46,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	// PHASE: load keygen fixtures
 	firstPartyIdx, extraParties := 5, 1 // extra can be 0 to N-first
+	/// oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+extraParties+firstPartyIdx, firstPartyIdx)
 	oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+extraParties+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
@@ -59,6 +60,7 @@ func TestE2EConcurrent(t *testing.T) {
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
+	fmt.Println("#################### #old and #new", len(oldPIDs), newPCount)
 
 	oldCommittee := make([]*LocalParty, 0, len(oldPIDs))
 	newCommittee := make([]*LocalParty, 0, newPCount)
