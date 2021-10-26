@@ -18,7 +18,6 @@ import (
 
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
-	"modernc.org/sortutil"
 )
 
 type (
@@ -42,17 +41,18 @@ var (
 
 // Check share ids of Shamir's Secret Sharing, return error if duplicate or 0 value found
 func CheckIndexes(ec elliptic.Curve, indexes []*big.Int) ([]*big.Int, error) {
-	dup := make([]*big.Int, len(indexes))
+	visited := make(map[string]struct{})
 	for i, v := range indexes {
 		vMod := new(big.Int).Mod(v, ec.Params().N)
 		if vMod.Cmp(zero) == 0 {
 			return nil, errors.New("party index should not be 0")
 		}
-		dup[i] = vMod
+		vModStr := vMod.String()
+		if _, ok := visited[vModStr]; ok {
+			return nil, fmt.Errorf("duplicate indexes %s", vModStr)
+		}
+		visited[vModStr] = struct{}{}
 		indexes[i] = vMod
-	}
-	if sortutil.Dedupe(sortutil.BigIntSlice(dup)) < len(indexes) {
-		return nil, errors.New("duplicate in indexes")
 	}
 	return indexes, nil
 }
