@@ -43,7 +43,7 @@ var (
 // Check share ids of Shamir's Secret Sharing, return error if duplicate or 0 value found
 func CheckIndexes(ec elliptic.Curve, indexes []*big.Int) ([]*big.Int, error) {
 	dup := make([]*big.Int, len(indexes))
-	for i, v := range(indexes) {
+	for i, v := range indexes {
 		vMod := new(big.Int).Mod(v, ec.Params().N)
 		if vMod.Cmp(zero) == 0 {
 			return nil, errors.New("party index should not be 0")
