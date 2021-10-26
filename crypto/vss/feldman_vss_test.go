@@ -17,6 +17,33 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
+func TestCheckIndexesDup(t *testing.T) {
+	indexes := make([]*big.Int, 0)
+	for i := 0; i < 10; i++ {
+		indexes = append(indexes, common.GetRandomPositiveInt(tss.EC().Params().N))
+	}
+	_, e := CheckIndexes(tss.EC(), indexes)
+	assert.NoError(t, e)
+
+	indexes = append(indexes, big.NewInt(999))
+	indexes = append(indexes, big.NewInt(999))
+	_, e = CheckIndexes(tss.EC(), indexes)
+	assert.Error(t, e)
+}
+
+func TestCheckIndexesZero(t *testing.T) {
+	indexes := make([]*big.Int, 0)
+	for i := 0; i < 10; i++ {
+		indexes = append(indexes, common.GetRandomPositiveInt(tss.EC().Params().N))
+	}
+	_, e := CheckIndexes(tss.EC(), indexes)
+	assert.NoError(t, e)
+
+	indexes = append(indexes, tss.EC().Params().N)
+	_, e = CheckIndexes(tss.EC(), indexes)
+	assert.Error(t, e)
+}
+
 func TestCreate(t *testing.T) {
 	num, threshold := 5, 3
 
