@@ -37,6 +37,7 @@ func (round *round2) Start() *tss.Error {
 		round.save.NTildej[j] = r1msg.UnmarshalNTilde()
 		round.save.H1j[j], round.save.H2j[j] = r1msg.UnmarshalH1(), r1msg.UnmarshalH2()
 		round.temp.KGCs[j] = r1msg.UnmarshalCommitment()
+		round.temp.ChaincodeShareCs[j] = r1msg.UnmarshalCommitmentChaincode()
 	}
 
 	// 3. p2p send share ij to Pj
@@ -53,7 +54,7 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 5. BROADCAST de-commitments of Shamir poly*G
-	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG)
+	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG, round.temp.deCommitChaincode)
 	round.temp.kgRound2Message2s[i] = r2msg2
 	round.out <- r2msg2
 

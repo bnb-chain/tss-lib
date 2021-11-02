@@ -14,6 +14,7 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/crypto/ckd"
 	"github.com/binance-chain/tss-lib/tss"
 )
 
@@ -37,6 +38,15 @@ func (round *round1) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
+
+	// 0. generate chaincode share
+	chainCodeShare, err := ckd.GenerateSeed(uint8(ckd.MaxSeedBytes))
+	if err != nil {
+		return round.WrapError(err, Pi)
+	}
+	chainCodeShareI := new(big.Int).SetBytes(chainCodeShare)
+	chainCodeShareCmt := cmts.NewHashCommitment(chainCodeShareI)
+	round.temp.ChaincodeShare = chainCodeShareI
 
 	// 1. calculate "partial" key share ui
 	ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
@@ -92,10 +102,11 @@ func (round *round1) Start() *tss.Error {
 	round.save.PaillierSK = preParams.PaillierSK
 	round.save.PaillierPKs[i] = &preParams.PaillierSK.PublicKey
 	round.temp.deCommitPolyG = cmt.D
+	round.temp.deCommitChaincode = chainCodeShareCmt.D
 
 	// BROADCAST commitments, paillier pk + proof; round 1 message
 	{
-		msg := NewKGRound1Message(round.PartyID(), cmt.C, &preParams.PaillierSK.PublicKey, preParams.NTildei, preParams.H1i, preParams.H2i)
+		msg := NewKGRound1Message(round.PartyID(), cmt.C, &preParams.PaillierSK.PublicKey, preParams.NTildei, preParams.H1i, preParams.H2i, chainCodeShareCmt.C)
 		round.temp.kgRound1Messages[i] = msg
 		round.out <- msg
 	}

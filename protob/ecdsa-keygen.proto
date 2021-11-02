@@ -17,6 +17,7 @@ message KGRound1Message {
     bytes n_tilde = 3;
     bytes h1 = 4;
     bytes h2 = 5;
+    bytes commitment_chaincode = 6;
 }
 
 /*
@@ -31,6 +32,7 @@ message KGRound2Message1 {
  */
 message KGRound2Message2 {
     repeated bytes de_commitment = 1;
+    repeated bytes de_commitment_chaincode = 2;
 }
 
 /*

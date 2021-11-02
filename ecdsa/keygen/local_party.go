@@ -46,11 +46,15 @@ type (
 		localMessageStore
 
 		// temp data (thrown away after keygen)
-		ui            *big.Int // used for tests
-		KGCs          []cmt.HashCommitment
-		vs            vss.Vs
-		shares        vss.Shares
-		deCommitPolyG cmt.HashDeCommitment
+		ui                *big.Int // used for tests
+		ChaincodeShare    *big.Int
+		KGCs              []cmt.HashCommitment
+		ChaincodeShareCs  []cmt.HashCommitment
+		vs                vss.Vs
+		shares            vss.Shares
+		deCommitPolyG     cmt.HashDeCommitment
+		deCommitChaincode cmt.HashDeCommitment
+		Chaincode         []byte
 	}
 )
 
@@ -88,6 +92,7 @@ func NewLocalParty(
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
+	p.temp.ChaincodeShareCs = make([]cmt.HashCommitment, partyCount)
 	return p
 }
 

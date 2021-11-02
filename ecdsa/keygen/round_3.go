@@ -20,6 +20,10 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
+var (
+	chainCodeBytes = 32
+)
+
 func (round *round3) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -30,6 +34,24 @@ func (round *round3) Start() *tss.Error {
 
 	Ps := round.Parties().IDs()
 	PIdx := round.PartyID().Index
+
+	// gather chaincode
+	ChainCode := round.temp.ChaincodeShare
+	for j, Pj := range Ps {
+		if j == PIdx {
+			continue
+		}
+		Cj := round.temp.ChaincodeShareCs[j]
+		r2msg2 := round.temp.kgRound2Message2s[j].Content().(*KGRound2Message2)
+		Dj := r2msg2.UnmarshalDeCommitmentChaincode()
+		cmtDeCmt := commitments.HashCommitDecommit{C: Cj, D: Dj}
+		ok, ChainCodeSharej := cmtDeCmt.DeCommit()
+		if !ok || ChainCodeSharej == nil {
+			return round.WrapError(errors.New("decommit chaincode failed"), Pj)
+		}
+		ChainCode = new(big.Int).Xor(ChainCode, ChainCodeSharej[0])
+	}
+	round.save.ChainCode = ChainCode.Bytes()[:chainCodeBytes]
 
 	// 1,9. calculate xi
 	xi := new(big.Int).Set(round.temp.shares[PIdx].Share)

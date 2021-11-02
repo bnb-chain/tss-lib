@@ -118,7 +118,7 @@ func TestBadMessageCulprits(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	}
 
-	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
+	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, zero)
 	ok, err := lp.Update(badMsg)
 	t.Log(err)
 	assert.False(t, ok)

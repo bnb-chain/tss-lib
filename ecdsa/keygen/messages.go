@@ -36,17 +36,19 @@ func NewKGRound1Message(
 	ct cmt.HashCommitment,
 	paillierPK *paillier.PublicKey,
 	nTildeI, h1I, h2I *big.Int,
+	chaincodeCt cmt.HashCommitment,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	content := &KGRound1Message{
-		Commitment: ct.Bytes(),
-		PaillierN:  paillierPK.N.Bytes(),
-		NTilde:     nTildeI.Bytes(),
-		H1:         h1I.Bytes(),
-		H2:         h2I.Bytes(),
+		Commitment:          ct.Bytes(),
+		PaillierN:           paillierPK.N.Bytes(),
+		NTilde:              nTildeI.Bytes(),
+		H1:                  h1I.Bytes(),
+		H2:                  h2I.Bytes(),
+		CommitmentChaincode: chaincodeCt.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -58,7 +60,8 @@ func (m *KGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.GetPaillierN()) &&
 		common.NonEmptyBytes(m.GetNTilde()) &&
 		common.NonEmptyBytes(m.GetH1()) &&
-		common.NonEmptyBytes(m.GetH2())
+		common.NonEmptyBytes(m.GetH2()) && 
+		common.NonEmptyBytes(m.GetCommitmentChaincode())
 }
 
 func (m *KGRound1Message) UnmarshalCommitment() *big.Int {
@@ -79,6 +82,10 @@ func (m *KGRound1Message) UnmarshalH1() *big.Int {
 
 func (m *KGRound1Message) UnmarshalH2() *big.Int {
 	return new(big.Int).SetBytes(m.GetH2())
+}
+
+func (m *KGRound1Message) UnmarshalCommitmentChaincode() *big.Int {
+	return new(big.Int).SetBytes(m.GetCommitmentChaincode())
 }
 
 // ----- //
@@ -113,14 +120,17 @@ func (m *KGRound2Message1) UnmarshalShare() *big.Int {
 func NewKGRound2Message2(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
+	deCommitmentChaincode cmt.HashDeCommitment,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
+	dcChaincodeBzs := common.BigIntsToBytes(deCommitmentChaincode)
 	content := &KGRound2Message2{
 		DeCommitment: dcBzs,
+		DeCommitmentChaincode: dcChaincodeBzs,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -133,6 +143,11 @@ func (m *KGRound2Message2) ValidateBasic() bool {
 
 func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 	deComBzs := m.GetDeCommitment()
+	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
+}
+
+func (m *KGRound2Message2) UnmarshalDeCommitmentChaincode() []*big.Int {
+	deComBzs := m.GetDeCommitmentChaincode()
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
