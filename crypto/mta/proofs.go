@@ -51,14 +51,14 @@ func ProveBobWC(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c
 	// steps are numbered as shown in Fig. 10, but diverge slightly for Fig. 11
 	// 1.
 	alpha := common.GetRandomPositiveInt(q3)
-	gamma := common.GetRandomPositiveInt(q3)
-
+	
 	// 2.
 	rho := common.GetRandomPositiveInt(qNTilde)
 	sigma := common.GetRandomPositiveInt(qNTilde)
 
 	// 3.
 	rhoPrm := common.GetRandomPositiveInt(q3NTilde)
+	gamma := common.GetRandomPositiveInt(q3NTilde)
 	tau := common.GetRandomPositiveInt(q3NTilde)
 
 	// 4.
