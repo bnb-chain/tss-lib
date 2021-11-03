@@ -54,7 +54,6 @@ type (
 		shares            vss.Shares
 		deCommitPolyG     cmt.HashDeCommitment
 		deCommitChaincode cmt.HashDeCommitment
-		Chaincode         []byte
 	}
 )
 

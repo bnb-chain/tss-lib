@@ -20,6 +20,7 @@ import (
 
 var (
 	zero = big.NewInt(0)
+	chainCodeBytes = 32
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
@@ -40,7 +41,7 @@ func (round *round1) Start() *tss.Error {
 	i := Pi.Index
 
 	// 0. generate chaincode share
-	chainCodeShare, err := ckd.GenerateSeed(uint8(ckd.MaxSeedBytes))
+	chainCodeShare, err := ckd.GenerateSeed(uint8(chainCodeBytes))
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}

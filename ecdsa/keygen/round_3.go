@@ -20,10 +20,6 @@ import (
 	"github.com/binance-chain/tss-lib/tss"
 )
 
-var (
-	chainCodeBytes = 32
-)
-
 func (round *round3) Start() *tss.Error {
 	if round.started {
 		return round.WrapError(errors.New("round already started"))
@@ -51,7 +47,10 @@ func (round *round3) Start() *tss.Error {
 		}
 		ChainCode = new(big.Int).Xor(ChainCode, ChainCodeSharej[0])
 	}
-	round.save.ChainCode = ChainCode.Bytes()[:chainCodeBytes]
+	ChainCodeSegBzs := ChainCode.Bytes()
+	ChainCodeBzs := make([]byte, chainCodeBytes)
+	copy(ChainCodeBzs[(chainCodeBytes - len(ChainCodeSegBzs)):], ChainCodeSegBzs)
+	round.save.ChainCode = ChainCodeBzs
 
 	// 1,9. calculate xi
 	xi := new(big.Int).Set(round.temp.shares[PIdx].Share)
