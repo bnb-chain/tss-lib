@@ -42,7 +42,7 @@ func (round *round3) Start() *tss.Error {
 		Dj := r2msg2.UnmarshalDeCommitmentChaincode()
 		cmtDeCmt := commitments.HashCommitDecommit{C: Cj, D: Dj}
 		ok, ChainCodeSharej := cmtDeCmt.DeCommit()
-		if !ok || ChainCodeSharej == nil {
+		if !ok || ChainCodeSharej == nil || ChainCodeSharej[0] == nil || ChainCodeSharej[0].BitLen() > chainCodeBytes {
 			return round.WrapError(errors.New("decommit chaincode failed"), Pj)
 		}
 		ChainCode = new(big.Int).Xor(ChainCode, ChainCodeSharej[0])
