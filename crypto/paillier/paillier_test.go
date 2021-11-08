@@ -64,6 +64,10 @@ func TestEncryptDecrypt(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, exp.Cmp(ret),
 		"wrong decryption ", ret, " is not ", exp)
+
+	cypher = new(big.Int).Set(privateKey.N)
+	_, err = privateKey.Decrypt(cypher)
+	assert.Error(t, err)
 }
 
 func TestHomoMul(t *testing.T) {
