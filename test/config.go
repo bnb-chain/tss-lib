@@ -11,4 +11,5 @@ const (
 	// Then the signing and resharing tests will work with the new n, t configuration using the newly written fixture files.
 	TestParticipants = 20
 	TestThreshold    = TestParticipants / 2
+	Abort7Attacker   = 3
 )
