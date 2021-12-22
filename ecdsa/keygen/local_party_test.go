@@ -249,10 +249,7 @@ keygen:
 				u := new(big.Int)
 				for j, Pj := range parties {
 					pShares := make(vss.Shares, 0)
-					for j2, P := range parties {
-						if j2 == j {
-							continue
-						}
+					for _, P := range parties {
 						vssMsgs := P.temp.kgRound2Message1s
 						share := vssMsgs[j].Content().(*KGRound2Message1).Share
 						shareStruct := &vss.Share{
