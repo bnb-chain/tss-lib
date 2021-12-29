@@ -105,7 +105,6 @@ func (round *round2) Start() *tss.Error {
 			round.temp.kgRound2Message1s[j] = r2msg1
 			continue
 		}
-		round.temp.kgRound2Message1s[i] = r2msg1
 		round.out <- r2msg1
 	}
 
