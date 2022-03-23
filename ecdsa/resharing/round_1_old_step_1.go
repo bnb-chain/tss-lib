@@ -53,12 +53,14 @@ func (round *round1) Start() *tss.Error {
 	}
 
 	// 2.
+	// Compute [v_i0, ..., v_it`], [s_i1, . . . , s_in`] ← FeldmanShare(g, w_i,t`, q, [p'_1, ...,p'_n'])
 	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
 
 	// 3.
+	// Compute [Ci, Di] = Commit([vi0, . . . , vit` ])
 	flatVis, err := crypto.FlattenECPoints(vi)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
@@ -94,9 +96,6 @@ func (round *round1) Update() (bool, *tss.Error) {
 	}
 	// accept messages from old -> new committee
 	for j, msg := range round.temp.dgRound1Messages {
-		if round.oldOK[j] {
-			continue
-		}
 		if msg == nil || !round.CanAccept(msg) {
 			return false, nil
 		}
