@@ -32,6 +32,7 @@ import (
 const (
 	testParticipants = TestParticipants
 	testThreshold    = TestThreshold
+	deterministicKey = "da87ac8275bdb8f7e01212f77e3a1222d99cbd847d81e2e31a3c11ce8bba71e8"
 )
 
 func setUp(level string) {
@@ -61,6 +62,13 @@ func TestStartRound1Paillier(t *testing.T) {
 	} else {
 		lp = NewLocalParty(params, out, nil).(*LocalParty)
 	}
+
+	theU := big.NewInt(0)
+	theU.SetString(deterministicKey, 16)
+	theU.Div(theU, big.NewInt(16))
+
+	lp.params.SetDeterministicU(theU)
+
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -101,6 +109,13 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	} else {
 		lp = NewLocalParty(params, out, nil).(*LocalParty)
 	}
+
+	theU := big.NewInt(0)
+	theU.SetString(deterministicKey, 16)
+	theU.Div(theU, big.NewInt(16))
+
+	lp.params.SetDeterministicU(theU)
+
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -148,6 +163,13 @@ func TestBadMessageCulprits(t *testing.T) {
 	} else {
 		lp = NewLocalParty(params, out, nil).(*LocalParty)
 	}
+
+	theU := big.NewInt(0)
+	theU.SetString(deterministicKey, 16)
+	theU.Div(theU, big.NewInt(16))
+
+	lp.params.SetDeterministicU(theU)
+
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -198,6 +220,13 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 		} else {
 			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
 		}
+
+		theU := big.NewInt(0)
+		theU.SetString(deterministicKey, 16)
+		theU.Div(theU, big.NewInt(16))
+
+		P.params.SetDeterministicU(theU)
+
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {

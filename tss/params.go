@@ -9,6 +9,7 @@ package tss
 import (
 	"crypto/elliptic"
 	"errors"
+	"math/big"
 	"time"
 )
 
@@ -20,6 +21,8 @@ type (
 		partyCount          int
 		threshold           int
 		safePrimeGenTimeout time.Duration
+		// deterministicU is the u which each TSS party use as input of key generation
+		deterministicU *big.Int
 	}
 
 	ReSharingParameters struct {
@@ -53,6 +56,24 @@ func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyC
 		threshold:           threshold,
 		safePrimeGenTimeout: safePrimeGenTimeout,
 	}
+}
+
+// SetDeterministicU sets the deterministicU for Party
+func (params *Parameters) SetDeterministicU(u *big.Int) {
+	if u.BitLen() > 252 || u.BitLen() < 250 {
+		return
+	}
+	params.deterministicU = u
+}
+
+// ClearDeterministicU clear the deterministicU and sets it to 0
+func (params *Parameters) ClearDeterministicU() {
+	params.deterministicU = big.NewInt(0)
+}
+
+// DeterministicU returns the deterministicU
+func (params *Parameters) DeterministicU() *big.Int {
+	return params.deterministicU
 }
 
 func (params *Parameters) EC() elliptic.Curve {

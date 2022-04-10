@@ -10,7 +10,6 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/dlnproof"
@@ -40,7 +39,8 @@ func (round *round1) Start() *tss.Error {
 	i := Pi.Index
 
 	// 1. calculate "partial" key share ui
-	ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	// ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	ui := round.Params().DeterministicU()
 
 	round.temp.ui = ui
 
@@ -55,6 +55,7 @@ func (round *round1) Start() *tss.Error {
 	// security: the original u_i may be discarded
 	ui = zero // clears the secret data from memory
 	_ = ui    // silences a linter warning
+	round.Params().ClearDeterministicU()
 
 	// make commitment -> (C, D)
 	pGFlat, err := crypto.FlattenECPoints(vs)
