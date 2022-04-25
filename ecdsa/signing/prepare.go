@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/bnb-chain/tss-lib/common"
+	"github.com/bnb-chain/tss-lib/crypto"
 )
 
 // PrepareForSigning(), GG18Spec (11) Fig. 14
