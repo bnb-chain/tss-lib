@@ -9,7 +9,7 @@ package resharing
 import (
 	"errors"
 
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/tss"
 )
 
 func (round *round2) Start() *tss.Error {

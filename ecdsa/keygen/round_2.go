@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/tss"
 )
 
 const (

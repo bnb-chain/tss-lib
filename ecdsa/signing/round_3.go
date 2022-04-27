@@ -13,9 +13,9 @@ import (
 
 	errorspkg "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/common"
+	"github.com/bnb-chain/tss-lib/crypto/mta"
+	"github.com/bnb-chain/tss-lib/tss"
 )
 
 func (round *round3) Start() *tss.Error {
