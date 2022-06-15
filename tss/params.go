@@ -27,6 +27,7 @@ type (
 		newParties    *PeerContext
 		newPartyCount int
 		newThreshold  int
+		amOldParty    bool
 	}
 )
 
@@ -82,13 +83,14 @@ func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 // ----- //
 
 // Exported, used in `tss` client
-func NewReSharingParameters(ec elliptic.Curve, ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
+func NewReSharingParameters(ec elliptic.Curve, ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int, amOldParty bool) *ReSharingParameters {
 	params := NewParameters(ec, ctx, partyID, partyCount, threshold)
 	return &ReSharingParameters{
 		Parameters:    params,
 		newParties:    newCtx,
 		newPartyCount: newPartyCount,
 		newThreshold:  newThreshold,
+		amOldParty:    amOldParty,
 	}
 }
 
@@ -121,21 +123,9 @@ func (rgParams *ReSharingParameters) OldAndNewPartyCount() int {
 }
 
 func (rgParams *ReSharingParameters) IsOldCommittee() bool {
-	partyID := rgParams.partyID
-	for _, Pj := range rgParams.parties.IDs() {
-		if partyID.KeyInt().Cmp(Pj.KeyInt()) == 0 {
-			return true
-		}
-	}
-	return false
+	return rgParams.amOldParty
 }
 
 func (rgParams *ReSharingParameters) IsNewCommittee() bool {
-	partyID := rgParams.partyID
-	for _, Pj := range rgParams.newParties.IDs() {
-		if partyID.KeyInt().Cmp(Pj.KeyInt()) == 0 {
-			return true
-		}
-	}
-	return false
+	return !rgParams.amOldParty
 }

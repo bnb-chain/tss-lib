@@ -39,7 +39,7 @@ func (round *round3) Start() *tss.Error {
 
 	vDeCmt := round.temp.VD
 	r3msg2 := NewDGRound3Message2(
-		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
+		round.NewParties().IDs(), round.PartyID(),
 		vDeCmt)
 	round.temp.dgRound3Message2s[i] = r3msg2
 	round.out <- r3msg2

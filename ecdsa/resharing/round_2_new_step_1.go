@@ -32,7 +32,7 @@ func (round *round2) Start() *tss.Error {
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2Message2(
-		round.OldParties().IDs().Exclude(round.PartyID()), round.PartyID())
+		round.OldParties().IDs(), round.PartyID())
 	round.temp.dgRound2Message2s[i] = r2msg1
 	round.out <- r2msg1
 
@@ -72,7 +72,7 @@ func (round *round2) Start() *tss.Error {
 
 	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
 	r2msg2, err := NewDGRound2Message1(
-		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
+		round.NewParties().IDs(), round.PartyID(),
 		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
 	if err != nil {
 		return round.WrapError(err, Pi)
