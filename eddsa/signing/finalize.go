@@ -121,5 +121,5 @@ func Verify(pub *edwards.PublicKey, hash []byte, r, s *big.Int) bool {
 	sigBytes := sig.Serialize()
 	pubArray := copyBytes(pubBytes)
 	sigArray := copyBytes64(sigBytes)
-	return ed25519.Verify(pubArray, hash, sigArray)
+	return verify(pubArray, hash, sigArray)
 }
