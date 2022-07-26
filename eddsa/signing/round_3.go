@@ -7,10 +7,9 @@
 package signing
 
 import (
-	"crypto/sha512"
-
 	"github.com/agl/ed25519/edwards25519"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/binance-chain/tss-lib/crypto/commitments"
@@ -72,7 +71,7 @@ func (round *round3) Start() *tss.Error {
 	encodedPubKey := ecPointToEncodedBytes(round.key.EDDSAPub.X(), round.key.EDDSAPub.Y())
 
 	// h = hash512(k || A || M)
-	h := sha512.New()
+	h, _ := blake2b.New512(nil)
 	h.Reset()
 	h.Write(encodedR[:])
 	h.Write(encodedPubKey[:])
