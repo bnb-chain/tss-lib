@@ -1,4 +1,4 @@
-module github.com/binance-chain/tss-lib
+module github.com/bnb-chain/tss-lib
 
 go 1.16
 
