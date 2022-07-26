@@ -132,7 +132,7 @@ signing:
 					println("new sig error, ", err.Error())
 				}
 
-				ok := edwards.Verify(&pk, msg, newSig.R, newSig.S)
+				ok := Verify(&pk, msg, newSig.R, newSig.S)
 				assert.True(t, ok, "eddsa verify must pass")
 				t.Log("EDDSA signing test done.")
 				// END EDDSA verify
