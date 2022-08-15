@@ -20,7 +20,7 @@ func TestGeneratePreParamsTimeout(t *testing.T) {
 
 	assert.Nil(t, preParams)
 	assert.NotNil(t, err)
-	assert.WithinDuration(t, start, time.Now(), 10*time.Millisecond)
+	assert.WithinDuration(t, start, time.Now(), 1*time.Second)
 }
 
 func TestGeneratePreParamsWithContextTimeout(t *testing.T) {
@@ -32,7 +32,7 @@ func TestGeneratePreParamsWithContextTimeout(t *testing.T) {
 
 	assert.Nil(t, preParams)
 	assert.NotNil(t, err)
-	assert.WithinDuration(t, start, time.Now(), 10*time.Millisecond)
+	assert.WithinDuration(t, start, time.Now(), 1*time.Second)
 }
 
 func TestGenerateWithContext(t *testing.T) {
