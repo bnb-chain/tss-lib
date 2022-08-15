@@ -7,6 +7,7 @@
 package mta
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
@@ -28,7 +29,10 @@ const (
 func TestShareProtocol(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
 	a := common.GetRandomPositiveInt(q)
@@ -58,7 +62,10 @@ func TestShareProtocol(t *testing.T) {
 func TestShareProtocolWC(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
 	a := common.GetRandomPositiveInt(q)

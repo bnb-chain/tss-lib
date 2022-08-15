@@ -7,6 +7,7 @@
 package mta
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
@@ -27,7 +28,10 @@ const (
 func TestProveRangeAlice(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
 	m := common.GetRandomPositiveInt(q)
