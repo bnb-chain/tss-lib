@@ -43,12 +43,6 @@ The `LocalParty` that you use should be from the `keygen`, `signing` or `reshari
 
 ### Setup
 ```go
-// Set up elliptic curve
-// use ECDSA, which is used by default
-tss.SetCurve(s256k1.S256()) 
-// or use EdDSA
-// tss.SetCurve(edwards.Edwards()) 
-
 // When using the keygen party it is recommended that you pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
 // This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
 preParams, _ := keygen.GeneratePreParams(1 * time.Minute)
@@ -62,7 +56,14 @@ parties := tss.SortPartyIDs(getParticipantPartyIDs())
 // The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
 ctx := tss.NewPeerContext(parties)
-params := tss.NewParameters(ctx, thisParty, len(parties), threshold)
+
+// Select an elliptic curve
+// use ECDSA
+curve := tss.S256()
+// or use EdDSA
+// curve := tss.Edwards()
+
+params := tss.NewParameters(curve, ctx, thisParty, len(parties), threshold)
 
 // You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
 partyIDMap := make(map[string]*PartyID)
