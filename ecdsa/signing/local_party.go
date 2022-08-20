@@ -98,6 +98,16 @@ func NewLocalParty(
 	msg *big.Int,
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
+	out chan<- tss.Message,
+	end chan<- common.SignatureData) tss.Party {
+	return NewLocalPartyWithKDD(msg, params, key, nil, out, end)
+}
+
+// NewLocalPartyWithKDD returns a party with key derivation delta for HD support
+func NewLocalPartyWithKDD(
+	msg *big.Int,
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
 	keyDerivationDelta *big.Int,
 	out chan<- tss.Message,
 	end chan<- common.SignatureData,

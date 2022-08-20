@@ -7,7 +7,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/binary"
@@ -15,8 +14,8 @@ import (
 	"hash"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/bnb-chain/tss-lib/common"
+	"github.com/bnb-chain/tss-lib/crypto"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
@@ -255,19 +254,4 @@ func DeriveChildKey(index uint32, pk *ExtendedKey, curve elliptic.Curve) (*big.I
 		Version:    pk.Version,
 	}
 	return ilNum, childPk, nil
-}
-
-func GenerateSeed(length uint8) ([]byte, error) {
-	// Per [BIP32], the seed must be in range [MinSeedBytes, MaxSeedBytes].
-	if length < MinSeedBytes || length > MaxSeedBytes {
-		return nil, errors.New("invalid seed length")
-	}
-
-	buf := make([]byte, length)
-	_, err := rand.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf, nil
 }
