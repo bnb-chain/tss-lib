@@ -13,7 +13,7 @@ import (
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
 )
 
-func BenchmarkDLNProofVerification(b *testing.B) {
+func BenchmarkDlnProof_Verify(b *testing.B) {
 	localPartySaveData, _, err := LoadKeygenTestFixtures(1)
 	if err != nil {
 		b.Fatal(err)
@@ -36,8 +36,44 @@ func BenchmarkDLNProofVerification(b *testing.B) {
 	}
 }
 
+func BenchmarkDlnVerifier_VerifyProof1(b *testing.B) {
+	preParams, proof := prepareProofB(b)
+	message := &KGRound1Message{
+		Dlnproof_1: proof,
+	}
+
+	verifier := NewDlnProofVerifier()
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		resultChan := make(chan bool)
+		verifier.VerifyDLNProof1(message, preParams.H1i, preParams.H2i, preParams.NTildei, func(result bool) {
+			resultChan <- result
+		})
+		<-resultChan
+	}
+}
+
+func BenchmarkDlnVerifier_VerifyProof2(b *testing.B) {
+	preParams, proof := prepareProofB(b)
+	message := &KGRound1Message{
+		Dlnproof_2: proof,
+	}
+
+	verifier := NewDlnProofVerifier()
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		resultChan := make(chan bool)
+		verifier.VerifyDLNProof2(message, preParams.H1i, preParams.H2i, preParams.NTildei, func(result bool) {
+			resultChan <- result
+		})
+		<-resultChan
+	}
+}
+
 func TestVerifyDLNProof1_Success(t *testing.T) {
-	preParams, proof := prepareProof(t)
+	preParams, proof := prepareProofT(t)
 	message := &KGRound1Message{
 		Dlnproof_1: proof,
 	}
@@ -57,7 +93,7 @@ func TestVerifyDLNProof1_Success(t *testing.T) {
 }
 
 func TestVerifyDLNProof1_MalformedMessage(t *testing.T) {
-	preParams, proof := prepareProof(t)
+	preParams, proof := prepareProofT(t)
 	message := &KGRound1Message{
 		Dlnproof_1: proof[:len(proof)-1], // truncate
 	}
@@ -77,7 +113,7 @@ func TestVerifyDLNProof1_MalformedMessage(t *testing.T) {
 }
 
 func TestVerifyDLNProof1_IncorrectProof(t *testing.T) {
-	preParams, proof := prepareProof(t)
+	preParams, proof := prepareProofT(t)
 	message := &KGRound1Message{
 		Dlnproof_1: proof,
 	}
@@ -98,7 +134,7 @@ func TestVerifyDLNProof1_IncorrectProof(t *testing.T) {
 }
 
 func TestVerifyDLNProof2_Success(t *testing.T) {
-	preParams, proof := prepareProof(t)
+	preParams, proof := prepareProofT(t)
 	message := &KGRound1Message{
 		Dlnproof_2: proof,
 	}
@@ -118,7 +154,7 @@ func TestVerifyDLNProof2_Success(t *testing.T) {
 }
 
 func TestVerifyDLNProof2_MalformedMessage(t *testing.T) {
-	preParams, proof := prepareProof(t)
+	preParams, proof := prepareProofT(t)
 	message := &KGRound1Message{
 		Dlnproof_2: proof[:len(proof)-1], // truncate
 	}
@@ -138,7 +174,7 @@ func TestVerifyDLNProof2_MalformedMessage(t *testing.T) {
 }
 
 func TestVerifyDLNProof2_IncorrectProof(t *testing.T) {
-	preParams, proof := prepareProof(t)
+	preParams, proof := prepareProofT(t)
 	message := &KGRound1Message{
 		Dlnproof_2: proof,
 	}
@@ -170,10 +206,28 @@ func TestOptionalConcurrency(t *testing.T) {
 	}
 }
 
-func prepareProof(t *testing.T) (*LocalPreParams, [][]byte) {
-	localPartySaveData, _, err := LoadKeygenTestFixtures(1)
+func prepareProofT(t *testing.T) (*LocalPreParams, [][]byte) {
+	preParams, serialized, err := prepareProof()
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	return preParams, serialized
+}
+
+func prepareProofB(b *testing.B) (*LocalPreParams, [][]byte) {
+	preParams, serialized, err := prepareProof()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	return preParams, serialized
+}
+
+func prepareProof() (*LocalPreParams, [][]byte, error) {
+	localPartySaveData, _, err := LoadKeygenTestFixtures(1)
+	if err != nil {
+		return nil, [][]byte{}, err
 	}
 
 	preParams := localPartySaveData[0].LocalPreParams
@@ -189,8 +243,10 @@ func prepareProof(t *testing.T) (*LocalPreParams, [][]byte) {
 
 	serialized, err := proof.Serialize()
 	if err != nil {
-		t.Fatal(err)
+		if err != nil {
+			return nil, [][]byte{}, err
+		}
 	}
 
-	return &preParams, serialized
+	return &preParams, serialized, nil
 }
