@@ -49,7 +49,7 @@ func (round *round2) Start() *tss.Error {
 		preParams = &round.save.LocalPreParams
 	} else {
 		var err error
-		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout())
+		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout(), round.Concurrency())
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}

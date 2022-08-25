@@ -26,7 +26,7 @@ func (round *round2) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
-	dlnVerifier := NewDlnProofVerifier()
+	dlnVerifier := NewDlnProofVerifier(round.Concurrency())
 
 	i := round.PartyID().Index
 
