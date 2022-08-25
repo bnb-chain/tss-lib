@@ -64,14 +64,14 @@ func (round *round2) Start() *tss.Error {
 		_j := j
 		_msg := msg
 
-		dlnVerifier.VerifyDLNProof1(r1msg, H1j, H2j, NTildej, func(valid bool) {
-			if !valid {
+		dlnVerifier.VerifyDLNProof1(r1msg, H1j, H2j, NTildej, func(isValid bool) {
+			if !isValid {
 				dlnProof1FailCulprits[_j] = _msg.GetFrom()
 			}
 			wg.Done()
 		})
-		dlnVerifier.VerifyDLNProof2(r1msg, H2j, H1j, NTildej, func(valid bool) {
-			if !valid {
+		dlnVerifier.VerifyDLNProof2(r1msg, H2j, H1j, NTildej, func(isValid bool) {
+			if !isValid {
 				dlnProof2FailCulprits[_j] = _msg.GetFrom()
 			}
 			wg.Done()

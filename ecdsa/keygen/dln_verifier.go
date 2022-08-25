@@ -10,10 +10,17 @@ import (
 	"errors"
 	"math/big"
 	"runtime"
+
+	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
 )
 
 type DlnProofVerifier struct {
 	semaphore chan interface{}
+}
+
+type message interface {
+	UnmarshalDLNProof1() (*dlnproof.Proof, error)
+	UnmarshalDLNProof2() (*dlnproof.Proof, error)
 }
 
 func NewDlnProofVerifier(optionalConcurrency ...int) *DlnProofVerifier {
@@ -35,7 +42,7 @@ func NewDlnProofVerifier(optionalConcurrency ...int) *DlnProofVerifier {
 }
 
 func (dpv *DlnProofVerifier) VerifyDLNProof1(
-	r1msg *KGRound1Message,
+	m message,
 	h1, h2, n *big.Int,
 	onDone func(bool),
 ) {
@@ -43,7 +50,7 @@ func (dpv *DlnProofVerifier) VerifyDLNProof1(
 	go func() {
 		defer func() { <-dpv.semaphore }()
 
-		dlnProof, err := r1msg.UnmarshalDLNProof1()
+		dlnProof, err := m.UnmarshalDLNProof1()
 		if err != nil {
 			onDone(false)
 			return
@@ -54,7 +61,7 @@ func (dpv *DlnProofVerifier) VerifyDLNProof1(
 }
 
 func (dpv *DlnProofVerifier) VerifyDLNProof2(
-	r1msg *KGRound1Message,
+	m message,
 	h1, h2, n *big.Int,
 	onDone func(bool),
 ) {
@@ -62,7 +69,7 @@ func (dpv *DlnProofVerifier) VerifyDLNProof2(
 	go func() {
 		defer func() { <-dpv.semaphore }()
 
-		dlnProof, err := r1msg.UnmarshalDLNProof2()
+		dlnProof, err := m.UnmarshalDLNProof2()
 		if err != nil {
 			onDone(false)
 			return
