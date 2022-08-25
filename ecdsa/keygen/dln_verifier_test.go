@@ -8,6 +8,7 @@ package keygen
 
 import (
 	"math/big"
+	"runtime"
 	"testing"
 
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
@@ -42,7 +43,7 @@ func BenchmarkDlnVerifier_VerifyProof1(b *testing.B) {
 		Dlnproof_1: proof,
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -60,7 +61,7 @@ func BenchmarkDlnVerifier_VerifyProof2(b *testing.B) {
 		Dlnproof_2: proof,
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -78,7 +79,7 @@ func TestVerifyDLNProof1_Success(t *testing.T) {
 		Dlnproof_1: proof,
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	resultChan := make(chan bool)
 
@@ -98,7 +99,7 @@ func TestVerifyDLNProof1_MalformedMessage(t *testing.T) {
 		Dlnproof_1: proof[:len(proof)-1], // truncate
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	resultChan := make(chan bool)
 
@@ -118,7 +119,7 @@ func TestVerifyDLNProof1_IncorrectProof(t *testing.T) {
 		Dlnproof_1: proof,
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	resultChan := make(chan bool)
 
@@ -139,7 +140,7 @@ func TestVerifyDLNProof2_Success(t *testing.T) {
 		Dlnproof_2: proof,
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	resultChan := make(chan bool)
 
@@ -159,7 +160,7 @@ func TestVerifyDLNProof2_MalformedMessage(t *testing.T) {
 		Dlnproof_2: proof[:len(proof)-1], // truncate
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	resultChan := make(chan bool)
 
@@ -179,7 +180,7 @@ func TestVerifyDLNProof2_IncorrectProof(t *testing.T) {
 		Dlnproof_2: proof,
 	}
 
-	verifier := NewDlnProofVerifier()
+	verifier := NewDlnProofVerifier(runtime.GOMAXPROCS(0))
 
 	resultChan := make(chan bool)
 
@@ -191,18 +192,6 @@ func TestVerifyDLNProof2_IncorrectProof(t *testing.T) {
 	success := <-resultChan
 	if success {
 		t.Fatal("expected negative verification")
-	}
-}
-
-// TestOptionalConcurrency check that if the concurrency level optional flag
-// is set, it is taken into account.
-func TestOptionalConcurrency(t *testing.T) {
-	concurrency := 7161
-
-	verifier := NewDlnProofVerifier(concurrency)
-
-	if cap(verifier.semaphore) != concurrency {
-		t.Fatal("unexpected concurrency level")
 	}
 }
 

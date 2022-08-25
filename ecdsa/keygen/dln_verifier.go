@@ -7,9 +7,7 @@
 package keygen
 
 import (
-	"errors"
 	"math/big"
-	"runtime"
 
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
 )
@@ -23,17 +21,7 @@ type message interface {
 	UnmarshalDLNProof2() (*dlnproof.Proof, error)
 }
 
-func NewDlnProofVerifier(optionalConcurrency ...int) *DlnProofVerifier {
-	var concurrency int
-	if 0 < len(optionalConcurrency) {
-		if 1 < len(optionalConcurrency) {
-			panic(errors.New("NewDlnProofVerifier: expected 0 or 1 item in `optionalConcurrency`"))
-		}
-		concurrency = optionalConcurrency[0]
-	} else {
-		concurrency = runtime.NumCPU()
-	}
-
+func NewDlnProofVerifier(concurrency int) *DlnProofVerifier {
 	semaphore := make(chan interface{}, concurrency)
 
 	return &DlnProofVerifier{
