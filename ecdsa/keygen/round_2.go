@@ -11,6 +11,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/bnb-chain/tss-lib/common"
 	"github.com/bnb-chain/tss-lib/tss"
 )
 
@@ -26,6 +27,11 @@ func (round *round2) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
+	common.Logger.Debugf(
+		"%s Setting up DLN verification with concurrency level of %d",
+		round.PartyID(),
+		round.Concurrency(),
+	)
 	dlnVerifier := NewDlnProofVerifier(round.Concurrency())
 
 	i := round.PartyID().Index

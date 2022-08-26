@@ -37,6 +37,11 @@ func (round *round4) Start() *tss.Error {
 		return nil
 	}
 
+	common.Logger.Debugf(
+		"%s Setting up DLN verification with concurrency level of %d",
+		round.PartyID(),
+		round.Concurrency(),
+	)
 	dlnVerifier := keygen.NewDlnProofVerifier(round.Concurrency())
 
 	Pi := round.PartyID()
