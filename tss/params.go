@@ -76,6 +76,7 @@ func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 	return params.safePrimeGenTimeout
 }
 
+// The concurrency level must be >= 1.
 func (params *Parameters) SetConcurrency(concurrency int) {
 	params.concurrency = concurrency
 }

@@ -7,6 +7,7 @@
 package keygen
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
@@ -22,6 +23,10 @@ type message interface {
 }
 
 func NewDlnProofVerifier(concurrency int) *DlnProofVerifier {
+	if concurrency == 0 {
+		panic(errors.New("NewDlnProofverifier: concurrency level must not be zero"))
+	}
+
 	semaphore := make(chan interface{}, concurrency)
 
 	return &DlnProofVerifier{
