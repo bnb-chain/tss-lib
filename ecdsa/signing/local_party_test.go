@@ -144,7 +144,7 @@ func TestE2EWithHDKeyDerivation(t *testing.T) {
 	chainCode := make([]byte, 32)
 	max32b := new(big.Int).Lsh(new(big.Int).SetUint64(1), 256)
 	max32b = new(big.Int).Sub(max32b, new(big.Int).SetUint64(1))
-	common.GetRandomPositiveInt(max32b).FillBytes(chainCode)
+	fillBytes(common.GetRandomPositiveInt(max32b), chainCode)
 
 	il, extendedChildPk, errorDerivation := derivingPubkeyFromPath(keys[0].ECDSAPub, chainCode, []uint32{12, 209, 3}, btcec.S256())
 	assert.NoErrorf(t, errorDerivation, "there should not be an error deriving the child public key")
@@ -245,4 +245,20 @@ func TestFillTo32BytesInPlace(t *testing.T) {
 	assert.True(t, big.NewInt(0).SetBytes(normalizedS).Cmp(s) == 0)
 	assert.Equal(t, 32, len(normalizedS))
 	assert.NotEqual(t, 32, len(s.Bytes()))
+}
+
+func fillBytes(x *big.Int, buf []byte) []byte {
+	b := x.Bytes()
+	if len(b) > len(buf) {
+		panic("buffer too small")
+	}
+	offset := len(buf) - len(b)
+	for i := range buf {
+		if i < offset {
+			buf[i] = 0
+		} else {
+			buf[i] = b[i-offset]
+		}
+	}
+	return buf
 }
