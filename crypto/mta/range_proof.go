@@ -22,6 +22,7 @@ const (
 
 var (
 	zero = big.NewInt(0)
+	one  = big.NewInt(1)
 )
 
 type (
