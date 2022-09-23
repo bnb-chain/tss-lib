@@ -18,6 +18,7 @@ import (
 	"github.com/bnb-chain/tss-lib/crypto"
 	"github.com/bnb-chain/tss-lib/crypto/commitments"
 	"github.com/bnb-chain/tss-lib/crypto/vss"
+	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/tss"
 )
 
@@ -35,6 +36,13 @@ func (round *round4) Start() *tss.Error {
 		// both committees proceed to round 5 after receiving "ACK" messages from the new committee
 		return nil
 	}
+
+	common.Logger.Debugf(
+		"%s Setting up DLN verification with concurrency level of %d",
+		round.PartyID(),
+		round.Concurrency(),
+	)
+	dlnVerifier := keygen.NewDlnProofVerifier(round.Concurrency())
 
 	Pi := round.PartyID()
 	i := Pi.Index
@@ -71,20 +79,22 @@ func (round *round4) Start() *tss.Error {
 			}
 			wg.Done()
 		}(j, msg, r2msg1)
-		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
-			if dlnProof1, err := r2msg1.UnmarshalDLNProof1(); err != nil || !dlnProof1.Verify(H1j, H2j, NTildej) {
-				dlnProof1FailCulprits[j] = msg.GetFrom()
-				common.Logger.Warningf("dln proof 1 verify failed for party %s", msg.GetFrom(), err)
+		_j := j
+		_msg := msg
+		dlnVerifier.VerifyDLNProof1(r2msg1, H1j, H2j, NTildej, func(isValid bool) {
+			if !isValid {
+				dlnProof1FailCulprits[_j] = _msg.GetFrom()
+				common.Logger.Warningf("dln proof 1 verify failed for party %s", _msg.GetFrom())
 			}
 			wg.Done()
-		}(j, msg, r2msg1, H1j, H2j, NTildej)
-		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1, H1j, H2j, NTildej *big.Int) {
-			if dlnProof2, err := r2msg1.UnmarshalDLNProof2(); err != nil || !dlnProof2.Verify(H2j, H1j, NTildej) {
-				dlnProof2FailCulprits[j] = msg.GetFrom()
-				common.Logger.Warningf("dln proof 2 verify failed for party %s", msg.GetFrom(), err)
+		})
+		dlnVerifier.VerifyDLNProof2(r2msg1, H2j, H1j, NTildej, func(isValid bool) {
+			if !isValid {
+				dlnProof2FailCulprits[_j] = _msg.GetFrom()
+				common.Logger.Warningf("dln proof 2 verify failed for party %s", _msg.GetFrom())
 			}
 			wg.Done()
-		}(j, msg, r2msg1, H1j, H2j, NTildej)
+		})
 	}
 	wg.Wait()
 	for _, culprit := range append(append(paiProofCulprits, dlnProof1FailCulprits...), dlnProof2FailCulprits...) {

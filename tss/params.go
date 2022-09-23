@@ -8,7 +8,7 @@ package tss
 
 import (
 	"crypto/elliptic"
-	"errors"
+	"runtime"
 	"time"
 )
 
@@ -19,6 +19,7 @@ type (
 		parties             *PeerContext
 		partyCount          int
 		threshold           int
+		concurrency         int
 		safePrimeGenTimeout time.Duration
 	}
 
@@ -35,23 +36,15 @@ const (
 )
 
 // Exported, used in `tss` client
-func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
-	var safePrimeGenTimeout time.Duration
-	if 0 < len(optionalSafePrimeGenTimeout) {
-		if 1 < len(optionalSafePrimeGenTimeout) {
-			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalSafePrimeGenTimeout`"))
-		}
-		safePrimeGenTimeout = optionalSafePrimeGenTimeout[0]
-	} else {
-		safePrimeGenTimeout = defaultSafePrimeGenTimeout
-	}
+func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int) *Parameters {
 	return &Parameters{
 		ec:                  ec,
 		parties:             ctx,
 		partyID:             partyID,
 		partyCount:          partyCount,
 		threshold:           threshold,
-		safePrimeGenTimeout: safePrimeGenTimeout,
+		concurrency:         runtime.GOMAXPROCS(0),
+		safePrimeGenTimeout: defaultSafePrimeGenTimeout,
 	}
 }
 
@@ -75,8 +68,21 @@ func (params *Parameters) Threshold() int {
 	return params.threshold
 }
 
+func (params *Parameters) Concurrency() int {
+	return params.concurrency
+}
+
 func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 	return params.safePrimeGenTimeout
+}
+
+// The concurrency level must be >= 1.
+func (params *Parameters) SetConcurrency(concurrency int) {
+	params.concurrency = concurrency
+}
+
+func (params *Parameters) SetSafePrimeGenTimeout(timeout time.Duration) {
+	params.safePrimeGenTimeout = timeout
 }
 
 // ----- //
