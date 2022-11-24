@@ -11,7 +11,7 @@ import (
 	"errors"
 	"reflect"
 
-	s256k1 "github.com/btcsuite/btcd/btcec/v2"
+	s256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/decred/dcrd/dcrec/edwards/v2"
 )
 
