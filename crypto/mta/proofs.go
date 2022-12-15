@@ -194,6 +194,20 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 	q3 := new(big.Int).Mul(q, q)
 	q3 = new(big.Int).Mul(q, q3)
 
+	gcd := big.NewInt(0)
+	if pf.S.Cmp(zero) == 0 {
+		return false
+	}
+	if gcd.GCD(nil, nil, pf.S, pk.N).Cmp(one) != 0 {
+		return false
+	}
+	if pf.V.Cmp(zero) == 0 {
+		return false
+	}
+	if gcd.GCD(nil, nil, pf.V, pk.N).Cmp(one) != 0 {
+		return false
+	}
+
 	// 3.
 	if pf.S1.Cmp(q3) > 0 {
 		return false
