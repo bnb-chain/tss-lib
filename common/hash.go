@@ -35,11 +35,16 @@ func SHA512_256(in ...[]byte) []byte {
 	for _, bz := range in {
 		bzSize += len(bz)
 	}
-	data = make([]byte, 0, len(inLenBz)+bzSize+inLen)
+	dataCap := len(inLenBz) + bzSize + inLen + (inLen * 8)
+	data = make([]byte, 0, dataCap)
 	data = append(data, inLenBz...)
 	for _, bz := range in {
 		data = append(data, bz...)
 		data = append(data, hashInputDelimiter) // safety delimiter
+		dataLen := make([]byte, 8)              // 64-bits
+		binary.LittleEndian.PutUint64(dataLen, uint64(len(bz)))
+		data = append(data, dataLen...) // Security audit: length of each byte buffer should be added after
+		// each security delimiters in order to enforce proper domain separation
 	}
 	// n < len(data) or an error will never happen.
 	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
@@ -68,11 +73,16 @@ func SHA512_256i(in ...*big.Int) *big.Int {
 		ptrs[i] = n.Bytes()
 		bzSize += len(ptrs[i])
 	}
-	data = make([]byte, 0, len(inLenBz)+bzSize+inLen)
+	dataCap := len(inLenBz) + bzSize + inLen + (inLen * 8)
+	data = make([]byte, 0, dataCap)
 	data = append(data, inLenBz...)
 	for i := range in {
 		data = append(data, ptrs[i]...)
 		data = append(data, hashInputDelimiter) // safety delimiter
+		dataLen := make([]byte, 8)              // 64-bits
+		binary.LittleEndian.PutUint64(dataLen, uint64(len(ptrs[i])))
+		data = append(data, dataLen...) // Security audit: length of each byte buffer should be added after
+		// each security delimiters in order to enforce proper domain separation
 	}
 	// n < len(data) or an error will never happen.
 	// see: https://golang.org/pkg/hash/#Hash and https://github.com/golang/go/wiki/Hashing#the-hashhash-interface
