@@ -75,6 +75,25 @@ func TestEncryptDecrypt(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDecryptFull(t *testing.T) {
+	setUp(t)
+	exp := big.NewInt(100)
+	cypher, rho, err := privateKey.EncryptAndReturnRandomness(exp)
+	if err != nil {
+		t.Error(err)
+	}
+	ret, retRho, err := privateKey.DecryptFull(cypher)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exp.Cmp(ret),
+		"wrong decryption ", ret, " is not ", exp)
+	assert.Equal(t, 0, rho.Cmp(retRho),
+    	"wrong decryption of rho ", retRho, " is not ", ret)
+
+	cypher = new(big.Int).Set(privateKey.N)
+	_, _, err = privateKey.DecryptFull(cypher)
+	assert.Error(t, err)
+}
+
 func TestHomoMul(t *testing.T) {
 	setUp(t)
 	three, err := privateKey.Encrypt(big.NewInt(3))

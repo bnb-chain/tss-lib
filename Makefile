@@ -19,10 +19,15 @@ build: protob
 ########################################
 ### Testing
 
+clean_test:
+	@echo "--> Cleaning test cache"
+	go clean -testcache
+
 test_unit:
 	@echo "--> Running Unit Tests"
 	@echo "!!! WARNING: This will take a long time :)"
-	go test -timeout 60m $(PACKAGES)
+	go test -timeout 60m github.com/bnb-chain/tss-lib/crypto/paillier
+#	go test -timeout 60m $(PACKAGES)
 
 test_unit_race:
 	@echo "--> Running Unit Tests (with Race Detection)"

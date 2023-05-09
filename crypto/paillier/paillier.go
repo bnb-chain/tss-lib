@@ -188,6 +188,46 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 	return
 }
 
+// Extended decryption algorithm that retrieves both the message
+// and the randomness used to create it.
+// Pascal Paillier. Public-key cryptosystems based on composite degree residuosity classes.
+// Eurocrypt 99. Pages 223-238. Decryption algorithm in section 5.
+// https://www.researchgate.net/publication/221348062_Public-Key_Cryptosystems_Based_on_Composite_Degree_Residuosity_Classes
+//
+// Paillier paper uses different variable names as current standard.
+// Roe = m1
+func (privateKey *PrivateKey) DecryptFull(c *big.Int) (m *big.Int, rho *big.Int, err error) {
+	N2 := privateKey.NSquare()
+	if c.Cmp(zero) == -1 || c.Cmp(N2) != -1 { // c < 0 || c >= N2 ?
+		return nil, nil, ErrMessageTooLong
+	}
+	cg := new(big.Int).GCD(nil, nil, c, N2)
+	if cg.Cmp(one) == 1 {
+		return nil, nil, ErrMessageMalFormed
+	}
+	// 1. L(u) = (c^LambdaN-1 mod N2) / N
+	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, N2), privateKey.N)
+	// 2. L(u) = (Gamma^LambdaN-1 mod N2) / N
+	Lg := L(new(big.Int).Exp(privateKey.Gamma(), privateKey.LambdaN, N2), privateKey.N)
+	// 3. (1) * modInv(2) mod N
+	inv := new(big.Int).ModInverse(Lg, privateKey.N)
+	m = common.ModInt(privateKey.N).Mul(Lc, inv)
+
+	// 4. (Paillier Step 2) c' = cg^(-m1) mod n
+	// 4. (This code) cprime = c * gamma^(-m) mod N
+	negM := new(big.Int).Neg(m)
+	gamma_exp_neg_m :=new(big.Int).Exp(privateKey.Gamma(), negM, privateKey.N)
+	times_c := new(big.Int).Mul(c, gamma_exp_neg_m)
+	cprime := new(big.Int).Mod(times_c, privateKey.N)
+
+    // 5. (Paillier Step 3) m2 = c'^(n^{-1} mod lambda) mod n
+    // 5. (This code) rho = cprime^{N^-1 mod LambdaN} mod N
+    nInv := new(big.Int).ModInverse(privateKey.N, privateKey.LambdaN)
+    rho = new(big.Int).Exp(cprime, nInv, privateKey.N)
+
+	return m, rho, nil
+}
+
 // ----- //
 
 // Proof is an implementation of Gennaro, R., Micciancio, D., Rabin, T.:
