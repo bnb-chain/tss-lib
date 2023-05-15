@@ -13,7 +13,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/edwards/v2"
 	"github.com/stretchr/testify/assert"
 
@@ -126,10 +126,10 @@ func TestS256EcpointJsonSerialization(t *testing.T) {
 
 	pubKeyBytes, err := hex.DecodeString("03935336acb03b2b801d8f8ac5e92c56c4f6e93319901fdfffba9d340a874e2879")
 	assert.NoError(t, err)
-	pbk, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	pbk, err := btcec.ParsePubKey(pubKeyBytes)
 	assert.NoError(t, err)
 
-	point, err := NewECPoint(ec, pbk.X, pbk.Y)
+	point, err := NewECPoint(ec, pbk.X(), pbk.Y())
 	assert.NoError(t, err)
 	bz, err := json.Marshal(point)
 	assert.NoError(t, err)

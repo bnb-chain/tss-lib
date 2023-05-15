@@ -16,7 +16,7 @@ import (
 
 	"github.com/bnb-chain/tss-lib/common"
 	"github.com/bnb-chain/tss-lib/crypto"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -105,14 +105,14 @@ func NewExtendedKeyFromString(key string, curve elliptic.Curve) (*ExtendedKey, e
 
 	var pubKey ecdsa.PublicKey
 
-	if c, ok := curve.(*btcec.KoblitzCurve); ok {
+	if _, ok := curve.(*btcec.KoblitzCurve); ok {
 		// Ensure the public key parses correctly and is actually on the
 		// secp256k1 curve.
-		pk, err := btcec.ParsePubKey(keyData, c)
+		pk, err := btcec.ParsePubKey(keyData)
 		if err != nil {
 			return nil, err
 		}
-		pubKey = ecdsa.PublicKey(*pk)
+		pubKey = ecdsa.PublicKey(*pk.ToECDSA())
 	} else {
 		px, py := elliptic.Unmarshal(curve, keyData)
 		pubKey = ecdsa.PublicKey{
