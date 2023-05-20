@@ -134,7 +134,7 @@ func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, c
 	}
 
 	primeCh := make(chan *GermainSafePrime, concurrency*numPrimes)
-	errCh := make(chan error, concurrency*numPrimes)
+	errCh := make(chan error, concurrency)
 	primes := make([]*GermainSafePrime, 0, numPrimes)
 
 	waitGroup := &sync.WaitGroup{}
