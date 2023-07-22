@@ -55,7 +55,7 @@ func (round *finalization) Start() *tss.Error {
 	if !ok {
 		return round.WrapError(fmt.Errorf("signature verification failed"))
 	}
-	round.end <- *round.data
+	round.end <- round.data
 
 	return nil
 }
