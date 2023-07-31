@@ -26,6 +26,7 @@ message KGRound1Message {
  */
 message KGRound2Message1 {
     bytes share = 1;
+    repeated bytes facProof = 2;
 }
 
 /*

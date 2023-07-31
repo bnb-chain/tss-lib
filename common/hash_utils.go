@@ -7,12 +7,15 @@
 package common
 
 import (
+	"crypto/sha512"
 	"math/big"
 )
 
 // RejectionSample implements the rejection sampling logic for converting a
 // SHA512/256 hash to a value between 0-q
 func RejectionSample(q *big.Int, eHash *big.Int) *big.Int { // e' = eHash
-	e := eHash.Mod(eHash, q)
+	reSampleBytes := sha512.Sum512(append([]byte("RejectSample"), eHash.Bytes()...))
+	eHashReSample := new(big.Int).SetBytes(reSampleBytes[:])
+	e := eHashReSample.Mod(eHashReSample, q)
 	return e
 }

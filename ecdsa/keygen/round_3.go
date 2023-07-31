@@ -92,6 +92,16 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
 			}
+			facProof, err := r2msg1.UnmarshalFacProof()
+			if err != nil {
+				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				return
+			}
+			if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+				round.save.H1i, round.save.H2i); !ok {
+				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				return
+			}
 			// (9) handled above
 			ch <- vssOut{nil, PjVs}
 		}(j, chs[j])

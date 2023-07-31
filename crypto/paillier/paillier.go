@@ -45,6 +45,7 @@ type (
 		PublicKey
 		LambdaN, // lcm(p-1, q-1)
 		PhiN *big.Int // (p-1) * (q-1)
+		P, Q *big.Int
 	}
 
 	// Proof uses the new GenerateXs method in GG18Spec (6)
@@ -103,7 +104,7 @@ func GenerateKeyPair(ctx context.Context, modulusBitLen int, optionalConcurrency
 	lambdaN := new(big.Int).Div(phiN, gcd)
 
 	publicKey = &PublicKey{N: N}
-	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN}
+	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN, P: P, Q: Q}
 	return
 }
 
