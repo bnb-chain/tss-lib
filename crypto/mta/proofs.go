@@ -57,7 +57,7 @@ func ProveBobWC(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c
 	// 2.
 	rho := common.GetRandomPositiveInt(qNTilde)
 	sigma := common.GetRandomPositiveInt(qNTilde)
-	tau := common.GetRandomPositiveInt(qNTilde)
+	tau := common.GetRandomPositiveInt(q3NTilde)
 
 	// 3.
 	rhoPrm := common.GetRandomPositiveInt(q3NTilde)
@@ -194,8 +194,10 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 	}
 
 	q := ec.Params().N
-	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3 := new(big.Int).Mul(q, q)   // q^2
+	q3 = new(big.Int).Mul(q, q3)   // q^3
+	q7 := new(big.Int).Mul(q3, q3) // q^6
+	q7 = new(big.Int).Mul(q7, q)   // q^7
 
 	gcd := big.NewInt(0)
 	if pf.S.Cmp(zero) == 0 {
@@ -213,6 +215,9 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 
 	// 3.
 	if pf.S1.Cmp(q3) > 0 {
+		return false
+	}
+	if pf.T1.Cmp(q7) > 0 {
 		return false
 	}
 
