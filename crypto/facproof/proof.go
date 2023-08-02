@@ -27,6 +27,7 @@ type (
 var (
 	// rangeParameter l limits the bits of p or q to be in [1024-l, 1024+l]
 	rangeParameter = new(big.Int).Lsh(big.NewInt(1), 15)
+	one            = big.NewInt(1)
 )
 
 // NewProof implements proofFac
@@ -126,12 +127,62 @@ func (pf *ProofFac) Verify(ec elliptic.Curve, N0, NCap, s, t *big.Int) bool {
 	if N0.Sign() != 1 {
 		return false
 	}
+	if NCap.Sign() != 1 {
+		return false
+	}
 
 	q := ec.Params().N
 	sqrtN0 := new(big.Int).Sqrt(N0)
 
 	leSqrtN0 := new(big.Int).Mul(rangeParameter, q)
 	leSqrtN0 = new(big.Int).Mul(leSqrtN0, sqrtN0)
+	lNCap := new(big.Int).Mul(rangeParameter, NCap)
+	lN0NCap := new(big.Int).Mul(lNCap, N0)
+	leN0NCap2 := new(big.Int).Lsh(new(big.Int).Mul(lN0NCap, q), 1)
+	leNCap2 := new(big.Int).Lsh(new(big.Int).Mul(lNCap, q), 1)
+
+	if !common.IsInInterval(pf.P, NCap) {
+		return false
+	}
+	if !common.IsInInterval(pf.Q, NCap) {
+		return false
+	}
+	if !common.IsInInterval(pf.A, NCap) {
+		return false
+	}
+	if !common.IsInInterval(pf.B, NCap) {
+		return false
+	}
+	if !common.IsInInterval(pf.T, NCap) {
+		return false
+	}
+	if !common.IsInInterval(pf.Sigma, lN0NCap) {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.P, NCap).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.Q, NCap).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.A, NCap).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.B, NCap).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.T, NCap).Cmp(one) != 0 {
+		return false
+	}
+	if !common.IsInInterval(pf.W1, leNCap2) {
+		return false
+	}
+	if !common.IsInInterval(pf.W2, leNCap2) {
+		return false
+	}
+	if !common.IsInInterval(pf.V, leN0NCap2) {
+		return false
+	}
 
 	// Fig 28. Range Check
 	if !common.IsInInterval(pf.Z1, leSqrtN0) {
