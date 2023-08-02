@@ -107,9 +107,6 @@ func (round *round2) Start() *tss.Error {
 		round.save.H1j[j], round.save.H2j[j] = H1j, H2j
 		round.temp.KGCs[j] = KGC
 	}
-	round.save.NTildej[i] = round.save.NTildei
-	round.save.H1j[i] = round.save.H1i
-	round.save.H2j[i] = round.save.H2i
 
 	// 5. p2p send share ij to Pj
 	shares := round.temp.shares
