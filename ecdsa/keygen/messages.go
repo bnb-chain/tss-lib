@@ -26,7 +26,6 @@ var (
 	_ = []tss.MessageContent{
 		(*KGRound1Message)(nil),
 		(*KGRound2Message1)(nil),
-		(*KGRound2Message1NoProof)(nil),
 		(*KGRound2Message2)(nil),
 		(*KGRound3Message)(nil),
 	}
@@ -139,31 +138,6 @@ func (m *KGRound2Message1) UnmarshalShare() *big.Int {
 
 func (m *KGRound2Message1) UnmarshalFacProof() (*facproof.ProofFac, error) {
 	return facproof.NewProofFromBytes(m.GetFacProof())
-}
-
-func NewKGRound2Message1NoProof(
-	to, from *tss.PartyID,
-	share *vss.Share,
-) tss.ParsedMessage {
-	meta := tss.MessageRouting{
-		From:        from,
-		To:          []*tss.PartyID{to},
-		IsBroadcast: false,
-	}
-	content := &KGRound2Message1NoProof{
-		Share: share.Share.Bytes(),
-	}
-	msg := tss.NewMessageWrapper(meta, content)
-	return tss.NewMessage(meta, content, msg)
-}
-
-func (m *KGRound2Message1NoProof) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyBytes(m.GetShare())
-}
-
-func (m *KGRound2Message1NoProof) UnmarshalShare() *big.Int {
-	return new(big.Int).SetBytes(m.Share)
 }
 
 // ----- //

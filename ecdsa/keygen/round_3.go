@@ -82,45 +82,28 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{err, nil}
 				return
 			}
-			switch round.temp.kgRound2Message1s[j].Content().(type) {
-			case *KGRound2Message1NoProof:
-				r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
-				PjShare := vss.Share{
-					Threshold: round.Threshold(),
-					ID:        round.PartyID().KeyInt(),
-					Share:     r2msg1.UnmarshalShare(),
-				}
-				if ok = PjShare.Verify(round.Params().EC(), round.Threshold(), PjVs); !ok {
-					ch <- vssOut{errors.New("vss verify failed"), nil}
-					return
-				}
-				common.Logger.Fatalf("facProof not exist: %s", Ps[j])
-				// (9) handled above
-				ch <- vssOut{nil, PjVs}
-			case *KGRound2Message1:
-				r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
-				PjShare := vss.Share{
-					Threshold: round.Threshold(),
-					ID:        round.PartyID().KeyInt(),
-					Share:     r2msg1.UnmarshalShare(),
-				}
-				if ok = PjShare.Verify(round.Params().EC(), round.Threshold(), PjVs); !ok {
-					ch <- vssOut{errors.New("vss verify failed"), nil}
-					return
-				}
-				facProof, err := r2msg1.UnmarshalFacProof()
-				if err != nil {
-					ch <- vssOut{errors.New("facProof verify failed"), nil}
-					return
-				}
-				if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
-					round.save.H1i, round.save.H2i); !ok {
-					ch <- vssOut{errors.New("facProof verify failed"), nil}
-					return
-				}
-				// (9) handled above
-				ch <- vssOut{nil, PjVs}
+			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
+			PjShare := vss.Share{
+				Threshold: round.Threshold(),
+				ID:        round.PartyID().KeyInt(),
+				Share:     r2msg1.UnmarshalShare(),
 			}
+			if ok = PjShare.Verify(round.Params().EC(), round.Threshold(), PjVs); !ok {
+				ch <- vssOut{errors.New("vss verify failed"), nil}
+				return
+			}
+			facProof, err := r2msg1.UnmarshalFacProof()
+			if err != nil {
+				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				return
+			}
+			if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+				round.save.H1i, round.save.H2i); !ok {
+				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				return
+			}
+			// (9) handled above
+			ch <- vssOut{nil, PjVs}
 		}(j, chs[j])
 	}
 
