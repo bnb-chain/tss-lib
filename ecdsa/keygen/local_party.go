@@ -137,6 +137,8 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		p.temp.kgRound1Messages[fromPIdx] = msg
 	case *KGRound2Message1:
 		p.temp.kgRound2Message1s[fromPIdx] = msg
+	case *KGRound2Message1NoProof:
+		p.temp.kgRound2Message1s[fromPIdx] = msg
 	case *KGRound2Message2:
 		p.temp.kgRound2Message2s[fromPIdx] = msg
 	case *KGRound3Message:

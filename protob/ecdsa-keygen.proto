@@ -29,6 +29,10 @@ message KGRound2Message1 {
     repeated bytes facProof = 2;
 }
 
+message KGRound2Message1NoProof {
+    bytes share = 1;
+}
+
 /*
  * Represents a BROADCAST message sent to each party during Round 2 of the ECDSA TSS keygen protocol.
  */
