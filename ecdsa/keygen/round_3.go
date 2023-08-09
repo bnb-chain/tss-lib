@@ -94,7 +94,9 @@ func (round *round3) Start() *tss.Error {
 			}
 			facProof, err := r2msg1.UnmarshalFacProof()
 			if err != nil {
-				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				// For old parties, the facProof could be not exist
+				// Not return error for compatibility reason
+				common.Logger.Fatalf("facProof not exist:%s", Ps[j])
 				return
 			}
 			if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
