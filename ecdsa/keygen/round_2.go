@@ -9,6 +9,7 @@ package keygen
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/bnb-chain/tss-lib/crypto/facproof"
 	"sync"
 
 	"github.com/bnb-chain/tss-lib/common"
@@ -110,7 +111,13 @@ func (round *round2) Start() *tss.Error {
 	// 5. p2p send share ij to Pj
 	shares := round.temp.shares
 	for j, Pj := range round.Parties().IDs() {
-		r2msg1 := NewKGRound2Message1(Pj, round.PartyID(), shares[j])
+
+		facProof, err := facproof.NewProof(round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
+			round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
+		if err != nil {
+			return round.WrapError(err, round.PartyID())
+		}
+		r2msg1 := NewKGRound2Message1(Pj, round.PartyID(), shares[j], facProof)
 		// do not send to this Pj, but store for round 3
 		if j == i {
 			round.temp.kgRound2Message1s[j] = r2msg1

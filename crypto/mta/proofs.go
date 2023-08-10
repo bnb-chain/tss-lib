@@ -45,6 +45,8 @@ func ProveBobWC(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c
 	q := ec.Params().N
 	q3 := new(big.Int).Mul(q, q)
 	q3 = new(big.Int).Mul(q, q3)
+	q7 := new(big.Int).Mul(q3, q3)
+	q7 = new(big.Int).Mul(q7, q)
 	qNTilde := new(big.Int).Mul(q, NTilde)
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
@@ -55,14 +57,15 @@ func ProveBobWC(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c
 	// 2.
 	rho := common.GetRandomPositiveInt(qNTilde)
 	sigma := common.GetRandomPositiveInt(qNTilde)
-	tau := common.GetRandomPositiveInt(qNTilde)
+	tau := common.GetRandomPositiveInt(q3NTilde)
 
 	// 3.
 	rhoPrm := common.GetRandomPositiveInt(q3NTilde)
 
 	// 4.
 	beta := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
-	gamma := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
+
+	gamma := common.GetRandomPositiveInt(q7)
 
 	// 5.
 	u := crypto.NewECPointNoCurveCheck(ec, zero, zero) // initialization suppresses an IDE warning
@@ -191,8 +194,44 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 	}
 
 	q := ec.Params().N
-	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3 := new(big.Int).Mul(q, q)   // q^2
+	q3 = new(big.Int).Mul(q, q3)   // q^3
+	q7 := new(big.Int).Mul(q3, q3) // q^6
+	q7 = new(big.Int).Mul(q7, q)   // q^7
+
+	if !common.IsInInterval(pf.Z, NTilde) {
+		return false
+	}
+	if !common.IsInInterval(pf.ZPrm, NTilde) {
+		return false
+	}
+	if !common.IsInInterval(pf.T, NTilde) {
+		return false
+	}
+	if !common.IsInInterval(pf.V, pk.NSquare()) {
+		return false
+	}
+	if !common.IsInInterval(pf.W, NTilde) {
+		return false
+	}
+	if !common.IsInInterval(pf.S, pk.N) {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.Z, NTilde).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.ZPrm, NTilde).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.T, NTilde).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.V, pk.NSquare()).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.W, NTilde).Cmp(one) != 0 {
+		return false
+	}
 
 	gcd := big.NewInt(0)
 	if pf.S.Cmp(zero) == 0 {
@@ -210,6 +249,9 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 
 	// 3.
 	if pf.S1.Cmp(q3) > 0 {
+		return false
+	}
+	if pf.T1.Cmp(q7) > 0 {
 		return false
 	}
 

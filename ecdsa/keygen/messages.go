@@ -7,6 +7,7 @@
 package keygen
 
 import (
+	"github.com/bnb-chain/tss-lib/crypto/facproof"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/common"
@@ -109,14 +110,17 @@ func (m *KGRound1Message) UnmarshalDLNProof2() (*dlnproof.Proof, error) {
 func NewKGRound2Message1(
 	to, from *tss.PartyID,
 	share *vss.Share,
+	proof *facproof.ProofFac,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		To:          []*tss.PartyID{to},
 		IsBroadcast: false,
 	}
+	proofBzs := proof.Bytes()
 	content := &KGRound2Message1{
-		Share: share.Share.Bytes(),
+		Share:    share.Share.Bytes(),
+		FacProof: proofBzs[:],
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -125,10 +129,16 @@ func NewKGRound2Message1(
 func (m *KGRound2Message1) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyBytes(m.GetShare())
+	// This is commented for backward compatibility, which msg has no proof
+	// && common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
 }
 
 func (m *KGRound2Message1) UnmarshalShare() *big.Int {
 	return new(big.Int).SetBytes(m.Share)
+}
+
+func (m *KGRound2Message1) UnmarshalFacProof() (*facproof.ProofFac, error) {
+	return facproof.NewProofFromBytes(m.GetFacProof())
 }
 
 // ----- //
