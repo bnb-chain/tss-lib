@@ -97,13 +97,14 @@ func (round *round3) Start() *tss.Error {
 				// For old parties, the facProof could be not exist
 				// Not return error for compatibility reason
 				common.Logger.Fatalf("facProof not exist:%s", Ps[j])
-				return
+			} else {
+				if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+					round.save.H1i, round.save.H2i); !ok {
+					ch <- vssOut{errors.New("facProof verify failed"), nil}
+					return
+				}
 			}
-			if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
-				round.save.H1i, round.save.H2i); !ok {
-				ch <- vssOut{errors.New("facProof verify failed"), nil}
-				return
-			}
+
 			// (9) handled above
 			ch <- vssOut{nil, PjVs}
 		}(j, chs[j])
