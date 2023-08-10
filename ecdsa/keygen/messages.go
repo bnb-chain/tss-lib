@@ -128,8 +128,9 @@ func NewKGRound2Message1(
 
 func (m *KGRound2Message1) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.GetShare()) &&
-		common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
+		common.NonEmptyBytes(m.GetShare())
+	// This is commented for backward compatibility, which msg has no proof
+	// && common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
 }
 
 func (m *KGRound2Message1) UnmarshalShare() *big.Int {
