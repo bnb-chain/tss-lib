@@ -92,11 +92,22 @@ func IsNumberInMultiplicativeGroup(n, v *big.Int) bool {
 		gcd.GCD(nil, nil, v, n).Cmp(one) == 0
 }
 
-//  Return a random generator of RQn with high probability.
-//  THIS METHOD ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES!
+//	Return a random generator of RQn with high probability.
+//	THIS METHOD ONLY WORKS IF N IS THE PRODUCT OF TWO SAFE PRIMES!
+//
 // https://github.com/didiercrunch/paillier/blob/d03e8850a8e4c53d04e8016a2ce8762af3278b71/utils.go#L39
 func GetRandomGeneratorOfTheQuadraticResidue(n *big.Int) *big.Int {
 	f := GetRandomPositiveRelativelyPrimeInt(n)
 	fSq := new(big.Int).Mul(f, f)
 	return fSq.Mod(fSq, n)
+}
+
+// GetRandomQuadraticNonResidue returns a quadratic non residue of odd n.
+func GetRandomQuadraticNonResidue(n *big.Int) *big.Int {
+	for {
+		w := GetRandomPositiveInt(n)
+		if big.Jacobi(w, n) == -1 {
+			return w
+		}
+	}
 }

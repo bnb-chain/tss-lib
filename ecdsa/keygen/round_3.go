@@ -82,6 +82,17 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{err, nil}
 				return
 			}
+			modProof, err := r2msg2.UnmarshalModProof()
+			if err != nil {
+				// For old parties, the modProof could be not exist
+				// Not return error for compatibility reason
+				common.Logger.Fatalf("modProof not exist:%s", Ps[j])
+			} else {
+				if ok = modProof.Verify(round.save.PaillierPKs[j].N); !ok {
+					ch <- vssOut{errors.New("modProof verify failed"), nil}
+					return
+				}
+			}
 			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
 			PjShare := vss.Share{
 				Threshold: round.Threshold(),
