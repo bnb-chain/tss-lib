@@ -40,7 +40,10 @@ func BobMid(
 		return
 	}
 	q := ec.Params().N
-	betaPrm = common.GetRandomPositiveInt(pkA.N)
+	q5 := new(big.Int).Mul(q, q)  // q^2
+	q5 = new(big.Int).Mul(q5, q5) // q^4
+	q5 = new(big.Int).Mul(q5, q)  // q^5
+	betaPrm = common.GetRandomPositiveInt(q5)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
 	if err != nil {
 		return
@@ -70,7 +73,10 @@ func BobMidWC(
 		return
 	}
 	q := ec.Params().N
-	betaPrm = common.GetRandomPositiveInt(pkA.N)
+	q5 := new(big.Int).Mul(q, q)  // q^2
+	q5 = new(big.Int).Mul(q5, q5) // q^4
+	q5 = new(big.Int).Mul(q5, q)  // q^5
+	betaPrm = common.GetRandomPositiveInt(q5)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
 	if err != nil {
 		return

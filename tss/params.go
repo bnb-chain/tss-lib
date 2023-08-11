@@ -8,7 +8,7 @@ package tss
 
 import (
 	"crypto/elliptic"
-	"errors"
+	"runtime"
 	"time"
 )
 
@@ -19,6 +19,7 @@ type (
 		parties             *PeerContext
 		partyCount          int
 		threshold           int
+		concurrency         int
 		safePrimeGenTimeout time.Duration
 	}
 
@@ -27,7 +28,6 @@ type (
 		newParties    *PeerContext
 		newPartyCount int
 		newThreshold  int
-		amOldParty    bool
 	}
 )
 
@@ -36,23 +36,15 @@ const (
 )
 
 // Exported, used in `tss` client
-func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
-	var safePrimeGenTimeout time.Duration
-	if 0 < len(optionalSafePrimeGenTimeout) {
-		if 1 < len(optionalSafePrimeGenTimeout) {
-			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalSafePrimeGenTimeout`"))
-		}
-		safePrimeGenTimeout = optionalSafePrimeGenTimeout[0]
-	} else {
-		safePrimeGenTimeout = defaultSafePrimeGenTimeout
-	}
+func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int) *Parameters {
 	return &Parameters{
 		ec:                  ec,
 		parties:             ctx,
 		partyID:             partyID,
 		partyCount:          partyCount,
 		threshold:           threshold,
-		safePrimeGenTimeout: safePrimeGenTimeout,
+		concurrency:         runtime.GOMAXPROCS(0),
+		safePrimeGenTimeout: defaultSafePrimeGenTimeout,
 	}
 }
 
@@ -76,21 +68,33 @@ func (params *Parameters) Threshold() int {
 	return params.threshold
 }
 
+func (params *Parameters) Concurrency() int {
+	return params.concurrency
+}
+
 func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 	return params.safePrimeGenTimeout
+}
+
+// The concurrency level must be >= 1.
+func (params *Parameters) SetConcurrency(concurrency int) {
+	params.concurrency = concurrency
+}
+
+func (params *Parameters) SetSafePrimeGenTimeout(timeout time.Duration) {
+	params.safePrimeGenTimeout = timeout
 }
 
 // ----- //
 
 // Exported, used in `tss` client
-func NewReSharingParameters(ec elliptic.Curve, ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int, amOldParty bool) *ReSharingParameters {
+func NewReSharingParameters(ec elliptic.Curve, ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
 	params := NewParameters(ec, ctx, partyID, partyCount, threshold)
 	return &ReSharingParameters{
 		Parameters:    params,
 		newParties:    newCtx,
 		newPartyCount: newPartyCount,
 		newThreshold:  newThreshold,
-		amOldParty:    amOldParty,
 	}
 }
 
@@ -123,9 +127,21 @@ func (rgParams *ReSharingParameters) OldAndNewPartyCount() int {
 }
 
 func (rgParams *ReSharingParameters) IsOldCommittee() bool {
-	return rgParams.amOldParty
+	partyID := rgParams.partyID
+	for _, Pj := range rgParams.parties.IDs() {
+		if partyID.KeyInt().Cmp(Pj.KeyInt()) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (rgParams *ReSharingParameters) IsNewCommittee() bool {
-	return !rgParams.amOldParty
+	partyID := rgParams.partyID
+	for _, Pj := range rgParams.newParties.IDs() {
+		if partyID.KeyInt().Cmp(Pj.KeyInt()) == 0 {
+			return true
+		}
+	}
+	return false
 }

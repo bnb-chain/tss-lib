@@ -16,13 +16,13 @@
 package paillier
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	gmath "math"
 	"math/big"
 	"runtime"
 	"strconv"
-	"time"
 
 	"github.com/otiai10/primes"
 
@@ -45,6 +45,7 @@ type (
 		PublicKey
 		LambdaN, // lcm(p-1, q-1)
 		PhiN *big.Int // (p-1) * (q-1)
+		P, Q *big.Int
 	}
 
 	// Proof uses the new GenerateXs method in GG18Spec (6)
@@ -65,7 +66,7 @@ func init() {
 }
 
 // len is the length of the modulus (each prime = len / 2)
-func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey, err error) {
+func GenerateKeyPair(ctx context.Context, modulusBitLen int, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey, err error) {
 	var concurrency int
 	if 0 < len(optionalConcurrency) {
 		if 1 < len(optionalConcurrency) {
@@ -81,7 +82,7 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 	{
 		tmp := new(big.Int)
 		for {
-			sgps, err := common.GetRandomSafePrimesConcurrent(modulusBitLen/2, 2, timeout, concurrency)
+			sgps, err := common.GetRandomSafePrimesConcurrent(ctx, modulusBitLen/2, 2, concurrency)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -103,7 +104,7 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 	lambdaN := new(big.Int).Div(phiN, gcd)
 
 	publicKey = &PublicKey{N: N}
-	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN}
+	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN, P: P, Q: Q}
 	return
 }
 

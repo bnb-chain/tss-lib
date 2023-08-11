@@ -7,6 +7,7 @@
 package paillier_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
@@ -33,8 +34,12 @@ func setUp(t *testing.T) {
 	if privateKey != nil && publicKey != nil {
 		return
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
 	var err error
-	privateKey, publicKey, err = GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	privateKey, publicKey, err = GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 }
 
