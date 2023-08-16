@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/crypto/commitments"
+	"github.com/HyperCore-Team/tss-lib/crypto/mta"
+	"github.com/HyperCore-Team/tss-lib/ecdsa/keygen"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 var (

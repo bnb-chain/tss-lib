@@ -18,7 +18,7 @@ import (
 
 	"github.com/decred/dcrd/dcrec/edwards/v2"
 
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 // ECPoint convenience helper

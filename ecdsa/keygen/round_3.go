@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/crypto/commitments"
+	"github.com/HyperCore-Team/tss-lib/crypto/vss"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 func (round *round3) Start() *tss.Error {

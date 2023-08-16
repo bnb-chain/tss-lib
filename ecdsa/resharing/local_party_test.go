@@ -17,13 +17,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	. "github.com/binance-chain/tss-lib/ecdsa/resharing"
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
-	"github.com/binance-chain/tss-lib/test"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/ecdsa/keygen"
+	. "github.com/HyperCore-Team/tss-lib/ecdsa/resharing"
+	"github.com/HyperCore-Team/tss-lib/ecdsa/signing"
+	"github.com/HyperCore-Team/tss-lib/test"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 const (

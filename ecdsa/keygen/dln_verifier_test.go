@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/binance-chain/tss-lib/crypto/dlnproof"
+	"github.com/HyperCore-Team/tss-lib/crypto/dlnproof"
 )
 
 func BenchmarkDlnProof_Verify(b *testing.B) {

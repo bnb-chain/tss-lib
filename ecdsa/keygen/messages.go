@@ -7,15 +7,15 @@
 package keygen
 
 import (
-	"github.com/binance-chain/tss-lib/crypto/facproof"
+	"github.com/HyperCore-Team/tss-lib/crypto/facproof"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/dlnproof"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	cmt "github.com/HyperCore-Team/tss-lib/crypto/commitments"
+	"github.com/HyperCore-Team/tss-lib/crypto/dlnproof"
+	"github.com/HyperCore-Team/tss-lib/crypto/paillier"
+	"github.com/HyperCore-Team/tss-lib/crypto/vss"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go

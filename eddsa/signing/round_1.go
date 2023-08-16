@@ -10,11 +10,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/eddsa/keygen"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/crypto/commitments"
+	"github.com/HyperCore-Team/tss-lib/eddsa/keygen"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 // round 1 represents round 1 of the signing part of the EDDSA TSS spec

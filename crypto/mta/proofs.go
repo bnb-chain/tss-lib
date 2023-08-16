@@ -12,9 +12,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/crypto/paillier"
 )
 
 const (

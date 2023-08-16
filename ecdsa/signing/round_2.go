@@ -12,8 +12,8 @@ import (
 
 	errorspkg "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/crypto/mta"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 func (round *round2) Start() *tss.Error {

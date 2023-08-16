@@ -10,8 +10,8 @@ import (
 	"encoding/hex"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 type (

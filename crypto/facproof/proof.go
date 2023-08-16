@@ -10,7 +10,7 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
-	"github.com/binance-chain/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/common"
 	"math/big"
 )
 

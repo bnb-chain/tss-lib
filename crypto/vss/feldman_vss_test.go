@@ -12,9 +12,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common"
-	. "github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	. "github.com/HyperCore-Team/tss-lib/crypto/vss"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 func TestCheckIndexesDup(t *testing.T) {

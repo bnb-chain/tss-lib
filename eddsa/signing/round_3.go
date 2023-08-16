@@ -12,9 +12,9 @@ import (
 	"github.com/agl/ed25519/edwards25519"
 	"github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/crypto/commitments"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 func (round *round3) Start() *tss.Error {

@@ -10,11 +10,11 @@ import (
 	"crypto/elliptic"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	cmt "github.com/HyperCore-Team/tss-lib/crypto/commitments"
+	"github.com/HyperCore-Team/tss-lib/crypto/schnorr"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into eddsa-signing.pb.go

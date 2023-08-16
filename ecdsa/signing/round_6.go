@@ -11,8 +11,8 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/crypto/schnorr"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 func (round *round6) Start() *tss.Error {

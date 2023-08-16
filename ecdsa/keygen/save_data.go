@@ -11,9 +11,9 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/crypto/paillier"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 type (

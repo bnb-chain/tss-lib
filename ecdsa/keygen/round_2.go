@@ -9,11 +9,11 @@ package keygen
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/binance-chain/tss-lib/crypto/facproof"
+	"github.com/HyperCore-Team/tss-lib/crypto/facproof"
 	"sync"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/tss"
 )
 
 const (

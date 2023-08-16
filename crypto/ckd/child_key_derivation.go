@@ -14,8 +14,8 @@ import (
 	"hash"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/HyperCore-Team/tss-lib/common"
+	"github.com/HyperCore-Team/tss-lib/crypto"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
@@ -30,7 +30,7 @@ type ExtendedKey struct {
 	Version    []byte
 }
 
-// For more information about child key derivation see https://github.com/binance-chain/tss-lib/issues/104
+// For more information about child key derivation see https://github.com/HyperCore-Team/tss-lib/issues/104
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki .
 // The functions below do not implement the full BIP-32 specification. As mentioned in the Jira ticket above,
 // we only use non-hardened derived keys.
