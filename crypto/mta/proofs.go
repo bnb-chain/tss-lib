@@ -15,6 +15,7 @@ import (
 	"github.com/bnb-chain/tss-lib/common"
 	"github.com/bnb-chain/tss-lib/crypto"
 	"github.com/bnb-chain/tss-lib/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/tss"
 )
 
 const (
@@ -246,6 +247,18 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 	if gcd.GCD(nil, nil, pf.V, pk.N).Cmp(one) != 0 {
 		return false
 	}
+	if pf.S1.Cmp(q) == -1 {
+		return false
+	}
+	if pf.S2.Cmp(q) == -1 {
+		return false
+	}
+	if pf.T1.Cmp(q) == -1 {
+		return false
+	}
+	if pf.T2.Cmp(q) == -1 {
+		return false
+	}
 
 	// 3.
 	if pf.S1.Cmp(q3) > 0 {
@@ -263,6 +276,9 @@ func (pf *ProofBobWC) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, 
 		if X == nil {
 			eHash = common.SHA512_256i(append(pk.AsInts(), c1, c2, pf.Z, pf.ZPrm, pf.T, pf.V, pf.W)...)
 		} else {
+			if !tss.SameCurve(ec, X.Curve()) {
+				return false
+			}
 			eHash = common.SHA512_256i(append(pk.AsInts(), X.X(), X.Y(), c1, c2, pf.U.X(), pf.U.Y(), pf.Z, pf.ZPrm, pf.T, pf.V, pf.W)...)
 		}
 		e = common.RejectionSample(q, eHash)
