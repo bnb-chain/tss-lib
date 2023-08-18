@@ -228,12 +228,16 @@ func (pf *ProofMod) Bytes() [ProofModBytesParts][]byte {
 	bzs := [ProofModBytesParts][]byte{}
 	bzs[0] = pf.W.Bytes()
 	for i := range pf.X {
-		bzs[1+i] = pf.X[i].Bytes()
+		if pf.X[i] != nil {
+			bzs[1+i] = pf.X[i].Bytes()
+		}
 	}
 	bzs[Iterations+1] = pf.A.Bytes()
 	bzs[Iterations+2] = pf.B.Bytes()
 	for i := range pf.Z {
-		bzs[Iterations+3+i] = pf.Z[i].Bytes()
+		if pf.Z[i] != nil {
+			bzs[Iterations+3+i] = pf.Z[i].Bytes()
+		}
 	}
 	return bzs
 }

@@ -83,11 +83,15 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			modProof, err := r2msg2.UnmarshalModProof()
-			if err != nil {
+			if err != nil && round.Parameters.NoProofMod() {
 				// For old parties, the modProof could be not exist
 				// Not return error for compatibility reason
 				common.Logger.Warningf("modProof not exist:%s", Ps[j])
 			} else {
+				if err != nil {
+					ch <- vssOut{errors.New("modProof verify failed"), nil}
+					return
+				}
 				if ok = modProof.Verify(round.save.PaillierPKs[j].N); !ok {
 					ch <- vssOut{errors.New("modProof verify failed"), nil}
 					return
@@ -104,11 +108,15 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			facProof, err := r2msg1.UnmarshalFacProof()
-			if err != nil {
+			if err != nil && round.NoProofFac() {
 				// For old parties, the facProof could be not exist
 				// Not return error for compatibility reason
-				common.Logger.Fatalf("facProof not exist:%s", Ps[j])
+				common.Logger.Warningf("facProof not exist:%s", Ps[j])
 			} else {
+				if err != nil {
+					ch <- vssOut{errors.New("facProof verify failed"), nil}
+					return
+				}
 				if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
 					round.save.H1i, round.save.H2i); !ok {
 					ch <- vssOut{errors.New("facProof verify failed"), nil}

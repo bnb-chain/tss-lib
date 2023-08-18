@@ -9,10 +9,15 @@ package resharing
 import (
 	"errors"
 	"github.com/bnb-chain/tss-lib/crypto/modproof"
+	"math/big"
 
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
 	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/tss"
+)
+
+var (
+	zero = big.NewInt(0)
 )
 
 func (round *round2) Start() *tss.Error {
@@ -71,9 +76,13 @@ func (round *round2) Start() *tss.Error {
 	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
 	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
 
-	modProof, err := modproof.NewProof(preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q)
-	if err != nil {
-		return round.WrapError(err, Pi)
+	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
+	if !round.Parameters.NoProofMod() {
+		var err error
+		modProof, err = modproof.NewProof(preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q)
+		if err != nil {
+			return round.WrapError(err, Pi)
+		}
 	}
 	r2msg2, err := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),

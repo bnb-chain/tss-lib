@@ -78,7 +78,9 @@ func (round *round4) Start() *tss.Error {
 			defer wg.Done()
 			modProof, err := r2msg1.UnmarshalModProof()
 			if err != nil {
-				paiProofCulprits[j] = msg.GetFrom()
+				if !round.Parameters.NoProofMod() {
+					paiProofCulprits[j] = msg.GetFrom()
+				}
 				common.Logger.Warningf("modProof verify failed for party %s", msg.GetFrom(), err)
 				return
 			}
@@ -213,10 +215,14 @@ func (round *round4) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		facProof, err := facproof.NewProof(round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
-			round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
-		if err != nil {
-			return round.WrapError(err, Pi)
+		facProof := &facproof.ProofFac{P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
+			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero}
+		if !round.Parameters.NoProofFac() {
+			facProof, err = facproof.NewProof(round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
+				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
+			if err != nil {
+				return round.WrapError(err, Pi)
+			}
 		}
 		r4msg1 := NewDGRound4Message1(Pj, Pi, facProof)
 		round.out <- r4msg1

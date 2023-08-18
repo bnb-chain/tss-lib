@@ -117,7 +117,8 @@ func NewDGRound2Message1(
 
 func (m *DGRound2Message1) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyMultiBytes(m.ModProof, modproof.ProofModBytesParts) &&
+		// use with NoProofFac()
+		// common.NonEmptyMultiBytes(m.ModProof, modproof.ProofModBytesParts) &&
 		common.NonEmptyBytes(m.PaillierN) &&
 		common.NonEmptyBytes(m.NTilde) &&
 		common.NonEmptyBytes(m.H1) &&
@@ -275,8 +276,9 @@ func NewDGRound4Message1(
 }
 
 func (m *DGRound4Message1) ValidateBasic() bool {
-	return m != nil &&
-		common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
+	return m != nil
+	// use with NoProofFac()
+	// && common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
 }
 
 func (m *DGRound4Message1) UnmarshalFacProof() (*facproof.ProofFac, error) {

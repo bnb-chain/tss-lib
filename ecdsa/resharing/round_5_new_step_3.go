@@ -47,14 +47,18 @@ func (round *round5) Start() *tss.Error {
 			}
 			r4msg1 := msg.Content().(*DGRound4Message1)
 			proof, err := r4msg1.UnmarshalFacProof()
-			if err != nil {
+			if err != nil && round.Parameters.NoProofFac() {
 				common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
-				return round.WrapError(err, round.NewParties().IDs()[j])
-			}
-			if ok := proof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
-				round.save.H1i, round.save.H2i); !ok {
-				common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
-				return round.WrapError(err, round.NewParties().IDs()[j])
+			} else {
+				if err != nil {
+					common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
+					return round.WrapError(err, round.NewParties().IDs()[j])
+				}
+				if ok := proof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+					round.save.H1i, round.save.H2i); !ok {
+					common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
+					return round.WrapError(err, round.NewParties().IDs()[j])
+				}
 			}
 
 		}

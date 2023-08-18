@@ -61,7 +61,10 @@ func (p *ECPoint) Add(p1 *ECPoint) (*ECPoint, error) {
 
 func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
 	x, y := p.curve.ScalarMult(p.X(), p.Y(), k.Bytes())
-	newP, _ := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
+	newP, err := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
+	if err != nil {
+		panic(fmt.Errorf("scalar mult to an ecpoint %s", err.Error()))
+	}
 	return newP
 }
 
@@ -103,7 +106,10 @@ func (p *ECPoint) EightInvEight() *ECPoint {
 
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
 	x, y := curve.ScalarBaseMult(k.Bytes())
-	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	p, err := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	if err != nil {
+		panic(fmt.Errorf("scalar mult to an ecpoint %s", err.Error()))
+	}
 	return p
 }
 
