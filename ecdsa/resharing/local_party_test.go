@@ -141,6 +141,7 @@ func TestE2EConcurrent(t *testing.T) {
 				endedOldCommittee++
 			}
 			atomic.AddInt32(&reSharingEnded, 1)
+			fmt.Println("TODO old:", len(oldCommittee), "new:", len(newCommittee), "finished:", reSharingEnded)
 			if atomic.LoadInt32(&reSharingEnded) == int32(len(oldCommittee)+len(newCommittee)) {
 				assert.Equal(t, len(oldCommittee), endedOldCommittee)
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)

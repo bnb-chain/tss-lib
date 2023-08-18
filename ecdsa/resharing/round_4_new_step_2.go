@@ -9,6 +9,7 @@ package resharing
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/bnb-chain/tss-lib/crypto/facproof"
 	"math/big"
 	"sync"
 
@@ -46,6 +47,7 @@ func (round *round4) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
+	round.newOK[i] = true
 
 	// 1-3. verify paillier & dln proofs, store message pieces, ensure uniqueness of h1j, h2j
 	h1H2Map := make(map[string]struct{}, len(round.temp.dgRound2Message1s)*2)
@@ -73,11 +75,17 @@ func (round *round4) Start() *tss.Error {
 		h1H2Map[h1JHex], h1H2Map[h2JHex] = struct{}{}, struct{}{}
 		wg.Add(3)
 		go func(j int, msg tss.ParsedMessage, r2msg1 *DGRound2Message1) {
-			if ok, err := r2msg1.UnmarshalPaillierProof().Verify(paiPK.N, msg.GetFrom().KeyInt(), round.save.ECDSAPub); err != nil || !ok {
+			defer wg.Done()
+			modProof, err := r2msg1.UnmarshalModProof()
+			if err != nil {
 				paiProofCulprits[j] = msg.GetFrom()
-				common.Logger.Warningf("paillier verify failed for party %s", msg.GetFrom(), err)
+				common.Logger.Warningf("modProof verify failed for party %s", msg.GetFrom(), err)
+				return
 			}
-			wg.Done()
+			if ok := modProof.Verify(paiPK.N); !ok {
+				paiProofCulprits[j] = msg.GetFrom()
+				common.Logger.Warningf("modProof verify failed for party %s", msg.GetFrom(), err)
+			}
 		}(j, msg, r2msg1)
 		_j := j
 		_msg := msg
@@ -200,16 +208,33 @@ func (round *round4) Start() *tss.Error {
 	round.temp.newKs = newKs
 	round.temp.newBigXjs = newBigXjs
 
+	// Send facProof to new parties
+	for j, Pj := range round.NewParties().IDs() {
+		if j == i {
+			continue
+		}
+		facProof, err := facproof.NewProof(round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
+			round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
+		if err != nil {
+			return round.WrapError(err, Pi)
+		}
+		r4msg1 := NewDGRound4Message1(Pj, Pi, facProof)
+		round.out <- r4msg1
+	}
+
 	// Send an "ACK" message to both committees to signal that we're ready to save our data
-	r4msg := NewDGRound4Message(round.OldAndNewParties(), Pi)
-	round.temp.dgRound4Messages[i] = r4msg
-	round.out <- r4msg
+	r4msg2 := NewDGRound4Message2(round.OldAndNewParties(), Pi)
+	round.temp.dgRound4Message2s[i] = r4msg2
+	round.out <- r4msg2
 
 	return nil
 }
 
 func (round *round4) CanAccept(msg tss.ParsedMessage) bool {
-	if _, ok := msg.Content().(*DGRound4Message); ok {
+	if _, ok := msg.Content().(*DGRound4Message1); ok {
+		return !msg.IsBroadcast()
+	}
+	if _, ok := msg.Content().(*DGRound4Message2); ok {
 		return msg.IsBroadcast()
 	}
 	return false
@@ -217,12 +242,18 @@ func (round *round4) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round4) Update() (bool, *tss.Error) {
 	// accept messages from new -> old&new committees
-	for j, msg := range round.temp.dgRound4Messages {
+	for j, msg2 := range round.temp.dgRound4Message2s {
 		if round.newOK[j] {
 			continue
 		}
-		if msg == nil || !round.CanAccept(msg) {
+		if msg2 == nil || !round.CanAccept(msg2) {
 			return false, nil
+		}
+		if round.ReSharingParams().IsNewCommittee() {
+			msg1 := round.temp.dgRound4Message1s[j]
+			if msg1 == nil || !round.CanAccept(msg1) {
+				return false, nil
+			}
 		}
 		round.newOK[j] = true
 	}
