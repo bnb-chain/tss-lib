@@ -27,7 +27,7 @@ type (
 )
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
+func NewZKProof(Session []byte, x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 	if x == nil || X == nil || !X.ValidateBasic() {
 		return nil, errors.New("ZKProof constructor received nil or invalid value(s)")
 	}
@@ -41,7 +41,7 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 
 	var c *big.Int
 	{
-		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+		cHash := common.SHA512_256i_TAGGED(Session, X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	t := new(big.Int).Mul(c, x)
@@ -51,7 +51,7 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 }
 
 // NewZKProof verifies a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
+func (pf *ZKProof) Verify(Session []byte, X *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
@@ -62,7 +62,7 @@ func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
 
 	var c *big.Int
 	{
-		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+		cHash := common.SHA512_256i_TAGGED(Session, X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	tG := crypto.ScalarBaseMult(ec, pf.T)
@@ -79,7 +79,7 @@ func (pf *ZKProof) ValidateBasic() bool {
 }
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge s_i, l_i such that V_i = R^s_i, g^l_i (GG18Spec Fig. 17)
-func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
+func NewZKVProof(Session []byte, V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	if V == nil || R == nil || s == nil || l == nil || !V.ValidateBasic() || !R.ValidateBasic() {
 		return nil, errors.New("ZKVProof constructor received nil value(s)")
 	}
@@ -95,7 +95,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 
 	var c *big.Int
 	{
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+		cHash := common.SHA512_256i_TAGGED(Session, V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	modQ := common.ModInt(q)
@@ -105,7 +105,7 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	return &ZKVProof{Alpha: alpha, T: t, U: u}, nil
 }
 
-func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
+func (pf *ZKVProof) Verify(Session []byte, V, R *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
@@ -116,7 +116,7 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 
 	var c *big.Int
 	{
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+		cHash := common.SHA512_256i_TAGGED(Session, V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	tR := R.ScalarMult(pf.T)

@@ -8,6 +8,8 @@ package resharing
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/bnb-chain/tss-lib/common"
 	"github.com/bnb-chain/tss-lib/tss"
 )
@@ -28,6 +30,7 @@ func (round *round5) Start() *tss.Error {
 	if round.IsNewCommittee() {
 		// 21.
 		// for this P: SAVE data
+		ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
 		round.save.BigXj = round.temp.newBigXjs
 		round.save.ShareID = round.PartyID().KeyInt()
 		round.save.Xi = round.temp.newXi
@@ -54,7 +57,7 @@ func (round *round5) Start() *tss.Error {
 					common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
 					return round.WrapError(err, round.NewParties().IDs()[j])
 				}
-				if ok := proof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+				if ok := proof.Verify(ContextI, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
 					round.save.H1i, round.save.H2i); !ok {
 					common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
 					return round.WrapError(err, round.NewParties().IDs()[j])

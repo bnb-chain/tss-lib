@@ -65,6 +65,7 @@ func (round *round3) Start() *tss.Error {
 		if j == PIdx {
 			continue
 		}
+		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		// 6-8.
 		go func(j int, ch chan<- vssOut) {
 			// 4-9.
@@ -92,7 +93,7 @@ func (round *round3) Start() *tss.Error {
 					ch <- vssOut{errors.New("modProof verify failed"), nil}
 					return
 				}
-				if ok = modProof.Verify(round.save.PaillierPKs[j].N); !ok {
+				if ok = modProof.Verify(ContextJ, round.save.PaillierPKs[j].N); !ok {
 					ch <- vssOut{errors.New("modProof verify failed"), nil}
 					return
 				}
@@ -117,7 +118,7 @@ func (round *round3) Start() *tss.Error {
 					ch <- vssOut{errors.New("facProof verify failed"), nil}
 					return
 				}
-				if ok = facProof.Verify(round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+				if ok = facProof.Verify(ContextJ, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
 					round.save.H1i, round.save.H2i); !ok {
 					ch <- vssOut{errors.New("facProof verify failed"), nil}
 					return

@@ -65,6 +65,8 @@ func (round *round3) Start() *tss.Error {
 		if j == PIdx {
 			continue
 		}
+		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
+
 		// 6-9.
 		go func(j int, ch chan<- vssOut) {
 			// 4-10.
@@ -92,7 +94,7 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("failed to unmarshal schnorr proof"), nil}
 				return
 			}
-			ok = proof.Verify(PjVs[0])
+			ok = proof.Verify(ContextJ, PjVs[0])
 			if !ok {
 				ch <- vssOut{errors.New("failed to prove schnorr proof"), nil}
 				return

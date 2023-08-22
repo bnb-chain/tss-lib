@@ -9,9 +9,10 @@ package resharing
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/bnb-chain/tss-lib/crypto/facproof"
 	"math/big"
 	"sync"
+
+	"github.com/bnb-chain/tss-lib/crypto/facproof"
 
 	errors2 "github.com/pkg/errors"
 
@@ -84,7 +85,8 @@ func (round *round4) Start() *tss.Error {
 				common.Logger.Warningf("modProof verify failed for party %s", msg.GetFrom(), err)
 				return
 			}
-			if ok := modProof.Verify(paiPK.N); !ok {
+			ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
+			if ok := modProof.Verify(ContextJ, paiPK.N); !ok {
 				paiProofCulprits[j] = msg.GetFrom()
 				common.Logger.Warningf("modProof verify failed for party %s", msg.GetFrom(), err)
 			}
@@ -215,10 +217,11 @@ func (round *round4) Start() *tss.Error {
 		if j == i {
 			continue
 		}
+		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		facProof := &facproof.ProofFac{P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
 			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero}
 		if !round.Parameters.NoProofFac() {
-			facProof, err = facproof.NewProof(round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
+			facProof, err = facproof.NewProof(ContextJ, round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
 				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
 			if err != nil {
 				return round.WrapError(err, Pi)

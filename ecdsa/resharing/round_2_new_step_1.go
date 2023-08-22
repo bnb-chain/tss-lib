@@ -7,9 +7,11 @@
 package resharing
 
 import (
+	"bytes"
 	"errors"
-	"github.com/bnb-chain/tss-lib/crypto/modproof"
 	"math/big"
+
+	"github.com/bnb-chain/tss-lib/crypto/modproof"
 
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
 	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
@@ -35,6 +37,21 @@ func (round *round2) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
+
+	// check consistency of SSID
+	r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
+	SSID := r1msg.UnmarshalSSID()
+	for j, Pj := range round.OldParties().IDs() {
+		if j == 0 || j == i {
+			continue
+		}
+		r1msg := round.temp.dgRound1Messages[j].Content().(*DGRound1Message)
+		SSIDj := r1msg.UnmarshalSSID()
+		if !bytes.Equal(SSID, SSIDj) {
+			return round.WrapError(errors.New("ssid mismatch"), Pj)
+		}
+	}
+	round.temp.ssid = SSID
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2Message2(
@@ -77,9 +94,10 @@ func (round *round2) Start() *tss.Error {
 	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
 
 	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
+	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
 	if !round.Parameters.NoProofMod() {
 		var err error
-		modProof, err = modproof.NewProof(preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q)
+		modProof, err = modproof.NewProof(ContextI, preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q)
 		if err != nil {
 			return round.WrapError(err, Pi)
 		}

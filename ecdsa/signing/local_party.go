@@ -91,6 +91,9 @@ type (
 		Ui,
 		Ti *crypto.ECPoint
 		DTelda cmt.HashDeCommitment
+
+		ssidNonce *big.Int
+		ssid      []byte
 	}
 )
 

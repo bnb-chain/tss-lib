@@ -15,6 +15,7 @@ message DGRound1Message {
     bytes ecdsa_pub_x = 1;
     bytes ecdsa_pub_y = 2;
     bytes v_commitment = 3;
+    bytes ssid = 4;
 }
 
 /*

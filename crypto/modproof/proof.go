@@ -37,7 +37,7 @@ func isQuadraticResidue(X, N *big.Int) bool {
 	return big.Jacobi(X, N) == 1
 }
 
-func NewProof(N, P, Q *big.Int) (*ProofMod, error) {
+func NewProof(Session []byte, N, P, Q *big.Int) (*ProofMod, error) {
 	Phi := new(big.Int).Mul(new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one))
 	// Fig 16.1
 	W := common.GetRandomQuadraticNonResidue(N)
@@ -45,7 +45,7 @@ func NewProof(N, P, Q *big.Int) (*ProofMod, error) {
 	// Fig 16.2
 	Y := [Iterations]*big.Int{}
 	for i := range Y {
-		ei := common.SHA512_256i(append([]*big.Int{W, N}, Y[:i]...)...)
+		ei := common.SHA512_256i_TAGGED(Session, append([]*big.Int{W, N}, Y[:i]...)...)
 		Y[i] = common.RejectionSample(N, ei)
 	}
 
@@ -112,7 +112,7 @@ func NewProofFromBytes(bzs [][]byte) (*ProofMod, error) {
 	}, nil
 }
 
-func (pf *ProofMod) Verify(N *big.Int) bool {
+func (pf *ProofMod) Verify(Session []byte, N *big.Int) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
@@ -143,7 +143,7 @@ func (pf *ProofMod) Verify(N *big.Int) bool {
 	modN := common.ModInt(N)
 	Y := [Iterations]*big.Int{}
 	for i := range Y {
-		ei := common.SHA512_256i(append([]*big.Int{pf.W, N}, Y[:i]...)...)
+		ei := common.SHA512_256i_TAGGED(Session, append([]*big.Int{pf.W, N}, Y[:i]...)...)
 		Y[i] = common.RejectionSample(N, ei)
 	}
 

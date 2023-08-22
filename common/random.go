@@ -111,3 +111,19 @@ func GetRandomQuadraticNonResidue(n *big.Int) *big.Int {
 		}
 	}
 }
+
+// GetRandomBytes returns random bytes of length.
+func GetRandomBytes(length int) ([]byte, error) {
+	// Per [BIP32], the seed must be in range [MinSeedBytes, MaxSeedBytes].
+	if length <= 0 {
+		return nil, errors.New("invalid length")
+	}
+
+	buf := make([]byte, length)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}

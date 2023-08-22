@@ -15,19 +15,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	Session = []byte("session")
+)
+
 func TestMod(test *testing.T) {
 	preParams, err := keygen.GeneratePreParams(time.Minute*10, 8)
 	assert.NoError(test, err)
 
 	P, Q, N := preParams.PaillierSK.P, preParams.PaillierSK.Q, preParams.PaillierSK.N
 
-	proof, err := NewProof(N, P, Q)
+	proof, err := NewProof(Session, N, P, Q)
 	assert.NoError(test, err)
 
 	proofBzs := proof.Bytes()
 	proof, err = NewProofFromBytes(proofBzs[:])
 	assert.NoError(test, err)
 
-	ok := proof.Verify(N)
+	ok := proof.Verify(Session, N)
 	assert.True(test, ok, "proof must verify")
 }

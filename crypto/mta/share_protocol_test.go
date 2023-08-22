@@ -26,6 +26,10 @@ const (
 	testPaillierKeyLength = 2048
 )
 
+var (
+	Session = []byte("session")
+)
+
 func TestShareProtocol(t *testing.T) {
 	q := tss.EC().Params().N
 
@@ -46,10 +50,10 @@ func TestShareProtocol(t *testing.T) {
 	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
-	_, cB, betaPrm, pfB, err := BobMid(tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
+	_, cB, betaPrm, pfB, err := BobMid(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
-	alpha, err := AliceEnd(tss.EC(), pk, pfB, h1i, h2i, cA, cB, NTildei, sk)
+	alpha, err := AliceEnd(Session, tss.EC(), pk, pfB, h1i, h2i, cA, cB, NTildei, sk)
 	assert.NoError(t, err)
 
 	// expect: alpha = ab + betaPrm
@@ -82,10 +86,10 @@ func TestShareProtocolWC(t *testing.T) {
 
 	gBPoint, err := crypto.NewECPoint(tss.EC(), gBX, gBY)
 	assert.NoError(t, err)
-	_, cB, betaPrm, pfB, err := BobMidWC(tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, gBPoint)
+	_, cB, betaPrm, pfB, err := BobMidWC(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, gBPoint)
 	assert.NoError(t, err)
 
-	alpha, err := AliceEndWC(tss.EC(), pk, pfB, gBPoint, cA, cB, NTildei, h1i, h2i, sk)
+	alpha, err := AliceEndWC(Session, tss.EC(), pk, pfB, gBPoint, cA, cB, NTildei, h1i, h2i, sk)
 	assert.NoError(t, err)
 
 	// expect: alpha = ab + betaPrm
