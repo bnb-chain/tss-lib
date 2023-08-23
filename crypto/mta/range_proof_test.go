@@ -55,63 +55,69 @@ func TestProveRangeAliceBypassed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	sk_0, pk_0, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
+	sk0, pk0, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
-	m_0 := common.GetRandomPositiveInt(q)
-	c_0, r_0, err := sk_0.EncryptAndReturnRandomness(m_0)
+	m0 := common.GetRandomPositiveInt(q)
+	c0, r0, err := sk0.EncryptAndReturnRandomness(m0)
 	assert.NoError(t, err)
 
-	primes_0 := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
-	NTildei_0, h1i_0, h2i_0, err := crypto.GenerateNTildei(primes_0)
+	primes0 := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
+	Ntildei0, h1i0, h2i0, err := crypto.GenerateNTildei(primes0)
 	assert.NoError(t, err)
-	proof_0, err := ProveRangeAlice(tss.EC(), pk_0, c_0, NTildei_0, h1i_0, h2i_0, m_0, r_0)
+	proof0, err := ProveRangeAlice(tss.EC(), pk0, c0, Ntildei0, h1i0, h2i0, m0, r0)
 	assert.NoError(t, err)
 
-	ok_0 := proof_0.Verify(tss.EC(), pk_0, NTildei_0, h1i_0, h2i_0, c_0)
-	assert.True(t, ok_0, "proof must verify")
+	ok0 := proof0.Verify(tss.EC(), pk0, Ntildei0, h1i0, h2i0, c0)
+	assert.True(t, ok0, "proof must verify")
 
 	//proof 2
-	sk_1, pk_1, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
+	sk1, pk1, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
-	m_1 := common.GetRandomPositiveInt(q)
-	c_1, r_1, err := sk_1.EncryptAndReturnRandomness(m_1)
+	m1 := common.GetRandomPositiveInt(q)
+	c1, r1, err := sk1.EncryptAndReturnRandomness(m1)
 	assert.NoError(t, err)
 
-	primes_1 := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
-	NTildei_1, h1i_1, h2i_1, err := crypto.GenerateNTildei(primes_1)
+	primes1 := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
+	Ntildei1, h1i1, h2i1, err := crypto.GenerateNTildei(primes1)
 	assert.NoError(t, err)
-	proof_1, err := ProveRangeAlice(tss.EC(), pk_1, c_1, NTildei_1, h1i_1, h2i_1, m_1, r_1)
+	proof1, err := ProveRangeAlice(tss.EC(), pk1, c1, Ntildei1, h1i1, h2i1, m1, r1)
 	assert.NoError(t, err)
 
-	ok_1 := proof_1.Verify(tss.EC(), pk_1, NTildei_1, h1i_1, h2i_1, c_1)
-	assert.True(t, ok_1, "proof must verify")
+	ok1 := proof1.Verify(tss.EC(), pk1, Ntildei1, h1i1, h2i1, c1)
+	assert.True(t, ok1, "proof must verify")
 
-	cross_0 := proof_0.Verify(tss.EC(), pk_1, NTildei_1, h1i_1, h2i_1, c_1)
-	assert.False(t, cross_0, "proof must not verify")
+	cross0 := proof0.Verify(tss.EC(), pk1, Ntildei1, h1i1, h2i1, c1)
+	assert.False(t, cross0, "proof must not verify")
 
-	cross_1 := proof_1.Verify(tss.EC(), pk_0, NTildei_0, h1i_0, h2i_0, c_0)
-	assert.False(t, cross_1, "proof must not verify")
+	cross1 := proof1.Verify(tss.EC(), pk0, Ntildei0, h1i0, h2i0, c0)
+	assert.False(t, cross1, "proof must not verify")
 
-	fmt.Println("Did verify proof 0 with data from 0?", ok_0)
-	fmt.Println("Did verify proof 1 with data from 1?", ok_1)
+	fmt.Println("Did verify proof 0 with data from 0?", ok0)
+	fmt.Println("Did verify proof 1 with data from 1?", ok1)
 
-	fmt.Println("Did verify proof 0 with data from 1?", cross_0)
-	fmt.Println("Did verify proof 1 with data from 0?", cross_1)
+	fmt.Println("Did verify proof 0 with data from 1?", cross0)
+	fmt.Println("Did verify proof 1 with data from 0?", cross1)
 
-	//always passes
-	bypassedProof := &RangeProofAlice{
-		S:  big.NewInt(0),
+	//new bypass
+	bypassedproofNew := &RangeProofAlice{
+		S:  big.NewInt(1),
 		S1: big.NewInt(0),
 		S2: big.NewInt(0),
 		Z:  big.NewInt(1),
-		U:  big.NewInt(0),
+		U:  big.NewInt(1),
 		W:  big.NewInt(1),
 	}
 
-	bypassResult_1 := bypassedProof.Verify(tss.EC(), pk_0, NTildei_0, h1i_0, h2i_0, c_0)
-	fmt.Println("Did we bypass proof 1?", bypassResult_1)
-	bypassResult_2 := bypassedProof.Verify(tss.EC(), pk_1, NTildei_1, h1i_1, h2i_1, c_1)
-	fmt.Println("Did we bypass proof 2?", bypassResult_2)
+	cBogus := big.NewInt(1)
+	proofBogus, _ := ProveRangeAlice(tss.EC(), pk1, cBogus, Ntildei1, h1i1, h2i1, m1, r1)
+
+	ok2 := proofBogus.Verify(tss.EC(), pk1, Ntildei1, h1i1, h2i1, cBogus)
+	bypassresult3 := bypassedproofNew.Verify(tss.EC(), pk1, Ntildei1, h1i1, h2i1, cBogus)
+
+	//c = 1 is not valid, even though we can find a range proof for it that passes!
+	//this also means that the homo mul and add needs to be checked with this!
+	fmt.Println("Did verify proof bogus with data from bogus?", ok2)
+	fmt.Println("Did we bypass proof 3?", bypassresult3)
 }

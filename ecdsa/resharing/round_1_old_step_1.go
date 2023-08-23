@@ -9,6 +9,7 @@ package resharing
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/bnb-chain/tss-lib/crypto"
 	"github.com/bnb-chain/tss-lib/crypto/commitments"
@@ -38,6 +39,12 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.allOldOK()
 
+	round.temp.ssidNonce = new(big.Int).SetUint64(uint64(0))
+	ssid, err := round.getSSID()
+	if err != nil {
+		return round.WrapError(err)
+	}
+	round.temp.ssid = ssid
 	Pi := round.PartyID()
 	i := Pi.Index
 
@@ -69,7 +76,7 @@ func (round *round1) Start() *tss.Error {
 	// 5. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1Message(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		round.input.ECDSAPub, vCmt.C)
+		round.input.ECDSAPub, vCmt.C, ssid)
 	round.temp.dgRound1Messages[i] = r1msg
 	round.out <- r1msg
 

@@ -7,6 +7,11 @@
 package resharing
 
 import (
+	"errors"
+	"math/big"
+
+	"github.com/bnb-chain/tss-lib/common"
+	"github.com/bnb-chain/tss-lib/crypto"
 	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/tss"
 )
@@ -132,4 +137,23 @@ func (round *base) allNewOK() {
 	for j := range round.newOK {
 		round.newOK[j] = true
 	}
+}
+
+// get ssid from local params
+func (round *base) getSSID() ([]byte, error) {
+	ssidList := []*big.Int{round.EC().Params().P, round.EC().Params().N, round.EC().Params().B, round.EC().Params().Gx, round.EC().Params().Gy} // ec curve
+	ssidList = append(ssidList, round.Parties().IDs().Keys()...)                                                                                // parties
+	BigXjList, err := crypto.FlattenECPoints(round.input.BigXj)
+	if err != nil {
+		return nil, round.WrapError(errors.New("read BigXj failed"), round.PartyID())
+	}
+	ssidList = append(ssidList, BigXjList...)                    // BigXj
+	ssidList = append(ssidList, round.input.NTildej...)          // NTilde
+	ssidList = append(ssidList, round.input.H1j...)              // h1
+	ssidList = append(ssidList, round.input.H2j...)              // h2
+	ssidList = append(ssidList, big.NewInt(int64(round.number))) // round number
+	ssidList = append(ssidList, round.temp.ssidNonce)
+	ssid := common.SHA512_256i(ssidList...).Bytes()
+
+	return ssid, nil
 }

@@ -10,8 +10,9 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
-	"github.com/bnb-chain/tss-lib/common"
 	"math/big"
+
+	"github.com/bnb-chain/tss-lib/common"
 )
 
 const (
@@ -30,31 +31,31 @@ var (
 	one            = big.NewInt(1)
 )
 
-// NewProof implements proofFac
-func NewProof(ec elliptic.Curve, N0, NCap, s, t, N0p, N0q *big.Int) (*ProofFac, error) {
+// NewProof implements prooffac
+func NewProof(Session []byte, ec elliptic.Curve, N0, NCap, s, t, N0p, N0q *big.Int) (*ProofFac, error) {
 	if ec == nil || N0 == nil || NCap == nil || s == nil || t == nil || N0p == nil || N0q == nil {
 		return nil, errors.New("ProveFac constructor received nil value(s)")
 	}
 
 	q := ec.Params().N
+	q3 := new(big.Int).Mul(q, q)
+	q3 = new(big.Int).Mul(q, q3)
+	qNCap := new(big.Int).Mul(q, NCap)
+	qN0NCap := new(big.Int).Mul(qNCap, N0)
+	q3NCap := new(big.Int).Mul(q3, NCap)
+	q3N0NCap := new(big.Int).Mul(q3NCap, N0)
 	sqrtN0 := new(big.Int).Sqrt(N0)
-
-	leSqrtN0 := new(big.Int).Mul(rangeParameter, q)
-	leSqrtN0 = new(big.Int).Mul(leSqrtN0, sqrtN0)
-	lNCap := new(big.Int).Mul(rangeParameter, NCap)
-	lN0NCap := new(big.Int).Mul(lNCap, N0)
-	leN0NCap := new(big.Int).Mul(lN0NCap, q)
-	leNCap := new(big.Int).Mul(lNCap, q)
+	q3SqrtN0 := new(big.Int).Mul(q3, sqrtN0)
 
 	// Fig 28.1 sample
-	alpha := common.GetRandomPositiveInt(leSqrtN0)
-	beta := common.GetRandomPositiveInt(leSqrtN0)
-	mu := common.GetRandomPositiveInt(lNCap)
-	nu := common.GetRandomPositiveInt(lNCap)
-	sigma := common.GetRandomPositiveInt(lN0NCap)
-	r := common.GetRandomPositiveRelativelyPrimeInt(leN0NCap)
-	x := common.GetRandomPositiveInt(leNCap)
-	y := common.GetRandomPositiveInt(leNCap)
+	alpha := common.GetRandomPositiveInt(q3SqrtN0)
+	beta := common.GetRandomPositiveInt(q3SqrtN0)
+	mu := common.GetRandomPositiveInt(qNCap)
+	nu := common.GetRandomPositiveInt(qNCap)
+	sigma := common.GetRandomPositiveInt(qN0NCap)
+	r := common.GetRandomPositiveRelativelyPrimeInt(q3N0NCap)
+	x := common.GetRandomPositiveInt(q3NCap)
+	y := common.GetRandomPositiveInt(q3NCap)
 
 	// Fig 28.1 compute
 	modNCap := common.ModInt(NCap)
@@ -76,7 +77,7 @@ func NewProof(ec elliptic.Curve, N0, NCap, s, t, N0p, N0q *big.Int) (*ProofFac, 
 	// Fig 28.2 e
 	var e *big.Int
 	{
-		eHash := common.SHA512_256i(N0, NCap, s, t, P, Q, A, B, T, sigma)
+		eHash := common.SHA512_256i_TAGGED(Session, N0, NCap, s, t, P, Q, A, B, T, sigma)
 		e = common.RejectionSample(q, eHash)
 	}
 
@@ -120,82 +121,32 @@ func NewProofFromBytes(bzs [][]byte) (*ProofFac, error) {
 	}, nil
 }
 
-func (pf *ProofFac) Verify(ec elliptic.Curve, N0, NCap, s, t *big.Int) bool {
+func (pf *ProofFac) Verify(Session []byte, ec elliptic.Curve, N0, NCap, s, t *big.Int) bool {
 	if pf == nil || !pf.ValidateBasic() || ec == nil || N0 == nil || NCap == nil || s == nil || t == nil {
 		return false
 	}
 	if N0.Sign() != 1 {
 		return false
 	}
-	if NCap.Sign() != 1 {
-		return false
-	}
 
 	q := ec.Params().N
+	q3 := new(big.Int).Mul(q, q)
+	q3 = new(big.Int).Mul(q, q3)
 	sqrtN0 := new(big.Int).Sqrt(N0)
-
-	leSqrtN0 := new(big.Int).Mul(rangeParameter, q)
-	leSqrtN0 = new(big.Int).Mul(leSqrtN0, sqrtN0)
-	lNCap := new(big.Int).Mul(rangeParameter, NCap)
-	lN0NCap := new(big.Int).Mul(lNCap, N0)
-	leN0NCap2 := new(big.Int).Lsh(new(big.Int).Mul(lN0NCap, q), 1)
-	leNCap2 := new(big.Int).Lsh(new(big.Int).Mul(lNCap, q), 1)
-
-	if !common.IsInInterval(pf.P, NCap) {
-		return false
-	}
-	if !common.IsInInterval(pf.Q, NCap) {
-		return false
-	}
-	if !common.IsInInterval(pf.A, NCap) {
-		return false
-	}
-	if !common.IsInInterval(pf.B, NCap) {
-		return false
-	}
-	if !common.IsInInterval(pf.T, NCap) {
-		return false
-	}
-	if !common.IsInInterval(pf.Sigma, lN0NCap) {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.P, NCap).Cmp(one) != 0 {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.Q, NCap).Cmp(one) != 0 {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.A, NCap).Cmp(one) != 0 {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.B, NCap).Cmp(one) != 0 {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.T, NCap).Cmp(one) != 0 {
-		return false
-	}
-	if !common.IsInInterval(pf.W1, leNCap2) {
-		return false
-	}
-	if !common.IsInInterval(pf.W2, leNCap2) {
-		return false
-	}
-	if !common.IsInInterval(pf.V, leN0NCap2) {
-		return false
-	}
+	q3SqrtN0 := new(big.Int).Mul(q3, sqrtN0)
 
 	// Fig 28. Range Check
-	if !common.IsInInterval(pf.Z1, leSqrtN0) {
+	if !common.IsInInterval(pf.Z1, q3SqrtN0) {
 		return false
 	}
 
-	if !common.IsInInterval(pf.Z2, leSqrtN0) {
+	if !common.IsInInterval(pf.Z2, q3SqrtN0) {
 		return false
 	}
 
 	var e *big.Int
 	{
-		eHash := common.SHA512_256i(N0, NCap, s, t, pf.P, pf.Q, pf.A, pf.B, pf.T, pf.Sigma)
+		eHash := common.SHA512_256i_TAGGED(Session, N0, NCap, s, t, pf.P, pf.Q, pf.A, pf.B, pf.T, pf.Sigma)
 		e = common.RejectionSample(q, eHash)
 	}
 

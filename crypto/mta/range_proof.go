@@ -134,6 +134,12 @@ func (pf *RangeProofAlice) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTi
 	if new(big.Int).GCD(nil, nil, pf.W, NTilde).Cmp(one) != 0 {
 		return false
 	}
+	if pf.S1.Cmp(q) == -1 {
+		return false
+	}
+	if pf.S2.Cmp(q) == -1 {
+		return false
+	}
 
 	// 3.
 	if pf.S1.Cmp(q3) == 1 {

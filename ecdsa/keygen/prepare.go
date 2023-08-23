@@ -24,6 +24,8 @@ const (
 	safePrimeBitLen = 1024
 	// Ticker for printing log statements while generating primes/modulus
 	logProgressTickInterval = 8 * time.Second
+	// Safe big len using random for ssid
+	SafeBitLen = 1024
 )
 
 // GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.
