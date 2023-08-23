@@ -170,7 +170,7 @@ keygen:
 					Y:     pkY,
 				}
 				println("u len: ", len(u.Bytes()))
-				sk, _, err := edwards.PrivKeyFromScalar(u.Bytes())
+				sk, _, err := edwards.PrivKeyFromScalar(common.PadToLengthBytesInPlace(u.Bytes(), 32))
 				if !assert.NoError(t, err) {
 					return
 				}

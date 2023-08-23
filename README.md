@@ -136,6 +136,10 @@ In a typical use case, it is expected that a transport implementation will consu
 
 This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
 
+## Changes of Preparams of ECDSA in v2.0
+
+Two fields PaillierSK.P and PaillierSK.Q is added in version 2.0. They are used to generate Paillier key proofs. Key valuts generated from versions before 2.0 need to regenerate(resharing) the key valuts to update the praparams with the necessary fileds filled.
+
 ## How to use this securely
 
 ⚠️ This section is important. Be sure to read it!

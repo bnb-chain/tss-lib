@@ -61,8 +61,6 @@ func NewLocalPartySaveData(partyCount int) (saveData LocalPartySaveData) {
 
 func (preParams LocalPreParams) Validate() bool {
 	return preParams.PaillierSK != nil &&
-		preParams.PaillierSK.P != nil &&
-		preParams.PaillierSK.Q != nil &&
 		preParams.NTildei != nil &&
 		preParams.H1i != nil &&
 		preParams.H2i != nil
@@ -70,6 +68,8 @@ func (preParams LocalPreParams) Validate() bool {
 
 func (preParams LocalPreParams) ValidateWithProof() bool {
 	return preParams.Validate() &&
+		preParams.PaillierSK.P != nil &&
+		preParams.PaillierSK.Q != nil &&
 		preParams.Alpha != nil &&
 		preParams.Beta != nil &&
 		preParams.P != nil &&

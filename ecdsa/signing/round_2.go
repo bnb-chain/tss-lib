@@ -8,6 +8,7 @@ package signing
 
 import (
 	"errors"
+	"math/big"
 	"sync"
 
 	errorspkg "github.com/pkg/errors"
@@ -30,6 +31,7 @@ func (round *round2) Start() *tss.Error {
 	errChs := make(chan *tss.Error, (len(round.Parties().IDs())-1)*2)
 	wg := sync.WaitGroup{}
 	wg.Add((len(round.Parties().IDs()) - 1) * 2)
+	ContextI := append(round.temp.ssid, new(big.Int).SetUint64(uint64(i)).Bytes()...)
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
@@ -44,6 +46,7 @@ func (round *round2) Start() *tss.Error {
 				return
 			}
 			beta, c1ji, _, pi1ji, err := mta.BobMid(
+				ContextI,
 				round.Parameters.EC(),
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,
@@ -73,6 +76,7 @@ func (round *round2) Start() *tss.Error {
 				return
 			}
 			v, c2ji, _, pi2ji, err := mta.BobMidWC(
+				ContextI,
 				round.Parameters.EC(),
 				round.key.PaillierPKs[j],
 				rangeProofAliceJ,

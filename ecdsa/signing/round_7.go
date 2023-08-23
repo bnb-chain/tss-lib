@@ -32,6 +32,7 @@ func (round *round7) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
+		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		r5msg := round.temp.signRound5Messages[j].Content().(*SignRound5Message)
 		r6msg := round.temp.signRound6Messages[j].Content().(*SignRound6Message)
 		cj, dj := r5msg.UnmarshalCommitment(), r6msg.UnmarshalDeCommitment()
@@ -52,11 +53,11 @@ func (round *round7) Start() *tss.Error {
 		}
 		bigAjs[j] = bigAj
 		pijA, err := r6msg.UnmarshalZKProof(round.Params().EC())
-		if err != nil || !pijA.Verify(bigAj) {
+		if err != nil || !pijA.Verify(ContextJ, bigAj) {
 			return round.WrapError(errors.New("schnorr verify for Aj failed"), Pj)
 		}
 		pijV, err := r6msg.UnmarshalZKVProof(round.Params().EC())
-		if err != nil || !pijV.Verify(bigVj, round.temp.bigR) {
+		if err != nil || !pijV.Verify(ContextJ, bigVj, round.temp.bigR) {
 			return round.WrapError(errors.New("vverify for Vj failed"), Pj)
 		}
 	}
