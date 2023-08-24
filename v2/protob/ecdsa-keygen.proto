@@ -1,0 +1,45 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+package binance.tsslib.ecdsa.keygen;
+option go_package = "ecdsa/keygen";
+
+/*
+ * Represents a BROADCAST message sent during Round 1 of the ECDSA TSS keygen protocol.
+ */
+message KGRound1Message {
+    bytes commitment = 1;
+    bytes paillier_n = 2;
+    bytes n_tilde = 3;
+    bytes h1 = 4;
+    bytes h2 = 5;
+    repeated bytes dlnproof_1 = 6;
+    repeated bytes dlnproof_2 = 7;
+}
+
+/*
+ * Represents a P2P message sent to each party during Round 2 of the ECDSA TSS keygen protocol.
+ */
+message KGRound2Message1 {
+    bytes share = 1;
+    repeated bytes facProof = 2;
+}
+
+/*
+ * Represents a BROADCAST message sent to each party during Round 2 of the ECDSA TSS keygen protocol.
+ */
+message KGRound2Message2 {
+    repeated bytes de_commitment = 1;
+    repeated bytes modProof = 2;
+}
+
+/*
+ * Represents a BROADCAST message sent to each party during Round 3 of the ECDSA TSS keygen protocol.
+ */
+message KGRound3Message {
+    repeated bytes paillier_proof = 1;
+}

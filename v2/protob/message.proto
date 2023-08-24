@@ -1,0 +1,42 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+package binance.tsslib;
+option go_package = "./tss";
+
+import "google/protobuf/any.proto";
+
+/*
+ * Wrapper for TSS messages, often read by the transport layer and not itself sent over the wire
+ */
+message MessageWrapper {
+    // PartyID represents a participant in the TSS protocol rounds.
+    // Note: The `id` and `moniker` are provided for convenience to allow you to track participants easier.
+    // The `id` is intended to be a unique string representation of `key` and `moniker` can be anything (even left blank).
+    message PartyID {
+        string id = 1;
+        string moniker = 2;
+        bytes key = 3;
+    }
+
+    // Metadata optionally un-marshalled and used by the transport to route this message.
+    bool is_broadcast = 1;
+    // Metadata optionally un-marshalled and used by the transport to route this message.
+    bool is_to_old_committee = 2; // used only in certain resharing messages
+    // Metadata optionally un-marshalled and used by the transport to route this message.
+    bool is_to_old_and_new_committees = 5; // used only in certain resharing messages
+
+    // Metadata optionally un-marshalled and used by the transport to route this message.
+    PartyID from = 3;
+    // Metadata optionally un-marshalled and used by the transport to route this message.
+    repeated PartyID to = 4;
+
+    // This field is actually what is sent through the wire and consumed on the other end by UpdateFromBytes.
+    // An Any contains an arbitrary serialized message as bytes, along with a URL that
+    // acts as a globally unique identifier for and resolves to that message's type.
+    google.protobuf.Any message = 10;
+}
