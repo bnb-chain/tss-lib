@@ -51,9 +51,6 @@ type (
 		vs            vss.Vs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
-
-		ssid      []byte
-		ssidNonce *big.Int
 	}
 )
 

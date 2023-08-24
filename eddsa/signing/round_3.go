@@ -8,10 +8,8 @@ package signing
 
 import (
 	"crypto/sha512"
-	"math/big"
 
 	"github.com/agl/ed25519/edwards25519"
-	"github.com/bnb-chain/tss-lib/common"
 	"github.com/pkg/errors"
 
 	"github.com/bnb-chain/tss-lib/crypto"
@@ -40,7 +38,6 @@ func (round *round3) Start() *tss.Error {
 			continue
 		}
 
-		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		msg := round.temp.signRound2Messages[j]
 		r2msg := msg.Content().(*SignRound2Message)
 		cmtDeCmt := commitments.HashCommitDecommit{C: round.temp.cjs[j], D: r2msg.UnmarshalDeCommitment()}
@@ -61,7 +58,7 @@ func (round *round3) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors.New("failed to unmarshal Rj proof"), Pj)
 		}
-		ok = proof.Verify(ContextJ, Rj)
+		ok = proof.Verify(Rj)
 		if !ok {
 			return round.WrapError(errors.New("failed to prove Rj"), Pj)
 		}

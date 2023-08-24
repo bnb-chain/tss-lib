@@ -49,8 +49,6 @@ type (
 		ui            *big.Int // used for tests
 		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
-		ssid          []byte
-		ssidNonce     *big.Int
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}

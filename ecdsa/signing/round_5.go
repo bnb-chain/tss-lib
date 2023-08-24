@@ -8,7 +8,6 @@ package signing
 
 import (
 	"errors"
-	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
@@ -31,7 +30,6 @@ func (round *round5) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
-		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		r1msg2 := round.temp.signRound1Message2s[j].Content().(*SignRound1Message2)
 		r4msg := round.temp.signRound4Messages[j].Content().(*SignRound4Message)
 		SCj, SDj := r1msg2.UnmarshalCommitment(), r4msg.UnmarshalDeCommitment()
@@ -48,7 +46,7 @@ func (round *round5) Start() *tss.Error {
 		if err != nil {
 			return round.WrapError(errors.New("failed to unmarshal bigGamma proof"), Pj)
 		}
-		ok = proof.Verify(ContextJ, bigGammaJPoint)
+		ok = proof.Verify(bigGammaJPoint)
 		if !ok {
 			return round.WrapError(errors.New("failed to prove bigGamma"), Pj)
 		}

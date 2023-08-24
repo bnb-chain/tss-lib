@@ -14,8 +14,6 @@ import (
 	"github.com/bnb-chain/tss-lib/crypto"
 	cmt "github.com/bnb-chain/tss-lib/crypto/commitments"
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/crypto/facproof"
-	"github.com/bnb-chain/tss-lib/crypto/modproof"
 	"github.com/bnb-chain/tss-lib/crypto/paillier"
 	"github.com/bnb-chain/tss-lib/crypto/vss"
 	"github.com/bnb-chain/tss-lib/tss"
@@ -31,8 +29,6 @@ var (
 		(*DGRound2Message2)(nil),
 		(*DGRound3Message1)(nil),
 		(*DGRound3Message2)(nil),
-		(*DGRound4Message1)(nil),
-		(*DGRound4Message2)(nil),
 	}
 )
 
@@ -43,7 +39,6 @@ func NewDGRound1Message(
 	from *tss.PartyID,
 	ecdsaPub *crypto.ECPoint,
 	vct cmt.HashCommitment,
-	ssid []byte,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:             from,
@@ -55,7 +50,6 @@ func NewDGRound1Message(
 		EcdsaPubX:   ecdsaPub.X().Bytes(),
 		EcdsaPubY:   ecdsaPub.Y().Bytes(),
 		VCommitment: vct.Bytes(),
-		Ssid:        ssid,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -79,17 +73,13 @@ func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {
 	return new(big.Int).SetBytes(m.GetVCommitment())
 }
 
-func (m *DGRound1Message) UnmarshalSSID() []byte {
-	return m.GetSsid()
-}
-
 // ----- //
 
 func NewDGRound2Message1(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
-	modProof *modproof.ProofMod,
+	paillierPf paillier.Proof,
 	NTildei, H1i, H2i *big.Int,
 	dlnProof1, dlnProof2 *dlnproof.Proof,
 ) (tss.ParsedMessage, error) {
@@ -99,7 +89,7 @@ func NewDGRound2Message1(
 		IsBroadcast:      true,
 		IsToOldCommittee: false,
 	}
-	modPfBzs := modProof.Bytes()
+	paiPfBzs := common.BigIntsToBytes(paillierPf[:])
 	dlnProof1Bz, err := dlnProof1.Serialize()
 	if err != nil {
 		return nil, err
@@ -109,13 +99,13 @@ func NewDGRound2Message1(
 		return nil, err
 	}
 	content := &DGRound2Message1{
-		PaillierN:  paillierPK.N.Bytes(),
-		ModProof:   modPfBzs[:],
-		NTilde:     NTildei.Bytes(),
-		H1:         H1i.Bytes(),
-		H2:         H2i.Bytes(),
-		Dlnproof_1: dlnProof1Bz,
-		Dlnproof_2: dlnProof2Bz,
+		PaillierN:     paillierPK.N.Bytes(),
+		PaillierProof: paiPfBzs,
+		NTilde:        NTildei.Bytes(),
+		H1:            H1i.Bytes(),
+		H2:            H2i.Bytes(),
+		Dlnproof_1:    dlnProof1Bz,
+		Dlnproof_2:    dlnProof2Bz,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg), nil
@@ -123,8 +113,7 @@ func NewDGRound2Message1(
 
 func (m *DGRound2Message1) ValidateBasic() bool {
 	return m != nil &&
-		// use with NoProofFac()
-		// common.NonEmptyMultiBytes(m.ModProof, modproof.ProofModBytesParts) &&
+		common.NonEmptyMultiBytes(m.PaillierProof) &&
 		common.NonEmptyBytes(m.PaillierN) &&
 		common.NonEmptyBytes(m.NTilde) &&
 		common.NonEmptyBytes(m.H1) &&
@@ -152,8 +141,11 @@ func (m *DGRound2Message1) UnmarshalH2() *big.Int {
 	return new(big.Int).SetBytes(m.GetH2())
 }
 
-func (m *DGRound2Message1) UnmarshalModProof() (*modproof.ProofMod, error) {
-	return modproof.NewProofFromBytes(m.GetModProof())
+func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
+	var pf paillier.Proof
+	ints := common.MultiBytesToBigInts(m.PaillierProof)
+	copy(pf[:], ints[:paillier.ProofIters])
+	return pf
 }
 
 func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnproof.Proof, error) {
@@ -243,7 +235,7 @@ func (m *DGRound3Message2) UnmarshalVDeCommitment() cmt.HashDeCommitment {
 
 // ----- //
 
-func NewDGRound4Message2(
+func NewDGRound4Message(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 ) tss.ParsedMessage {
@@ -253,40 +245,11 @@ func NewDGRound4Message2(
 		IsBroadcast:             true,
 		IsToOldAndNewCommittees: true,
 	}
-	content := &DGRound4Message2{}
+	content := &DGRound4Message{}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *DGRound4Message2) ValidateBasic() bool {
+func (m *DGRound4Message) ValidateBasic() bool {
 	return true
-}
-
-func NewDGRound4Message1(
-	to *tss.PartyID,
-	from *tss.PartyID,
-	proof *facproof.ProofFac,
-) tss.ParsedMessage {
-	meta := tss.MessageRouting{
-		From:             from,
-		To:               []*tss.PartyID{to},
-		IsBroadcast:      false,
-		IsToOldCommittee: false,
-	}
-	pfBzs := proof.Bytes()
-	content := &DGRound4Message1{
-		FacProof: pfBzs[:],
-	}
-	msg := tss.NewMessageWrapper(meta, content)
-	return tss.NewMessage(meta, content, msg)
-}
-
-func (m *DGRound4Message1) ValidateBasic() bool {
-	return m != nil
-	// use with NoProofFac()
-	// && common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
-}
-
-func (m *DGRound4Message1) UnmarshalFacProof() (*facproof.ProofFac, error) {
-	return facproof.NewProofFromBytes(m.GetFacProof())
 }
