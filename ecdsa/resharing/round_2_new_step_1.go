@@ -7,11 +7,19 @@
 package resharing
 
 import (
+	"bytes"
 	"errors"
+	"math/big"
+
+	"github.com/bnb-chain/tss-lib/crypto/modproof"
 
 	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
 	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/tss"
+)
+
+var (
+	zero = big.NewInt(0)
 )
 
 func (round *round2) Start() *tss.Error {
@@ -29,6 +37,21 @@ func (round *round2) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
+
+	// check consistency of SSID
+	r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
+	SSID := r1msg.UnmarshalSSID()
+	for j, Pj := range round.OldParties().IDs() {
+		if j == 0 || j == i {
+			continue
+		}
+		r1msg := round.temp.dgRound1Messages[j].Content().(*DGRound1Message)
+		SSIDj := r1msg.UnmarshalSSID()
+		if !bytes.Equal(SSID, SSIDj) {
+			return round.WrapError(errors.New("ssid mismatch"), Pj)
+		}
+	}
+	round.temp.ssid = SSID
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2Message2(
@@ -70,10 +93,18 @@ func (round *round2) Start() *tss.Error {
 	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
 	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
 
-	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
+	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
+	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
+	if !round.Parameters.NoProofMod() {
+		var err error
+		modProof, err = modproof.NewProof(ContextI, preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q)
+		if err != nil {
+			return round.WrapError(err, Pi)
+		}
+	}
 	r2msg2, err := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
+		&preParams.PaillierSK.PublicKey, modProof, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}

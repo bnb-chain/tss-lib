@@ -45,6 +45,12 @@ func (round *round1) Start() *tss.Error {
 	round.number = 1
 	round.started = true
 	round.resetOK()
+	round.temp.ssidNonce = new(big.Int).SetUint64(0)
+	ssid, err := round.getSSID()
+	if err != nil {
+		return round.WrapError(err)
+	}
+	round.temp.ssid = ssid
 
 	k := common.GetRandomPositiveInt(round.Params().EC().Params().N)
 	gamma := common.GetRandomPositiveInt(round.Params().EC().Params().N)

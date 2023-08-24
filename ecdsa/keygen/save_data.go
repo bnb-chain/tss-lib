@@ -68,6 +68,8 @@ func (preParams LocalPreParams) Validate() bool {
 
 func (preParams LocalPreParams) ValidateWithProof() bool {
 	return preParams.Validate() &&
+		preParams.PaillierSK.P != nil &&
+		preParams.PaillierSK.Q != nil &&
 		preParams.Alpha != nil &&
 		preParams.Beta != nil &&
 		preParams.P != nil &&

@@ -30,6 +30,7 @@ func AliceInit(
 }
 
 func BobMid(
+	Session []byte,
 	ec elliptic.Curve,
 	pkA *paillier.PublicKey,
 	pf *RangeProofAlice,
@@ -40,7 +41,10 @@ func BobMid(
 		return
 	}
 	q := ec.Params().N
-	betaPrm = common.GetRandomPositiveInt(pkA.N)
+	q5 := new(big.Int).Mul(q, q)  // q^2
+	q5 = new(big.Int).Mul(q5, q5) // q^4
+	q5 = new(big.Int).Mul(q5, q)  // q^5
+	betaPrm = common.GetRandomPositiveInt(q5)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
 	if err != nil {
 		return
@@ -54,11 +58,12 @@ func BobMid(
 		return
 	}
 	beta = common.ModInt(q).Sub(zero, betaPrm)
-	piB, err = ProveBob(ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand)
+	piB, err = ProveBob(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand)
 	return
 }
 
 func BobMidWC(
+	Session []byte,
 	ec elliptic.Curve,
 	pkA *paillier.PublicKey,
 	pf *RangeProofAlice,
@@ -70,7 +75,10 @@ func BobMidWC(
 		return
 	}
 	q := ec.Params().N
-	betaPrm = common.GetRandomPositiveInt(pkA.N)
+	q5 := new(big.Int).Mul(q, q)  // q^2
+	q5 = new(big.Int).Mul(q5, q5) // q^4
+	q5 = new(big.Int).Mul(q5, q)  // q^5
+	betaPrm = common.GetRandomPositiveInt(q5)
 	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
 	if err != nil {
 		return
@@ -84,18 +92,19 @@ func BobMidWC(
 		return
 	}
 	beta = common.ModInt(q).Sub(zero, betaPrm)
-	piB, err = ProveBobWC(ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B)
+	piB, err = ProveBobWC(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B)
 	return
 }
 
 func AliceEnd(
+	Session []byte,
 	ec elliptic.Curve,
 	pkA *paillier.PublicKey,
 	pf *ProofBob,
 	h1A, h2A, cA, cB, NTildeA *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	if !pf.Verify(ec, pkA, NTildeA, h1A, h2A, cA, cB) {
+	if !pf.Verify(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB) {
 		return nil, errors.New("ProofBob.Verify() returned false")
 	}
 	alphaPrm, err := sk.Decrypt(cB)
@@ -107,6 +116,7 @@ func AliceEnd(
 }
 
 func AliceEndWC(
+	Session []byte,
 	ec elliptic.Curve,
 	pkA *paillier.PublicKey,
 	pf *ProofBobWC,
@@ -114,7 +124,7 @@ func AliceEndWC(
 	cA, cB, NTildeA, h1A, h2A *big.Int,
 	sk *paillier.PrivateKey,
 ) (*big.Int, error) {
-	if !pf.Verify(ec, pkA, NTildeA, h1A, h2A, cA, cB, B) {
+	if !pf.Verify(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, B) {
 		return nil, errors.New("ProofBobWC.Verify() returned false")
 	}
 	alphaPrm, err := sk.Decrypt(cB)

@@ -100,8 +100,14 @@ func (round *round1) Start() *tss.Error {
 	// and keep in temporary storage:
 	// - VSS Vs
 	// - our set of Shamir shares
+	round.temp.ssidNonce = new(big.Int).SetUint64(0)
 	round.save.ShareID = ids[i]
 	round.temp.vs = vs
+	ssid, err := round.getSSID()
+	if err != nil {
+		return round.WrapError(errors.New("failed to generate ssid"))
+	}
+	round.temp.ssid = ssid
 	round.temp.shares = shares
 
 	// for this P: SAVE de-commitments, paillier keys for round 2

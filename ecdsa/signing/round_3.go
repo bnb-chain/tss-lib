@@ -38,6 +38,7 @@ func (round *round3) Start() *tss.Error {
 		if j == i {
 			continue
 		}
+		ContextJ := append(round.temp.ssid, new(big.Int).SetUint64(uint64(j)).Bytes()...)
 		// Alice_end
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
@@ -48,6 +49,7 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			alphaIj, err := mta.AliceEnd(
+				ContextJ,
 				round.Params().EC(),
 				round.key.PaillierPKs[i],
 				proofBob,
@@ -72,6 +74,7 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			uIj, err := mta.AliceEndWC(
+				ContextJ,
 				round.Params().EC(),
 				round.key.PaillierPKs[i],
 				proofBobWC,
