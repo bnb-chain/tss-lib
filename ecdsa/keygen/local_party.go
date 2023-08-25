@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/common"
-	cmt "github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/crypto/vss"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Implements Party
