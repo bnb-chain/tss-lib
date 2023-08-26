@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/bnb-chain/tss-lib/crypto/modproof"
-	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
+	. "github.com/bnb-chain/tss-lib/v2/crypto/modproof"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
 	"github.com/stretchr/testify/assert"
 )
 

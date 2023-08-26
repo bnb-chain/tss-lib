@@ -11,11 +11,11 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/crypto/modproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/modproof"
 
-	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 var (
