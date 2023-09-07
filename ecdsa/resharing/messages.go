@@ -9,8 +9,6 @@ package resharing
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -33,11 +31,11 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message1")
-	proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message2")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message2")
+	// proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"resharing.DGRound1Message")
+	// proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message1")
+	// proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message2")
+	// proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message1")
+	// proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message2")
 }
 
 // ----- //

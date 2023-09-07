@@ -9,8 +9,6 @@ package keygen
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
 	"github.com/binance-chain/tss-lib/crypto/paillier"
@@ -32,10 +30,10 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*KGRound1Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound1Message")
-	proto.RegisterType((*KGRound2Message1)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message1")
-	proto.RegisterType((*KGRound2Message2)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message2")
-	proto.RegisterType((*KGRound3Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound3Message")
+	// proto.RegisterType((*KGRound1Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound1Message")
+	// proto.RegisterType((*KGRound2Message1)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message1")
+	// proto.RegisterType((*KGRound2Message2)(nil), tss.ProtoNamePrefix+"keygen.KGRound2Message2")
+	// proto.RegisterType((*KGRound3Message)(nil), tss.ProtoNamePrefix+"keygen.KGRound3Message")
 }
 
 // ----- //

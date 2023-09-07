@@ -9,8 +9,6 @@ package signing
 import (
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/crypto"
 	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
@@ -39,16 +37,16 @@ var (
 )
 
 func init() {
-	proto.RegisterType((*SignRound1Message1)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message1")
-	proto.RegisterType((*SignRound1Message2)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message2")
-	proto.RegisterType((*SignRound2Message)(nil), tss.ProtoNamePrefix+"signing.SignRound2Message")
-	proto.RegisterType((*SignRound3Message)(nil), tss.ProtoNamePrefix+"signing.SignRound3Message")
-	proto.RegisterType((*SignRound4Message)(nil), tss.ProtoNamePrefix+"signing.SignRound4Message")
-	proto.RegisterType((*SignRound5Message)(nil), tss.ProtoNamePrefix+"signing.SignRound5Message")
-	proto.RegisterType((*SignRound6Message)(nil), tss.ProtoNamePrefix+"signing.SignRound6Message")
-	proto.RegisterType((*SignRound7Message)(nil), tss.ProtoNamePrefix+"signing.SignRound7Message")
-	proto.RegisterType((*SignRound8Message)(nil), tss.ProtoNamePrefix+"signing.SignRound8Message")
-	proto.RegisterType((*SignRound9Message)(nil), tss.ProtoNamePrefix+"signing.SignRound9Message")
+	// proto.RegisterType((*SignRound1Message1)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message1")
+	// proto.RegisterType((*SignRound1Message2)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message2")
+	// proto.RegisterType((*SignRound2Message)(nil), tss.ProtoNamePrefix+"signing.SignRound2Message")
+	// proto.RegisterType((*SignRound3Message)(nil), tss.ProtoNamePrefix+"signing.SignRound3Message")
+	// proto.RegisterType((*SignRound4Message)(nil), tss.ProtoNamePrefix+"signing.SignRound4Message")
+	// proto.RegisterType((*SignRound5Message)(nil), tss.ProtoNamePrefix+"signing.SignRound5Message")
+	// proto.RegisterType((*SignRound6Message)(nil), tss.ProtoNamePrefix+"signing.SignRound6Message")
+	// proto.RegisterType((*SignRound7Message)(nil), tss.ProtoNamePrefix+"signing.SignRound7Message")
+	// proto.RegisterType((*SignRound8Message)(nil), tss.ProtoNamePrefix+"signing.SignRound8Message")
+	// proto.RegisterType((*SignRound9Message)(nil), tss.ProtoNamePrefix+"signing.SignRound9Message")
 }
 
 // ----- //
