@@ -9,10 +9,14 @@ package keygen
 import (
 	"encoding/hex"
 	"errors"
+	"math/big"
 	"sync"
 
-	"github.com/bnb-chain/tss-lib/common"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/crypto/facproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/modproof"
+
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 const (
@@ -109,8 +113,21 @@ func (round *round2) Start() *tss.Error {
 
 	// 5. p2p send share ij to Pj
 	shares := round.temp.shares
+	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
 	for j, Pj := range round.Parties().IDs() {
-		r2msg1 := NewKGRound2Message1(Pj, round.PartyID(), shares[j])
+
+		facProof := &facproof.ProofFac{P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
+			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero}
+		if !round.Params().NoProofFac() {
+			var err error
+			facProof, err = facproof.NewProof(ContextI, round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
+				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
+			if err != nil {
+				return round.WrapError(err, round.PartyID())
+			}
+
+		}
+		r2msg1 := NewKGRound2Message1(Pj, round.PartyID(), shares[j], facProof)
 		// do not send to this Pj, but store for round 3
 		if j == i {
 			round.temp.kgRound2Message1s[j] = r2msg1
@@ -120,7 +137,16 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 7. BROADCAST de-commitments of Shamir poly*G
-	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG)
+	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
+	if !round.Parameters.NoProofMod() {
+		var err error
+		modProof, err = modproof.NewProof(ContextI, round.save.PaillierSK.N,
+			round.save.PaillierSK.P, round.save.PaillierSK.Q)
+		if err != nil {
+			return round.WrapError(err, round.PartyID())
+		}
+	}
+	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG, modProof)
 	round.temp.kgRound2Message2s[i] = r2msg2
 	round.out <- r2msg2
 

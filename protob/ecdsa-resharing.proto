@@ -15,6 +15,7 @@ message DGRound1Message {
     bytes ecdsa_pub_x = 1;
     bytes ecdsa_pub_y = 2;
     bytes v_commitment = 3;
+    bytes ssid = 4;
 }
 
 /*
@@ -22,7 +23,7 @@ message DGRound1Message {
  */
 message DGRound2Message1 {
     bytes paillier_n = 1;
-    repeated bytes paillier_proof = 2;
+    repeated bytes modProof = 2;
     bytes n_tilde = 3;
     bytes h1 = 4;
     bytes h2 = 5;
@@ -53,5 +54,12 @@ message DGRound3Message2 {
 /*
  * The Round 4 "ACK" is broadcast to peers of the Old and New Committees from the New Committee in this message.
  */
-message DGRound4Message {
+message DGRound4Message2 {
+}
+
+/*
+ * The Round 4 message to peers of New Committees from the New Committee in this message.
+ */
+message DGRound4Message1 {
+    repeated bytes facProof = 1;
 }
