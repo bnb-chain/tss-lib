@@ -27,7 +27,7 @@ type (
 		data    *common.SignatureData
 		temp    *localTempData
 		out     chan<- tss.Message
-		end     chan<- common.SignatureData
+		end     chan<- *common.SignatureData
 		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool
 		number  int
