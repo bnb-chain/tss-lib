@@ -196,7 +196,7 @@ func (round *round3) Start() *tss.Error {
 	// PRINT public key & private share
 	common.Logger.Debugf("%s public key: %x", round.PartyID(), eddsaPubKey)
 
-	round.end <- *round.save
+	round.end <- round.save
 	return nil
 }
 

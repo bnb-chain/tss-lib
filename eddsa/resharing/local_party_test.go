@@ -62,7 +62,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	errCh := make(chan *tss.Error, bothCommitteesPax)
 	outCh := make(chan tss.Message, bothCommitteesPax)
-	endCh := make(chan keygen.LocalPartySaveData, bothCommitteesPax)
+	endCh := make(chan *keygen.LocalPartySaveData, bothCommitteesPax)
 
 	updater := test.SharedPartyUpdater
 
@@ -129,7 +129,7 @@ func TestE2EConcurrent(t *testing.T) {
 			if save.Xi != nil {
 				index, err := save.OriginalIndex()
 				assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-				newKeys[index] = save
+				newKeys[index] = *save
 			} else {
 				endedOldCommittee++
 			}
