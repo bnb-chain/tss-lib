@@ -9,16 +9,17 @@ package signing
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
-	"github.com/bnb-chain/tss-lib/common"
-	"github.com/bnb-chain/tss-lib/crypto"
-	"github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // round 1 represents round 1 of the signing part of the EDDSA TSS spec
-func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- common.SignatureData) tss.Round {
+func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- *common.SignatureData) tss.Round {
 	return &round1{
 		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
@@ -32,6 +33,12 @@ func (round *round1) Start() *tss.Error {
 	round.started = true
 	round.resetOK()
 
+	round.temp.ssidNonce = new(big.Int).SetUint64(0)
+	var err error
+	round.temp.ssid, err = round.getSSID()
+	if err != nil {
+		return round.WrapError(err)
+	}
 	// 1. select ri
 	ri := common.GetRandomPositiveInt(round.Params().EC().Params().N)
 

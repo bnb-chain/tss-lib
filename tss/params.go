@@ -21,6 +21,11 @@ type (
 		threshold           int
 		concurrency         int
 		safePrimeGenTimeout time.Duration
+		// proof session info
+		nonce int
+		// for keygen
+		noProofMod bool
+		noProofFac bool
 	}
 
 	ReSharingParameters struct {
@@ -83,6 +88,22 @@ func (params *Parameters) SetConcurrency(concurrency int) {
 
 func (params *Parameters) SetSafePrimeGenTimeout(timeout time.Duration) {
 	params.safePrimeGenTimeout = timeout
+}
+
+func (params *Parameters) NoProofMod() bool {
+	return params.noProofMod
+}
+
+func (params *Parameters) NoProofFac() bool {
+	return params.noProofFac
+}
+
+func (params *Parameters) SetNoProofMod() {
+	params.noProofMod = true
+}
+
+func (params *Parameters) SetNoProofFac() {
+	params.noProofFac = true
 }
 
 // ----- //

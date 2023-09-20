@@ -34,6 +34,7 @@ message KGRound2Message1 {
  */
 message KGRound2Message2 {
     repeated bytes de_commitment = 1;
+    repeated bytes modProof = 2;
 }
 
 /*

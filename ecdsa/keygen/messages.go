@@ -7,15 +7,16 @@
 package keygen
 
 import (
-	"github.com/bnb-chain/tss-lib/crypto/facproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/facproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/modproof"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/common"
-	cmt "github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/crypto/vss"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-keygen.pb.go
@@ -146,14 +147,17 @@ func (m *KGRound2Message1) UnmarshalFacProof() (*facproof.ProofFac, error) {
 func NewKGRound2Message2(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
+	proof *modproof.ProofMod,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
 		IsBroadcast: true,
 	}
 	dcBzs := common.BigIntsToBytes(deCommitment)
+	proofBzs := proof.Bytes()
 	content := &KGRound2Message2{
 		DeCommitment: dcBzs,
+		ModProof:     proofBzs[:],
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -162,11 +166,17 @@ func NewKGRound2Message2(
 func (m *KGRound2Message2) ValidateBasic() bool {
 	return m != nil &&
 		common.NonEmptyMultiBytes(m.GetDeCommitment())
+	// This is commented for backward compatibility, which msg has no proof
+	// && common.NonEmptyMultiBytes(m.GetModProof(), modproof.ProofModBytesParts)
 }
 
 func (m *KGRound2Message2) UnmarshalDeCommitment() []*big.Int {
 	deComBzs := m.GetDeCommitment()
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
+}
+
+func (m *KGRound2Message2) UnmarshalModProof() (*modproof.ProofMod, error) {
+	return modproof.NewProofFromBytes(m.GetModProof())
 }
 
 // ----- //

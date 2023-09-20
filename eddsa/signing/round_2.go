@@ -8,11 +8,12 @@ package signing
 
 import (
 	"errors"
+	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/crypto/schnorr"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/crypto/schnorr"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 func (round *round2) Start() *tss.Error {
@@ -32,7 +33,8 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 2. compute Schnorr prove
-	pir, err := schnorr.NewZKProof(round.temp.ri, round.temp.pointRi)
+	ContextI := append(round.temp.ssid, new(big.Int).SetUint64(uint64(i)).Bytes()...)
+	pir, err := schnorr.NewZKProof(ContextI, round.temp.ri, round.temp.pointRi)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "NewZKProof(ri, pointRi)"))
 	}
