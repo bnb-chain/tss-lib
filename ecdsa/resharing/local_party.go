@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/common"
-	"github.com/bnb-chain/tss-lib/crypto"
-	cmt "github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/crypto/vss"
-	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Implements Party
@@ -33,7 +33,7 @@ type (
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- keygen.LocalPartySaveData
+		end chan<- *keygen.LocalPartySaveData
 	}
 
 	localMessageStore struct {
@@ -42,7 +42,8 @@ type (
 		dgRound2Message2s,
 		dgRound3Message1s,
 		dgRound3Message2s,
-		dgRound4Messages []tss.ParsedMessage
+		dgRound4Message1s,
+		dgRound4Message2s []tss.ParsedMessage
 	}
 
 	localTempData struct {
@@ -57,6 +58,9 @@ type (
 		newXi     *big.Int
 		newKs     []*big.Int
 		newBigXjs []*crypto.ECPoint // Xj to save in round 5
+
+		ssid      []byte
+		ssidNonce *big.Int
 	}
 )
 
@@ -68,7 +72,7 @@ func NewLocalParty(
 	params *tss.ReSharingParameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- keygen.LocalPartySaveData,
+	end chan<- *keygen.LocalPartySaveData,
 ) tss.Party {
 	oldPartyCount := len(params.OldParties().IDs())
 	subset := key
@@ -90,7 +94,8 @@ func NewLocalParty(
 	p.temp.dgRound2Message2s = make([]tss.ParsedMessage, params.NewPartyCount()) // "
 	p.temp.dgRound3Message1s = make([]tss.ParsedMessage, oldPartyCount)          // from t+1 of Old Committee
 	p.temp.dgRound3Message2s = make([]tss.ParsedMessage, oldPartyCount)          // "
-	p.temp.dgRound4Messages = make([]tss.ParsedMessage, params.NewPartyCount())  // from n of New Committee
+	p.temp.dgRound4Message1s = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
+	p.temp.dgRound4Message2s = make([]tss.ParsedMessage, params.NewPartyCount()) // from n of New Committee
 	// save data init
 	if key.LocalPreParams.ValidateWithProof() {
 		p.save.LocalPreParams = key.LocalPreParams
@@ -125,7 +130,7 @@ func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// check that the message's "from index" will fit into the array
 	var maxFromIdx int
 	switch msg.Content().(type) {
-	case *DGRound2Message1, *DGRound2Message2, *DGRound4Message:
+	case *DGRound2Message1, *DGRound2Message2, *DGRound4Message1, *DGRound4Message2:
 		maxFromIdx = len(p.params.NewParties().IDs()) - 1
 	default:
 		maxFromIdx = len(p.params.OldParties().IDs()) - 1
@@ -157,8 +162,10 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		p.temp.dgRound3Message1s[fromPIdx] = msg
 	case *DGRound3Message2:
 		p.temp.dgRound3Message2s[fromPIdx] = msg
-	case *DGRound4Message:
-		p.temp.dgRound4Messages[fromPIdx] = msg
+	case *DGRound4Message1:
+		p.temp.dgRound4Message1s[fromPIdx] = msg
+	case *DGRound4Message2:
+		p.temp.dgRound4Message2s[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

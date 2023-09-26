@@ -13,8 +13,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/bnb-chain/tss-lib/common"
-	"github.com/bnb-chain/tss-lib/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
 )
 
 const (
@@ -24,6 +24,8 @@ const (
 	safePrimeBitLen = 1024
 	// Ticker for printing log statements while generating primes/modulus
 	logProgressTickInterval = 8 * time.Second
+	// Safe big len using random for ssid
+	SafeBitLen = 1024
 )
 
 // GeneratePreParams finds two safe primes and computes the Paillier secret required for the protocol.

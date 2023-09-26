@@ -1,4 +1,4 @@
-MODULE = github.com/bnb-chain/tss-lib
+MODULE = github.com/bnb-chain/tss-lib/v2
 PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 
 all: protob test
@@ -22,11 +22,13 @@ build: protob
 test_unit:
 	@echo "--> Running Unit Tests"
 	@echo "!!! WARNING: This will take a long time :)"
+	go clean -testcache
 	go test -timeout 60m $(PACKAGES)
 
 test_unit_race:
 	@echo "--> Running Unit Tests (with Race Detection)"
 	@echo "!!! WARNING: This will take a long time :)"
+	go clean -testcache
 	go test -timeout 60m -race $(PACKAGES)
 
 test:

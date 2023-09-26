@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bnb-chain/tss-lib/common"
+	"github.com/bnb-chain/tss-lib/v2/common"
 )
 
 func TestRejectionSample(t *testing.T) {

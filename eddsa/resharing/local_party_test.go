@@ -15,13 +15,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/common"
-	"github.com/bnb-chain/tss-lib/crypto"
-	"github.com/bnb-chain/tss-lib/eddsa/keygen"
-	. "github.com/bnb-chain/tss-lib/eddsa/resharing"
-	"github.com/bnb-chain/tss-lib/eddsa/signing"
-	"github.com/bnb-chain/tss-lib/test"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
+	. "github.com/bnb-chain/tss-lib/v2/eddsa/resharing"
+	"github.com/bnb-chain/tss-lib/v2/eddsa/signing"
+	"github.com/bnb-chain/tss-lib/v2/test"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 const (
@@ -44,7 +44,7 @@ func TestE2EConcurrent(t *testing.T) {
 	threshold, newThreshold := testThreshold, testThreshold
 
 	// PHASE: load keygen fixtures
-	firstPartyIdx, extraParties := 5, 1 // // extra can be 0 to N-first
+	firstPartyIdx, extraParties := 1, 1 // // extra can be 0 to N-first
 	oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+extraParties+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
@@ -62,7 +62,7 @@ func TestE2EConcurrent(t *testing.T) {
 
 	errCh := make(chan *tss.Error, bothCommitteesPax)
 	outCh := make(chan tss.Message, bothCommitteesPax)
-	endCh := make(chan keygen.LocalPartySaveData, bothCommitteesPax)
+	endCh := make(chan *keygen.LocalPartySaveData, bothCommitteesPax)
 
 	updater := test.SharedPartyUpdater
 
@@ -129,7 +129,7 @@ func TestE2EConcurrent(t *testing.T) {
 			if save.Xi != nil {
 				index, err := save.OriginalIndex()
 				assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-				newKeys[index] = save
+				newKeys[index] = *save
 			} else {
 				endedOldCommittee++
 			}

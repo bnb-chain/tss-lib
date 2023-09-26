@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/common"
-	"github.com/bnb-chain/tss-lib/crypto"
-	cmt "github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/crypto/vss"
-	"github.com/bnb-chain/tss-lib/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Implements Party
@@ -33,7 +33,7 @@ type (
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- keygen.LocalPartySaveData
+		end chan<- *keygen.LocalPartySaveData
 	}
 
 	localMessageStore struct {
@@ -67,7 +67,7 @@ func NewLocalParty(
 	params *tss.ReSharingParameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- keygen.LocalPartySaveData,
+	end chan<- *keygen.LocalPartySaveData,
 ) tss.Party {
 	oldPartyCount := len(params.OldParties().IDs())
 	subset := key

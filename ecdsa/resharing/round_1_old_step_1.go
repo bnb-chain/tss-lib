@@ -9,17 +9,18 @@ package resharing
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
-	"github.com/bnb-chain/tss-lib/crypto"
-	"github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/crypto/vss"
-	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/ecdsa/signing"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/signing"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- keygen.LocalPartySaveData) tss.Round {
+func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *keygen.LocalPartySaveData) tss.Round {
 	return &round1{
 		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }
@@ -38,6 +39,12 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.allOldOK()
 
+	round.temp.ssidNonce = new(big.Int).SetUint64(uint64(0))
+	ssid, err := round.getSSID()
+	if err != nil {
+		return round.WrapError(err)
+	}
+	round.temp.ssid = ssid
 	Pi := round.PartyID()
 	i := Pi.Index
 
@@ -69,7 +76,7 @@ func (round *round1) Start() *tss.Error {
 	// 5. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1Message(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		round.input.ECDSAPub, vCmt.C)
+		round.input.ECDSAPub, vCmt.C, ssid)
 	round.temp.dgRound1Messages[i] = r1msg
 	round.out <- r1msg
 

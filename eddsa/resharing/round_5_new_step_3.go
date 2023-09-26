@@ -9,7 +9,7 @@ package resharing
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 func (round *round5) Start() *tss.Error {
@@ -33,7 +33,7 @@ func (round *round5) Start() *tss.Error {
 		round.input.Xi.SetInt64(0)
 	}
 
-	round.end <- *round.save
+	round.end <- round.save
 	return nil
 }
 

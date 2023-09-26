@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/common"
-	cmt "github.com/bnb-chain/tss-lib/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/crypto/vss"
-	"github.com/bnb-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Implements Party
@@ -32,7 +32,7 @@ type (
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- LocalPartySaveData
+		end chan<- *LocalPartySaveData
 	}
 
 	localMessageStore struct {
@@ -49,6 +49,8 @@ type (
 		ui            *big.Int // used for tests
 		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
+		ssid          []byte
+		ssidNonce     *big.Int
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}
@@ -58,7 +60,7 @@ type (
 func NewLocalParty(
 	params *tss.Parameters,
 	out chan<- tss.Message,
-	end chan<- LocalPartySaveData,
+	end chan<- *LocalPartySaveData,
 	optionalPreParams ...LocalPreParams,
 ) tss.Party {
 	partyCount := params.PartyCount()
