@@ -57,7 +57,9 @@ func (round *round2) Start() *tss.Error {
 				round.key.H2j[j],
 				round.key.NTildej[i],
 				round.key.H1j[i],
-				round.key.H2j[i])
+				round.key.H2j[i],
+				round.Rand(),
+			)
 			// should be thread safe as these are pre-allocated
 			round.temp.betas[j] = beta
 			round.temp.c1jis[j] = c1ji
@@ -88,7 +90,9 @@ func (round *round2) Start() *tss.Error {
 				round.key.NTildej[i],
 				round.key.H1j[i],
 				round.key.H2j[i],
-				round.temp.bigWs[i])
+				round.temp.bigWs[i],
+				round.Rand(),
+			)
 			round.temp.vs[j] = v
 			round.temp.c2jis[j] = c2ji
 			round.temp.pi2jis[j] = pi2ji

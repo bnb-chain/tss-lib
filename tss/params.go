@@ -8,6 +8,8 @@ package tss
 
 import (
 	"crypto/elliptic"
+	"crypto/rand"
+	"io"
 	"runtime"
 	"time"
 )
@@ -26,6 +28,8 @@ type (
 		// for keygen
 		noProofMod bool
 		noProofFac bool
+		// random sources
+		partialKeyRand, rand io.Reader
 	}
 
 	ReSharingParameters struct {
@@ -50,6 +54,8 @@ func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyC
 		threshold:           threshold,
 		concurrency:         runtime.GOMAXPROCS(0),
 		safePrimeGenTimeout: defaultSafePrimeGenTimeout,
+		partialKeyRand:      rand.Reader,
+		rand:                rand.Reader,
 	}
 }
 
@@ -104,6 +110,22 @@ func (params *Parameters) SetNoProofMod() {
 
 func (params *Parameters) SetNoProofFac() {
 	params.noProofFac = true
+}
+
+func (params *Parameters) PartialKeyRand() io.Reader {
+	return params.partialKeyRand
+}
+
+func (params *Parameters) Rand() io.Reader {
+	return params.rand
+}
+
+func (params *Parameters) SetPartialKeyRand(rand io.Reader) {
+	params.partialKeyRand = rand
+}
+
+func (params *Parameters) SetRand(rand io.Reader) {
+	params.rand = rand
 }
 
 // ----- //

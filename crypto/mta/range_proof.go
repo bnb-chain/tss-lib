@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -32,7 +33,7 @@ type (
 )
 
 // ProveRangeAlice implements Alice's range proof used in the MtA and MtAwc protocols from GG18Spec (9) Fig. 9.
-func ProveRangeAlice(ec elliptic.Curve, pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (*RangeProofAlice, error) {
+func ProveRangeAlice(ec elliptic.Curve, pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int, rand io.Reader) (*RangeProofAlice, error) {
 	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil || m == nil || r == nil {
 		return nil, errors.New("ProveRangeAlice constructor received nil value(s)")
 	}
@@ -44,15 +45,15 @@ func ProveRangeAlice(ec elliptic.Curve, pk *paillier.PublicKey, c, NTilde, h1, h
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
 	// 1.
-	alpha := common.GetRandomPositiveInt(q3)
+	alpha := common.GetRandomPositiveInt(rand, q3)
 	// 2.
-	beta := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
+	beta := common.GetRandomPositiveRelativelyPrimeInt(rand, pk.N)
 
 	// 3.
-	gamma := common.GetRandomPositiveInt(q3NTilde)
+	gamma := common.GetRandomPositiveInt(rand, q3NTilde)
 
 	// 4.
-	rho := common.GetRandomPositiveInt(qNTilde)
+	rho := common.GetRandomPositiveInt(rand, qNTilde)
 
 	// 5.
 	modNTilde := common.ModInt(NTilde)

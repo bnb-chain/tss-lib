@@ -7,6 +7,7 @@
 package keygen
 
 import (
+	"context"
 	"errors"
 	"math/big"
 
@@ -18,14 +19,13 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
-var (
-	zero = big.NewInt(0)
-)
+var zero = big.NewInt(0)
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
+		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1},
+	}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -40,13 +40,13 @@ func (round *round1) Start() *tss.Error {
 	i := Pi.Index
 
 	// 1. calculate "partial" key share ui
-	ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	ui := common.GetRandomPositiveInt(round.PartialKeyRand(), round.EC().Params().N)
 
 	round.temp.ui = ui
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
-	vs, shares, err := vss.Create(round.Params().EC(), round.Threshold(), ui, ids)
+	vs, shares, err := vss.Create(round.EC(), round.Threshold(), ui, ids, round.Rand())
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -61,7 +61,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	cmt := cmts.NewHashCommitment(pGFlat...)
+	cmt := cmts.NewHashCommitment(round.Rand(), pGFlat...)
 
 	// 4. generate Paillier public key E_i, private key and proof
 	// 5-7. generate safe primes for ZKPs used later on
@@ -74,9 +74,13 @@ func (round *round1) Start() *tss.Error {
 	} else if round.save.LocalPreParams.ValidateWithProof() {
 		preParams = &round.save.LocalPreParams
 	} else {
-		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout(), round.Concurrency())
-		if err != nil {
-			return round.WrapError(errors.New("pre-params generation failed"), Pi)
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), round.SafePrimeGenTimeout())
+			defer cancel()
+			preParams, err = GeneratePreParamsWithContextAndRandom(ctx, round.Rand(), round.Concurrency())
+			if err != nil {
+				return round.WrapError(errors.New("pre-params generation failed"), Pi)
+			}
 		}
 	}
 	round.save.LocalPreParams = *preParams
@@ -84,16 +88,15 @@ func (round *round1) Start() *tss.Error {
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	// generate the dlnproofs for keygen
-	h1i, h2i, alpha, beta, p, q, NTildei :=
-		preParams.H1i,
+	h1i, h2i, alpha, beta, p, q, NTildei := preParams.H1i,
 		preParams.H2i,
 		preParams.Alpha,
 		preParams.Beta,
 		preParams.P,
 		preParams.Q,
 		preParams.NTildei
-	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
-	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
+	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei, round.Rand())
+	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei, round.Rand())
 
 	// for this P: SAVE
 	// - shareID

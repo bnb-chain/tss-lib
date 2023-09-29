@@ -8,7 +8,6 @@ package common
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -125,7 +124,7 @@ var ErrGeneratorCancelled = fmt.Errorf("generator work cancelled")
 // This function generates safe primes of at least 6 `bitLen`. For every
 // generated safe prime, the two most significant bits are always set to `1`
 // - we don't want the generated number to be too small.
-func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, concurrency int) ([]*GermainSafePrime, error) {
+func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, concurrency int, rand io.Reader) ([]*GermainSafePrime, error) {
 	if bitLen < 6 {
 		return nil, errors.New("safe prime size must be at least 6 bits")
 	}
@@ -149,7 +148,7 @@ func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, c
 	for i := 0; i < concurrency; i++ {
 		waitGroup.Add(1)
 		runGenPrimeRoutine(
-			generatorCtx, primeCh, errCh, waitGroup, rand.Reader, bitLen,
+			generatorCtx, primeCh, errCh, waitGroup, rand, bitLen,
 		)
 	}
 
@@ -175,35 +174,35 @@ func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, c
 // a bit length equal to `pBitLen-1`.
 //
 // The algorithm is as follows:
-// 1. Generate a random odd number `q` of length `pBitLen-1` with two the most
-//    significant bits set to `1`.
-// 2. Execute preliminary primality test on `q` checking whether it is coprime
-//    to all the elements of `smallPrimes`. It allows to eliminate trivial
-//    cases quickly, when `q` is obviously no prime, without running an
-//    expensive final primality tests.
-//    If `q` is coprime to all of the `smallPrimes`, then go to the point 3.
-//    If not, add `2` and try again. Do it at most 10 times.
-// 3. Check the potentially prime `q`, whether `q = 1 (mod 3)`. This will
-//    happen for 50% of cases.
-//    If it is, then `p = 2q+1` will be a multiple of 3, so it will be obviously
-//    not a prime number. In this case, add `2` and try again. Do it at most 10
-//    times. If `q != 1 (mod 3)`, go to the point 4.
-// 4. Now we know `q` is potentially prime and `p = 2q+1` is not a multiple of
-//    3. We execute a preliminary primality test on `p`, checking whether
-//    it is coprime to all the elements of `smallPrimes` just like we did for
-//    `q` in point 2. If `p` is not coprime to at least one element of the
-//    `smallPrimes`, then go back to point 1.
-//    If `p` is coprime to all the elements of `smallPrimes`, go to point 5.
-// 5. At this point, we know `q` is potentially prime, and `p=q+1` is also
-//    potentially prime. We need to execute a final primality test for `q`.
-//    We apply Miller-Rabin and Baillie-PSW tests. If they succeed, it means
-//    that `q` is prime with a very high probability. Knowing `q` is prime,
-//    we use Pocklington's criterion to prove the primality of `p=2q+1`, that
-//    is, we execute Fermat primality test to base 2 checking whether
-//    `2^{p-1} = 1 (mod p)`. It's significantly faster than running full
-//    Miller-Rabin and Baillie-PSW for `p`.
-//    If `q` and `p` are found to be prime, return them as a result. If not, go
-//    back to the point 1.
+//  1. Generate a random odd number `q` of length `pBitLen-1` with two the most
+//     significant bits set to `1`.
+//  2. Execute preliminary primality test on `q` checking whether it is coprime
+//     to all the elements of `smallPrimes`. It allows to eliminate trivial
+//     cases quickly, when `q` is obviously no prime, without running an
+//     expensive final primality tests.
+//     If `q` is coprime to all of the `smallPrimes`, then go to the point 3.
+//     If not, add `2` and try again. Do it at most 10 times.
+//  3. Check the potentially prime `q`, whether `q = 1 (mod 3)`. This will
+//     happen for 50% of cases.
+//     If it is, then `p = 2q+1` will be a multiple of 3, so it will be obviously
+//     not a prime number. In this case, add `2` and try again. Do it at most 10
+//     times. If `q != 1 (mod 3)`, go to the point 4.
+//  4. Now we know `q` is potentially prime and `p = 2q+1` is not a multiple of
+//  3. We execute a preliminary primality test on `p`, checking whether
+//     it is coprime to all the elements of `smallPrimes` just like we did for
+//     `q` in point 2. If `p` is not coprime to at least one element of the
+//     `smallPrimes`, then go back to point 1.
+//     If `p` is coprime to all the elements of `smallPrimes`, go to point 5.
+//  5. At this point, we know `q` is potentially prime, and `p=q+1` is also
+//     potentially prime. We need to execute a final primality test for `q`.
+//     We apply Miller-Rabin and Baillie-PSW tests. If they succeed, it means
+//     that `q` is prime with a very high probability. Knowing `q` is prime,
+//     we use Pocklington's criterion to prove the primality of `p=2q+1`, that
+//     is, we execute Fermat primality test to base 2 checking whether
+//     `2^{p-1} = 1 (mod p)`. It's significantly faster than running full
+//     Miller-Rabin and Baillie-PSW for `p`.
+//     If `q` and `p` are found to be prime, return them as a result. If not, go
+//     back to the point 1.
 func runGenPrimeRoutine(
 	ctx context.Context,
 	primeCh chan<- *GermainSafePrime,

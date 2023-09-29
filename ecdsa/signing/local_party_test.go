@@ -8,6 +8,7 @@ package signing
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"runtime"
@@ -144,7 +145,7 @@ func TestE2EWithHDKeyDerivation(t *testing.T) {
 	chainCode := make([]byte, 32)
 	max32b := new(big.Int).Lsh(new(big.Int).SetUint64(1), 256)
 	max32b = new(big.Int).Sub(max32b, new(big.Int).SetUint64(1))
-	fillBytes(common.GetRandomPositiveInt(max32b), chainCode)
+	fillBytes(common.GetRandomPositiveInt(rand.Reader, max32b), chainCode)
 
 	il, extendedChildPk, errorDerivation := derivingPubkeyFromPath(keys[0].ECDSAPub, chainCode, []uint32{12, 209, 3}, btcec.S256())
 	assert.NoErrorf(t, errorDerivation, "there should not be an error deriving the child public key")

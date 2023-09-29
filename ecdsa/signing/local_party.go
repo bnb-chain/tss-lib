@@ -21,8 +21,10 @@ import (
 
 // Implements Party
 // Implements Stringer
-var _ tss.Party = (*LocalParty)(nil)
-var _ fmt.Stringer = (*LocalParty)(nil)
+var (
+	_ tss.Party    = (*LocalParty)(nil)
+	_ fmt.Stringer = (*LocalParty)(nil)
+)
 
 type (
 	LocalParty struct {
@@ -102,7 +104,8 @@ func NewLocalParty(
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- *common.SignatureData) tss.Party {
+	end chan<- *common.SignatureData,
+) tss.Party {
 	return NewLocalPartyWithKDD(msg, params, key, nil, out, end)
 }
 

@@ -7,6 +7,7 @@
 package keygen
 
 import (
+	"crypto/rand"
 	"math/big"
 	"runtime"
 	"testing"
@@ -29,6 +30,7 @@ func BenchmarkDlnProof_Verify(b *testing.B) {
 		params.P,
 		params.Q,
 		params.NTildei,
+		rand.Reader,
 	)
 
 	b.ResetTimer()
@@ -228,6 +230,7 @@ func prepareProof() (*LocalPreParams, [][]byte, error) {
 		preParams.P,
 		preParams.Q,
 		preParams.NTildei,
+		rand.Reader,
 	)
 
 	serialized, err := proof.Serialize()

@@ -7,6 +7,7 @@
 package modproof_test
 
 import (
+	"crypto/rand"
 	"testing"
 	"time"
 
@@ -15,9 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	Session = []byte("session")
-)
+var Session = []byte("session")
 
 func TestMod(test *testing.T) {
 	preParams, err := keygen.GeneratePreParams(time.Minute*10, 8)
@@ -25,7 +24,7 @@ func TestMod(test *testing.T) {
 
 	P, Q, N := preParams.PaillierSK.P, preParams.PaillierSK.Q, preParams.PaillierSK.N
 
-	proof, err := NewProof(Session, N, P, Q)
+	proof, err := NewProof(Session, N, P, Q, rand.Reader)
 	assert.NoError(test, err)
 
 	proofBzs := proof.Bytes()

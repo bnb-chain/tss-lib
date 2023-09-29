@@ -47,8 +47,7 @@ func (round *round2) Start() *tss.Error {
 	wg := new(sync.WaitGroup)
 	for j, msg := range round.temp.kgRound1Messages {
 		r1msg := msg.Content().(*KGRound1Message)
-		H1j, H2j, NTildej, paillierPKj :=
-			r1msg.UnmarshalH1(),
+		H1j, H2j, NTildej, paillierPKj := r1msg.UnmarshalH1(),
 			r1msg.UnmarshalH2(),
 			r1msg.UnmarshalNTilde(),
 			r1msg.UnmarshalPaillierPK()
@@ -99,8 +98,7 @@ func (round *round2) Start() *tss.Error {
 			continue
 		}
 		r1msg := msg.Content().(*KGRound1Message)
-		paillierPK, H1j, H2j, NTildej, KGC :=
-			r1msg.UnmarshalPaillierPK(),
+		paillierPK, H1j, H2j, NTildej, KGC := r1msg.UnmarshalPaillierPK(),
 			r1msg.UnmarshalH1(),
 			r1msg.UnmarshalH2(),
 			r1msg.UnmarshalNTilde(),
@@ -116,12 +114,14 @@ func (round *round2) Start() *tss.Error {
 	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
 	for j, Pj := range round.Parties().IDs() {
 
-		facProof := &facproof.ProofFac{P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
-			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero}
+		facProof := &facproof.ProofFac{
+			P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
+			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero,
+		}
 		if !round.Params().NoProofFac() {
 			var err error
 			facProof, err = facproof.NewProof(ContextI, round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
-				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
+				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
 			if err != nil {
 				return round.WrapError(err, round.PartyID())
 			}
@@ -141,7 +141,7 @@ func (round *round2) Start() *tss.Error {
 	if !round.Parameters.NoProofMod() {
 		var err error
 		modProof, err = modproof.NewProof(ContextI, round.save.PaillierSK.N,
-			round.save.PaillierSK.P, round.save.PaillierSK.Q)
+			round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
 		if err != nil {
 			return round.WrapError(err, round.PartyID())
 		}

@@ -7,6 +7,7 @@
 package schnorr_test
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,15 +18,13 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
-var (
-	Session = []byte("session")
-)
+var Session = []byte("session")
 
 func TestSchnorrProof(t *testing.T) {
 	q := tss.EC().Params().N
-	u := common.GetRandomPositiveInt(q)
+	u := common.GetRandomPositiveInt(rand.Reader, q)
 	uG := crypto.ScalarBaseMult(tss.EC(), u)
-	proof, _ := NewZKProof(Session, u, uG)
+	proof, _ := NewZKProof(Session, u, uG, rand.Reader)
 
 	assert.True(t, proof.Alpha.IsOnCurve())
 	assert.NotZero(t, proof.Alpha.X())
@@ -35,10 +34,10 @@ func TestSchnorrProof(t *testing.T) {
 
 func TestSchnorrProofVerify(t *testing.T) {
 	q := tss.EC().Params().N
-	u := common.GetRandomPositiveInt(q)
+	u := common.GetRandomPositiveInt(rand.Reader, q)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 
-	proof, _ := NewZKProof(Session, u, X)
+	proof, _ := NewZKProof(Session, u, X, rand.Reader)
 	res := proof.Verify(Session, X)
 
 	assert.True(t, res, "verify result must be true")
@@ -46,12 +45,12 @@ func TestSchnorrProofVerify(t *testing.T) {
 
 func TestSchnorrProofVerifyBadX(t *testing.T) {
 	q := tss.EC().Params().N
-	u := common.GetRandomPositiveInt(q)
-	u2 := common.GetRandomPositiveInt(q)
+	u := common.GetRandomPositiveInt(rand.Reader, q)
+	u2 := common.GetRandomPositiveInt(rand.Reader, q)
 	X := crypto.ScalarBaseMult(tss.EC(), u)
 	X2 := crypto.ScalarBaseMult(tss.EC(), u2)
 
-	proof, _ := NewZKProof(Session, u2, X2)
+	proof, _ := NewZKProof(Session, u2, X2, rand.Reader)
 	res := proof.Verify(Session, X)
 
 	assert.False(t, res, "verify result must be false")
@@ -59,15 +58,15 @@ func TestSchnorrProofVerifyBadX(t *testing.T) {
 
 func TestSchnorrVProofVerify(t *testing.T) {
 	q := tss.EC().Params().N
-	k := common.GetRandomPositiveInt(q)
-	s := common.GetRandomPositiveInt(q)
-	l := common.GetRandomPositiveInt(q)
+	k := common.GetRandomPositiveInt(rand.Reader, q)
+	s := common.GetRandomPositiveInt(rand.Reader, q)
+	l := common.GetRandomPositiveInt(rand.Reader, q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
 	V, _ := Rs.Add(lG)
 
-	proof, _ := NewZKVProof(Session, V, R, s, l)
+	proof, _ := NewZKVProof(Session, V, R, s, l, rand.Reader)
 	res := proof.Verify(Session, V, R)
 
 	assert.True(t, res, "verify result must be true")
@@ -75,14 +74,14 @@ func TestSchnorrVProofVerify(t *testing.T) {
 
 func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 	q := tss.EC().Params().N
-	k := common.GetRandomPositiveInt(q)
-	s := common.GetRandomPositiveInt(q)
-	l := common.GetRandomPositiveInt(q)
+	k := common.GetRandomPositiveInt(rand.Reader, q)
+	s := common.GetRandomPositiveInt(rand.Reader, q)
+	l := common.GetRandomPositiveInt(rand.Reader, q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	V := Rs
 
-	proof, _ := NewZKVProof(Session, V, R, s, l)
+	proof, _ := NewZKVProof(Session, V, R, s, l, rand.Reader)
 	res := proof.Verify(Session, V, R)
 
 	assert.False(t, res, "verify result must be false")
@@ -90,16 +89,16 @@ func TestSchnorrVProofVerifyBadPartialV(t *testing.T) {
 
 func TestSchnorrVProofVerifyBadS(t *testing.T) {
 	q := tss.EC().Params().N
-	k := common.GetRandomPositiveInt(q)
-	s := common.GetRandomPositiveInt(q)
-	s2 := common.GetRandomPositiveInt(q)
-	l := common.GetRandomPositiveInt(q)
+	k := common.GetRandomPositiveInt(rand.Reader, q)
+	s := common.GetRandomPositiveInt(rand.Reader, q)
+	s2 := common.GetRandomPositiveInt(rand.Reader, q)
+	l := common.GetRandomPositiveInt(rand.Reader, q)
 	R := crypto.ScalarBaseMult(tss.EC(), k) // k_-1 * G
 	Rs := R.ScalarMult(s)
 	lG := crypto.ScalarBaseMult(tss.EC(), l)
 	V, _ := Rs.Add(lG)
 
-	proof, _ := NewZKVProof(Session, V, R, s2, l)
+	proof, _ := NewZKVProof(Session, V, R, s2, l, rand.Reader)
 	res := proof.Verify(Session, V, R)
 
 	assert.False(t, res, "verify result must be false")
