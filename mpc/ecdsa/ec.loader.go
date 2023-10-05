@@ -7,6 +7,7 @@
 package ecdsa
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -17,43 +18,54 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/mpc"
 )
 
-func loadKeyIndex(index int, total int) (*keygen.LocalPartySaveData, *tss.PartyID, error) {
-	fixtureFilePath := mpc.GetKeyPath("ecdsa", index)
-	bz, err := ioutil.ReadFile(fixtureFilePath)
+func LoadKey(algo string, groupId string, totalCount int, threshold int, index int) (*keygen.LocalPartySaveData, error) {
+	keyFilePath := mpc.GetKeyFilePath(algo, groupId, totalCount, threshold, index)
+	bz, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var key keygen.LocalPartySaveData
 	if err = json.Unmarshal(bz, &key); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	for _, kbxj := range key.BigXj {
 		kbxj.SetCurve(tss.EC())
 	}
 	key.ECDSAPub.SetCurve(tss.EC())
-	partyID := mpc.MakeParty(index, total, key.ShareID)
-
-	return &key, partyID, nil
+	return &key, nil
 }
 
-func LoadKeys(indexes []int, total int) ([]*keygen.LocalPartySaveData, tss.SortedPartyIDs, error) {
-	keys := make([]*keygen.LocalPartySaveData, 0, len(indexes))
-	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
-	for _, index := range indexes {
-		key, partyID, err := loadKeyIndex(index, total)
-		if err != nil {
-			return nil, nil, err
-		}
-		keys = append(keys, key)
-		partyIDs = append(partyIDs, partyID)
+func GetPublicKeyFromSaveData(saveData *keygen.LocalPartySaveData) *ecdsa.PublicKey {
+	return &ecdsa.PublicKey{
+		Curve: tss.EC(),
+		X:     saveData.ECDSAPub.X(),
+		Y:     saveData.ECDSAPub.Y(),
 	}
-	sortedPIDs := tss.SortPartyIDs(partyIDs)
-	return keys, sortedPIDs, nil
 }
 
-func SaveKey(index int, data *keygen.LocalPartySaveData) {
-	fixtureFilePath := mpc.GetKeyPath("ecdsa", index)
-	fd, err := os.OpenFile(fixtureFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+func GetMPCPubFromSaveData(saveData *keygen.LocalPartySaveData) *mpc.FSLMPCPublicKey {
+	publicKey := GetPublicKeyFromSaveData(saveData)
+	hexPubX := publicKey.X.Text(16)
+	for 64 > len(hexPubX) {
+		hexPubX = "0" + hexPubX
+	}
+
+	hexPubY := publicKey.Y.Text(16)
+	for 64 > len(hexPubY) {
+		hexPubY = "0" + hexPubY
+	}
+
+	return &mpc.FSLMPCPublicKey{
+		Curve:  tss.EC().Params().Name,
+		X:      hexPubX,
+		Y:      hexPubY,
+		Encode: "04" + hexPubX + hexPubY,
+	}
+}
+
+func SaveKey(algo string, groupId string, totalCount int, threshold int, savedIndex int, data *keygen.LocalPartySaveData) string {
+	keyFilePath := mpc.GetKeyFilePath(algo, groupId, totalCount, threshold, savedIndex)
+	fd, err := os.OpenFile(keyFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -67,4 +79,6 @@ func SaveKey(index int, data *keygen.LocalPartySaveData) {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	return keyFilePath
 }

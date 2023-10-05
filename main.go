@@ -10,18 +10,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
-	"math/rand"
-	"time"
-
-	"github.com/decred/dcrd/dcrec/edwards/v2"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/bnb-chain/tss-lib/v2/mpc"
 	"github.com/bnb-chain/tss-lib/v2/mpc/ecdsa"
 	"github.com/bnb-chain/tss-lib/v2/mpc/eddsa"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
 )
-
-var logLevel = "info"
 
 func signTest() {
 	secretBytes, _ := hex.DecodeString("d37ab481909f944db8a9a4c6bfbb76b4f28e0421dd476da03dcfe9775ec5ee37")
@@ -68,54 +67,63 @@ func signTest() {
 	// }
 }
 
+var logLevel = "info"
+
 func main() {
 	// signTest()
 	// return
 
-	var totalCount = 3
-	var threshold = 2
-	var out []byte
+	algo := os.Args[1]
+	step := os.Args[2]
+	groupId := os.Args[3]
+	totalCount, _ := strconv.ParseInt(os.Args[4], 10, 32)
+	threshold, _ := strconv.ParseInt(os.Args[5], 10, 32)
+	index, _ := strconv.ParseInt(os.Args[6], 10, 32)
 
 	// if err := log.SetLogLevel("tss-lib", logLevel); err != nil {
 	// 	panic(err)
 	// }
 
-	strOri := "string"
-	hexOri := hex.EncodeToString([]byte(strOri))
-	hexHash := mpc.MakeHashFromString(hexOri)
-	bHash, _ := hex.DecodeString(hexHash)
-	// hexHash1 = mpc.MakeHashFromBigInt(biOri)
+	// fmt.Printf("Test Args Count[%d]\n", len(os.Args))
+	// for idx, curArg := range os.Args {
+	// 	fmt.Printf("  [%d][%s]\n", idx, curArg)
+	// }
 
-	{
-		savedIndexes, masterPub := ecdsa.KeygenProc(threshold, totalCount)
-		fmt.Printf("keyGen index [%v]\n", savedIndexes)
-		out, _ = json.MarshalIndent(masterPub, "", "  ")
-		fmt.Printf("keygen result [%s]\n", string(out))
+	if "KEYGEN" == step {
+		fmt.Printf("===========%s[%d-of-%d][%d] Start [%s]===========\n", algo, threshold, totalCount, index, step)
+		var saveFilePath string
+		if "EC" == algo {
+			saveFilePath = ecdsa.KeygenProc(groupId, int(totalCount), int(threshold), int(index))
+		} else if "ED" == algo {
+			saveFilePath = eddsa.KeygenProc(groupId, int(totalCount), int(threshold), int(index))
+		} else {
+			panic(fmt.Sprintf("algo [%s] is not support\n", algo))
+		}
 
-		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(savedIndexes), func(i, j int) { savedIndexes[i], savedIndexes[j] = savedIndexes[j], savedIndexes[i] })
+		out, _ := ioutil.ReadFile(saveFilePath)
+		fmt.Printf("keygen result [%s]\n%s\n", saveFilePath, string(out))
+		fmt.Printf("===========%s[%d-of-%d][%d] End [%s]===========\n", algo, threshold, totalCount, index, step)
+	} else if "SIGNING" == step {
+		fmt.Printf("===========%s[%d-of-%d][%d][%s] Start [%s]===========\n", algo, threshold, totalCount, index, os.Args[7], step)
+		var signInfo *mpc.FSLMPCSignInfo
+		var signerIndexes []int
+		for _, signerIndex := range strings.Split(os.Args[7], ",") {
+			curIndex, _ := strconv.ParseInt(signerIndex, 10, 32)
+			signerIndexes = append(signerIndexes, int(curIndex))
+		}
+		hexSignMessage := hex.EncodeToString([]byte(os.Args[8]))
+		if "EC" == algo {
+			signInfo = ecdsa.SigningProc(groupId, int(totalCount), int(threshold), int(index), signerIndexes, hexSignMessage)
+		} else if "ED" == algo {
+			signInfo = eddsa.SigningProc(groupId, int(totalCount), int(threshold), int(index), signerIndexes, hexSignMessage)
+		} else {
+			panic(fmt.Sprintf("algo [%s] is not support\n", algo))
+		}
 
-		var signIndexes = savedIndexes[:threshold]
-		fmt.Printf("signing keys index [%v]\n", signIndexes)
-
-		sigInfo := ecdsa.SigningProc(threshold, totalCount, signIndexes, bHash)
-		out, _ = json.MarshalIndent(sigInfo, "", "  ")
+		out, _ := json.MarshalIndent(signInfo, "", "  ")
 		fmt.Printf("signing result [%s]\n", string(out))
+		fmt.Printf("===========%s[%d-of-%d][%d][%s] End [%s]===========\n", algo, threshold, totalCount, index, os.Args[7], step)
+	} else {
+		panic(fmt.Sprintf("step [%s] is not support\n", step))
 	}
-
-	{
-		savedIndexes, masterPub := eddsa.KeygenProc(threshold, totalCount)
-		fmt.Printf("keyGen keys[%s] index [%v]\n", masterPub, savedIndexes)
-
-		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(savedIndexes), func(i, j int) { savedIndexes[i], savedIndexes[j] = savedIndexes[j], savedIndexes[i] })
-
-		var signIndexes = savedIndexes[:threshold]
-		fmt.Printf("signing keys index [%v]\n", signIndexes)
-
-		sigInfo := eddsa.SigningProc(threshold, totalCount, signIndexes, bHash)
-		out, _ = json.MarshalIndent(sigInfo, "", "  ")
-		fmt.Printf("signing result [%s]\n", string(out))
-	}
-
 }

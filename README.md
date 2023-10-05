@@ -1,162 +1,135 @@
-# Multi-Party Threshold Signature Scheme
-[![MIT licensed][1]][2] [![GoDoc][3]][4] [![Go Report Card][5]][6]
+# BNB MPC Library For FSL
 
-[1]: https://img.shields.io/badge/license-MIT-blue.svg
-[2]: LICENSE
-[3]: https://godoc.org/github.com/bnb-chain/tss-lib?status.svg
-[4]: https://godoc.org/github.com/bnb-chain/tss-lib
-[5]: https://goreportcard.com/badge/github.com/bnb-chain/tss-lib
-[6]: https://goreportcard.com/report/github.com/bnb-chain/tss-lib
+오리지널 BNB 라이브러리는 이곳을 참조하며
 
-Permissively MIT Licensed.
+자세한 설명, 참조사항등을 보기위해서 이곳을 참조하도록 한다. [2.0.1 github](https://github.com/bnb-chain/tss-lib/tree/v2.0.1).
 
-Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
+ 
 
-## Introduction
-This is an implementation of multi-party {t,n}-threshold ECDSA (Elliptic Curve Digital Signature Algorithm) based on Gennaro and Goldfeder CCS 2018 [1] and EdDSA (Edwards-curve Digital Signature Algorithm) following a similar approach.
+## 라이브러리 선택시 장점
+해당 라이브러리는 gg18의 보안 취약점을 패치한 버전이다.
 
-This library includes three protocols:
+EDDSA(ED25519) 또한 지원한다. (자신들만의 알고리즘을 이용하지만)
 
-* Key Generation for creating secret shares with no trusted dealer ("keygen").
-* Signing for using the secret shares to generate a signature ("signing").
-* Dynamic Groups to change the group of participants while keeping the secret ("resharing").
+## 라이브러리 선택시 단점
+gg18만 지원한다.
 
-⚠️ Do not miss [these important notes](#how-to-use-this-securely) on implementing this library securely
+EDDSA사용시 자신들만의 알고리즘을 이용하므로 믿을수있을지 검토해봐야 한다.
 
-## Rationale
-ECDSA is used extensively for crypto-currencies such as Bitcoin, Ethereum (secp256k1 curve), NEO (NIST P-256 curve) and many more. 
+## 라이브러리 이용
+클라이언트에서 사용할 라이브러리 형식으로 컴파일을 해야 한다. (wsam or javascript or binary lib(so,dylib,dll) 등등)
 
-EdDSA is used extensively for crypto-currencies such as Cardano, Aeternity, Stellar Lumens and many more.
+## 수정 사항
+원본의 Test Code중 로컬동작을 위한 로직을 수정, KeyGen시 리모트를 호출할수있는 함수 생성
 
-For such currencies this technique may be used to create crypto wallets where multiple parties must collaborate to sign transactions. See [MultiSig Use Cases](https://en.bitcoin.it/wiki/Multisignature#Multisignature_Applications)
+FSL용 편하게 사용하기 위한 패키지 추가 (./tss-lib/mpc)
 
-One secret share per key/address is stored locally by each participant and these are kept safe by the protocol – they are never revealed to others at any time. Moreover, there is no trusted dealer of the shares.
+외부와 소통은 프로세스간 통신을 이용한다. ( file read / write )
 
-In contrast to MultiSig solutions, transactions produced by TSS preserve the privacy of the signers by not revealing which `t+1` participants were involved in their signing.
+resharing 은 구현하지 않았다. 
 
-There is also a performance bonus in that blockchain nodes may check the validity of a signature without any extra MultiSig logic or processing.
+## 샘플
+선작업
 
-## Usage
-You should start by creating an instance of a `LocalParty` and giving it the arguments that it needs.
+프로젝트 루트로 이동하여 go build 를 실행하여 컴파일 한다.
 
-The `LocalParty` that you use should be from the `keygen`, `signing` or `resharing` package depending on what you want to do.
+컴파일한 tss-lib 실행파일을 아래와 같이 복사한다.
 
-### Setup
-```go
-// When using the keygen party it is recommended that you pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
-// This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
-preParams, _ := keygen.GeneratePreParams(1 * time.Minute)
+아래는 2-of-3 테스트시 각 파티별 디렉토리구조이다. 
 
-// Create a `*PartyID` for each participating peer on the network (you should call `tss.NewPartyID` for each one)
-parties := tss.SortPartyIDs(getParticipantPartyIDs())
-
-// Set up the parameters
-// Note: The `id` and `moniker` fields are for convenience to allow you to easily track participants.
-// The `id` should be a unique string representing this party in the network and `moniker` can be anything (even left blank).
-// The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
-thisParty := tss.NewPartyID(id, moniker, uniqueKey)
-ctx := tss.NewPeerContext(parties)
-
-// Select an elliptic curve
-// use ECDSA
-curve := tss.S256()
-// or use EdDSA
-// curve := tss.Edwards()
-
-params := tss.NewParameters(curve, ctx, thisParty, len(parties), threshold)
-
-// You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
-partyIDMap := make(map[string]*PartyID)
-for _, id := range parties {
-    partyIDMap[id.Id] = id
-}
+```bash
+~
+└── Test
+    └── TSSLib
+        ├── 0
+        │   └── tss-lib
+        ├── 1
+        │   └── tss-lib
+        └── 2
+            └── tss-lib
 ```
 
-### Keygen
-Use the `keygen.LocalParty` for the keygen protocol. The save data you receive through the `endCh` upon completion of the protocol should be persisted to secure storage.
+KeyGen 샘플 (ECDSA 2-of-3, 그룹명: FSL_Test_MPC)
+```bash
+//n-of-m
+tss-lib [알고리즘(EC or ED)] KEYGEN [그룹명] [모든파티 갯수(m)] [사이너 갯수(n)] [자신의 인텍스]
+# 설공시 자신의 하위 디렉토리(keys/알고리즘_그룹명[n-of-m][자신의 인덱스]/key.json)에 키 파일이 생성된다.
+```
+```bash
+# ecdsa 2-of-3 키 생성시 예제
+# 독립된 프로세서(터미널)에서 실행 첫번째(0) 파티
+./tss-lib EC KEYGEN FSL_Test_MPC 3 2 0
+# 출력되는 키정보는 매우 길어서 이곳에 넣지는 않는다. 
+...
 
-```go
-party := keygen.NewLocalParty(params, outCh, endCh, preParams) // Omit the last arg to compute the pre-params in round 1
-go func() {
-    err := party.Start()
-    // handle err ...
-}()
+# 독립된 프로세서(터미널)에서 실행 두번째(1) 파티
+./tss-lib EC KEYGEN FSL_Test_MPC 3 2 1
+# 출력되는 키정보는 매우 길어서 이곳에 넣지는 않는다.
+...
+
+# 독립된 프로세서(터미널)에서 실행 세번째(2) 파티
+./tss-lib EC KEYGEN FSL_Test_MPC 3 2 2
+# 출력되는 키정보는 매우 길어서 이곳에 넣지는 않는다.
 ```
 
-### Signing
-Use the `signing.LocalParty` for signing and provide it with a `message` to sign. It requires the key data obtained from the keygen protocol. The signature will be sent through the `endCh` once completed.
+Signing 샘플 (ECDSA 2-of-3, 그룹명: FSL_Test_MPC, Signer들: 1,2, 사인메시지: this_is_plain_text_for_sign,if_you_will_use_hex_string_more_develop)
+```bash
+//n-of-m
+tss-lib [알고리즘(EC or ED)] SIGNING [그룹명] [모든파티 갯수(m)] [사이너 갯수(n)] [자신의 인텍스] [Signer들] [사인메시지]
+# 설공시 콘솔에 서명 메시지를 참조한다.
+```
+```bash
+# ecdsa 2-of-3 키 생성시 예제
+# 독립된 프로세서(터미널)에서 실행 두번째(1) 파티
+./tss-lib EC SIGNING FSL_Test_MPC 3 2 1 1,2 signMessage
+signing result [{
+  "PublicKey": {
+    "Curve": "secp256k1",
+    "X": "b356c1e66d091befd0cc56295b2b223ffdb236f7b3eef98962e6f34eeae46bde",
+    "Y": "466a19a604c0295cb03b045fac8723108a4b1cf7adcb8e1a61e04914734b11e7",
+    "Encode": "04b356c1e66d091befd0cc56295b2b223ffdb236f7b3eef98962e6f34eeae46bde466a19a604c0295cb03b045fac8723108a4b1cf7adcb8e1a61e04914734b11e7"
+  },
+  "Message": "48690881b1b8b0dadec14c4e8ead19b5cf4df5678bccb7ae57db11ac7e306614",
+  "R": "8fc521975f7d14a572e712431f512f0caf35726e71aac917153ae68376b2384c",
+  "S": "77ffcf2dd95497c12d3980b99dc72475ce5af6b1165635c524c981853039e99c",
+  "Rec": "00",
+  "Encode": "304402208fc521975f7d14a572e712431f512f0caf35726e71aac917153ae68376b2384c022077ffcf2dd95497c12d3980b99dc72475ce5af6b1165635c524c981853039e99c"
+}]
+...
 
-Please note that `t+1` signers are required to sign a message and for optimal usage no more than this should be involved. Each signer should have the same view of who the `t+1` signers are.
-
-```go
-party := signing.NewLocalParty(message, params, ourKeyData, outCh, endCh)
-go func() {
-    err := party.Start()
-    // handle err ...
-}()
+# 독립된 프로세서(터미널)에서 실행 세번째(2) 파티
+./tss-lib EC SIGNING FSL_Test_MPC 3 2 2 1,2 signMessage
+sign verify success
+signing result [{
+  "PublicKey": {
+    "Curve": "secp256k1",
+    "X": "b356c1e66d091befd0cc56295b2b223ffdb236f7b3eef98962e6f34eeae46bde",
+    "Y": "466a19a604c0295cb03b045fac8723108a4b1cf7adcb8e1a61e04914734b11e7",
+    "Encode": "04b356c1e66d091befd0cc56295b2b223ffdb236f7b3eef98962e6f34eeae46bde466a19a604c0295cb03b045fac8723108a4b1cf7adcb8e1a61e04914734b11e7"
+  },
+  "Message": "48690881b1b8b0dadec14c4e8ead19b5cf4df5678bccb7ae57db11ac7e306614",
+  "R": "8fc521975f7d14a572e712431f512f0caf35726e71aac917153ae68376b2384c",
+  "S": "77ffcf2dd95497c12d3980b99dc72475ce5af6b1165635c524c981853039e99c",
+  "Rec": "00",
+  "Encode": "304402208fc521975f7d14a572e712431f512f0caf35726e71aac917153ae68376b2384c022077ffcf2dd95497c12d3980b99dc72475ce5af6b1165635c524c981853039e99c"
+}]
 ```
 
-### Re-Sharing
-Use the `resharing.LocalParty` to re-distribute the secret shares. The save data received through the `endCh` should overwrite the existing key data in storage, or write new data if the party is receiving a new share.
-
-Please note that `ReSharingParameters` is used to give this Party more context about the re-sharing that should be carried out.
-
-```go
-party := resharing.NewLocalParty(params, ourKeyData, outCh, endCh)
-go func() {
-    err := party.Start()
-    // handle err ...
-}()
+## 자동 테스트 
+./test_ks_si.sh 파일을 실행한다.
+```bash
+sh ./test_ks_si.sh
+# KeyGen( ec , 2-of-3 ) -> loop 5 Signing( rand(사이너들) )
+# KeyGen( ed , 2-of-3 ) -> loop 5 Signing( rand(사이너들) )
 ```
 
-⚠️ During re-sharing the key data may be modified during the rounds. Do not ever overwrite any data saved on disk until the final struct has been received through the `end` channel.
+## 외부 툴을 이용한 검증
+아래의 링크로 가서 서명의 유효성을 검증해본다.
 
-## Messaging
-In these examples the `outCh` will collect outgoing messages from the party and the `endCh` will receive save data or a signature when the protocol is complete.
+https://kjur.github.io/jsrsasign/sample/sample-ecdsa.html
 
-During the protocol you should provide the party with updates received from other participating parties on the network.
-
-A `Party` has two thread-safe methods on it for receiving updates.
-```go
-// The main entry point when updating a party's state from the wire
-UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (ok bool, err *tss.Error)
-// You may use this entry point to update a party's state when running locally or in tests
-Update(msg tss.ParsedMessage) (ok bool, err *tss.Error)
-```
-
-And a `tss.Message` has the following two methods for converting messages to data for the wire:
-```go
-// Returns the encoded message bytes to send over the wire along with routing information
-WireBytes() ([]byte, *tss.MessageRouting, error)
-// Returns the protobuf wrapper message struct, used only in some exceptional scenarios (i.e. mobile apps)
-WireMsg() *tss.MessageWrapper
-```
-
-In a typical use case, it is expected that a transport implementation will consume message bytes via the `out` channel of the local `Party`, send them to the destination(s) specified in the result of `msg.GetTo()`, and pass them to `UpdateFromBytes` on the receiving end.
-
-This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
-
-## Changes of Preparams of ECDSA in v2.0
-
-Two fields PaillierSK.P and PaillierSK.Q is added in version 2.0. They are used to generate Paillier key proofs. Key valuts generated from versions before 2.0 need to regenerate(resharing) the key valuts to update the praparams with the necessary fileds filled.
-
-## How to use this securely
-
-⚠️ This section is important. Be sure to read it!
-
-The transport for messaging is left to the application layer and is not provided by this library. Each one of the following paragraphs should be read and followed carefully as it is crucial that you implement a secure transport to ensure safety of the protocol.
-
-When you build a transport, it should offer a broadcast channel as well as point-to-point channels connecting every pair of parties. Your transport should also employ suitable end-to-end encryption (TLS with an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)) is recommended) between parties to ensure that a party can only read the messages sent to it.
-
-Within your transport, each message should be wrapped with a **session ID** that is unique to a single run of the keygen, signing or re-sharing rounds. This session ID should be agreed upon out-of-band and known only by the participating parties before the rounds begin. Upon receiving any message, your program should make sure that the received session ID matches the one that was agreed upon at the start.
-
-Additionally, there should be a mechanism in your transport to allow for "reliable broadcasts", meaning parties can broadcast a message to other parties such that it's guaranteed that each one receives the same message. There are several examples of algorithms online that do this by sharing and comparing hashes of received messages.
-
-Timeouts and errors should be handled by your application. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
-
-## Security Audit
-A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report [`audit-binance-tss-lib-final-20191018.pdf`](https://github.com/bnb-chain/tss-lib/releases/download/v1.0.0/audit-binance-tss-lib-final-20191018.pdf) may be found in the v1.0.0 release notes of this repository.
-
-## References
-\[1\] https://eprint.iacr.org/2019/114.pdf
-
+1. ECC curve name을 secp256k1 으로 설정
+2. EC public key (hex): 란에 signing result.PublicKey.Encode 값 복사
+3. Message strign to be signed: 란에 signing시 입력한 signMessage 값 복사
+4. Signature value (hex): 란에 signing result.Encode 값을 복사
+5. verify it! 을 클릭하여 생성된 값을 검증한다.

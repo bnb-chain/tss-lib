@@ -7,12 +7,12 @@
 package ecdsa
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
-	"sync/atomic"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/signing"
@@ -39,18 +39,47 @@ func getSigEncode(r *big.Int, s *big.Int) string {
 	return fmt.Sprintf("30%02x02%02x%s02%02x%s", 4+len(hexSigR)/2+len(hexSigS)/2, len(hexSigR)/2, hexSigR, len(hexSigS)/2, hexSigS)
 }
 
-func SigningProc(threshold int, totalCount int, signIndexes []int, message []byte) *mpc.MPCSignRet {
-	ret := &mpc.MPCSignRet{}
-	if totalCount < threshold || threshold != len(signIndexes) {
-		panic(fmt.Sprintf("n[%d]-of-m[%d] and singerCount[%d] invalid\n", threshold, totalCount, len(signIndexes)))
+func SigningProc(groupId string, totalCount int, threshold int, savedIndex int, savedSignerIndexes []int, hexMessage string) *mpc.FSLMPCSignInfo {
+	const ALGO = "ECDSA"
+	const STEP = "SIGNING"
+
+	signInfo := &mpc.FSLMPCSignInfo{}
+	if totalCount < threshold || threshold != len(savedSignerIndexes) {
+		panic(fmt.Sprintf("n[%d]-of-m[%d] and singerCount[%d] invalid\n", threshold, totalCount, len(savedSignerIndexes)))
 	}
 
-	sort.Ints(signIndexes)
-	keys, signPIDs, lErr := LoadKeys(signIndexes, totalCount)
-	if nil != lErr {
-		panic(lErr)
+	findIndex := false
+	for _, curIndex := range savedSignerIndexes {
+		if savedIndex == curIndex {
+			findIndex = true
+			break
+		}
+	}
+	if false == findIndex {
+		panic(fmt.Sprintf("current user index[%d] is not in singers indexes[%v]\n", savedIndex, savedSignerIndexes))
+	}
+
+	savedKey, err := LoadKey(ALGO, groupId, totalCount, threshold, savedIndex)
+	if nil != err {
+		panic(err)
+	}
+	originIndex, err := savedKey.OriginalIndex()
+	if nil != err {
+		panic(err)
+	}
+	if originIndex != savedIndex {
+		panic(fmt.Sprintf("current user index[%d] is not equal savedData index[%d]\n", savedIndex, originIndex))
+	}
+
+	sort.Ints(savedSignerIndexes)
+	signPIDs := mpc.LoadParties(groupId, totalCount, threshold, savedSignerIndexes, savedKey.Ks)
+	curSignPID := signPIDs.FindByKey(savedKey.ShareID)
+	if nil == curSignPID || 0 != bytes.Compare(curSignPID.GetKey(), savedKey.ShareID.Bytes()) {
+		panic(fmt.Sprintf("current user index[%d] is not in singer shareId\n", savedIndex))
 	}
 	signerCount := len(signPIDs)
+	mpc.ResetShareData(STEP, ALGO, groupId, totalCount, threshold, curSignPID.Index)
+	// fmt.Printf("savedIndex[%d] signedIndex[%d]\n", savedIndex, curSignPID.Index)
 
 	p2pCtx := tss.NewPeerContext(signPIDs)
 	parties := make([]*signing.LocalParty, 0, signerCount)
@@ -61,19 +90,26 @@ func SigningProc(threshold int, totalCount int, signIndexes []int, message []byt
 
 	updater := mpc.SharedPartyUpdater
 
-	for i, signPID := range signPIDs {
+	hexSignHash := mpc.MakeHashFromHexString(hexMessage)
+	message, err := hex.DecodeString(hexSignHash)
+	if nil != err {
+		panic(fmt.Sprintf("message[%s] is not hex string\n", hexMessage))
+	}
+
+	for _, signPID := range signPIDs {
 		var P *signing.LocalParty
 		params := tss.NewParameters(tss.EC(), p2pCtx, signPID, signerCount, threshold-1)
-		P = signing.NewLocalParty(new(big.Int).SetBytes(message), params, *keys[i], outCh, endCh).(*signing.LocalParty)
+		P = signing.NewLocalParty(new(big.Int).SetBytes(message), params, *savedKey, outCh, endCh).(*signing.LocalParty)
 		parties = append(parties, P)
 		go func(P *signing.LocalParty) {
-			if err := P.Start(); err != nil {
-				errCh <- err
+			if P.PartyID().Index == curSignPID.Index {
+				if err := P.Start(); err != nil {
+					errCh <- err
+				}
 			}
 		}(P)
 	}
 
-	var ended int32
 signing:
 	for {
 		select {
@@ -81,45 +117,46 @@ signing:
 			panic(fmt.Sprintf("signing Error: %s\n", err))
 
 		case msg := <-outCh:
-			dest := msg.GetTo()
-			if dest == nil {
-				fmt.Printf("msg[%s] broadcast [%d] => all\n", msg.Type(), msg.GetFrom().Index)
-				for _, P := range parties {
-					if P.PartyID().Index == msg.GetFrom().Index {
+			tos := msg.GetTo()
+			from := msg.GetFrom()
+			if tos == nil { // broadcast!
+				for _, toParty := range parties {
+					if toParty.PartyID().Id == from.Id {
 						continue
 					}
-					go updater(P, msg, errCh)
+					// fmt.Printf("msg[%s] broadcast [%s][%s][%d] => [%s][%s][%d]\n", msg.Type(),
+					// 	from.Moniker, from.Id, from.Index,
+					// 	toParty.PartyID().Moniker, toParty.PartyID().Id, toParty.PartyID().Index)
+					go updater(STEP, ALGO, groupId, totalCount, threshold, parties[from.Index], toParty, msg, errCh)
 				}
-			} else {
-				fmt.Printf("msg[%s] p2p [%d] => [%d]\n", msg.Type(), msg.GetFrom().Index, dest[0].Index)
-				if dest[0].Index == msg.GetFrom().Index {
-					panic(fmt.Sprintf("party %d tried to send a message to itself (%d)\n", dest[0].Index, msg.GetFrom().Index))
+			} else { // point-to-point!
+				if tos[0].Id == from.Id {
+					panic(fmt.Sprintf("party [%s][%s][%d] tried to send a message to itself\n", tos[0].Moniker, tos[0].Id, tos[0].Index))
 				}
-				go updater(parties[dest[0].Index], msg, errCh)
+				// fmt.Printf("msg[%s] p2p [%s][%s][%d] => [%s][%s][%d]\n", msg.Type(),
+				// 	from.Moniker, from.Id, from.Index,
+				// 	tos[0].Moniker, tos[0].Id, tos[0].Index)
+				go updater(STEP, ALGO, groupId, totalCount, threshold, parties[from.Index], parties[tos[0].Index], msg, errCh)
 			}
 
 		case sign := <-endCh:
 			r, s := new(big.Int).SetBytes(sign.GetR()), new(big.Int).SetBytes(sign.GetS())
-			pub, mPub := getPubEncode(keys[0])
-			if true != ecdsa.Verify(pub, sign.GetM(), r, s) {
+			savedPub := GetPublicKeyFromSaveData(savedKey)
+			if true != ecdsa.Verify(savedPub, sign.GetM(), r, s) {
 				panic(fmt.Sprintf("sig(r:[%s], s:[%s]) verify failed", r.Text(16), s.Text(16)))
 			}
 
-			ret.PublicKey = mPub
-			ret.R = r.Text(16)
-			ret.S = s.Text(16)
-			ret.Hash = hex.EncodeToString(sign.GetM())
-			ret.Rec = hex.EncodeToString(sign.GetSignatureRecovery())
-			ret.Encode = getSigEncode(r, s)
+			signInfo.PublicKey = GetMPCPubFromSaveData(savedKey)
+			signInfo.R = r.Text(16)
+			signInfo.S = s.Text(16)
+			signInfo.Message = hex.EncodeToString(sign.GetM())
+			signInfo.Rec = hex.EncodeToString(sign.GetSignatureRecovery())
+			signInfo.Encode = getSigEncode(r, s)
 
 			fmt.Printf("sign verify success\n")
-
-			atomic.AddInt32(&ended, 1)
-			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
-				break signing
-			}
+			break signing
 		}
 	}
 
-	return ret
+	return signInfo
 }
