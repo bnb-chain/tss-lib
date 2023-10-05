@@ -139,6 +139,35 @@ func BaseStart(p Party, task string, prepare ...func(Round) *Error) *Error {
 	return p.round().Start()
 }
 
+func BaseRemoteStart(p Party, task string, prepare ...func(Round) *Error) *Error {
+	p.lock()
+	defer p.unlock()
+	if p.PartyID() == nil || !p.PartyID().ValidateBasic() {
+		return p.WrapError(fmt.Errorf("could not start. this party has an invalid PartyID: %+v", p.PartyID()))
+	}
+	if p.round() != nil {
+		return p.WrapError(errors.New("could not start. this party is in an unexpected state. use the constructor and Start()"))
+	}
+	round := p.FirstRound()
+	if err := p.setRound(round); err != nil {
+		return err
+	}
+	if 1 < len(prepare) {
+		return p.WrapError(errors.New("too many prepare functions given to Start(); 1 allowed"))
+	}
+	if len(prepare) == 1 {
+		if err := prepare[0](round); err != nil {
+			return err
+		}
+	}
+	common.Logger.Infof("remote party %s: %s round %d starting", p.round().Params().PartyID(), task, 1)
+	defer func() {
+		common.Logger.Debugf("party %s: %s round %d finished", p.round().Params().PartyID(), task, 1)
+	}()
+	return nil
+	// return p.round().Start()
+}
+
 // an implementation of Update that is shared across the different types of parties (keygen, signing, dynamic groups)
 func BaseUpdate(p Party, msg ParsedMessage, task string) (ok bool, err *Error) {
 	// fast-fail on an invalid message; do not lock the mutex yet

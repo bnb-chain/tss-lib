@@ -101,6 +101,10 @@ func (p *LocalParty) Start() *tss.Error {
 	return tss.BaseStart(p, TaskName)
 }
 
+func (p *LocalParty) StartRemote() *tss.Error {
+	return tss.BaseRemoteStart(p, TaskName)
+}
+
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
 	return tss.BaseUpdate(p, msg, TaskName)
 }
