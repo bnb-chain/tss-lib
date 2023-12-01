@@ -125,16 +125,18 @@ func (round *round3) Start() *tss.Error {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound3Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
