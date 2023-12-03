@@ -7,17 +7,25 @@
 package tss
 
 import (
-	"errors"
+	"crypto/elliptic"
+	"runtime"
 	"time"
 )
 
 type (
 	Parameters struct {
+		ec                  elliptic.Curve
 		partyID             *PartyID
 		parties             *PeerContext
 		partyCount          int
 		threshold           int
+		concurrency         int
 		safePrimeGenTimeout time.Duration
+		// proof session info
+		nonce int
+		// for keygen
+		noProofMod bool
+		noProofFac bool
 	}
 
 	ReSharingParameters struct {
@@ -33,23 +41,20 @@ const (
 )
 
 // Exported, used in `tss` client
-func NewParameters(ctx *PeerContext, partyID *PartyID, partyCount, threshold int, optionalSafePrimeGenTimeout ...time.Duration) *Parameters {
-	var safePrimeGenTimeout time.Duration
-	if 0 < len(optionalSafePrimeGenTimeout) {
-		if 1 < len(optionalSafePrimeGenTimeout) {
-			panic(errors.New("GeneratePreParams: expected 0 or 1 item in `optionalSafePrimeGenTimeout`"))
-		}
-		safePrimeGenTimeout = optionalSafePrimeGenTimeout[0]
-	} else {
-		safePrimeGenTimeout = defaultSafePrimeGenTimeout
-	}
+func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int) *Parameters {
 	return &Parameters{
+		ec:                  ec,
 		parties:             ctx,
 		partyID:             partyID,
 		partyCount:          partyCount,
 		threshold:           threshold,
-		safePrimeGenTimeout: safePrimeGenTimeout,
+		concurrency:         runtime.GOMAXPROCS(0),
+		safePrimeGenTimeout: defaultSafePrimeGenTimeout,
 	}
+}
+
+func (params *Parameters) EC() elliptic.Curve {
+	return params.ec
 }
 
 func (params *Parameters) Parties() *PeerContext {
@@ -68,15 +73,44 @@ func (params *Parameters) Threshold() int {
 	return params.threshold
 }
 
+func (params *Parameters) Concurrency() int {
+	return params.concurrency
+}
+
 func (params *Parameters) SafePrimeGenTimeout() time.Duration {
 	return params.safePrimeGenTimeout
+}
+
+// The concurrency level must be >= 1.
+func (params *Parameters) SetConcurrency(concurrency int) {
+	params.concurrency = concurrency
+}
+
+func (params *Parameters) SetSafePrimeGenTimeout(timeout time.Duration) {
+	params.safePrimeGenTimeout = timeout
+}
+
+func (params *Parameters) NoProofMod() bool {
+	return params.noProofMod
+}
+
+func (params *Parameters) NoProofFac() bool {
+	return params.noProofFac
+}
+
+func (params *Parameters) SetNoProofMod() {
+	params.noProofMod = true
+}
+
+func (params *Parameters) SetNoProofFac() {
+	params.noProofFac = true
 }
 
 // ----- //
 
 // Exported, used in `tss` client
-func NewReSharingParameters(ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
-	params := NewParameters(ctx, partyID, partyCount, threshold)
+func NewReSharingParameters(ec elliptic.Curve, ctx, newCtx *PeerContext, partyID *PartyID, partyCount, threshold, newPartyCount, newThreshold int) *ReSharingParameters {
+	params := NewParameters(ec, ctx, partyID, partyCount, threshold)
 	return &ReSharingParameters{
 		Parameters:    params,
 		newParties:    newCtx,

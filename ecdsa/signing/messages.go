@@ -7,16 +7,15 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/crypto/schnorr"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/mta"
+	"github.com/bnb-chain/tss-lib/v2/crypto/schnorr"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-signing.pb.go
@@ -37,19 +36,6 @@ var (
 		(*SignRound9Message)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*SignRound1Message1)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message1")
-	proto.RegisterType((*SignRound1Message2)(nil), tss.ProtoNamePrefix+"signing.SignRound1Message2")
-	proto.RegisterType((*SignRound2Message)(nil), tss.ProtoNamePrefix+"signing.SignRound2Message")
-	proto.RegisterType((*SignRound3Message)(nil), tss.ProtoNamePrefix+"signing.SignRound3Message")
-	proto.RegisterType((*SignRound4Message)(nil), tss.ProtoNamePrefix+"signing.SignRound4Message")
-	proto.RegisterType((*SignRound5Message)(nil), tss.ProtoNamePrefix+"signing.SignRound5Message")
-	proto.RegisterType((*SignRound6Message)(nil), tss.ProtoNamePrefix+"signing.SignRound6Message")
-	proto.RegisterType((*SignRound7Message)(nil), tss.ProtoNamePrefix+"signing.SignRound7Message")
-	proto.RegisterType((*SignRound8Message)(nil), tss.ProtoNamePrefix+"signing.SignRound8Message")
-	proto.RegisterType((*SignRound9Message)(nil), tss.ProtoNamePrefix+"signing.SignRound9Message")
-}
 
 // ----- //
 
@@ -150,8 +136,8 @@ func (m *SignRound2Message) UnmarshalProofBob() (*mta.ProofBob, error) {
 	return mta.ProofBobFromBytes(m.ProofBob)
 }
 
-func (m *SignRound2Message) UnmarshalProofBobWC() (*mta.ProofBobWC, error) {
-	return mta.ProofBobWCFromBytes(m.ProofBobWc)
+func (m *SignRound2Message) UnmarshalProofBobWC(ec elliptic.Curve) (*mta.ProofBobWC, error) {
+	return mta.ProofBobWCFromBytes(ec, m.ProofBobWc)
 }
 
 // ----- //
@@ -211,9 +197,9 @@ func (m *SignRound4Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound4Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound4Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {
@@ -295,9 +281,9 @@ func (m *SignRound6Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
+func (m *SignRound6Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetProofAlphaX()),
 		new(big.Int).SetBytes(m.GetProofAlphaY()))
 	if err != nil {
@@ -309,9 +295,9 @@ func (m *SignRound6Message) UnmarshalZKProof() (*schnorr.ZKProof, error) {
 	}, nil
 }
 
-func (m *SignRound6Message) UnmarshalZKVProof() (*schnorr.ZKVProof, error) {
+func (m *SignRound6Message) UnmarshalZKVProof(ec elliptic.Curve) (*schnorr.ZKVProof, error) {
 	point, err := crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.GetVProofAlphaX()),
 		new(big.Int).SetBytes(m.GetVProofAlphaY()))
 	if err != nil {

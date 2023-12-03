@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -41,7 +41,7 @@ func (round *round3) Start() *tss.Error {
 		share := r2msg1.UnmarshalShare()
 		xi = new(big.Int).Add(xi, share)
 	}
-	round.save.Xi = new(big.Int).Mod(xi, tss.EC().Params().N)
+	round.save.Xi = new(big.Int).Mod(xi, round.Params().EC().Params().N)
 
 	// 2-3.
 	Vc := make(vss.Vs, round.Threshold()+1)
@@ -65,6 +65,7 @@ func (round *round3) Start() *tss.Error {
 		if j == PIdx {
 			continue
 		}
+		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		// 6-8.
 		go func(j int, ch chan<- vssOut) {
 			// 4-9.
@@ -77,10 +78,25 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
 				return
 			}
-			PjVs, err := crypto.UnFlattenECPoints(tss.EC(), flatPolyGs)
+			PjVs, err := crypto.UnFlattenECPoints(round.Params().EC(), flatPolyGs)
 			if err != nil {
 				ch <- vssOut{err, nil}
 				return
+			}
+			modProof, err := r2msg2.UnmarshalModProof()
+			if err != nil && round.Parameters.NoProofMod() {
+				// For old parties, the modProof could be not exist
+				// Not return error for compatibility reason
+				common.Logger.Warningf("modProof not exist:%s", Ps[j])
+			} else {
+				if err != nil {
+					ch <- vssOut{errors.New("modProof verify failed"), nil}
+					return
+				}
+				if ok = modProof.Verify(ContextJ, round.save.PaillierPKs[j].N); !ok {
+					ch <- vssOut{errors.New("modProof verify failed"), nil}
+					return
+				}
 			}
 			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
 			PjShare := vss.Share{
@@ -88,10 +104,27 @@ func (round *round3) Start() *tss.Error {
 				ID:        round.PartyID().KeyInt(),
 				Share:     r2msg1.UnmarshalShare(),
 			}
-			if ok = PjShare.Verify(round.Threshold(), PjVs); !ok {
+			if ok = PjShare.Verify(round.Params().EC(), round.Threshold(), PjVs); !ok {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
 			}
+			facProof, err := r2msg1.UnmarshalFacProof()
+			if err != nil && round.NoProofFac() {
+				// For old parties, the facProof could be not exist
+				// Not return error for compatibility reason
+				common.Logger.Warningf("facProof not exist:%s", Ps[j])
+			} else {
+				if err != nil {
+					ch <- vssOut{errors.New("facProof verify failed"), nil}
+					return
+				}
+				if ok = facProof.Verify(ContextJ, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+					round.save.H1i, round.save.H2i); !ok {
+					ch <- vssOut{errors.New("facProof verify failed"), nil}
+					return
+				}
+			}
+
 			// (9) handled above
 			ch <- vssOut{nil, PjVs}
 		}(j, chs[j])
@@ -146,7 +179,7 @@ func (round *round3) Start() *tss.Error {
 	// 12-16. compute Xj for each Pj
 	{
 		var err error
-		modQ := common.ModInt(tss.EC().Params().N)
+		modQ := common.ModInt(round.Params().EC().Params().N)
 		culprits := make([]*tss.PartyID, 0, len(Ps)) // who caused the error(s)
 		bigXj := round.save.BigXj
 		for j := 0; j < round.PartyCount(); j++ {
@@ -170,7 +203,7 @@ func (round *round3) Start() *tss.Error {
 	}
 
 	// 17. compute and SAVE the ECDSA public key `y`
-	ecdsaPubKey, err := crypto.NewECPoint(tss.EC(), Vc[0].X(), Vc[0].Y())
+	ecdsaPubKey, err := crypto.NewECPoint(round.Params().EC(), Vc[0].X(), Vc[0].Y())
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "public key is not on the curve"))
 	}
@@ -196,17 +229,19 @@ func (round *round3) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.kgRound3Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		// proof check is in round 4
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round3) NextRound() tss.Round {

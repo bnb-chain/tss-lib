@@ -16,18 +16,18 @@
 package paillier
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	gmath "math"
 	"math/big"
 	"runtime"
 	"strconv"
-	"time"
 
 	"github.com/otiai10/primes"
 
-	"github.com/binance-chain/tss-lib/common"
-	crypto2 "github.com/binance-chain/tss-lib/crypto"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	crypto2 "github.com/bnb-chain/tss-lib/v2/crypto"
 )
 
 const (
@@ -45,6 +45,7 @@ type (
 		PublicKey
 		LambdaN, // lcm(p-1, q-1)
 		PhiN *big.Int // (p-1) * (q-1)
+		P, Q *big.Int
 	}
 
 	// Proof uses the new GenerateXs method in GG18Spec (6)
@@ -52,7 +53,8 @@ type (
 )
 
 var (
-	ErrMessageTooLong = fmt.Errorf("the message is too large or < 0")
+	ErrMessageTooLong   = fmt.Errorf("the message is too large or < 0")
+	ErrMessageMalFormed = fmt.Errorf("the message is mal-formed")
 
 	zero = big.NewInt(0)
 	one  = big.NewInt(1)
@@ -64,7 +66,7 @@ func init() {
 }
 
 // len is the length of the modulus (each prime = len / 2)
-func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey, err error) {
+func GenerateKeyPair(ctx context.Context, modulusBitLen int, optionalConcurrency ...int) (privateKey *PrivateKey, publicKey *PublicKey, err error) {
 	var concurrency int
 	if 0 < len(optionalConcurrency) {
 		if 1 < len(optionalConcurrency) {
@@ -80,7 +82,7 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 	{
 		tmp := new(big.Int)
 		for {
-			sgps, err := common.GetRandomSafePrimesConcurrent(modulusBitLen/2, 2, timeout, concurrency)
+			sgps, err := common.GetRandomSafePrimesConcurrent(ctx, modulusBitLen/2, 2, concurrency)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -102,7 +104,7 @@ func GenerateKeyPair(modulusBitLen int, timeout time.Duration, optionalConcurren
 	lambdaN := new(big.Int).Div(phiN, gcd)
 
 	publicKey = &PublicKey{N: N}
-	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN}
+	privateKey = &PrivateKey{PublicKey: *publicKey, LambdaN: lambdaN, PhiN: phiN, P: P, Q: Q}
 	return
 }
 
@@ -172,6 +174,10 @@ func (privateKey *PrivateKey) Decrypt(c *big.Int) (m *big.Int, err error) {
 	N2 := privateKey.NSquare()
 	if c.Cmp(zero) == -1 || c.Cmp(N2) != -1 { // c < 0 || c >= N2 ?
 		return nil, ErrMessageTooLong
+	}
+	cg := new(big.Int).GCD(nil, nil, c, N2)
+	if cg.Cmp(one) == 1 {
+		return nil, ErrMessageMalFormed
 	}
 	// 1. L(u) = (c^LambdaN-1 mod N2) / N
 	Lc := L(new(big.Int).Exp(c, privateKey.LambdaN, N2), privateKey.N)

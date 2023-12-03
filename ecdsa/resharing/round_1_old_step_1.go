@@ -8,19 +8,21 @@ package resharing
 
 import (
 	"errors"
+	"fmt"
+	"math/big"
 
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/signing"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.ReSharingParameters, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- keygen.LocalPartySaveData) tss.Round {
+func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *keygen.LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, end, make([]bool, params.Threshold()+1), make([]bool, len(params.NewParties().IDs())), false, 1}}
+		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -37,17 +39,25 @@ func (round *round1) Start() *tss.Error {
 	}
 	round.allOldOK()
 
+	round.temp.ssidNonce = new(big.Int).SetUint64(uint64(0))
+	ssid, err := round.getSSID()
+	if err != nil {
+		return round.WrapError(err)
+	}
+	round.temp.ssid = ssid
 	Pi := round.PartyID()
 	i := Pi.Index
 
 	// 1. PrepareForSigning() -> w_i
-	xi := round.save.Xi
-	ks := round.save.Ks
+	xi, ks, bigXj := round.input.Xi, round.input.Ks, round.input.BigXj
+	if round.Threshold()+1 > len(ks) {
+		return round.WrapError(fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks)), round.PartyID())
+	}
 	newKs := round.NewParties().IDs().Keys()
-	wi, _ := signing.PrepareForSigning(i, round.Threshold()+1, xi, ks, round.save.BigXj)
+	wi, _ := signing.PrepareForSigning(round.Params().EC(), i, len(round.OldParties().IDs()), xi, ks, bigXj)
 
 	// 2.
-	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
+	vi, shares, err := vss.Create(round.Params().EC(), round.NewThreshold(), wi, newKs)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
@@ -66,7 +76,7 @@ func (round *round1) Start() *tss.Error {
 	// 5. "broadcast" C_i to members of the NEW committee
 	r1msg := NewDGRound1Message(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		round.save.ECDSAPub, vCmt.C)
+		round.input.ECDSAPub, vCmt.C, ssid)
 	round.temp.dgRound1Messages[i] = r1msg
 	round.out <- r1msg
 
@@ -87,18 +97,24 @@ func (round *round1) Update() (bool, *tss.Error) {
 		return true, nil
 	}
 	// accept messages from old -> new committee
+	ret := true
 	for j, msg := range round.temp.dgRound1Messages {
 		if round.oldOK[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.oldOK[j] = true
 
 		// save the ecdsa pub received from the old committee
+		if round.temp.dgRound1Messages[0] == nil {
+			ret = false
+			continue
+		}
 		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
-		candidate, err := r1msg.UnmarshalECDSAPub()
+		candidate, err := r1msg.UnmarshalECDSAPub(round.Params().EC())
 		if err != nil {
 			return false, round.WrapError(errors.New("unable to unmarshal the ecdsa pub key"), msg.GetFrom())
 		}
@@ -109,7 +125,7 @@ func (round *round1) Update() (bool, *tss.Error) {
 		}
 		round.save.ECDSAPub = candidate
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round1) NextRound() tss.Round {

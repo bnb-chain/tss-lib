@@ -4,7 +4,7 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-package resharing
+package resharing_test
 
 import (
 	"crypto/ecdsa"
@@ -17,13 +17,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
-	"github.com/binance-chain/tss-lib/test"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	. "github.com/bnb-chain/tss-lib/v2/ecdsa/resharing"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/signing"
+	"github.com/bnb-chain/tss-lib/v2/test"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 const (
@@ -43,15 +43,19 @@ func TestE2EConcurrent(t *testing.T) {
 	// tss.SetCurve(elliptic.P256())
 
 	threshold, newThreshold := testThreshold, testThreshold
-	oldPIDs := tss.GenerateTestPartyIDs(testParticipants)
 
 	// PHASE: load keygen fixtures
-	keys, err := keygen.LoadKeygenTestFixtures(testParticipants)
+	firstPartyIdx, extraParties := 1, 1 // extra can be 0 to N-first
+	oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+extraParties+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
 	// PHASE: resharing
-	oldPIDs = oldPIDs[:threshold+1] // always resharing with old_t+1
 	oldP2PCtx := tss.NewPeerContext(oldPIDs)
+	// init the new parties; re-use the fixture pre-params for speed
+	fixtures, _, err := keygen.LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+	}
 	newPIDs := tss.GenerateTestPartyIDs(testParticipants)
 	newP2PCtx := tss.NewPeerContext(newPIDs)
 	newPCount := len(newPIDs)
@@ -62,51 +66,26 @@ func TestE2EConcurrent(t *testing.T) {
 
 	errCh := make(chan *tss.Error, bothCommitteesPax)
 	outCh := make(chan tss.Message, bothCommitteesPax)
-	endCh := make(chan keygen.LocalPartySaveData, bothCommitteesPax)
+	endCh := make(chan *keygen.LocalPartySaveData, bothCommitteesPax)
 
 	updater := test.SharedPartyUpdater
 
 	// init the old parties first
-	for i, pID := range oldPIDs {
-		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		keyI := keygen.LocalPartySaveData{
-			LocalPreParams: keygen.LocalPreParams{
-				PaillierSK: keys[i].PaillierSK,
-				NTildei:    keys[i].NTildei,
-				H1i:        keys[i].H1i,
-				H2i:        keys[i].H2i,
-			},
-			LocalSecrets: keygen.LocalSecrets{
-				Xi:      keys[i].Xi,
-				ShareID: keys[i].ShareID,
-			},
-			BigXj:       keys[i].BigXj[:testThreshold+1],
-			PaillierPKs: keys[i].PaillierPKs[:testThreshold+1],
-			NTildej:     keys[i].NTildej[:testThreshold+1],
-			H1j:         keys[i].H1j[:testThreshold+1],
-			H2j:         keys[i].H2j[:testThreshold+1],
-			Ks:          keys[i].Ks[:testThreshold+1],
-			ECDSAPub:    keys[i].ECDSAPub,
-		}
-		P := NewLocalParty(params, keyI, outCh, endCh).(*LocalParty) // discard old key data
+	for j, pID := range oldPIDs {
+		params := tss.NewReSharingParameters(tss.S256(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		P := NewLocalParty(params, oldKeys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
-	// init the new parties; re-use the fixture pre-params for speed
-	fixtures, err := keygen.LoadKeygenTestFixtures(len(newPIDs))
-	if err != nil {
-		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
-	}
-	for i, pID := range newPIDs {
-		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		save := keygen.LocalPartySaveData{
-			BigXj:       make([]*crypto.ECPoint, newPCount),
-			PaillierPKs: make([]*paillier.PublicKey, newPCount),
-			NTildej:     make([]*big.Int, newPCount),
-			H1j:         make([]*big.Int, newPCount),
-			H2j:         make([]*big.Int, newPCount),
-		}
-		if i < len(fixtures) && len(newPIDs) <= len(fixtures) {
-			save.LocalPreParams = fixtures[i].LocalPreParams
+	// init the new parties
+	for j, pID := range newPIDs {
+		params := tss.NewReSharingParameters(tss.S256(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		// do not use in untrusted setting
+		params.SetNoProofMod()
+		// do not use in untrusted setting
+		params.SetNoProofFac()
+		save := keygen.NewLocalPartySaveData(newPCount)
+		if j < len(fixtures) && len(newPIDs) <= len(fixtures) {
+			save.LocalPreParams = fixtures[j].LocalPreParams
 		}
 		P := NewLocalParty(params, save, outCh, endCh).(*LocalParty)
 		newCommittee = append(newCommittee, P)
@@ -129,6 +108,8 @@ func TestE2EConcurrent(t *testing.T) {
 		}(P)
 	}
 
+	newKeys := make([]keygen.LocalPartySaveData, len(newCommittee))
+	endedOldCommittee := 0
 	var reSharingEnded int32
 	for {
 		fmt.Printf("ACTIVE GOROUTINES: %d\n", runtime.NumGoroutine())
@@ -155,21 +136,25 @@ func TestE2EConcurrent(t *testing.T) {
 			}
 
 		case save := <-endCh:
-			index, err := save.OriginalIndex()
-			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
 			// old committee members that aren't receiving a share have their Xi zeroed
-			if save.Xi.Cmp(big.NewInt(0)) != 0 {
-				keys[index] = save
+			if save.Xi != nil {
+				index, err := save.OriginalIndex()
+				assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
+				newKeys[index] = *save
+			} else {
+				endedOldCommittee++
 			}
 			atomic.AddInt32(&reSharingEnded, 1)
+			fmt.Println("TODO old:", len(oldCommittee), "new:", len(newCommittee), "finished:", reSharingEnded)
 			if atomic.LoadInt32(&reSharingEnded) == int32(len(oldCommittee)+len(newCommittee)) {
+				assert.Equal(t, len(oldCommittee), endedOldCommittee)
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
 
 				// xj tests: BigXj == xj*G
-				for j, key := range keys {
+				for j, key := range newKeys {
 					// xj test: BigXj == xj*G
 					xj := key.Xi
-					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
+					gXj := crypto.ScalarBaseMult(tss.S256(), xj)
 					BigXj := key.BigXj[j]
 					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
 				}
@@ -182,21 +167,17 @@ func TestE2EConcurrent(t *testing.T) {
 
 signing:
 	// PHASE: signing
-	keys, err = keygen.LoadKeygenTestFixtures(testThreshold + 1)
-	assert.NoError(t, err)
-
-	signPIDs := newPIDs[:threshold+1]
-
+	signKeys, signPIDs := newKeys, newPIDs
 	signP2pCtx := tss.NewPeerContext(signPIDs)
 	signParties := make([]*signing.LocalParty, 0, len(signPIDs))
 
 	signErrCh := make(chan *tss.Error, len(signPIDs))
 	signOutCh := make(chan tss.Message, len(signPIDs))
-	signEndCh := make(chan signing.SignatureData, len(signPIDs))
+	signEndCh := make(chan *common.SignatureData, len(signPIDs))
 
-	for i, signPID := range signPIDs {
-		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
-		P := signing.NewLocalParty(big.NewInt(42), params, keys[i], signOutCh, signEndCh).(*signing.LocalParty)
+	for j, signPID := range signPIDs {
+		params := tss.NewParameters(tss.S256(), signP2pCtx, signPID, len(signPIDs), newThreshold)
+		P := signing.NewLocalParty(big.NewInt(42), params, signKeys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
 			if err := P.Start(); err != nil {
@@ -236,9 +217,9 @@ signing:
 				t.Logf("Signing done. Received sign data from %d participants", signEnded)
 
 				// BEGIN ECDSA verify
-				pkX, pkY := keys[0].ECDSAPub.X(), keys[0].ECDSAPub.Y()
+				pkX, pkY := signKeys[0].ECDSAPub.X(), signKeys[0].ECDSAPub.Y()
 				pk := ecdsa.PublicKey{
-					Curve: tss.EC(),
+					Curve: tss.S256(),
 					X:     pkX,
 					Y:     pkY,
 				}

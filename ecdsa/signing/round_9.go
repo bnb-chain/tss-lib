@@ -9,8 +9,8 @@ package signing
 import (
 	"errors"
 
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 func (round *round9) Start() *tss.Error {
@@ -37,8 +37,8 @@ func (round *round9) Start() *tss.Error {
 			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
 		}
 		UjX, UjY, TjX, TjY := values[0], values[1], values[2], values[3]
-		UX, UY = tss.EC().Add(UX, UY, UjX, UjY)
-		TX, TY = tss.EC().Add(TX, TY, TjX, TjY)
+		UX, UY = round.Params().EC().Add(UX, UY, UjX, UjY)
+		TX, TY = round.Params().EC().Add(TX, TY, TjX, TjY)
 	}
 	if UX.Cmp(TX) != 0 || UY.Cmp(TY) != 0 {
 		return round.WrapError(errors.New("U doesn't equal T"), round.PartyID())
@@ -51,16 +51,18 @@ func (round *round9) Start() *tss.Error {
 }
 
 func (round *round9) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound9Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round9) CanAccept(msg tss.ParsedMessage) bool {

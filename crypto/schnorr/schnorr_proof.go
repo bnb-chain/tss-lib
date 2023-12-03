@@ -10,9 +10,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
 )
 
 type (
@@ -28,20 +27,21 @@ type (
 )
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
+func NewZKProof(Session []byte, x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 	if x == nil || X == nil || !X.ValidateBasic() {
 		return nil, errors.New("ZKProof constructor received nil or invalid value(s)")
 	}
-	ecParams := tss.EC().Params()
+	ec := X.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy) // already on the curve.
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy) // already on the curve.
 
 	a := common.GetRandomPositiveInt(q)
-	alpha := crypto.ScalarBaseMult(tss.EC(), a)
+	alpha := crypto.ScalarBaseMult(ec, a)
 
 	var c *big.Int
-	{ // must use RejectionSample
-		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+	{
+		cHash := common.SHA512_256i_TAGGED(Session, X.X(), X.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	t := new(big.Int).Mul(c, x)
@@ -51,29 +51,27 @@ func NewZKProof(x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
 }
 
 // NewZKProof verifies a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func (pf *ZKProof) Verify(X *crypto.ECPoint) bool {
+func (pf *ZKProof) Verify(Session []byte, X *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
-	ecParams := tss.EC().Params()
+	ec := X.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
-	{ // must use RejectionSample
-		cHash := common.SHA512_256i(X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+	{
+		cHash := common.SHA512_256i_TAGGED(Session, X.X(), X.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
-	tG := crypto.ScalarBaseMult(tss.EC(), pf.T)
+	tG := crypto.ScalarBaseMult(ec, pf.T)
 	Xc := X.ScalarMult(c)
 	aXc, err := pf.Alpha.Add(Xc)
 	if err != nil {
 		return false
 	}
-	if aXc.X().Cmp(tG.X()) != 0 || aXc.Y().Cmp(tG.Y()) != 0 {
-		return false
-	}
-	return true
+	return aXc.X().Cmp(tG.X()) == 0 && aXc.Y().Cmp(tG.Y()) == 0
 }
 
 func (pf *ZKProof) ValidateBasic() bool {
@@ -81,22 +79,23 @@ func (pf *ZKProof) ValidateBasic() bool {
 }
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge s_i, l_i such that V_i = R^s_i, g^l_i (GG18Spec Fig. 17)
-func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
+func NewZKVProof(Session []byte, V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	if V == nil || R == nil || s == nil || l == nil || !V.ValidateBasic() || !R.ValidateBasic() {
 		return nil, errors.New("ZKVProof constructor received nil value(s)")
 	}
-	ecParams := tss.EC().Params()
+	ec := V.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
 	a, b := common.GetRandomPositiveInt(q), common.GetRandomPositiveInt(q)
 	aR := R.ScalarMult(a)
-	bG := crypto.ScalarBaseMult(tss.EC(), b)
+	bG := crypto.ScalarBaseMult(ec, b)
 	alpha, _ := aR.Add(bG) // already on the curve.
 
 	var c *big.Int
-	{ // must use RejectionSample
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
+	{
+		cHash := common.SHA512_256i_TAGGED(Session, V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), alpha.X(), alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	modQ := common.ModInt(q)
@@ -106,21 +105,22 @@ func NewZKVProof(V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
 	return &ZKVProof{Alpha: alpha, T: t, U: u}, nil
 }
 
-func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
+func (pf *ZKVProof) Verify(Session []byte, V, R *crypto.ECPoint) bool {
 	if pf == nil || !pf.ValidateBasic() {
 		return false
 	}
-	ecParams := tss.EC().Params()
+	ec := V.Curve()
+	ecParams := ec.Params()
 	q := ecParams.N
-	g := crypto.NewECPointNoCurveCheck(tss.EC(), ecParams.Gx, ecParams.Gy)
+	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
 	var c *big.Int
-	{ // must use RejectionSample
-		cHash := common.SHA512_256i(V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
+	{
+		cHash := common.SHA512_256i_TAGGED(Session, V.X(), V.Y(), R.X(), R.Y(), g.X(), g.Y(), pf.Alpha.X(), pf.Alpha.Y())
 		c = common.RejectionSample(q, cHash)
 	}
 	tR := R.ScalarMult(pf.T)
-	uG := crypto.ScalarBaseMult(tss.EC(), pf.U)
+	uG := crypto.ScalarBaseMult(ec, pf.U)
 	tRuG, _ := tR.Add(uG) // already on the curve.
 
 	Vc := V.ScalarMult(c)
@@ -128,10 +128,7 @@ func (pf *ZKVProof) Verify(V, R *crypto.ECPoint) bool {
 	if err != nil {
 		return false
 	}
-	if tRuG.X().Cmp(aVc.X()) != 0 || tRuG.Y().Cmp(aVc.Y()) != 0 {
-		return false
-	}
-	return true
+	return tRuG.X().Cmp(aVc.X()) == 0 && tRuG.Y().Cmp(aVc.Y()) == 0
 }
 
 func (pf *ZKVProof) ValidateBasic() bool {

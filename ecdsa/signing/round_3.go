@@ -13,9 +13,9 @@ import (
 
 	errorspkg "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto/mta"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -38,6 +38,7 @@ func (round *round3) Start() *tss.Error {
 		if j == i {
 			continue
 		}
+		ContextJ := append(round.temp.ssid, new(big.Int).SetUint64(uint64(j)).Bytes()...)
 		// Alice_end
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
@@ -48,6 +49,8 @@ func (round *round3) Start() *tss.Error {
 				return
 			}
 			alphaIj, err := mta.AliceEnd(
+				ContextJ,
+				round.Params().EC(),
 				round.key.PaillierPKs[i],
 				proofBob,
 				round.key.H1j[i],
@@ -65,12 +68,14 @@ func (round *round3) Start() *tss.Error {
 		go func(j int, Pj *tss.PartyID) {
 			defer wg.Done()
 			r2msg := round.temp.signRound2Messages[j].Content().(*SignRound2Message)
-			proofBobWC, err := r2msg.UnmarshalProofBobWC()
+			proofBobWC, err := r2msg.UnmarshalProofBobWC(round.Parameters.EC())
 			if err != nil {
 				errChs <- round.WrapError(errorspkg.Wrapf(err, "UnmarshalProofBobWC failed"), Pj)
 				return
 			}
 			uIj, err := mta.AliceEndWC(
+				ContextJ,
+				round.Params().EC(),
 				round.key.PaillierPKs[i],
 				proofBobWC,
 				round.temp.bigWs[j],
@@ -98,7 +103,7 @@ func (round *round3) Start() *tss.Error {
 		return round.WrapError(errors.New("failed to calculate Alice_end or Alice_end_wc"), culprits...)
 	}
 
-	modN := common.ModInt(tss.EC().Params().N)
+	modN := common.ModInt(round.Params().EC().Params().N)
 	thelta := modN.Mul(round.temp.k, round.temp.gamma)
 	sigma := modN.Mul(round.temp.k, round.temp.w)
 
@@ -120,16 +125,18 @@ func (round *round3) Start() *tss.Error {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound3Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round3) CanAccept(msg tss.ParsedMessage) bool {

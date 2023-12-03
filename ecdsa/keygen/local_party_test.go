@@ -20,12 +20,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/test"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/test"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 const (
@@ -45,10 +46,21 @@ func TestStartRound1Paillier(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
 
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil).(*LocalParty)
+	if 0 < len(fixtures) {
+		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
+	} else {
+		lp = NewLocalParty(params, out, nil).(*LocalParty)
+	}
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -74,10 +86,21 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
 
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil).(*LocalParty)
+	if 0 < len(fixtures) {
+		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
+	} else {
+		lp = NewLocalParty(params, out, nil).(*LocalParty)
+	}
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -110,24 +133,37 @@ func TestBadMessageCulprits(t *testing.T) {
 
 	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
-	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), 1)
+	params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[0], len(pIDs), 1)
 
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
+
+	var lp *LocalParty
 	out := make(chan tss.Message, len(pIDs))
-	lp := NewLocalParty(params, out, nil)
+	if 0 < len(fixtures) {
+		lp = NewLocalParty(params, out, nil, fixtures[0].LocalPreParams).(*LocalParty)
+	} else {
+		lp = NewLocalParty(params, out, nil).(*LocalParty)
+	}
 	if err := lp.Start(); err != nil {
 		assert.FailNow(t, err.Error())
 	}
 
-	badMsg := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero)
-	ok, err := lp.Update(badMsg)
-	t.Log(err)
+	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, new(dlnproof.Proof), new(dlnproof.Proof))
+	ok, err2 := lp.Update(badMsg)
+	t.Log(err2)
 	assert.False(t, ok)
-	assert.Error(t, err)
-	assert.Equal(t, 1, len(err.Culprits()))
-	assert.Equal(t, pIDs[1], err.Culprits()[0])
+	if !assert.Error(t, err2) {
+		return
+	}
+	assert.Equal(t, 1, len(err2.Culprits()))
+	assert.Equal(t, pIDs[1], err2.Culprits()[0])
 	assert.Equal(t,
-		"task keygen, party {0,P[1]}, round 1, culprits [{1,P[2]}]: message failed ValidateBasic: Type: binance.tss-lib.ecdsa.keygen.KGRound1Message, From: {1,P[2]}, To: all",
-		err.Error())
+		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,2}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,2}, To: all",
+		err2.Error())
 }
 
 func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
@@ -136,27 +172,31 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	// tss.SetCurve(elliptic.P256())
 
 	threshold := testThreshold
-	pIDs := tss.GenerateTestPartyIDs(testParticipants)
+	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
+	if err != nil {
+		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
+		pIDs = tss.GenerateTestPartyIDs(testParticipants)
+	}
 
 	p2pCtx := tss.NewPeerContext(pIDs)
 	parties := make([]*LocalParty, 0, len(pIDs))
 
 	errCh := make(chan *tss.Error, len(pIDs))
 	outCh := make(chan tss.Message, len(pIDs))
-	endCh := make(chan LocalPartySaveData, len(pIDs))
+	endCh := make(chan *LocalPartySaveData, len(pIDs))
 
 	updater := test.SharedPartyUpdater
 
 	startGR := runtime.NumGoroutine()
 
 	// init the parties
-	fixtures, err := LoadKeygenTestFixtures(len(pIDs))
-	if err != nil {
-		common.Logger.Info("No test fixtures were found, so the safe primes will be generated from scratch. This may take a while...")
-	}
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
-		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
+		params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[i], len(pIDs), threshold)
+		// do not use in untrusted setting
+		params.SetNoProofMod()
+		// do not use in untrusted setting
+		params.SetNoProofFac()
 		if i < len(fixtures) {
 			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
 		} else {
@@ -203,7 +243,7 @@ keygen:
 			// .. here comes a workaround to recover this party's index (it was removed from save data)
 			index, err := save.OriginalIndex()
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-			tryWriteTestFixtureFile(t, index, save)
+			tryWriteTestFixtureFile(t, index, *save)
 
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
@@ -213,10 +253,7 @@ keygen:
 				u := new(big.Int)
 				for j, Pj := range parties {
 					pShares := make(vss.Shares, 0)
-					for j2, P := range parties {
-						if j2 == j {
-							continue
-						}
+					for _, P := range parties {
 						vssMsgs := P.temp.kgRound2Message1s
 						share := vssMsgs[j].Content().(*KGRound2Message1).Share
 						shareStruct := &vss.Share{
@@ -226,7 +263,7 @@ keygen:
 						}
 						pShares = append(pShares, shareStruct)
 					}
-					uj, err := pShares[:threshold+1].ReConstruct()
+					uj, err := pShares[:threshold+1].ReConstruct(tss.S256())
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
@@ -244,7 +281,7 @@ keygen:
 					{
 						badShares := pShares[:threshold]
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
-						uj, err := pShares[:threshold].ReConstruct()
+						uj, err := pShares[:threshold].ReConstruct(tss.S256())
 						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())

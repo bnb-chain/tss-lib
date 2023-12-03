@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/mta"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 )
 
 // round 1 represents round 1 of the signing part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- SignatureData) tss.Round {
+func newRound1(params *tss.Parameters, key *keygen.LocalPartySaveData, data *common.SignatureData, temp *localTempData, out chan<- tss.Message, end chan<- *common.SignatureData) tss.Round {
 	return &round1{
 		&base{params, key, data, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
@@ -38,18 +38,24 @@ func (round *round1) Start() *tss.Error {
 	// but considered different blockchain use different hash function we accept the converted big.Int
 	// if this big.Int is not belongs to Zq, the client might not comply with common rule (for ECDSA):
 	// https://github.com/btcsuite/btcd/blob/c26ffa870fd817666a857af1bf6498fabba1ffe3/btcec/signature.go#L263
-	if round.temp.m.Cmp(tss.EC().Params().N) >= 0 {
+	if round.temp.m.Cmp(round.Params().EC().Params().N) >= 0 {
 		return round.WrapError(errors.New("hashed message is not valid"))
 	}
 
 	round.number = 1
 	round.started = true
 	round.resetOK()
+	round.temp.ssidNonce = new(big.Int).SetUint64(0)
+	ssid, err := round.getSSID()
+	if err != nil {
+		return round.WrapError(err)
+	}
+	round.temp.ssid = ssid
 
-	k := common.GetRandomPositiveInt(tss.EC().Params().N)
-	gamma := common.GetRandomPositiveInt(tss.EC().Params().N)
+	k := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	gamma := common.GetRandomPositiveInt(round.Params().EC().Params().N)
 
-	pointGamma := crypto.ScalarBaseMult(tss.EC(), gamma)
+	pointGamma := crypto.ScalarBaseMult(round.Params().EC(), gamma)
 	cmt := commitments.NewHashCommitment(pointGamma.X(), pointGamma.Y())
 	round.temp.k = k
 	round.temp.gamma = gamma
@@ -63,7 +69,7 @@ func (round *round1) Start() *tss.Error {
 		if j == i {
 			continue
 		}
-		cA, pi, err := mta.AliceInit(round.key.PaillierPKs[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
+		cA, pi, err := mta.AliceInit(round.Params().EC(), round.key.PaillierPKs[i], k, round.key.NTildej[j], round.key.H1j[j], round.key.H2j[j])
 		if err != nil {
 			return round.WrapError(fmt.Errorf("failed to init mta: %v", err))
 		}
@@ -121,11 +127,19 @@ func (round *round1) prepare() error {
 	ks := round.key.Ks
 	bigXs := round.key.BigXj
 
-	if round.Threshold()+1 > len(ks) {
-		// TODO: this should not panic
-		return fmt.Errorf("t+1=%d is not consistent with the key count %d", round.Threshold()+1, len(ks))
+	if round.temp.keyDerivationDelta != nil {
+		// adding the key derivation delta to the xi's
+		// Suppose x has shamir shares x_0,     x_1,     ..., x_n
+		// So x + D has shamir shares  x_0 + D, x_1 + D, ..., x_n + D
+		mod := common.ModInt(round.Params().EC().Params().N)
+		xi = mod.Add(round.temp.keyDerivationDelta, xi)
+		round.key.Xi = xi
 	}
-	wi, bigWs := PrepareForSigning(i, len(ks), xi, ks, bigXs)
+
+	if round.Threshold()+1 > len(ks) {
+		return fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks))
+	}
+	wi, bigWs := PrepareForSigning(round.Params().EC(), i, len(ks), xi, ks, bigXs)
 
 	round.temp.w = wi
 	round.temp.bigWs = bigWs

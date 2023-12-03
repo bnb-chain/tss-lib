@@ -8,6 +8,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/binary"
 	"encoding/json"
@@ -15,7 +16,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
+
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 var (
@@ -27,6 +30,11 @@ type ECPoint struct {
 	curve  elliptic.Curve
 	coords [2]*big.Int
 }
+
+var (
+	eight    = big.NewInt(8)
+	eightInv = new(big.Int).ModInverse(eight, edwards.Edwards().Params().N)
+)
 
 // Creates a new ECPoint and checks that the given coordinates are on the elliptic curve.
 func NewECPoint(curve elliptic.Curve, X, Y *big.Int) (*ECPoint, error) {
@@ -101,12 +109,27 @@ func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
 	}
 
 	x, y := p.curve.ScalarMult(p.X(), p.Y(), k.Bytes())
-	newP, _ := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
+	newP, err := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
+	if err != nil {
+		panic(fmt.Errorf("scalar mult to an ecpoint %s", err.Error()))
+	}
 	return newP
+}
+
+func (p *ECPoint) ToECDSAPubKey() *ecdsa.PublicKey {
+	return &ecdsa.PublicKey{
+		Curve: p.curve,
+		X:     p.X(),
+		Y:     p.Y(),
+	}
 }
 
 func (p *ECPoint) IsOnCurve() bool {
 	return isOnCurve(p.curve, p.coords[0], p.coords[1])
+}
+
+func (p *ECPoint) Curve() elliptic.Curve {
+	return p.curve
 }
 
 func (p *ECPoint) Equals(p2 *ECPoint) bool {
@@ -139,6 +162,10 @@ func (p *ECPoint) ValidateBasic() bool {
 	return p.IsOnCurve()
 }
 
+func (p *ECPoint) EightInvEight() *ECPoint {
+	return p.ScalarMult(eight).ScalarMult(eightInv)
+}
+
 func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
 	if new(big.Int).Mod(k, curve.Params().N).Cmp(zero) == 0 {
 		p, _ := NewECPoint(curve, nil, nil)
@@ -146,7 +173,10 @@ func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
 	}
 
 	x, y := curve.ScalarBaseMult(k.Bytes())
-	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	p, err := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	if err != nil {
+		panic(fmt.Errorf("scalar mult to an ecpoint %s", err.Error()))
+	}
 	return p
 }
 
@@ -271,24 +301,44 @@ func (p *ECPoint) GobDecode(buf []byte) error {
 
 // crypto.ECPoint is not inherently json marshal-able
 func (p *ECPoint) MarshalJSON() ([]byte, error) {
+	ecName, ok := tss.GetCurveName(p.curve)
+	if !ok {
+		return nil, fmt.Errorf("cannot find %T name in curve registry, please call tss.RegisterCurve(name, curve) to register it first", p.curve)
+	}
+
 	return json.Marshal(&struct {
+		Curve  string
 		Coords [2]*big.Int
 	}{
+		Curve:  string(ecName),
 		Coords: p.coords,
 	})
 }
 
 func (p *ECPoint) UnmarshalJSON(payload []byte) error {
 	aux := &struct {
+		Curve  string
 		Coords [2]*big.Int
 	}{}
 	if err := json.Unmarshal(payload, &aux); err != nil {
 		return err
 	}
-	p.curve = tss.EC()
 	p.coords = [2]*big.Int{aux.Coords[0], aux.Coords[1]}
-	if !p.IsOnCurve() {
-		return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
+
+	if len(aux.Curve) > 0 {
+		ec, ok := tss.GetCurveByName(tss.CurveName(aux.Curve))
+		if !ok {
+			return fmt.Errorf("cannot find curve named with %s in curve registry, please call tss.RegisterCurve(name, curve) to register it first", aux.Curve)
+		}
+		p.curve = ec
+	} else {
+		// forward compatible, use global ec as default value
+		p.curve = tss.EC()
 	}
+
+	if !p.IsOnCurve() {
+		return fmt.Errorf("ECPoint.UnmarshalJSON: the point is not on the elliptic curve (%T) ", p.curve)
+	}
+
 	return nil
 }

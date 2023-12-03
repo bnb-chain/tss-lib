@@ -7,22 +7,25 @@
 package signing
 
 import (
+	"crypto/elliptic"
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
 )
 
 // PrepareForSigning(), GG18Spec (11) Fig. 14
-func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
-	modQ := common.ModInt(tss.EC().Params().N)
+func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
+	modQ := common.ModInt(ec.Params().N)
 	if len(ks) != len(bigXs) {
-		panic(fmt.Errorf("indices and bigX are not same length"))
+		panic(fmt.Errorf("PrepareForSigning: len(ks) != len(bigXs) (%d != %d)", len(ks), len(bigXs)))
 	}
 	if len(ks) != pax {
-		panic(fmt.Errorf("indices is not in pax size"))
+		panic(fmt.Errorf("PrepareForSigning: len(ks) != pax (%d != %d)", len(ks), pax))
+	}
+	if len(ks) <= i {
+		panic(fmt.Errorf("PrepareForSigning: len(ks) <= i (%d <= %d)", len(ks), i))
 	}
 
 	// 2-4.
@@ -31,8 +34,13 @@ func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.E
 		if j == i {
 			continue
 		}
+		ksj := ks[j]
+		ksi := ks[i]
+		if ksj.Cmp(ksi) == 0 {
+			panic(fmt.Errorf("index of two parties are equal"))
+		}
 		// big.Int Div is calculated as: a/b = a * modInv(b,q)
-		coef := modQ.Mul(ks[j], modQ.ModInverse(new(big.Int).Sub(ks[j], ks[i])))
+		coef := modQ.Mul(ks[j], modQ.ModInverse(new(big.Int).Sub(ksj, ksi)))
 		wi = modQ.Mul(wi, coef)
 	}
 

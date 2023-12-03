@@ -5,7 +5,7 @@
 // file LICENSE at the root of the source code distribution tree.
 
 syntax = "proto3";
-
+package binance.tsslib.ecdsa.keygen;
 option go_package = "ecdsa/keygen";
 
 /*
@@ -17,6 +17,8 @@ message KGRound1Message {
     bytes n_tilde = 3;
     bytes h1 = 4;
     bytes h2 = 5;
+    repeated bytes dlnproof_1 = 6;
+    repeated bytes dlnproof_2 = 7;
 }
 
 /*
@@ -24,6 +26,7 @@ message KGRound1Message {
  */
 message KGRound2Message1 {
     bytes share = 1;
+    repeated bytes facProof = 2;
 }
 
 /*
@@ -31,6 +34,7 @@ message KGRound2Message1 {
  */
 message KGRound2Message2 {
     repeated bytes de_commitment = 1;
+    repeated bytes modProof = 2;
 }
 
 /*

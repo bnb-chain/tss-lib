@@ -11,12 +11,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Implements Party
@@ -34,7 +32,7 @@ type (
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- LocalPartySaveData
+		end chan<- *LocalPartySaveData
 	}
 
 	localMessageStore struct {
@@ -51,60 +49,29 @@ type (
 		ui            *big.Int // used for tests
 		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
+		ssid          []byte
+		ssidNonce     *big.Int
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}
-
-	LocalPreParams struct {
-		PaillierSK        *paillier.PrivateKey // ski
-		NTildei, H1i, H2i *big.Int             // n-tilde, h1, h2
-	}
-
-	LocalSecrets struct {
-		// secret fields (not shared, but stored locally)
-		Xi, ShareID *big.Int // xi, kj
-	}
-
-	// Everything in LocalPartySaveData is saved locally to user's HD when done
-	LocalPartySaveData struct {
-		LocalPreParams
-		LocalSecrets
-
-		// original indexes (ki in signing preparation phase)
-		Ks []*big.Int
-
-		// n-tilde, h1, h2 for range proofs
-		NTildej, H1j, H2j []*big.Int
-
-		// public keys (Xj = uj*G for each Pj)
-		BigXj       []*crypto.ECPoint     // Xj
-		PaillierPKs []*paillier.PublicKey // pkj
-
-		// used for test assertions (may be discarded)
-		ECDSAPub *crypto.ECPoint // y
-	}
 )
-
-func (preParams LocalPreParams) Validate() bool {
-	return preParams.PaillierSK != nil && preParams.NTildei != nil && preParams.H1i != nil && preParams.H2i != nil
-}
 
 // Exported, used in `tss` client
 func NewLocalParty(
 	params *tss.Parameters,
 	out chan<- tss.Message,
-	end chan<- LocalPartySaveData,
+	end chan<- *LocalPartySaveData,
 	optionalPreParams ...LocalPreParams,
 ) tss.Party {
 	partyCount := params.PartyCount()
-	data := LocalPartySaveData{}
+	data := NewLocalPartySaveData(partyCount)
 	// when `optionalPreParams` is provided we'll use the pre-computed primes instead of generating them from scratch
 	if 0 < len(optionalPreParams) {
 		if 1 < len(optionalPreParams) {
 			panic(errors.New("keygen.NewLocalParty expected 0 or 1 item in `optionalPreParams`"))
 		}
-		if !optionalPreParams[0].Validate() {
-			panic(errors.New("keygen.NewLocalParty: `optionalPreParams` failed to validate"))
+		if !optionalPreParams[0].ValidateWithProof() {
+			panic(errors.New("`optionalPreParams` failed to validate; it might have been generated with an older version of tss-lib"))
 		}
 		data.LocalPreParams = optionalPreParams[0]
 	}
@@ -123,11 +90,6 @@ func NewLocalParty(
 	p.temp.kgRound3Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
 	p.temp.KGCs = make([]cmt.HashCommitment, partyCount)
-	// save data init
-	p.data.BigXj = make([]*crypto.ECPoint, partyCount)
-	p.data.PaillierPKs = make([]*paillier.PublicKey, partyCount)
-	p.data.NTildej = make([]*big.Int, partyCount)
-	p.data.H1j, p.data.H2j = make([]*big.Int, partyCount), make([]*big.Int, partyCount)
 	return p
 }
 
@@ -136,11 +98,11 @@ func (p *LocalParty) FirstRound() tss.Round {
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	return tss.BaseStart(p, "keygen")
+	return tss.BaseStart(p, TaskName)
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
-	return tss.BaseUpdate(p, msg, "keygen")
+	return tss.BaseUpdate(p, msg, TaskName)
 }
 
 func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (bool, *tss.Error) {
@@ -149,6 +111,18 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 		return false, p.WrapError(err)
 	}
 	return p.Update(msg)
+}
+
+func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	if ok, err := p.BaseParty.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
+	// check that the message's "from index" will fit into the array
+	if maxFromIdx := p.params.PartyCount() - 1; maxFromIdx < msg.GetFrom().Index {
+		return false, p.WrapError(fmt.Errorf("received msg with a sender index too great (%d <= %d)",
+			p.params.PartyCount(), msg.GetFrom().Index), msg.GetFrom())
+	}
+	return true, nil
 }
 
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
@@ -161,19 +135,14 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	// switch/case is necessary to store any messages beyond current round
 	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
 	switch msg.Content().(type) {
-
 	case *KGRound1Message:
 		p.temp.kgRound1Messages[fromPIdx] = msg
-
 	case *KGRound2Message1:
 		p.temp.kgRound2Message1s[fromPIdx] = msg
-
 	case *KGRound2Message2:
 		p.temp.kgRound2Message2s[fromPIdx] = msg
-
 	case *KGRound3Message:
 		p.temp.kgRound3Messages[fromPIdx] = msg
-
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil

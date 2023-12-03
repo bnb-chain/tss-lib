@@ -8,13 +8,14 @@ package signing
 
 import (
 	"errors"
+	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 func (round *round5) Start() *tss.Error {
@@ -30,6 +31,7 @@ func (round *round5) Start() *tss.Error {
 		if j == round.PartyID().Index {
 			continue
 		}
+		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		r1msg2 := round.temp.signRound1Message2s[j].Content().(*SignRound1Message2)
 		r4msg := round.temp.signRound4Messages[j].Content().(*SignRound4Message)
 		SCj, SDj := r1msg2.UnmarshalCommitment(), r4msg.UnmarshalDeCommitment()
@@ -38,15 +40,15 @@ func (round *round5) Start() *tss.Error {
 		if !ok || len(bigGammaJ) != 2 {
 			return round.WrapError(errors.New("commitment verify failed"), Pj)
 		}
-		bigGammaJPoint, err := crypto.NewECPoint(tss.EC(), bigGammaJ[0], bigGammaJ[1])
+		bigGammaJPoint, err := crypto.NewECPoint(round.Params().EC(), bigGammaJ[0], bigGammaJ[1])
 		if err != nil {
 			return round.WrapError(errors2.Wrapf(err, "NewECPoint(bigGammaJ)"), Pj)
 		}
-		proof, err := r4msg.UnmarshalZKProof()
+		proof, err := r4msg.UnmarshalZKProof(round.Params().EC())
 		if err != nil {
 			return round.WrapError(errors.New("failed to unmarshal bigGamma proof"), Pj)
 		}
-		ok = proof.Verify(bigGammaJPoint)
+		ok = proof.Verify(ContextJ, bigGammaJPoint)
 		if !ok {
 			return round.WrapError(errors.New("failed to prove bigGamma"), Pj)
 		}
@@ -57,7 +59,7 @@ func (round *round5) Start() *tss.Error {
 	}
 
 	R = R.ScalarMult(round.temp.thetaInverse)
-	N := tss.EC().Params().N
+	N := round.Params().EC().Params().N
 	modN := common.ModInt(N)
 	rx := R.X()
 	ry := R.Y()
@@ -70,8 +72,8 @@ func (round *round5) Start() *tss.Error {
 	li := common.GetRandomPositiveInt(N)  // li
 	roI := common.GetRandomPositiveInt(N) // pi
 	rToSi := R.ScalarMult(si)
-	liPoint := crypto.ScalarBaseMult(tss.EC(), li)
-	bigAi := crypto.ScalarBaseMult(tss.EC(), roI)
+	liPoint := crypto.ScalarBaseMult(round.Params().EC(), li)
+	bigAi := crypto.ScalarBaseMult(round.Params().EC(), roI)
 	bigVi, err := rToSi.Add(liPoint)
 	if err != nil {
 		return round.WrapError(errors2.Wrapf(err, "rToSi.Add(li)"))
@@ -96,16 +98,18 @@ func (round *round5) Start() *tss.Error {
 }
 
 func (round *round5) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound5Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round5) CanAccept(msg tss.ParsedMessage) bool {

@@ -11,13 +11,13 @@
 package vss
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
 )
 
 type (
@@ -39,65 +39,84 @@ var (
 	one  = big.NewInt(1)
 )
 
+// Check share ids of Shamir's Secret Sharing, return error if duplicate or 0 value found
+func CheckIndexes(ec elliptic.Curve, indexes []*big.Int) ([]*big.Int, error) {
+	visited := make(map[string]struct{})
+	for _, v := range indexes {
+		vMod := new(big.Int).Mod(v, ec.Params().N)
+		if vMod.Cmp(zero) == 0 {
+			return nil, errors.New("party index should not be 0")
+		}
+		vModStr := vMod.String()
+		if _, ok := visited[vModStr]; ok {
+			return nil, fmt.Errorf("duplicate indexes %s", vModStr)
+		}
+		visited[vModStr] = struct{}{}
+	}
+	return indexes, nil
+}
+
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
-//
-func Create(threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, error) {
+func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, error) {
 	if secret == nil || indexes == nil {
 		return nil, nil, fmt.Errorf("vss secret or indexes == nil: %v %v", secret, indexes)
 	}
 	if threshold < 1 {
 		return nil, nil, errors.New("vss threshold < 1")
 	}
+
+	ids, err := CheckIndexes(ec, indexes)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	num := len(indexes)
 	if num < threshold {
 		return nil, nil, ErrNumSharesBelowThreshold
 	}
 
-	poly := samplePolynomial(threshold, secret)
+	poly := samplePolynomial(ec, threshold, secret)
 	poly[0] = secret // becomes sigma*G in v
 	v := make(Vs, len(poly))
 	for i, ai := range poly {
-		v[i] = crypto.ScalarBaseMult(tss.EC(), ai)
+		v[i] = crypto.ScalarBaseMult(ec, ai)
 	}
 
 	shares := make(Shares, num)
 	for i := 0; i < num; i++ {
-		if indexes[i].Cmp(big.NewInt(0)) == 0 {
-			return nil, nil, fmt.Errorf("party index should not be 0")
-		}
-		share := evaluatePolynomial(threshold, poly, indexes[i])
-		shares[i] = &Share{Threshold: threshold, ID: indexes[i], Share: share}
+		share := evaluatePolynomial(ec, threshold, poly, ids[i])
+		shares[i] = &Share{Threshold: threshold, ID: ids[i], Share: share}
 	}
 	return v, shares, nil
 }
 
-func (share *Share) Verify(threshold int, vs Vs) bool {
+func (share *Share) Verify(ec elliptic.Curve, threshold int, vs Vs) bool {
 	if share.Threshold != threshold || vs == nil {
 		return false
 	}
 	var err error
-	modQ := common.ModInt(tss.EC().Params().N)
+	modQ := common.ModInt(ec.Params().N)
 	v, t := vs[0], one // YRO : we need to have our accumulator outside of the loop
 	for j := 1; j <= threshold; j++ {
 		// t = k_i^j
 		t = modQ.Mul(t, share.ID)
 		// v = v * v_j^t
-		vjt := vs[j].SetCurve(tss.EC()).ScalarMult(t)
-		v, err = v.SetCurve(tss.EC()).Add(vjt)
+		vjt := vs[j].SetCurve(ec).ScalarMult(t)
+		v, err = v.SetCurve(ec).Add(vjt)
 		if err != nil {
 			return false
 		}
 	}
-	sigmaGi := crypto.ScalarBaseMult(tss.EC(), share.Share)
+	sigmaGi := crypto.ScalarBaseMult(ec, share.Share)
 	return sigmaGi.Equals(v)
 }
 
-func (shares Shares) ReConstruct() (secret *big.Int, err error) {
+func (shares Shares) ReConstruct(ec elliptic.Curve) (secret *big.Int, err error) {
 	if shares != nil && shares[0].Threshold > len(shares) {
 		return nil, ErrNumSharesBelowThreshold
 	}
-	modN := common.ModInt(tss.EC().Params().N)
+	modN := common.ModInt(ec.Params().N)
 
 	// x coords
 	xs := make([]*big.Int, 0)
@@ -125,8 +144,8 @@ func (shares Shares) ReConstruct() (secret *big.Int, err error) {
 	return secret, nil
 }
 
-func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
-	q := tss.EC().Params().N
+func samplePolynomial(ec elliptic.Curve, threshold int, secret *big.Int) []*big.Int {
+	q := ec.Params().N
 	v := make([]*big.Int, threshold+1)
 	v[0] = secret
 	for i := 1; i <= threshold; i++ {
@@ -138,10 +157,10 @@ func samplePolynomial(threshold int, secret *big.Int) []*big.Int {
 
 // Evauluates a polynomial with coefficients such that:
 // evaluatePolynomial([a, b, c, d], x):
-// 		returns a + bx + cx^2 + dx^3
 //
-func evaluatePolynomial(threshold int, v []*big.Int, id *big.Int) (result *big.Int) {
-	q := tss.EC().Params().N
+//	returns a + bx + cx^2 + dx^3
+func evaluatePolynomial(ec elliptic.Curve, threshold int, v []*big.Int, id *big.Int) (result *big.Int) {
+	q := ec.Params().N
 	modQ := common.ModInt(q)
 	result = new(big.Int).Set(v[0])
 	X := big.NewInt(int64(1))

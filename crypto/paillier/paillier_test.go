@@ -7,16 +7,17 @@
 package paillier_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	. "github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	. "github.com/bnb-chain/tss-lib/v2/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -33,8 +34,12 @@ func setUp(t *testing.T) {
 	if privateKey != nil && publicKey != nil {
 		return
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
 	var err error
-	privateKey, publicKey, err = GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	privateKey, publicKey, err = GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 }
 
@@ -64,6 +69,10 @@ func TestEncryptDecrypt(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, exp.Cmp(ret),
 		"wrong decryption ", ret, " is not ", exp)
+
+	cypher = new(big.Int).Set(privateKey.N)
+	_, err = privateKey.Decrypt(cypher)
+	assert.Error(t, err)
 }
 
 func TestHomoMul(t *testing.T) {

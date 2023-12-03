@@ -7,13 +7,13 @@
 package mta
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
 )
 
 const (
@@ -22,6 +22,7 @@ const (
 
 var (
 	zero = big.NewInt(0)
+	one  = big.NewInt(1)
 )
 
 type (
@@ -31,12 +32,12 @@ type (
 )
 
 // ProveRangeAlice implements Alice's range proof used in the MtA and MtAwc protocols from GG18Spec (9) Fig. 9.
-func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (*RangeProofAlice, error) {
+func ProveRangeAlice(ec elliptic.Curve, pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (*RangeProofAlice, error) {
 	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil || m == nil || r == nil {
 		return nil, errors.New("ProveRangeAlice constructor received nil value(s)")
 	}
 
-	q := tss.EC().Params().N
+	q := ec.Params().N
 	q3 := new(big.Int).Mul(q, q)
 	q3 = new(big.Int).Mul(q, q3)
 	qNTilde := new(big.Int).Mul(q, NTilde)
@@ -103,15 +104,42 @@ func RangeProofAliceFromBytes(bzs [][]byte) (*RangeProofAlice, error) {
 	}, nil
 }
 
-func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
+func (pf *RangeProofAlice) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
 	if pf == nil || !pf.ValidateBasic() || pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil {
 		return false
 	}
 
-	N2 := new(big.Int).Mul(pk.N, pk.N)
-	q := tss.EC().Params().N
+	q := ec.Params().N
 	q3 := new(big.Int).Mul(q, q)
 	q3 = new(big.Int).Mul(q, q3)
+
+	if !common.IsInInterval(pf.Z, NTilde) {
+		return false
+	}
+	if !common.IsInInterval(pf.U, pk.NSquare()) {
+		return false
+	}
+	if !common.IsInInterval(pf.W, NTilde) {
+		return false
+	}
+	if !common.IsInInterval(pf.S, pk.N) {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.Z, NTilde).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.U, pk.NSquare()).Cmp(one) != 0 {
+		return false
+	}
+	if new(big.Int).GCD(nil, nil, pf.W, NTilde).Cmp(one) != 0 {
+		return false
+	}
+	if pf.S1.Cmp(q) == -1 {
+		return false
+	}
+	if pf.S2.Cmp(q) == -1 {
+		return false
+	}
 
 	// 3.
 	if pf.S1.Cmp(q3) == 1 {
@@ -129,14 +157,14 @@ func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big
 	minusE := new(big.Int).Sub(zero, e)
 
 	{ // 4. gamma^s_1 * s^N * c^-e
-		modN2 := common.ModInt(N2)
+		modNSquared := common.ModInt(pk.NSquare())
 
-		cExpMinusE := modN2.Exp(c, minusE)
-		sExpN := modN2.Exp(pf.S, pk.N)
-		gammaExpS1 := modN2.Exp(pk.Gamma(), pf.S1)
+		cExpMinusE := modNSquared.Exp(c, minusE)
+		sExpN := modNSquared.Exp(pf.S, pk.N)
+		gammaExpS1 := modNSquared.Exp(pk.Gamma(), pf.S1)
 		// u != (4)
-		products = modN2.Mul(gammaExpS1, sExpN)
-		products = modN2.Mul(products, cExpMinusE)
+		products = modNSquared.Mul(gammaExpS1, sExpN)
+		products = modNSquared.Mul(products, cExpMinusE)
 		if pf.U.Cmp(products) != 0 {
 			return false
 		}

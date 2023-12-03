@@ -7,16 +7,18 @@
 package resharing
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
-	"github.com/golang/protobuf/proto"
-
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/crypto/vss"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/facproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/modproof"
+	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into ecdsa-resharing.pb.go
@@ -29,16 +31,10 @@ var (
 		(*DGRound2Message2)(nil),
 		(*DGRound3Message1)(nil),
 		(*DGRound3Message2)(nil),
+		(*DGRound4Message1)(nil),
+		(*DGRound4Message2)(nil),
 	}
 )
-
-func init() {
-	proto.RegisterType((*DGRound1Message)(nil), tss.ProtoNamePrefix+"resharing.DGRound1Message")
-	proto.RegisterType((*DGRound2Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message1")
-	proto.RegisterType((*DGRound2Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound2Message2")
-	proto.RegisterType((*DGRound3Message1)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message1")
-	proto.RegisterType((*DGRound3Message2)(nil), tss.ProtoNamePrefix+"resharing.DGRound3Message2")
-}
 
 // ----- //
 
@@ -47,6 +43,7 @@ func NewDGRound1Message(
 	from *tss.PartyID,
 	ecdsaPub *crypto.ECPoint,
 	vct cmt.HashCommitment,
+	ssid []byte,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:             from,
@@ -58,6 +55,7 @@ func NewDGRound1Message(
 		EcdsaPubX:   ecdsaPub.X().Bytes(),
 		EcdsaPubY:   ecdsaPub.Y().Bytes(),
 		VCommitment: vct.Bytes(),
+		Ssid:        ssid,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
@@ -70,9 +68,9 @@ func (m *DGRound1Message) ValidateBasic() bool {
 		common.NonEmptyBytes(m.VCommitment)
 }
 
-func (m *DGRound1Message) UnmarshalECDSAPub() (*crypto.ECPoint, error) {
+func (m *DGRound1Message) UnmarshalECDSAPub(ec elliptic.Curve) (*crypto.ECPoint, error) {
 	return crypto.NewECPoint(
-		tss.EC(),
+		ec,
 		new(big.Int).SetBytes(m.EcdsaPubX),
 		new(big.Int).SetBytes(m.EcdsaPubY))
 }
@@ -81,42 +79,59 @@ func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {
 	return new(big.Int).SetBytes(m.GetVCommitment())
 }
 
+func (m *DGRound1Message) UnmarshalSSID() []byte {
+	return m.GetSsid()
+}
+
 // ----- //
 
 func NewDGRound2Message1(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 	paillierPK *paillier.PublicKey,
-	paillierPf paillier.Proof,
-	NTildei,
-	H1i,
-	H2i *big.Int,
-) tss.ParsedMessage {
+	modProof *modproof.ProofMod,
+	NTildei, H1i, H2i *big.Int,
+	dlnProof1, dlnProof2 *dlnproof.Proof,
+) (tss.ParsedMessage, error) {
 	meta := tss.MessageRouting{
 		From:             from,
 		To:               to,
 		IsBroadcast:      true,
 		IsToOldCommittee: false,
 	}
-	paiPfBzs := common.BigIntsToBytes(paillierPf[:])
+	modPfBzs := modProof.Bytes()
+	dlnProof1Bz, err := dlnProof1.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	dlnProof2Bz, err := dlnProof2.Serialize()
+	if err != nil {
+		return nil, err
+	}
 	content := &DGRound2Message1{
-		PaillierN:     paillierPK.N.Bytes(),
-		PaillierProof: paiPfBzs,
-		NTilde:        NTildei.Bytes(),
-		H1:            H1i.Bytes(),
-		H2:            H2i.Bytes(),
+		PaillierN:  paillierPK.N.Bytes(),
+		ModProof:   modPfBzs[:],
+		NTilde:     NTildei.Bytes(),
+		H1:         H1i.Bytes(),
+		H2:         H2i.Bytes(),
+		Dlnproof_1: dlnProof1Bz,
+		Dlnproof_2: dlnProof2Bz,
 	}
 	msg := tss.NewMessageWrapper(meta, content)
-	return tss.NewMessage(meta, content, msg)
+	return tss.NewMessage(meta, content, msg), nil
 }
 
 func (m *DGRound2Message1) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyMultiBytes(m.PaillierProof) &&
+		// use with NoProofFac()
+		// common.NonEmptyMultiBytes(m.ModProof, modproof.ProofModBytesParts) &&
 		common.NonEmptyBytes(m.PaillierN) &&
 		common.NonEmptyBytes(m.NTilde) &&
 		common.NonEmptyBytes(m.H1) &&
-		common.NonEmptyBytes(m.H2)
+		common.NonEmptyBytes(m.H2) &&
+		// expected len of dln proof = sizeof(int64) + len(alpha) + len(t)
+		common.NonEmptyMultiBytes(m.GetDlnproof_1(), 2+(dlnproof.Iterations*2)) &&
+		common.NonEmptyMultiBytes(m.GetDlnproof_2(), 2+(dlnproof.Iterations*2))
 }
 
 func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
@@ -125,11 +140,28 @@ func (m *DGRound2Message1) UnmarshalPaillierPK() *paillier.PublicKey {
 	}
 }
 
-func (m *DGRound2Message1) UnmarshalPaillierProof() paillier.Proof {
-	var pf paillier.Proof
-	ints := common.MultiBytesToBigInts(m.PaillierProof)
-	copy(pf[:], ints[:paillier.ProofIters])
-	return pf
+func (m *DGRound2Message1) UnmarshalNTilde() *big.Int {
+	return new(big.Int).SetBytes(m.GetNTilde())
+}
+
+func (m *DGRound2Message1) UnmarshalH1() *big.Int {
+	return new(big.Int).SetBytes(m.GetH1())
+}
+
+func (m *DGRound2Message1) UnmarshalH2() *big.Int {
+	return new(big.Int).SetBytes(m.GetH2())
+}
+
+func (m *DGRound2Message1) UnmarshalModProof() (*modproof.ProofMod, error) {
+	return modproof.NewProofFromBytes(m.GetModProof())
+}
+
+func (m *DGRound2Message1) UnmarshalDLNProof1() (*dlnproof.Proof, error) {
+	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_1())
+}
+
+func (m *DGRound2Message1) UnmarshalDLNProof2() (*dlnproof.Proof, error) {
+	return dlnproof.UnmarshalDLNProof(m.GetDlnproof_2())
 }
 
 // ----- //
@@ -211,7 +243,7 @@ func (m *DGRound3Message2) UnmarshalVDeCommitment() cmt.HashDeCommitment {
 
 // ----- //
 
-func NewDGRound4Message(
+func NewDGRound4Message2(
 	to []*tss.PartyID,
 	from *tss.PartyID,
 ) tss.ParsedMessage {
@@ -221,11 +253,40 @@ func NewDGRound4Message(
 		IsBroadcast:             true,
 		IsToOldAndNewCommittees: true,
 	}
-	content := &DGRound4Message{}
+	content := &DGRound4Message2{}
 	msg := tss.NewMessageWrapper(meta, content)
 	return tss.NewMessage(meta, content, msg)
 }
 
-func (m *DGRound4Message) ValidateBasic() bool {
+func (m *DGRound4Message2) ValidateBasic() bool {
 	return true
+}
+
+func NewDGRound4Message1(
+	to *tss.PartyID,
+	from *tss.PartyID,
+	proof *facproof.ProofFac,
+) tss.ParsedMessage {
+	meta := tss.MessageRouting{
+		From:             from,
+		To:               []*tss.PartyID{to},
+		IsBroadcast:      false,
+		IsToOldCommittee: false,
+	}
+	pfBzs := proof.Bytes()
+	content := &DGRound4Message1{
+		FacProof: pfBzs[:],
+	}
+	msg := tss.NewMessageWrapper(meta, content)
+	return tss.NewMessage(meta, content, msg)
+}
+
+func (m *DGRound4Message1) ValidateBasic() bool {
+	return m != nil
+	// use with NoProofFac()
+	// && common.NonEmptyMultiBytes(m.GetFacProof(), facproof.ProofFacBytesParts)
+}
+
+func (m *DGRound4Message1) UnmarshalFacProof() (*facproof.ProofFac, error) {
+	return facproof.NewProofFromBytes(m.GetFacProof())
 }

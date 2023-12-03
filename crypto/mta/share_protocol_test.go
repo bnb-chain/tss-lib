@@ -7,17 +7,18 @@
 package mta
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/binance-chain/tss-lib/crypto/paillier"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -25,10 +26,17 @@ const (
 	testPaillierKeyLength = 2048
 )
 
+var (
+	Session = []byte("session")
+)
+
 func TestShareProtocol(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
 	a := common.GetRandomPositiveInt(q)
@@ -39,13 +47,13 @@ func TestShareProtocol(t *testing.T) {
 	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
-	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
+	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
-	_, cB, betaPrm, pfB, err := BobMid(pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
+	_, cB, betaPrm, pfB, err := BobMid(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
-	alpha, err := AliceEnd(pk, pfB, h1i, h2i, cA, cB, NTildei, sk)
+	alpha, err := AliceEnd(Session, tss.EC(), pk, pfB, h1i, h2i, cA, cB, NTildei, sk)
 	assert.NoError(t, err)
 
 	// expect: alpha = ab + betaPrm
@@ -58,7 +66,10 @@ func TestShareProtocol(t *testing.T) {
 func TestShareProtocolWC(t *testing.T) {
 	q := tss.EC().Params().N
 
-	sk, pk, err := paillier.GenerateKeyPair(testPaillierKeyLength, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
 	assert.NoError(t, err)
 
 	a := common.GetRandomPositiveInt(q)
@@ -70,15 +81,15 @@ func TestShareProtocolWC(t *testing.T) {
 	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
-	cA, pf, err := AliceInit(pk, a, NTildej, h1j, h2j)
+	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j)
 	assert.NoError(t, err)
 
 	gBPoint, err := crypto.NewECPoint(tss.EC(), gBX, gBY)
 	assert.NoError(t, err)
-	_, cB, betaPrm, pfB, err := BobMidWC(pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, gBPoint)
+	_, cB, betaPrm, pfB, err := BobMidWC(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, gBPoint)
 	assert.NoError(t, err)
 
-	alpha, err := AliceEndWC(pk, pfB, gBPoint, cA, cB, NTildei, h1i, h2i, sk)
+	alpha, err := AliceEndWC(Session, tss.EC(), pk, pfB, gBPoint, cA, cB, NTildei, h1i, h2i, sk)
 	assert.NoError(t, err)
 
 	// expect: alpha = ab + betaPrm

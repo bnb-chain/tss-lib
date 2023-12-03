@@ -11,12 +11,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"math/rand"
 	"path/filepath"
 	"runtime"
+	"sort"
 
 	"github.com/pkg/errors"
 
-	"github.com/binance-chain/tss-lib/test"
+	"github.com/bnb-chain/tss-lib/v2/test"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 const (
@@ -26,51 +29,89 @@ const (
 	TestThreshold    = test.TestParticipants / 2
 )
 const (
-	testFixtureDirFormat  = "%s/../../test/_fixtures"
+	testFixtureDirFormat  = "%s/../../test/_ecdsa_fixtures"
 	testFixtureFileFormat = "keygen_data_%d.json"
 )
 
-func LoadKeygenTestFixtures(count int) ([]LocalPartySaveData, error) {
-	keys := make([]LocalPartySaveData, 0, count)
-	for j := 0; j < count; j++ {
-		fixtureFilePath := makeTestFixtureFilePath(j)
+func LoadKeygenTestFixtures(qty int, optionalStart ...int) ([]LocalPartySaveData, tss.SortedPartyIDs, error) {
+	keys := make([]LocalPartySaveData, 0, qty)
+	start := 0
+	if 0 < len(optionalStart) {
+		start = optionalStart[0]
+	}
+	for i := start; i < qty; i++ {
+		fixtureFilePath := makeTestFixtureFilePath(i)
 		bz, err := ioutil.ReadFile(fixtureFilePath)
 		if err != nil {
-			return nil, errors.Wrapf(err,
+			return nil, nil, errors.Wrapf(err,
 				"could not open the test fixture for party %d in the expected location: %s. run keygen tests first.",
-				j, fixtureFilePath)
+				i, fixtureFilePath)
 		}
 		var key LocalPartySaveData
 		if err = json.Unmarshal(bz, &key); err != nil {
-			return nil, errors.Wrapf(err,
+			return nil, nil, errors.Wrapf(err,
 				"could not unmarshal fixture data for party %d located at: %s",
-				j, fixtureFilePath)
+				i, fixtureFilePath)
 		}
-		keys = append(keys, LocalPartySaveData{
-			LocalPreParams: LocalPreParams{
-				PaillierSK: key.PaillierSK,
-				NTildei:    key.NTildei,
-				H1i:        key.H1i,
-				H2i:        key.H2i,
-			},
-			LocalSecrets: LocalSecrets{
-				Xi:      key.Xi,
-				ShareID: key.ShareID,
-			},
-			Ks:          key.Ks[:count],
-			NTildej:     key.NTildej[:count],
-			H1j:         key.H1j[:count],
-			H2j:         key.H2j[:count],
-			BigXj:       key.BigXj[:count],
-			PaillierPKs: key.PaillierPKs[:count],
-			ECDSAPub:    key.ECDSAPub,
-		})
+		for _, kbxj := range key.BigXj {
+			kbxj.SetCurve(tss.S256())
+		}
+		key.ECDSAPub.SetCurve(tss.S256())
+		keys = append(keys, key)
 	}
-	return keys, nil
+	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
+	for i, key := range keys {
+		pMoniker := fmt.Sprintf("%d", i+start+1)
+		partyIDs[i] = tss.NewPartyID(pMoniker, pMoniker, key.ShareID)
+	}
+	sortedPIDs := tss.SortPartyIDs(partyIDs)
+	return keys, sortedPIDs, nil
+}
+
+func LoadKeygenTestFixturesRandomSet(qty, fixtureCount int) ([]LocalPartySaveData, tss.SortedPartyIDs, error) {
+	keys := make([]LocalPartySaveData, 0, qty)
+	plucked := make(map[int]interface{}, qty)
+	for i := 0; len(plucked) < qty; i = (i + 1) % fixtureCount {
+		_, have := plucked[i]
+		if pluck := rand.Float32() < 0.5; !have && pluck {
+			plucked[i] = new(struct{})
+		}
+	}
+	for i := range plucked {
+		fixtureFilePath := makeTestFixtureFilePath(i)
+		bz, err := ioutil.ReadFile(fixtureFilePath)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err,
+				"could not open the test fixture for party %d in the expected location: %s. run keygen tests first.",
+				i, fixtureFilePath)
+		}
+		var key LocalPartySaveData
+		if err = json.Unmarshal(bz, &key); err != nil {
+			return nil, nil, errors.Wrapf(err,
+				"could not unmarshal fixture data for party %d located at: %s",
+				i, fixtureFilePath)
+		}
+		for _, kbxj := range key.BigXj {
+			kbxj.SetCurve(tss.S256())
+		}
+		key.ECDSAPub.SetCurve(tss.S256())
+		keys = append(keys, key)
+	}
+	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
+	j := 0
+	for i := range plucked {
+		key := keys[j]
+		pMoniker := fmt.Sprintf("%d", i+1)
+		partyIDs[j] = tss.NewPartyID(pMoniker, pMoniker, key.ShareID)
+		j++
+	}
+	sortedPIDs := tss.SortPartyIDs(partyIDs)
+	sort.Slice(keys, func(i, j int) bool { return keys[i].ShareID.Cmp(keys[j].ShareID) == -1 })
+	return keys, sortedPIDs, nil
 }
 
 func LoadNTildeH1H2FromTestFixture(idx int) (NTildei, h1i, h2i *big.Int, err error) {
-	fixtures, err := LoadKeygenTestFixtures(idx + 1)
+	fixtures, _, err := LoadKeygenTestFixtures(idx + 1)
 	if err != nil {
 		return
 	}

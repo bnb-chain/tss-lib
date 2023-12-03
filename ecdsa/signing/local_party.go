@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/crypto"
-	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
-	"github.com/binance-chain/tss-lib/crypto/mta"
-	"github.com/binance-chain/tss-lib/ecdsa/keygen"
-	"github.com/binance-chain/tss-lib/tss"
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v2/crypto/mta"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
 // Implements Party
@@ -31,11 +31,11 @@ type (
 
 		keys keygen.LocalPartySaveData
 		temp localTempData
-		data SignatureData
+		data *common.SignatureData
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- SignatureData
+		end chan<- *common.SignatureData
 	}
 
 	localMessageStore struct {
@@ -61,6 +61,7 @@ type (
 		theta,
 		thetaInverse,
 		sigma,
+		keyDerivationDelta,
 		gamma *big.Int
 		cis        []*big.Int
 		bigWs      []*crypto.ECPoint
@@ -90,23 +91,37 @@ type (
 		Ui,
 		Ti *crypto.ECPoint
 		DTelda cmt.HashDeCommitment
+
+		ssidNonce *big.Int
+		ssid      []byte
 	}
 )
 
 func NewLocalParty(
 	msg *big.Int,
 	params *tss.Parameters,
-	keys keygen.LocalPartySaveData,
+	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- SignatureData,
+	end chan<- *common.SignatureData) tss.Party {
+	return NewLocalPartyWithKDD(msg, params, key, nil, out, end)
+}
+
+// NewLocalPartyWithKDD returns a party with key derivation delta for HD support
+func NewLocalPartyWithKDD(
+	msg *big.Int,
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
+	keyDerivationDelta *big.Int,
+	out chan<- tss.Message,
+	end chan<- *common.SignatureData,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
 		BaseParty: new(tss.BaseParty),
 		params:    params,
-		keys:      keys,
+		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
 		temp:      localTempData{},
-		data:      SignatureData{},
+		data:      &common.SignatureData{},
 		out:       out,
 		end:       end,
 	}
@@ -122,6 +137,7 @@ func NewLocalParty(
 	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
+	p.temp.keyDerivationDelta = keyDerivationDelta
 	p.temp.m = msg
 	p.temp.cis = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
@@ -135,11 +151,11 @@ func NewLocalParty(
 }
 
 func (p *LocalParty) FirstRound() tss.Round {
-	return newRound1(p.params, &p.keys, &p.data, &p.temp, p.out, p.end)
+	return newRound1(p.params, &p.keys, p.data, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
-	return tss.BaseStart(p, "signing", func(round tss.Round) *tss.Error {
+	return tss.BaseStart(p, TaskName, func(round tss.Round) *tss.Error {
 		round1, ok := round.(*round1)
 		if !ok {
 			return round.WrapError(errors.New("unable to Start(). party is in an unexpected round"))
@@ -152,7 +168,7 @@ func (p *LocalParty) Start() *tss.Error {
 }
 
 func (p *LocalParty) Update(msg tss.ParsedMessage) (ok bool, err *tss.Error) {
-	return tss.BaseUpdate(p, msg, "signing")
+	return tss.BaseUpdate(p, msg, TaskName)
 }
 
 func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroadcast bool) (bool, *tss.Error) {
@@ -161,6 +177,18 @@ func (p *LocalParty) UpdateFromBytes(wireBytes []byte, from *tss.PartyID, isBroa
 		return false, p.WrapError(err)
 	}
 	return p.Update(msg)
+}
+
+func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
+	if ok, err := p.BaseParty.ValidateMessage(msg); !ok || err != nil {
+		return ok, err
+	}
+	// check that the message's "from index" will fit into the array
+	if maxFromIdx := len(p.params.Parties().IDs()) - 1; maxFromIdx < msg.GetFrom().Index {
+		return false, p.WrapError(fmt.Errorf("received msg with a sender index too great (%d <= %d)",
+			maxFromIdx, msg.GetFrom().Index), msg.GetFrom())
+	}
+	return true, nil
 }
 
 func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
@@ -175,34 +203,24 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	switch msg.Content().(type) {
 	case *SignRound1Message1:
 		p.temp.signRound1Message1s[fromPIdx] = msg
-
 	case *SignRound1Message2:
 		p.temp.signRound1Message2s[fromPIdx] = msg
-
 	case *SignRound2Message:
 		p.temp.signRound2Messages[fromPIdx] = msg
-
 	case *SignRound3Message:
 		p.temp.signRound3Messages[fromPIdx] = msg
-
 	case *SignRound4Message:
 		p.temp.signRound4Messages[fromPIdx] = msg
-
 	case *SignRound5Message:
 		p.temp.signRound5Messages[fromPIdx] = msg
-
 	case *SignRound6Message:
 		p.temp.signRound6Messages[fromPIdx] = msg
-
 	case *SignRound7Message:
 		p.temp.signRound7Messages[fromPIdx] = msg
-
 	case *SignRound8Message:
 		p.temp.signRound8Messages[fromPIdx] = msg
-
 	case *SignRound9Message:
 		p.temp.signRound9Messages[fromPIdx] = msg
-
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)
 		return false, nil
