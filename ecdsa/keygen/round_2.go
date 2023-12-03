@@ -165,20 +165,23 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round2) Update() (bool, *tss.Error) {
 	// guard - VERIFY de-commit for all Pj
+	ret := true
 	for j, msg := range round.temp.kgRound2Message1s {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		msg2 := round.temp.kgRound2Message2s[j]
 		if msg2 == nil || !round.CanAccept(msg2) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round2) NextRound() tss.Round {

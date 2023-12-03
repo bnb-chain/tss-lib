@@ -135,6 +135,7 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
+	ret := true
 	if round.ReSharingParams().IsOldCommittee() && round.ReSharingParameters.IsNewCommittee() {
 		// accept messages from new -> old committee
 		for j, msg1 := range round.temp.dgRound2Message2s {
@@ -142,12 +143,14 @@ func (round *round2) Update() (bool, *tss.Error) {
 				continue
 			}
 			if msg1 == nil || !round.CanAccept(msg1) {
-				return false, nil
+				ret = false
+				continue
 			}
 			// accept message from new -> committee
 			msg2 := round.temp.dgRound2Message1s[j]
 			if msg2 == nil || !round.CanAccept(msg2) {
-				return false, nil
+				ret = false
+				continue
 			}
 			round.newOK[j] = true
 		}
@@ -158,7 +161,8 @@ func (round *round2) Update() (bool, *tss.Error) {
 				continue
 			}
 			if msg == nil || !round.CanAccept(msg) {
-				return false, nil
+				ret = false
+				continue
 			}
 			round.newOK[j] = true
 		}
@@ -169,14 +173,15 @@ func (round *round2) Update() (bool, *tss.Error) {
 				continue
 			}
 			if msg == nil || !round.CanAccept(msg) {
-				return false, nil
+				ret = false
+				continue
 			}
 			round.newOK[j] = true
 		}
 	} else {
 		return false, round.WrapError(errors.New("this party is not in the old or the new committee"), round.PartyID())
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round2) NextRound() tss.Round {
