@@ -147,10 +147,9 @@ func (round *round3) Start() *tss.Error {
 		var multiErr error
 		if len(culprits) > 0 {
 			for _, vssResult := range vssResults {
-				if vssResult.unWrappedErr == nil {
-					continue
+				if vssResult.unWrappedErr != nil {
+					multiErr = multierror.Append(multiErr, vssResult.unWrappedErr)
 				}
-				multiErr = multierror.Append(multiErr, vssResult.unWrappedErr)
 			}
 			return round.WrapError(multiErr, culprits...)
 		}
