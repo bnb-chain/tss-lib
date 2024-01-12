@@ -170,13 +170,7 @@ func TestE2EConcurrentWithLeadingZeroInMSG(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(tss.Edwards(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
-		P := NewLocalPartyWithLength(
-			new(big.Int).SetBytes(msg),
-			params,
-			keys[i],
-			outCh,
-			endCh,
-			len(msg)).(*LocalParty)
+		P := NewLocalParty(new(big.Int).SetBytes(msg), params, keys[i], outCh, endCh, len(msg)).(*LocalParty)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
 			if err := P.Start(); err != nil {

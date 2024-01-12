@@ -72,28 +72,7 @@ func NewLocalParty(
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- *common.SignatureData,
-) tss.Party {
-	return SetupNewLocalParty(msg, params, key, out, end, 0)
-}
-
-func NewLocalPartyWithLength(
-	msg *big.Int,
-	params *tss.Parameters,
-	key keygen.LocalPartySaveData,
-	out chan<- tss.Message,
-	end chan<- *common.SignatureData,
-	fullBytesLen int,
-) tss.Party {
-	return SetupNewLocalParty(msg, params, key, out, end, fullBytesLen)
-}
-
-func SetupNewLocalParty(
-	msg *big.Int,
-	params *tss.Parameters,
-	key keygen.LocalPartySaveData,
-	out chan<- tss.Message,
-	end chan<- *common.SignatureData,
-	fullBytesLen int,
+	fullBytesLen ...int,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -112,7 +91,11 @@ func SetupNewLocalParty(
 
 	// temp data init
 	p.temp.m = msg
-	p.temp.fullBytesLen = fullBytesLen
+	if len(fullBytesLen) > 0 {
+		p.temp.fullBytesLen = fullBytesLen[0]
+	} else {
+		p.temp.fullBytesLen = 0
+	}
 	p.temp.cjs = make([]*big.Int, partyCount)
 	return p
 }
