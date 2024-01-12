@@ -50,8 +50,9 @@ type (
 		wi,
 		m,
 		ri *big.Int
-		pointRi  *crypto.ECPoint
-		deCommit cmt.HashDeCommitment
+		fullBytesLen int
+		pointRi      *crypto.ECPoint
+		deCommit     cmt.HashDeCommitment
 
 		// round 2
 		cjs []*big.Int
@@ -72,6 +73,28 @@ func NewLocalParty(
 	out chan<- tss.Message,
 	end chan<- *common.SignatureData,
 ) tss.Party {
+	return SetupNewLocalParty(msg, params, key, out, end, 0)
+}
+
+func NewLocalPartyWithLength(
+	msg *big.Int,
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
+	out chan<- tss.Message,
+	end chan<- *common.SignatureData,
+	fullBytesLen int,
+) tss.Party {
+	return SetupNewLocalParty(msg, params, key, out, end, fullBytesLen)
+}
+
+func SetupNewLocalParty(
+	msg *big.Int,
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
+	out chan<- tss.Message,
+	end chan<- *common.SignatureData,
+	fullBytesLen int,
+) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
 		BaseParty: new(tss.BaseParty),
@@ -89,6 +112,7 @@ func NewLocalParty(
 
 	// temp data init
 	p.temp.m = msg
+	p.temp.fullBytesLen = fullBytesLen
 	p.temp.cjs = make([]*big.Int, partyCount)
 	return p
 }
