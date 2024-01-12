@@ -17,14 +17,13 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
-var (
-	zero = big.NewInt(0)
-)
+var zero = big.NewInt(0)
 
 // round 1 represents round 1 of the keygen part of the EDDSA TSS spec
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
+		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1},
+	}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -46,12 +45,12 @@ func (round *round1) Start() *tss.Error {
 	round.temp.ssid = ssid
 
 	// 1. calculate "partial" key share ui
-	ui := common.GetRandomPositiveInt(round.Params().EC().Params().N)
+	ui := common.GetRandomPositiveInt(round.PartialKeyRand(), round.Params().EC().Params().N)
 	round.temp.ui = ui
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
-	vs, shares, err := vss.Create(round.Params().EC(), round.Threshold(), ui, ids)
+	vs, shares, err := vss.Create(round.EC(), round.Threshold(), ui, ids, round.Rand())
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -66,7 +65,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	cmt := cmts.NewHashCommitment(pGFlat...)
+	cmt := cmts.NewHashCommitment(round.Rand(), pGFlat...)
 
 	// for this P: SAVE
 	// - shareID

@@ -18,9 +18,7 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/tss"
 )
 
-var (
-	zero = big.NewInt(0)
-)
+var zero = big.NewInt(0)
 
 func (round *round2) Start() *tss.Error {
 	if round.started {
@@ -82,22 +80,21 @@ func (round *round2) Start() *tss.Error {
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	// generate the dlnproofs for resharing
-	h1i, h2i, alpha, beta, p, q, NTildei :=
-		preParams.H1i,
+	h1i, h2i, alpha, beta, p, q, NTildei := preParams.H1i,
 		preParams.H2i,
 		preParams.Alpha,
 		preParams.Beta,
 		preParams.P,
 		preParams.Q,
 		preParams.NTildei
-	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei)
-	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei)
+	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei, round.Rand())
+	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei, round.Rand())
 
 	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
 	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
 	if !round.Parameters.NoProofMod() {
 		var err error
-		modProof, err = modproof.NewProof(ContextI, preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q)
+		modProof, err = modproof.NewProof(ContextI, preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q, round.Rand())
 		if err != nil {
 			return round.WrapError(err, Pi)
 		}

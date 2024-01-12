@@ -8,6 +8,7 @@ package modproof
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -18,9 +19,7 @@ const (
 	ProofModBytesParts = Iterations*2 + 3
 )
 
-var (
-	one = big.NewInt(1)
-)
+var one = big.NewInt(1)
 
 type (
 	ProofMod struct {
@@ -37,10 +36,10 @@ func isQuadraticResidue(X, N *big.Int) bool {
 	return big.Jacobi(X, N) == 1
 }
 
-func NewProof(Session []byte, N, P, Q *big.Int) (*ProofMod, error) {
+func NewProof(Session []byte, N, P, Q *big.Int, rand io.Reader) (*ProofMod, error) {
 	Phi := new(big.Int).Mul(new(big.Int).Sub(P, one), new(big.Int).Sub(Q, one))
 	// Fig 16.1
-	W := common.GetRandomQuadraticNonResidue(N)
+	W := common.GetRandomQuadraticNonResidue(rand, N)
 
 	// Fig 16.2
 	Y := [Iterations]*big.Int{}

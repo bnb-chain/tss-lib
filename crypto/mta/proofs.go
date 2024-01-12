@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -36,7 +37,7 @@ type (
 
 // ProveBobWC implements Bob's proof both with or without check "ProveMtawc_Bob" and "ProveMta_Bob" used in the MtA protocol from GG18Spec (9) Figs. 10 & 11.
 // an absent `X` generates the proof without the X consistency check X = g^x
-func ProveBobWC(Session []byte, ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int, X *crypto.ECPoint) (*ProofBobWC, error) {
+func ProveBobWC(Session []byte, ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int, X *crypto.ECPoint, rand io.Reader) (*ProofBobWC, error) {
 	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c1 == nil || c2 == nil || x == nil || y == nil || r == nil {
 		return nil, errors.New("ProveBob() received a nil argument")
 	}
@@ -53,20 +54,20 @@ func ProveBobWC(Session []byte, ec elliptic.Curve, pk *paillier.PublicKey, NTild
 
 	// steps are numbered as shown in Fig. 10, but diverge slightly for Fig. 11
 	// 1.
-	alpha := common.GetRandomPositiveInt(q3)
+	alpha := common.GetRandomPositiveInt(rand, q3)
 
 	// 2.
-	rho := common.GetRandomPositiveInt(qNTilde)
-	sigma := common.GetRandomPositiveInt(qNTilde)
-	tau := common.GetRandomPositiveInt(q3NTilde)
+	rho := common.GetRandomPositiveInt(rand, qNTilde)
+	sigma := common.GetRandomPositiveInt(rand, qNTilde)
+	tau := common.GetRandomPositiveInt(rand, q3NTilde)
 
 	// 3.
-	rhoPrm := common.GetRandomPositiveInt(q3NTilde)
+	rhoPrm := common.GetRandomPositiveInt(rand, q3NTilde)
 
 	// 4.
-	beta := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
+	beta := common.GetRandomPositiveRelativelyPrimeInt(rand, pk.N)
 
-	gamma := common.GetRandomPositiveInt(q7)
+	gamma := common.GetRandomPositiveInt(rand, q7)
 
 	// 5.
 	u := crypto.NewECPointNoCurveCheck(ec, zero, zero) // initialization suppresses an IDE warning
@@ -139,10 +140,10 @@ func ProveBobWC(Session []byte, ec elliptic.Curve, pk *paillier.PublicKey, NTild
 }
 
 // ProveBob implements Bob's proof "ProveMta_Bob" used in the MtA protocol from GG18Spec (9) Fig. 11.
-func ProveBob(Session []byte, ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int) (*ProofBob, error) {
+func ProveBob(Session []byte, ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c1, c2, x, y, r *big.Int, rand io.Reader) (*ProofBob, error) {
 	// the Bob proof ("with check") contains the ProofBob "without check"; this method extracts and returns it
 	// X is supplied as nil to exclude it from the proof hash
-	pf, err := ProveBobWC(Session, ec, pk, NTilde, h1, h2, c1, c2, x, y, r, nil)
+	pf, err := ProveBobWC(Session, ec, pk, NTilde, h1, h2, c1, c2, x, y, r, nil, rand)
 	if err != nil {
 		return nil, err
 	}

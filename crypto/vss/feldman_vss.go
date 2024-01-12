@@ -14,6 +14,7 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -58,7 +59,7 @@ func CheckIndexes(ec elliptic.Curve, indexes []*big.Int) ([]*big.Int, error) {
 
 // Returns a new array of secret shares created by Shamir's Secret Sharing Algorithm,
 // requiring a minimum number of shares to recreate, of length shares, from the input secret
-func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.Int) (Vs, Shares, error) {
+func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.Int, rand io.Reader) (Vs, Shares, error) {
 	if secret == nil || indexes == nil {
 		return nil, nil, fmt.Errorf("vss secret or indexes == nil: %v %v", secret, indexes)
 	}
@@ -76,7 +77,8 @@ func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.In
 		return nil, nil, ErrNumSharesBelowThreshold
 	}
 
-	poly := samplePolynomial(ec, threshold, secret)
+	poly := samplePolynomial(ec, threshold, secret, rand)
+
 	v := make(Vs, len(poly))
 	for i, ai := range poly {
 		v[i] = crypto.ScalarBaseMult(ec, ai)
@@ -143,12 +145,12 @@ func (shares Shares) ReConstruct(ec elliptic.Curve) (secret *big.Int, err error)
 	return secret, nil
 }
 
-func samplePolynomial(ec elliptic.Curve, threshold int, secret *big.Int) []*big.Int {
+func samplePolynomial(ec elliptic.Curve, threshold int, secret *big.Int, rand io.Reader) []*big.Int {
 	q := ec.Params().N
 	v := make([]*big.Int, threshold+1)
 	v[0] = secret
 	for i := 1; i <= threshold; i++ {
-		ai := common.GetRandomPositiveInt(q)
+		ai := common.GetRandomPositiveInt(rand, q)
 		v[i] = ai
 	}
 	return v

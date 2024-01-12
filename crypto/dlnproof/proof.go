@@ -13,6 +13,7 @@ package dlnproof
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -28,17 +29,15 @@ type (
 	}
 )
 
-var (
-	one = big.NewInt(1)
-)
+var one = big.NewInt(1)
 
-func NewDLNProof(h1, h2, x, p, q, N *big.Int) *Proof {
+func NewDLNProof(h1, h2, x, p, q, N *big.Int, rand io.Reader) *Proof {
 	pMulQ := new(big.Int).Mul(p, q)
 	modN, modPQ := common.ModInt(N), common.ModInt(pMulQ)
 	a := make([]*big.Int, Iterations)
 	alpha := [Iterations]*big.Int{}
 	for i := range alpha {
-		a[i] = common.GetRandomPositiveInt(pMulQ)
+		a[i] = common.GetRandomPositiveInt(rand, pMulQ)
 		alpha[i] = modN.Exp(h1, a[i])
 	}
 	msg := append([]*big.Int{h1, h2, N}, alpha[:]...)

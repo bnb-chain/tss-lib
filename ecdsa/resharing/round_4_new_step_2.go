@@ -58,8 +58,7 @@ func (round *round4) Start() *tss.Error {
 	wg := new(sync.WaitGroup)
 	for j, msg := range round.temp.dgRound2Message1s {
 		r2msg1 := msg.Content().(*DGRound2Message1)
-		paiPK, NTildej, H1j, H2j :=
-			r2msg1.UnmarshalPaillierPK(),
+		paiPK, NTildej, H1j, H2j := r2msg1.UnmarshalPaillierPK(),
 			r2msg1.UnmarshalNTilde(),
 			r2msg1.UnmarshalH1(),
 			r2msg1.UnmarshalH2()
@@ -218,11 +217,13 @@ func (round *round4) Start() *tss.Error {
 			continue
 		}
 		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
-		facProof := &facproof.ProofFac{P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
-			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero}
+		facProof := &facproof.ProofFac{
+			P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
+			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero,
+		}
 		if !round.Parameters.NoProofFac() {
 			facProof, err = facproof.NewProof(ContextJ, round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
-				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q)
+				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
 			if err != nil {
 				return round.WrapError(err, Pi)
 			}

@@ -8,12 +8,13 @@ package crypto
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
 )
 
-func GenerateNTildei(safePrimes [2]*big.Int) (NTildei, h1i, h2i *big.Int, err error) {
+func GenerateNTildei(rand io.Reader, safePrimes [2]*big.Int) (NTildei, h1i, h2i *big.Int, err error) {
 	if safePrimes[0] == nil || safePrimes[1] == nil {
 		return nil, nil, nil, fmt.Errorf("GenerateNTildei: needs two primes, got %v", safePrimes)
 	}
@@ -21,7 +22,7 @@ func GenerateNTildei(safePrimes [2]*big.Int) (NTildei, h1i, h2i *big.Int, err er
 		return nil, nil, nil, fmt.Errorf("GenerateNTildei: expected two primes")
 	}
 	NTildei = new(big.Int).Mul(safePrimes[0], safePrimes[1])
-	h1 := common.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
-	h2 := common.GetRandomGeneratorOfTheQuadraticResidue(NTildei)
+	h1 := common.GetRandomGeneratorOfTheQuadraticResidue(rand, NTildei)
+	h2 := common.GetRandomGeneratorOfTheQuadraticResidue(rand, NTildei)
 	return NTildei, h1, h2, nil
 }

@@ -8,6 +8,7 @@ package schnorr
 
 import (
 	"errors"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -27,7 +28,7 @@ type (
 )
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge of the discrete logarithm (GG18Spec Fig. 16)
-func NewZKProof(Session []byte, x *big.Int, X *crypto.ECPoint) (*ZKProof, error) {
+func NewZKProof(Session []byte, x *big.Int, X *crypto.ECPoint, rand io.Reader) (*ZKProof, error) {
 	if x == nil || X == nil || !X.ValidateBasic() {
 		return nil, errors.New("ZKProof constructor received nil or invalid value(s)")
 	}
@@ -36,7 +37,7 @@ func NewZKProof(Session []byte, x *big.Int, X *crypto.ECPoint) (*ZKProof, error)
 	q := ecParams.N
 	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy) // already on the curve.
 
-	a := common.GetRandomPositiveInt(q)
+	a := common.GetRandomPositiveInt(rand, q)
 	alpha := crypto.ScalarBaseMult(ec, a)
 
 	var c *big.Int
@@ -79,7 +80,7 @@ func (pf *ZKProof) ValidateBasic() bool {
 }
 
 // NewZKProof constructs a new Schnorr ZK proof of knowledge s_i, l_i such that V_i = R^s_i, g^l_i (GG18Spec Fig. 17)
-func NewZKVProof(Session []byte, V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof, error) {
+func NewZKVProof(Session []byte, V, R *crypto.ECPoint, s, l *big.Int, rand io.Reader) (*ZKVProof, error) {
 	if V == nil || R == nil || s == nil || l == nil || !V.ValidateBasic() || !R.ValidateBasic() {
 		return nil, errors.New("ZKVProof constructor received nil value(s)")
 	}
@@ -88,7 +89,7 @@ func NewZKVProof(Session []byte, V, R *crypto.ECPoint, s, l *big.Int) (*ZKVProof
 	q := ecParams.N
 	g := crypto.NewECPointNoCurveCheck(ec, ecParams.Gx, ecParams.Gy)
 
-	a, b := common.GetRandomPositiveInt(q), common.GetRandomPositiveInt(q)
+	a, b := common.GetRandomPositiveInt(rand, q), common.GetRandomPositiveInt(rand, q)
 	aR := R.ScalarMult(a)
 	bG := crypto.ScalarBaseMult(ec, b)
 	alpha, _ := aR.Add(bG) // already on the curve.
