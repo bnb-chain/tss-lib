@@ -95,7 +95,7 @@ signing:
 				go updater(parties[dest[0].Index], msg, errCh)
 			}
 
-		case xx := <-endCh:
+		case <-endCh:
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
 				t.Logf("Done. Received signature data from %d participants", ended)
@@ -122,7 +122,6 @@ signing:
 				}
 				ok := ecdsa.Verify(&pk, big.NewInt(42).Bytes(), R.X(), sumS)
 				assert.True(t, ok, "ecdsa verify must pass")
-				t.Logf("Message: %v", hex.EncodeToString(xx.M))
 				t.Log("ECDSA signing test done.")
 				// END ECDSA verify
 
@@ -191,7 +190,7 @@ signing:
 				go updater(parties[dest[0].Index], msg, errCh)
 			}
 
-		case xx := <-endCh:
+		case <-endCh:
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(signPIDs)) {
 				t.Logf("Done. Received signature data from %d participants", ended)
@@ -218,7 +217,6 @@ signing:
 				}
 				ok := ecdsa.Verify(&pk, msgData, R.X(), sumS)
 				assert.True(t, ok, "ecdsa verify must pass")
-				t.Logf("Message: %v", hex.EncodeToString(xx.M))
 				t.Log("ECDSA signing test done.")
 				// END ECDSA verify
 
