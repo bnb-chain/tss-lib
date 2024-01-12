@@ -43,7 +43,7 @@ func GetRandomPositiveInt(rand io.Reader, lessThan *big.Int) *big.Int {
 	var try *big.Int
 	for {
 		try = MustGetRandomInt(rand, lessThan.BitLen())
-		if try.Cmp(lessThan) < 0 && try.Cmp(zero) >= 0 {
+		if try.Cmp(lessThan) < 0 {
 			break
 		}
 	}

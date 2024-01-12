@@ -78,7 +78,7 @@ func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.In
 	}
 
 	poly := samplePolynomial(ec, threshold, secret, rand)
-	poly[0] = secret // becomes sigma*G in v
+
 	v := make(Vs, len(poly))
 	for i, ai := range poly {
 		v[i] = crypto.ScalarBaseMult(ec, ai)

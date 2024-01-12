@@ -133,7 +133,7 @@ func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, c
 	}
 
 	primeCh := make(chan *GermainSafePrime, concurrency*numPrimes)
-	errCh := make(chan error, concurrency*numPrimes)
+	errCh := make(chan error, concurrency)
 	primes := make([]*GermainSafePrime, 0, numPrimes)
 
 	waitGroup := &sync.WaitGroup{}
@@ -193,7 +193,7 @@ func GetRandomSafePrimesConcurrent(ctx context.Context, bitLen, numPrimes int, c
 //     `q` in point 2. If `p` is not coprime to at least one element of the
 //     `smallPrimes`, then go back to point 1.
 //     If `p` is coprime to all the elements of `smallPrimes`, go to point 5.
-//  5. At this point, we know `q` is potentially prime, and `p=q+1` is also
+//  5. At this point, we know `q` is potentially prime, and `p=2q+1` is also
 //     potentially prime. We need to execute a final primality test for `q`.
 //     We apply Miller-Rabin and Baillie-PSW tests. If they succeed, it means
 //     that `q` is prime with a very high probability. Knowing `q` is prime,
