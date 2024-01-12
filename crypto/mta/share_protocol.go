@@ -9,6 +9,7 @@ package mta
 import (
 	"crypto/elliptic"
 	"errors"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -20,12 +21,13 @@ func AliceInit(
 	ec elliptic.Curve,
 	pkA *paillier.PublicKey,
 	a, NTildeB, h1B, h2B *big.Int,
+	rand io.Reader,
 ) (cA *big.Int, pf *RangeProofAlice, err error) {
-	cA, rA, err := pkA.EncryptAndReturnRandomness(a)
+	cA, rA, err := pkA.EncryptAndReturnRandomness(rand, a)
 	if err != nil {
 		return nil, nil, err
 	}
-	pf, err = ProveRangeAlice(ec, pkA, cA, NTildeB, h1B, h2B, a, rA)
+	pf, err = ProveRangeAlice(ec, pkA, cA, NTildeB, h1B, h2B, a, rA, rand)
 	return cA, pf, err
 }
 
@@ -35,6 +37,7 @@ func BobMid(
 	pkA *paillier.PublicKey,
 	pf *RangeProofAlice,
 	b, cA, NTildeA, h1A, h2A, NTildeB, h1B, h2B *big.Int,
+	rand io.Reader,
 ) (beta, cB, betaPrm *big.Int, piB *ProofBob, err error) {
 	if !pf.Verify(ec, pkA, NTildeB, h1B, h2B, cA) {
 		err = errors.New("RangeProofAlice.Verify() returned false")
@@ -44,8 +47,8 @@ func BobMid(
 	q5 := new(big.Int).Mul(q, q)  // q^2
 	q5 = new(big.Int).Mul(q5, q5) // q^4
 	q5 = new(big.Int).Mul(q5, q)  // q^5
-	betaPrm = common.GetRandomPositiveInt(q5)
-	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
+	betaPrm = common.GetRandomPositiveInt(rand, q5)
+	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(rand, betaPrm)
 	if err != nil {
 		return
 	}
@@ -58,7 +61,7 @@ func BobMid(
 		return
 	}
 	beta = common.ModInt(q).Sub(zero, betaPrm)
-	piB, err = ProveBob(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand)
+	piB, err = ProveBob(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, rand)
 	return
 }
 
@@ -69,6 +72,7 @@ func BobMidWC(
 	pf *RangeProofAlice,
 	b, cA, NTildeA, h1A, h2A, NTildeB, h1B, h2B *big.Int,
 	B *crypto.ECPoint,
+	rand io.Reader,
 ) (beta, cB, betaPrm *big.Int, piB *ProofBobWC, err error) {
 	if !pf.Verify(ec, pkA, NTildeB, h1B, h2B, cA) {
 		err = errors.New("RangeProofAlice.Verify() returned false")
@@ -78,8 +82,8 @@ func BobMidWC(
 	q5 := new(big.Int).Mul(q, q)  // q^2
 	q5 = new(big.Int).Mul(q5, q5) // q^4
 	q5 = new(big.Int).Mul(q5, q)  // q^5
-	betaPrm = common.GetRandomPositiveInt(q5)
-	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(betaPrm)
+	betaPrm = common.GetRandomPositiveInt(rand, q5)
+	cBetaPrm, cRand, err := pkA.EncryptAndReturnRandomness(rand, betaPrm)
 	if err != nil {
 		return
 	}
@@ -92,7 +96,7 @@ func BobMidWC(
 		return
 	}
 	beta = common.ModInt(q).Sub(zero, betaPrm)
-	piB, err = ProveBobWC(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B)
+	piB, err = ProveBobWC(Session, ec, pkA, NTildeA, h1A, h2A, cA, cB, b, betaPrm, cRand, B, rand)
 	return
 }
 

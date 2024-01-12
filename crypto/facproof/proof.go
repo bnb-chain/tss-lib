@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -32,7 +33,7 @@ var (
 )
 
 // NewProof implements prooffac
-func NewProof(Session []byte, ec elliptic.Curve, N0, NCap, s, t, N0p, N0q *big.Int) (*ProofFac, error) {
+func NewProof(Session []byte, ec elliptic.Curve, N0, NCap, s, t, N0p, N0q *big.Int, rand io.Reader) (*ProofFac, error) {
 	if ec == nil || N0 == nil || NCap == nil || s == nil || t == nil || N0p == nil || N0q == nil {
 		return nil, errors.New("ProveFac constructor received nil value(s)")
 	}
@@ -48,14 +49,14 @@ func NewProof(Session []byte, ec elliptic.Curve, N0, NCap, s, t, N0p, N0q *big.I
 	q3SqrtN0 := new(big.Int).Mul(q3, sqrtN0)
 
 	// Fig 28.1 sample
-	alpha := common.GetRandomPositiveInt(q3SqrtN0)
-	beta := common.GetRandomPositiveInt(q3SqrtN0)
-	mu := common.GetRandomPositiveInt(qNCap)
-	nu := common.GetRandomPositiveInt(qNCap)
-	sigma := common.GetRandomPositiveInt(qN0NCap)
-	r := common.GetRandomPositiveRelativelyPrimeInt(q3N0NCap)
-	x := common.GetRandomPositiveInt(q3NCap)
-	y := common.GetRandomPositiveInt(q3NCap)
+	alpha := common.GetRandomPositiveInt(rand, q3SqrtN0)
+	beta := common.GetRandomPositiveInt(rand, q3SqrtN0)
+	mu := common.GetRandomPositiveInt(rand, qNCap)
+	nu := common.GetRandomPositiveInt(rand, qNCap)
+	sigma := common.GetRandomPositiveInt(rand, qN0NCap)
+	r := common.GetRandomPositiveRelativelyPrimeInt(rand, q3N0NCap)
+	x := common.GetRandomPositiveInt(rand, q3NCap)
+	y := common.GetRandomPositiveInt(rand, q3NCap)
 
 	// Fig 28.1 compute
 	modNCap := common.ModInt(NCap)

@@ -7,6 +7,7 @@
 package common_test
 
 import (
+	"crypto/rand"
 	"math/big"
 	"testing"
 
@@ -20,20 +21,20 @@ const (
 )
 
 func TestGetRandomInt(t *testing.T) {
-	rnd := common.MustGetRandomInt(randomIntBitLen)
+	rnd := common.MustGetRandomInt(rand.Reader, randomIntBitLen)
 	assert.NotZero(t, rnd, "rand int should not be zero")
 }
 
 func TestGetRandomPositiveInt(t *testing.T) {
-	rnd := common.MustGetRandomInt(randomIntBitLen)
-	rndPos := common.GetRandomPositiveInt(rnd)
+	rnd := common.MustGetRandomInt(rand.Reader, randomIntBitLen)
+	rndPos := common.GetRandomPositiveInt(rand.Reader, rnd)
 	assert.NotZero(t, rndPos, "rand int should not be zero")
 	assert.True(t, rndPos.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
 }
 
 func TestGetRandomPositiveRelativelyPrimeInt(t *testing.T) {
-	rnd := common.MustGetRandomInt(randomIntBitLen)
-	rndPosRP := common.GetRandomPositiveRelativelyPrimeInt(rnd)
+	rnd := common.MustGetRandomInt(rand.Reader, randomIntBitLen)
+	rndPosRP := common.GetRandomPositiveRelativelyPrimeInt(rand.Reader, rnd)
 	assert.NotZero(t, rndPosRP, "rand int should not be zero")
 	assert.True(t, common.IsNumberInMultiplicativeGroup(rnd, rndPosRP))
 	assert.True(t, rndPosRP.Cmp(big.NewInt(0)) == 1, "rand int should be positive")
@@ -41,7 +42,7 @@ func TestGetRandomPositiveRelativelyPrimeInt(t *testing.T) {
 }
 
 func TestGetRandomPrimeInt(t *testing.T) {
-	prime := common.GetRandomPrimeInt(randomIntBitLen)
+	prime := common.GetRandomPrimeInt(rand.Reader, randomIntBitLen)
 	assert.NotZero(t, prime, "rand prime should not be zero")
 	assert.True(t, prime.ProbablyPrime(50), "rand prime should be prime")
 }

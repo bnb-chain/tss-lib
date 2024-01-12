@@ -7,6 +7,7 @@
 package facproof_test
 
 import (
+	"crypto/rand"
 	"math/big"
 	"testing"
 
@@ -23,31 +24,29 @@ const (
 	testSafePrimeBits = 1024
 )
 
-var (
-	Session = []byte("session")
-)
+var Session = []byte("session")
 
 func TestFac(test *testing.T) {
 	ec := tss.EC()
 
-	N0p := common.GetRandomPrimeInt(testSafePrimeBits)
-	N0q := common.GetRandomPrimeInt(testSafePrimeBits)
+	N0p := common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits)
+	N0q := common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits)
 	N0 := new(big.Int).Mul(N0p, N0q)
 
-	primes := [2]*big.Int{common.GetRandomPrimeInt(testSafePrimeBits), common.GetRandomPrimeInt(testSafePrimeBits)}
-	NCap, s, t, err := crypto.GenerateNTildei(primes)
+	primes := [2]*big.Int{common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits), common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits)}
+	NCap, s, t, err := crypto.GenerateNTildei(rand.Reader, primes)
 	assert.NoError(test, err)
-	proof, err := NewProof(Session, ec, N0, NCap, s, t, N0p, N0q)
+	proof, err := NewProof(Session, ec, N0, NCap, s, t, N0p, N0q, rand.Reader)
 	assert.NoError(test, err)
 
 	ok := proof.Verify(Session, ec, N0, NCap, s, t)
 	assert.True(test, ok, "proof must verify")
 
-	N0p = common.GetRandomPrimeInt(1024)
-	N0q = common.GetRandomPrimeInt(1024)
+	N0p = common.GetRandomPrimeInt(rand.Reader, 1024)
+	N0q = common.GetRandomPrimeInt(rand.Reader, 1024)
 	N0 = new(big.Int).Mul(N0p, N0q)
 
-	proof, err = NewProof(Session, ec, N0, NCap, s, t, N0p, N0q)
+	proof, err = NewProof(Session, ec, N0, NCap, s, t, N0p, N0q, rand.Reader)
 	assert.NoError(test, err)
 
 	ok = proof.Verify(Session, ec, N0, NCap, s, t)

@@ -8,6 +8,7 @@ package mta
 
 import (
 	"context"
+	"crypto/rand"
 	"math/big"
 	"testing"
 	"time"
@@ -26,9 +27,7 @@ const (
 	testPaillierKeyLength = 2048
 )
 
-var (
-	Session = []byte("session")
-)
+var Session = []byte("session")
 
 func TestShareProtocol(t *testing.T) {
 	q := tss.EC().Params().N
@@ -36,21 +35,21 @@ func TestShareProtocol(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
+	sk, pk, err := paillier.GenerateKeyPair(ctx, rand.Reader, testPaillierKeyLength)
 	assert.NoError(t, err)
 
-	a := common.GetRandomPositiveInt(q)
-	b := common.GetRandomPositiveInt(q)
+	a := common.GetRandomPositiveInt(rand.Reader, q)
+	b := common.GetRandomPositiveInt(rand.Reader, q)
 
 	NTildei, h1i, h2i, err := keygen.LoadNTildeH1H2FromTestFixture(0)
 	assert.NoError(t, err)
 	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
-	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j)
+	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j, rand.Reader)
 	assert.NoError(t, err)
 
-	_, cB, betaPrm, pfB, err := BobMid(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j)
+	_, cB, betaPrm, pfB, err := BobMid(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, rand.Reader)
 	assert.NoError(t, err)
 
 	alpha, err := AliceEnd(Session, tss.EC(), pk, pfB, h1i, h2i, cA, cB, NTildei, sk)
@@ -69,11 +68,11 @@ func TestShareProtocolWC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	sk, pk, err := paillier.GenerateKeyPair(ctx, testPaillierKeyLength)
+	sk, pk, err := paillier.GenerateKeyPair(ctx, rand.Reader, testPaillierKeyLength)
 	assert.NoError(t, err)
 
-	a := common.GetRandomPositiveInt(q)
-	b := common.GetRandomPositiveInt(q)
+	a := common.GetRandomPositiveInt(rand.Reader, q)
+	b := common.GetRandomPositiveInt(rand.Reader, q)
 	gBX, gBY := tss.EC().ScalarBaseMult(b.Bytes())
 
 	NTildei, h1i, h2i, err := keygen.LoadNTildeH1H2FromTestFixture(0)
@@ -81,12 +80,12 @@ func TestShareProtocolWC(t *testing.T) {
 	NTildej, h1j, h2j, err := keygen.LoadNTildeH1H2FromTestFixture(1)
 	assert.NoError(t, err)
 
-	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j)
+	cA, pf, err := AliceInit(tss.EC(), pk, a, NTildej, h1j, h2j, rand.Reader)
 	assert.NoError(t, err)
 
 	gBPoint, err := crypto.NewECPoint(tss.EC(), gBX, gBY)
 	assert.NoError(t, err)
-	_, cB, betaPrm, pfB, err := BobMidWC(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, gBPoint)
+	_, cB, betaPrm, pfB, err := BobMidWC(Session, tss.EC(), pk, pf, b, cA, NTildei, h1i, h2i, NTildej, h1j, h2j, gBPoint, rand.Reader)
 	assert.NoError(t, err)
 
 	alpha, err := AliceEndWC(Session, tss.EC(), pk, pfB, gBPoint, cA, cB, NTildei, h1i, h2i, sk)

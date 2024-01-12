@@ -19,8 +19,10 @@ import (
 
 // Implements Party
 // Implements Stringer
-var _ tss.Party = (*LocalParty)(nil)
-var _ fmt.Stringer = (*LocalParty)(nil)
+var (
+	_ tss.Party    = (*LocalParty)(nil)
+	_ fmt.Stringer = (*LocalParty)(nil)
+)
 
 type (
 	LocalParty struct {
