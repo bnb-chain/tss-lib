@@ -144,7 +144,7 @@ signing:
 	}
 }
 
-func TestE2EConcurrentWithSpecifyMSGLength(t *testing.T) {
+func TestE2EConcurrentWithLeadingZeroInMSG(t *testing.T) {
 	setUp("info")
 
 	threshold := testThreshold
