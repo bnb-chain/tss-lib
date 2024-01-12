@@ -61,14 +61,19 @@ func (round *finalization) Start() *tss.Error {
 	round.data.S = padToLengthBytesInPlace(sumS.Bytes(), bitSizeInBytes)
 	round.data.Signature = append(round.data.R, round.data.S...)
 	round.data.SignatureRecovery = []byte{byte(recid)}
-	round.data.M = round.temp.m.Bytes()
+	if round.data.M = round.temp.m.Bytes(); round.temp.fullBytesLen != 0 {
+		var mBytes = make([]byte, round.temp.fullBytesLen)
+		round.temp.m.FillBytes(mBytes)
+		round.data.M = mBytes
+	}
 
 	pk := ecdsa.PublicKey{
 		Curve: round.Params().EC(),
 		X:     round.key.ECDSAPub.X(),
 		Y:     round.key.ECDSAPub.Y(),
 	}
-	ok := ecdsa.Verify(&pk, round.temp.m.Bytes(), round.temp.rx, sumS)
+
+	ok := ecdsa.Verify(&pk, round.data.M, round.temp.rx, sumS)
 	if !ok {
 		return round.WrapError(fmt.Errorf("signature verification failed"))
 	}
