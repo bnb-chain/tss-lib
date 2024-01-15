@@ -65,10 +65,11 @@ type (
 		sigma,
 		keyDerivationDelta,
 		gamma *big.Int
-		cis        []*big.Int
-		bigWs      []*crypto.ECPoint
-		pointGamma *crypto.ECPoint
-		deCommit   cmt.HashDeCommitment
+		fullBytesLen int
+		cis          []*big.Int
+		bigWs        []*crypto.ECPoint
+		pointGamma   *crypto.ECPoint
+		deCommit     cmt.HashDeCommitment
 
 		// round 2
 		betas, // return value of Bob_mid
@@ -105,8 +106,8 @@ func NewLocalParty(
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
 	end chan<- *common.SignatureData,
-) tss.Party {
-	return NewLocalPartyWithKDD(msg, params, key, nil, out, end)
+	fullBytesLen ...int) tss.Party {
+	return NewLocalPartyWithKDD(msg, params, key, nil, out, end, fullBytesLen...)
 }
 
 // NewLocalPartyWithKDD returns a party with key derivation delta for HD support
@@ -117,6 +118,7 @@ func NewLocalPartyWithKDD(
 	keyDerivationDelta *big.Int,
 	out chan<- tss.Message,
 	end chan<- *common.SignatureData,
+	fullBytesLen ...int,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -142,6 +144,11 @@ func NewLocalPartyWithKDD(
 	// temp data init
 	p.temp.keyDerivationDelta = keyDerivationDelta
 	p.temp.m = msg
+	if len(fullBytesLen) > 0 {
+		p.temp.fullBytesLen = fullBytesLen[0]
+	} else {
+		p.temp.fullBytesLen = 0
+	}
 	p.temp.cis = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
