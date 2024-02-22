@@ -21,7 +21,8 @@ import (
 // round 1 represents round 1 of the keygen part of the EDDSA TSS spec
 func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *keygen.LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1}}
+		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1},
+	}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -50,7 +51,7 @@ func (round *round1) Start() *tss.Error {
 	wi := signing.PrepareForSigning(round.Params().EC(), i, len(round.OldParties().IDs()), xi, ks)
 
 	// 2.
-	vi, shares, err := vss.Create(round.Params().EC(), round.NewThreshold(), wi, newKs)
+	vi, shares, err := vss.Create(round.Params().EC(), round.NewThreshold(), wi, newKs, round.Rand())
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
@@ -60,7 +61,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
-	vCmt := commitments.NewHashCommitment(flatVis...)
+	vCmt := commitments.NewHashCommitment(round.Rand(), flatVis...)
 
 	// 4. populate temp data
 	round.temp.VD = vCmt.D
@@ -90,15 +91,21 @@ func (round *round1) Update() (bool, *tss.Error) {
 		return true, nil
 	}
 	// accept messages from old -> new committee
+	ret := true
 	for j, msg := range round.temp.dgRound1Messages {
 		if round.oldOK[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.oldOK[j] = true
 
+		if round.temp.dgRound1Messages[0] == nil {
+			ret = false
+			continue
+		}
 		// save the eddsa pub received from the old committee
 		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
 		candidate, err := r1msg.UnmarshalEDDSAPub(round.Params().EC())
@@ -112,7 +119,7 @@ func (round *round1) Update() (bool, *tss.Error) {
 		}
 		round.save.EDDSAPub = candidate
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round1) NextRound() tss.Round {

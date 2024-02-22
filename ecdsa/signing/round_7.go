@@ -83,7 +83,7 @@ func (round *round7) Start() *tss.Error {
 	TiX, TiY := round.Params().EC().ScalarMult(AX, AY, round.temp.li.Bytes())
 	round.temp.Ui = crypto.NewECPointNoCurveCheck(round.Params().EC(), UiX, UiY)
 	round.temp.Ti = crypto.NewECPointNoCurveCheck(round.Params().EC(), TiX, TiY)
-	cmt := commitments.NewHashCommitment(UiX, UiY, TiX, TiY)
+	cmt := commitments.NewHashCommitment(round.Rand(), UiX, UiY, TiX, TiY)
 	r7msg := NewSignRound7Message(round.PartyID(), cmt.C)
 	round.temp.signRound7Messages[round.PartyID().Index] = r7msg
 	round.out <- r7msg
@@ -93,16 +93,18 @@ func (round *round7) Start() *tss.Error {
 }
 
 func (round *round7) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound7Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round7) CanAccept(msg tss.ParsedMessage) bool {

@@ -69,8 +69,8 @@ func (round *round5) Start() *tss.Error {
 	round.temp.w = zero
 	round.temp.k = zero
 
-	li := common.GetRandomPositiveInt(N)  // li
-	roI := common.GetRandomPositiveInt(N) // pi
+	li := common.GetRandomPositiveInt(round.Rand(), N)  // li
+	roI := common.GetRandomPositiveInt(round.Rand(), N) // pi
 	rToSi := R.ScalarMult(si)
 	liPoint := crypto.ScalarBaseMult(round.Params().EC(), li)
 	bigAi := crypto.ScalarBaseMult(round.Params().EC(), roI)
@@ -79,7 +79,7 @@ func (round *round5) Start() *tss.Error {
 		return round.WrapError(errors2.Wrapf(err, "rToSi.Add(li)"))
 	}
 
-	cmt := commitments.NewHashCommitment(bigVi.X(), bigVi.Y(), bigAi.X(), bigAi.Y())
+	cmt := commitments.NewHashCommitment(round.Rand(), bigVi.X(), bigVi.Y(), bigAi.X(), bigAi.Y())
 	r5msg := NewSignRound5Message(round.PartyID(), cmt.C)
 	round.temp.signRound5Messages[round.PartyID().Index] = r5msg
 	round.out <- r5msg
@@ -98,16 +98,18 @@ func (round *round5) Start() *tss.Error {
 }
 
 func (round *round5) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound5Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round5) CanAccept(msg tss.ParsedMessage) bool {

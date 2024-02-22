@@ -66,7 +66,7 @@ func (round *round3) Start() *tss.Error {
 			return round.WrapError(errors.New("failed to prove Rj"), Pj)
 		}
 
-		extendedRj := ecPointToExtendedElement(round.Params().EC(), Rj.X(), Rj.Y())
+		extendedRj := ecPointToExtendedElement(round.Params().EC(), Rj.X(), Rj.Y(), round.Rand())
 		R = addExtendedElements(R, extendedRj)
 	}
 
@@ -80,7 +80,13 @@ func (round *round3) Start() *tss.Error {
 	h.Reset()
 	h.Write(encodedR[:])
 	h.Write(encodedPubKey[:])
-	h.Write(round.temp.m.Bytes())
+	if round.temp.fullBytesLen == 0 {
+		h.Write(round.temp.m.Bytes())
+	} else {
+		var mBytes = make([]byte, round.temp.fullBytesLen)
+		round.temp.m.FillBytes(mBytes)
+		h.Write(mBytes)
+	}
 
 	var lambda [64]byte
 	h.Sum(lambda[:0])
@@ -104,16 +110,18 @@ func (round *round3) Start() *tss.Error {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
+	ret := true
 	for j, msg := range round.temp.signRound3Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			return false, nil
+			ret = false
+			continue
 		}
 		round.ok[j] = true
 	}
-	return true, nil
+	return ret, nil
 }
 
 func (round *round3) CanAccept(msg tss.ParsedMessage) bool {

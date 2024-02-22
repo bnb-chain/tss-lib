@@ -10,6 +10,7 @@
 package commitments
 
 import (
+	"io"
 	"math/big"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -43,8 +44,8 @@ func NewHashCommitmentWithRandomness(r *big.Int, secrets ...*big.Int) *HashCommi
 	return cmt
 }
 
-func NewHashCommitment(secrets ...*big.Int) *HashCommitDecommit {
-	r := common.MustGetRandomInt(HashLength) // r
+func NewHashCommitment(rand io.Reader, secrets ...*big.Int) *HashCommitDecommit {
+	r := common.MustGetRandomInt(rand, HashLength) // r
 	return NewHashCommitmentWithRandomness(r, secrets...)
 }
 
