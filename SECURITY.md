@@ -4,7 +4,7 @@
 
 For non-security problems please open an issue in this GitHub repository.
 
-If you find any security issues please send a report confidentially to https://bugcrowd.com/binance.
+If you find any security issues please send a report confidentially to https://bugbounty.bnbchain.org/.
 
 Please include notes about the impact of the issue and a walkthrough on how it can be exploited.
 
