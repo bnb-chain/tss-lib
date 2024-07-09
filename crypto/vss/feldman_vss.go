@@ -93,7 +93,7 @@ func Create(ec elliptic.Curve, threshold int, secret *big.Int, indexes []*big.In
 }
 
 func (share *Share) Verify(ec elliptic.Curve, threshold int, vs Vs) bool {
-	if share.Threshold != threshold || vs == nil || len(vs) != threshold+1 {
+	if share.Threshold != threshold || vs == nil {
 		return false
 	}
 	var err error

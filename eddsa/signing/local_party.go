@@ -61,8 +61,9 @@ type (
 		// round 3
 		r *big.Int
 
-		ssid      []byte
-		ssidNonce *big.Int
+		ssid               []byte
+		ssidNonce          *big.Int
+		keyDerivationDelta *big.Int
 	}
 )
 
@@ -88,6 +89,42 @@ func NewLocalParty(
 	p.temp.signRound1Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound2Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound3Messages = make([]tss.ParsedMessage, partyCount)
+
+	// temp data init
+	p.temp.m = msg
+	if len(fullBytesLen) > 0 {
+		p.temp.fullBytesLen = fullBytesLen[0]
+	} else {
+		p.temp.fullBytesLen = 0
+	}
+	p.temp.cjs = make([]*big.Int, partyCount)
+	return p
+}
+
+func NewLocalPartyWithKDD(
+	msg *big.Int,
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
+	keyDerivationDelta *big.Int,
+	out chan<- tss.Message,
+	end chan<- *common.SignatureData,
+	fullBytesLen ...int,
+) tss.Party {
+	partyCount := len(params.Parties().IDs())
+	p := &LocalParty{
+		BaseParty: new(tss.BaseParty),
+		params:    params,
+		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
+		temp:      localTempData{},
+		data:      &common.SignatureData{},
+		out:       out,
+		end:       end,
+	}
+	// msgs init
+	p.temp.signRound1Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound2Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.signRound3Messages = make([]tss.ParsedMessage, partyCount)
+	p.temp.keyDerivationDelta = keyDerivationDelta
 
 	// temp data init
 	p.temp.m = msg

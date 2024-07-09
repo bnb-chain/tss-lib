@@ -9,7 +9,7 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/bnb-chain/tss-lib/v2/crypto"
 	"github.com/bnb-chain/tss-lib/v2/crypto/ckd"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
 
 	"github.com/btcsuite/btcd/chaincfg"
 )
@@ -18,7 +18,7 @@ func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.Lo
 	var err error
 	gDelta := crypto.ScalarBaseMult(ec, keyDerivationDelta)
 	for k := range keys {
-		keys[k].ECDSAPub = extendedChildPk
+		keys[k].EDDSAPub = extendedChildPk
 		// Suppose X_j has shamir shares X_j0,     X_j1,     ..., X_jn
 		// So X_j + D has shamir shares  X_j0 + D, X_j1 + D, ..., X_jn + D
 		for j := range keys[k].BigXj {
