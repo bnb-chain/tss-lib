@@ -9,16 +9,14 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/bnb-chain/tss-lib/v2/crypto"
 	"github.com/bnb-chain/tss-lib/v2/crypto/ckd"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
 )
 
 func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.LocalPartySaveData, extendedChildPk *crypto.ECPoint, ec elliptic.Curve) error {
 	var err error
 	gDelta := crypto.ScalarBaseMult(ec, keyDerivationDelta)
 	for k := range keys {
-		keys[k].ECDSAPub = extendedChildPk
+		keys[k].EDDSAPub = extendedChildPk
 		// Suppose X_j has shamir shares X_j0,     X_j1,     ..., X_jn
 		// So X_j + D has shamir shares  X_j0 + D, X_j1 + D, ..., X_jn + D
 		for j := range keys[k].BigXj {
@@ -33,14 +31,13 @@ func UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta *big.Int, keys []keygen.Lo
 }
 
 func derivingPubkeyFromPath(masterPub *crypto.ECPoint, chainCode []byte, path []uint32, ec elliptic.Curve) (*big.Int, *ckd.ExtendedKey, error) {
-	net := &chaincfg.MainNetParams
 	extendedParentPk := &ckd.ExtendedKey{
 		PublicKey:  masterPub,
 		Depth:      0,
 		ChildIndex: 0,
 		ChainCode:  chainCode[:],
 		ParentFP:   []byte{0x00, 0x00, 0x00, 0x00},
-		Version:    net.HDPrivateKeyID[:],
+		Version:    []byte{0x02, 0xe8, 0xda, 0x54},
 	}
 
 	return ckd.DeriveChildKeyFromHierarchy(path, extendedParentPk, ec.Params().N, ec)
