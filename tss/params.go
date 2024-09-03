@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"io"
+	"math/big"
 	"runtime"
 	"time"
 )
@@ -30,6 +31,8 @@ type (
 		noProofFac bool
 		// random sources
 		partialKeyRand, rand io.Reader
+
+		predefinedKey *big.Int
 	}
 
 	ReSharingParameters struct {
@@ -45,8 +48,8 @@ const (
 )
 
 // Exported, used in `tss` client
-func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int) *Parameters {
-	return &Parameters{
+func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyCount, threshold int, predefinedKey ...*big.Int) *Parameters {
+	p := &Parameters{
 		ec:                  ec,
 		parties:             ctx,
 		partyID:             partyID,
@@ -57,6 +60,10 @@ func NewParameters(ec elliptic.Curve, ctx *PeerContext, partyID *PartyID, partyC
 		partialKeyRand:      rand.Reader,
 		rand:                rand.Reader,
 	}
+	if len(predefinedKey) > 0 {
+		p.predefinedKey = predefinedKey[0]
+	}
+	return p
 }
 
 func (params *Parameters) EC() elliptic.Curve {
@@ -126,6 +133,10 @@ func (params *Parameters) SetPartialKeyRand(rand io.Reader) {
 
 func (params *Parameters) SetRand(rand io.Reader) {
 	params.rand = rand
+}
+
+func (params *Parameters) GetPredefinedKey() *big.Int {
+	return params.predefinedKey
 }
 
 // ----- //

@@ -41,6 +41,9 @@ func (round *round1) Start() *tss.Error {
 
 	// 1. calculate "partial" key share ui
 	ui := common.GetRandomPositiveInt(round.PartialKeyRand(), round.EC().Params().N)
+	if round.Parameters.GetPredefinedKey() != nil {
+		ui = round.Parameters.GetPredefinedKey()
+	}
 
 	round.temp.ui = ui
 
