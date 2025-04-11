@@ -1,0 +1,65 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+package binance.tsslib.ecdsa.resharing;
+option go_package = "ecdsa/resharing";
+
+/*
+ * The Round 1 data is broadcast to peers of the New Committee in this message.
+ */
+message DGRound1Message {
+    bytes ecdsa_pub_x = 1;
+    bytes ecdsa_pub_y = 2;
+    bytes v_commitment = 3;
+    bytes ssid = 4;
+}
+
+/*
+ * The Round 2 data is broadcast to other peers of the New Committee in this message.
+ */
+message DGRound2Message1 {
+    bytes paillier_n = 1;
+    repeated bytes modProof = 2;
+    bytes n_tilde = 3;
+    bytes h1 = 4;
+    bytes h2 = 5;
+    repeated bytes dlnproof_1 = 6;
+    repeated bytes dlnproof_2 = 7;
+}
+
+/*
+ * The Round 2 "ACK" is broadcast to peers of the Old Committee in this message.
+ */
+message DGRound2Message2 {
+}
+
+/*
+ * The Round 3 data is sent to peers of the New Committee in this message.
+ */
+message DGRound3Message1 {
+    bytes share = 1;
+}
+
+/*
+ * The Round 3 data is broadcast to peers of the New Committee in this message.
+ */
+message DGRound3Message2 {
+    repeated bytes v_decommitment = 1;
+}
+
+/*
+ * The Round 4 "ACK" is broadcast to peers of the Old and New Committees from the New Committee in this message.
+ */
+message DGRound4Message2 {
+}
+
+/*
+ * The Round 4 message to peers of New Committees from the New Committee in this message.
+ */
+message DGRound4Message1 {
+    repeated bytes facProof = 1;
+}
