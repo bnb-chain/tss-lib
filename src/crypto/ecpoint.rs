@@ -1,5 +1,5 @@
 
-pub fn new(curve: k256::Secp256k1, x: BigInt, y: BigInt) -> Result<Self, String> {
+pub fn new(curve: k256::Secp256k1, x: BigInt, y: BigInt) -> Result<ECPoint, String> {
     if !curve.contains_point(&k256::AffinePoint::from_coords(x, y).unwrap()) {
         return Err("Point is not on the curve".to_string());
     }
