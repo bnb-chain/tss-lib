@@ -15,20 +15,36 @@ impl<'a> Round2<'a> {
     }
 
     pub fn start(&mut self) -> Result<(), String> {
-        // Implement the logic for starting Round 2
-        // This may involve processing messages from Round 1 and preparing for Round 3
+        // Process messages from Round 1
+        for (i, msg) in self.round1.base.temp.local_message_store.kg_round1_messages.iter().enumerate() {
+            if let Some(msg) = msg {
+                // Process each message
+                // Example: Verify commitments, calculate shares, etc.
+                // self.round1.base.temp.shares[i] = Some(processed_share);
+            }
+        }
+        // Prepare for Round 3
+        // Example: Generate new commitments or shares
         Ok(())
     }
 
     pub fn can_accept(&self, _msg: &KGRound2Message1) -> bool {
-        // Implement logic to check if a message can be accepted in Round 2
-        true
+        // Check if the message is valid for Round 2
+        // Example: Check message type, sender, etc.
+        // return self.round1.base.params.is_valid_message(msg);
+        true // Placeholder
     }
 
     pub fn update(&mut self) -> Result<bool, String> {
-        // Implement the update logic for Round 2
-        // This may involve checking received messages and updating state
-        Ok(true)
+        // Update state based on received messages
+        let mut all_messages_received = true;
+        for msg in &self.round1.base.temp.local_message_store.kg_round2_message1s {
+            if msg.is_none() {
+                all_messages_received = false;
+                break;
+            }
+        }
+        Ok(all_messages_received)
     }
 
     pub fn next_round(self) -> Result<(), String> {

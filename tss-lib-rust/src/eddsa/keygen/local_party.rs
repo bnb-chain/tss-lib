@@ -153,7 +153,24 @@ impl LocalParty {
                     Ok(false)
                 }
             }
-            // Add Round3 handling if needed
+            KeygenMessage::Round2_1 { msg, from_idx } => {
+                if from_idx < self.temp.local_message_store.kg_round2_message1s.len() {
+                    self.temp.local_message_store.kg_round2_message1s[from_idx] = Some(msg);
+                    Ok(true)
+                } else {
+                    // Log warning about invalid index
+                    Ok(false)
+                }
+            }
+            KeygenMessage::Round2_2 { msg, from_idx } => {
+                if from_idx < self.temp.local_message_store.kg_round2_message2s.len() {
+                    self.temp.local_message_store.kg_round2_message2s[from_idx] = Some(msg);
+                    Ok(true)
+                } else {
+                    // Log warning about invalid index
+                    Ok(false)
+                }
+            }
         }
     }
 

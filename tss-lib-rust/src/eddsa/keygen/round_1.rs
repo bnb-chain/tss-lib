@@ -116,8 +116,8 @@ impl<'a> Round1<'a> {
 
     pub fn next_round(self) -> Round2<'a> {
         // Reset started for next round
-        // TODO: Implement transition to round 2
-        Round2 { round1: self }
+        // Transition to Round 2
+        Round2::new(self)
     }
 }
 
