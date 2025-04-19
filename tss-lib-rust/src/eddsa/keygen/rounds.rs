@@ -4,73 +4,57 @@
 // terms governing use, modification, and redistribution, is contained in the
 // file LICENSE at the root of the source code distribution tree.
 
-// EDDSA Keygen round logic (ported from Go)
+// EDDSA Keygen round base logic (adapted from Go)
 
+use std::sync::{Arc, Mutex};
+use crate::eddsa::keygen::{
+    KeygenPartyTmpData,
+    KeyGenPartySaveData,
+};
+use crate::tss::{
+    error::TssError,
+    message::ParsedMessage, // Import actual ParsedMessage
+    params::Parameters,
+    party::Round as TssRound, // Import the actual Round trait
+    party_id::{PartyID, SortedPartyIDs},
+};
 use num_bigint::BigInt;
-// use crate::eddsa::keygen::{LocalPartySaveData, LocalTempData};
-// use crate::tss::{Parameters, Message, PartyID, Error};
+use std::error::Error as StdError;
+use std::fmt::Debug;
 
-const TASK_NAME: &str = "eddsa-keygen";
+// Removed placeholder RoundCtx, RoundState
+// Removed placeholder get_ssid (logic might move into rounds or be part of context)
+// Removed placeholder CurveParams and common_crypto (real types needed)
 
-pub struct BaseRound<'a> {
-    pub params: &'a Parameters, // TODO: Replace with actual Parameters
-    pub save: &'a mut LocalPartySaveData, // TODO: Replace with actual LocalPartySaveData
-    pub temp: &'a mut LocalTempData, // TODO: Replace with actual LocalTempData
-    // pub out: Sender<Message>,
-    // pub end: Sender<LocalPartySaveData>,
-    pub ok: Vec<bool>,
-    pub started: bool,
-    pub number: usize,
-}
+// Constant for the protocol name
+pub const PROTOCOL_NAME: &str = "eddsa-keygen";
 
-pub struct Round1<'a> {
-    pub base: BaseRound<'a>,
-}
+// Define the concrete Round trait implementations need access to shared state.
+// This was previously handled by RoundCtx. Now rounds will likely hold Arcs.
+// Example common structure for a round:
+pub trait KeygenRound: TssRound + Debug + Send + Sync {
+    // Add methods specific to keygen rounds if needed,
+    // otherwise just rely on TssRound.
 
-pub struct Round2<'a> {
-    pub round1: Round1<'a>,
-}
+    // Accessor for temporary data store
+    fn temp(&self) -> Arc<Mutex<KeygenPartyTmpData>>;
+    // Accessor for persistent save data store
+    fn data(&self) -> Arc<Mutex<KeyGenPartySaveData>>;
 
-pub struct Round3<'a> {
-    pub round2: Round2<'a>,
-}
-
-impl<'a> BaseRound<'a> {
-    pub fn params(&self) -> &Parameters {
-        self.params
-    }
-    pub fn round_number(&self) -> usize {
-        self.number
-    }
-    pub fn can_proceed(&self) -> bool {
-        if !self.started {
-            return false;
-        }
-        self.ok.iter().all(|&ok| ok)
-    }
-    pub fn waiting_for(&self) -> Vec<&PartyID> {
-        // TODO: Implement using self.params.parties().ids()
-        vec![]
-    }
-    pub fn wrap_error(&self, _err: &str, _culprits: &[&PartyID]) -> Error {
-        // TODO: Implement error wrapping
-        Error {}
-    }
-    pub fn reset_ok(&mut self) {
-        for ok in &mut self.ok {
-            *ok = false;
-        }
-    }
-    pub fn get_ssid(&self) -> Option<Vec<u8>> {
-        // Implement using curve params and party ids
-        Some(vec![1, 2, 3]) // Example implementation
+     // Default wrap_error implementation using stored parameters and round number
+     fn wrap_keygen_error(&self, err: Box<dyn StdError>, culprits: Vec<PartyID>) -> TssError {
+        TssError::new(
+            err,
+            PROTOCOL_NAME.to_string(),
+            self.round_number(),
+            Some(self.params().party_id().clone()), // Get local party ID from params
+            culprits,
+        )
     }
 }
 
-// Placeholder types for porting
-pub struct Parameters;
-pub struct LocalPartySaveData;
-pub struct LocalTempData { pub ssid_nonce: BigInt }
-pub struct Message;
-pub struct PartyID;
-pub struct Error;
+
+// Note: The TssRound trait from tss/party.rs seems minimal.
+// Implementations will likely need internal state management (like RoundState)
+// and access to shared message storage (via temp/data Arcs) to fulfill
+// the expected logic of `update`, `waiting_for`, `can_proceed`, etc.
