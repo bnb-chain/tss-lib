@@ -3,7 +3,6 @@ use k256::Secp256k1;
 use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha512;
 use num_bigint::BigInt;
-use num_traits::Zero;
 use std::fmt;
 
 type HmacSha512 = Hmac<Sha512>;

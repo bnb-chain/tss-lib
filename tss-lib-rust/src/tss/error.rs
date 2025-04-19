@@ -77,3 +77,4 @@ mod tests {
         assert_eq!(error.culprits(), culprits.as_slice());
     }
 }
+use crate::tss::party_id::PartyID;

@@ -46,3 +46,5 @@ mod tests {
         assert_eq!(params.threshold, 1);
     }
 }
+use crate::tss::party_id::PartyID;
+use crate::tss::peers::PeerContext;

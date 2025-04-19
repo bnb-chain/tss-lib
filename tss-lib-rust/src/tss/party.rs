@@ -69,3 +69,7 @@ mod tests {
         assert!(!base_party.running());
     }
 }
+use crate::tss::error::Error;
+use crate::tss::message::ParsedMessage;
+use crate::tss::party_id::PartyID;
+use crate::tss::params::Parameters;

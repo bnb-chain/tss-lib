@@ -1,5 +1,5 @@
 use num_bigint::BigInt;
-use crate::common::hash::sha512_256i_tagged;
+use crate::common::hash::sha512_256i;
 
 pub struct ProofMod {
     pub w: BigInt,

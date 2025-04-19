@@ -7,3 +7,4 @@ impl PeerContext {
         PeerContext { party_ids }
     }
 }
+use crate::tss::party_id::PartyID;
