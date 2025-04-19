@@ -18,7 +18,7 @@ prost-types = "0.11"
 hmac = "0.12"
 lazy_static = "1.4"
 ed25519-dalek = "1.0"
-num-cpus = "1.13"
+num_cpus = "1.13"
 
 [dev-dependencies]
 # Add any dependencies needed for testing here
