@@ -9,6 +9,7 @@ path = "src/lib.rs"
 [dependencies]
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
+num-integer = "0.1"
 rand = "0.8"
 sha2 = "0.10"
 prost = "0.11"

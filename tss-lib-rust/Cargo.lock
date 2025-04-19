@@ -640,6 +640,7 @@ dependencies = [
  "lazy_static",
  "log",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "num_cpus",
  "prost",
