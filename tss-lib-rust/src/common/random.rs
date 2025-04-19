@@ -4,7 +4,7 @@ use num_traits::{Zero, One};
 
 const MUST_GET_RANDOM_INT_MAX_BITS: usize = 5000;
 
-pub fn must_get_random_int<R: Rng>(rng: &mut R, bits: usize) -> BigInt {
+pub fn must_get_random_int<R: Rng + RandBigInt>(rng: &mut R, bits: usize) -> BigInt {
     if bits <= 0 || bits > MUST_GET_RANDOM_INT_MAX_BITS {
         panic!("MustGetRandomInt: bits should be positive, non-zero and less than {}", MUST_GET_RANDOM_INT_MAX_BITS);
     }
@@ -32,7 +32,7 @@ pub fn is_probable_prime(n: &BigInt, _k: u32) -> bool {
     true
 }
 
-pub fn get_random_positive_int<R: Rng>(rng: &mut R, less_than: &BigInt) -> BigInt {
+pub fn get_random_positive_int<R: Rng + RandBigInt>(rng: &mut R, less_than: &BigInt) -> BigInt {
     if less_than <= &BigInt::zero() {
         return BigInt::zero();
     }
@@ -44,7 +44,7 @@ pub fn get_random_positive_int<R: Rng>(rng: &mut R, less_than: &BigInt) -> BigIn
     }
 }
 
-pub fn get_random_prime_int<R: Rng>(rng: &mut R, bits: usize) -> BigInt {
+pub fn get_random_prime_int<R: Rng + RandBigInt>(rng: &mut R, bits: usize) -> BigInt {
     loop {
         let candidate = rng.gen_bigint(bits as u64);
         if is_probable_prime(&candidate, 30) {

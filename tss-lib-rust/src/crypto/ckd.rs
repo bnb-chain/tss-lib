@@ -6,6 +6,8 @@ use num_bigint::BigInt;
 use std::fmt;
 use k256::elliptic_curve::sec1::EncodedPoint;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
+use bip32::{ExtendedPublicKey, DerivationPath, Prefix};
+use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -70,17 +72,99 @@ mod tests {
     use k256::Secp256k1;
     use rand::thread_rng;
 
+    // BIP32 test vectors from Go test
+    const TEST_VEC1_MASTER_PUB: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+    const TEST_VEC2_MASTER_PUB: &str = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB";
+
+    struct TestVector<'a> {
+        name: &'a str,
+        master: &'a str,
+        path: &'a [u32],
+        want_pub: &'a str,
+    }
+
+    const TEST_VECTORS: &[TestVector] = &[
+        // Test vector 1
+        TestVector {
+            name: "test vector 1 chain m",
+            master: TEST_VEC1_MASTER_PUB,
+            path: &[],
+            want_pub: "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
+        },
+        TestVector {
+            name: "test vector 1 chain m/0",
+            master: TEST_VEC1_MASTER_PUB,
+            path: &[0],
+            want_pub: "xpub68Gmy5EVb2BdFbj2LpWrk1M7obNuaPTpT5oh9QCCo5sRfqSHVYWex97WpDZzszdzHzxXDAzPLVSwybe4uPYkSk4G3gnrPqqkV9RyNzAcNJ1",
+        },
+        TestVector {
+            name: "test vector 1 chain m/0/1",
+            master: TEST_VEC1_MASTER_PUB,
+            path: &[0, 1],
+            want_pub: "xpub6AvUGrnEpfvJBbfx7sQ89Q8hEMPM65UteqEX4yUbUiES2jHfjexmfJoxCGSwFMZiPBaKQT1RiKWrKfuDV4vpgVs4Xn8PpPTR2i79rwHd4Zr",
+        },
+        TestVector {
+            name: "test vector 1 chain m/0/1/2",
+            master: TEST_VEC1_MASTER_PUB,
+            path: &[0, 1, 2],
+            want_pub: "xpub6BqyndF6rhZqmgktFCBcapkwubGxPqoAZtQaYewJHXVKZcLdnqBVC8N6f6FSHWUghjuTLeubWyQWfJdk2G3tGgvgj3qngo4vLTnnSjAZckv",
+        },
+        TestVector {
+            name: "test vector 1 chain m/0/1/2/2",
+            master: TEST_VEC1_MASTER_PUB,
+            path: &[0, 1, 2, 2],
+            want_pub: "xpub6FHUhLbYYkgFQiFrDiXRfQFXBB2msCxKTsNyAExi6keFxQ8sHfwpogY3p3s1ePSpUqLNYks5T6a3JqpCGszt4kxbyq7tUoFP5c8KWyiDtPp",
+        },
+        TestVector {
+            name: "test vector 1 chain m/0/1/2/2/1000000000",
+            master: TEST_VEC1_MASTER_PUB,
+            path: &[0, 1, 2, 2, 1000000000],
+            want_pub: "xpub6GX3zWVgSgPc5tgjE6ogT9nfwSADD3tdsxpzd7jJoJMqSY12Be6VQEFwDCp6wAQoZsH2iq5nNocHEaVDxBcobPrkZCjYW3QUmoDYzMFBDu9",
+        },
+        // Test vector 2
+        TestVector {
+            name: "test vector 2 chain m",
+            master: TEST_VEC2_MASTER_PUB,
+            path: &[],
+            want_pub: "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB",
+        },
+        TestVector {
+            name: "test vector 2 chain m/0",
+            master: TEST_VEC2_MASTER_PUB,
+            path: &[0],
+            want_pub: "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH",
+        },
+        TestVector {
+            name: "test vector 2 chain m/0/2147483647",
+            master: TEST_VEC2_MASTER_PUB,
+            path: &[0, 2147483647],
+            want_pub: "xpub6ASAVgeWMg4pmutghzHG3BohahjwNwPmy2DgM6W9wGegtPrvNgjBwuZRD7hSDFhYfunq8vDgwG4ah1gVzZysgp3UsKz7VNjCnSUJJ5T4fdD",
+        },
+        TestVector {
+            name: "test vector 2 chain m/0/2147483647/1",
+            master: TEST_VEC2_MASTER_PUB,
+            path: &[0, 2147483647, 1],
+            want_pub: "xpub6CrnV7NzJy4VdgP5niTpqWJiFXMAca6qBm5Hfsry77SQmN1HGYHnjsZSujoHzdxf7ZNK5UVrmDXFPiEW2ecwHGWMFGUxPC9ARipss9rXd4b",
+        },
+        TestVector {
+            name: "test vector 2 chain m/0/2147483647/1/2147483646",
+            master: TEST_VEC2_MASTER_PUB,
+            path: &[0, 2147483647, 1, 2147483646],
+            want_pub: "xpub6FL2423qFaWzHCvBndkN9cbkn5cysiUeFq4eb9t9kE88jcmY63tNuLNRzpHPdAM4dUpLhZ7aUm2cJ5zF7KYonf4jAPfRqTMTRBNkQL3Tfta",
+        },
+        TestVector {
+            name: "test vector 2 chain m/0/2147483647/1/2147483646/2",
+            master: TEST_VEC2_MASTER_PUB,
+            path: &[0, 2147483647, 1, 2147483646, 2],
+            want_pub: "xpub6H7WkJf547AiSwAbX6xsm8Bmq9M9P1Gjequ5SipsjipWmtXSyp4C3uwzewedGEgAMsDy4jEvNTWtxLyqqHY9C12gaBmgUdk2CGmwachwnWK",
+        },
+    ];
+
     #[test]
     fn test_derive_child_key() {
         let curve = Secp256k1::default();
-        let x_bytes = BigInt::from(1).to_bytes_be().1;
-        let y_bytes = BigInt::from(2).to_bytes_be().1;
-        let mut x_arr = [0u8; 32];
-        let mut y_arr = [0u8; 32];
-        x_arr[32 - x_bytes.len()..].copy_from_slice(&x_bytes);
-        y_arr[32 - y_bytes.len()..].copy_from_slice(&y_bytes);
-        let encoded = EncodedPoint::<k256::Secp256k1>::from_affine_coordinates(&x_arr.into(), &y_arr.into(), false);
-        let affine = k256::elliptic_curve::AffinePoint::<k256::Secp256k1>::from_encoded_point(&encoded).unwrap();
+        let generator = k256::ProjectivePoint::GENERATOR;
+        let affine = generator.to_affine();
         let public_key = k256::PublicKey::from_affine(affine).unwrap();
         let chain_code = vec![0u8; 32];
         let parent_fp = vec![0u8; 4];
@@ -89,5 +173,30 @@ mod tests {
 
         let child_key = extended_key.derive_child_key(1);
         assert!(child_key.is_ok());
+    }
+
+    #[test]
+    fn test_bip32_public_derivation_vectors() {
+        for test in TEST_VECTORS {
+            // Parse the master xpub
+            let master = ExtendedPublicKey::<k256::ecdsa::VerifyingKey>::from_str(test.master);
+            assert!(master.is_ok(), "{}: failed to parse master xpub: {:?}", test.name, master.err());
+            let mut ext_pub = master.unwrap();
+
+            // Derive along the path
+            if !test.path.is_empty() {
+                let path_str = format!("m/{}", test.path.iter().map(|i| i.to_string()).collect::<Vec<_>>().join("/"));
+                let path = DerivationPath::from_str(&path_str).unwrap();
+                for child_number in path.into_iter() {
+                    let result = ext_pub.derive_child(child_number);
+                    assert!(result.is_ok(), "{}: failed to derive child {:?}: {:?}", test.name, child_number, result.as_ref().err());
+                    ext_pub = result.unwrap();
+                }
+            }
+
+            // Serialize and compare
+            let got = ext_pub.to_string(Prefix::XPUB);
+            assert_eq!(got, test.want_pub, "{}: derived xpub mismatch\n  got:  {}\n  want: {}", test.name, got, test.want_pub);
+        }
     }
 }
