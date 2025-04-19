@@ -38,6 +38,10 @@ impl BaseParty {
             first_round,
         }
     }
+
+    pub fn running(&self) -> bool {
+        self.rnd.is_some()
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -62,7 +66,7 @@ mod tests {
             vec![]
         }
         fn wrap_error(&self, err: Box<dyn std::error::Error>, culprits: Vec<PartyID>) -> Error {
-            Error::new(err, "test", 0, None, culprits)
+            Error::new(err, "test".to_string(), 0, None, culprits)
         }
         fn params(&self) -> &Parameters {
             unimplemented!()

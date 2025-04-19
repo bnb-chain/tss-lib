@@ -1,38 +1,41 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::Secp256k1;
-use ed25519_dalek::ed25519::Ed25519;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub enum CurveName {
     Secp256k1,
-    Ed25519,
 }
 
 lazy_static! {
-    static ref REGISTRY: Mutex<HashMap<CurveName, Box<dyn ToEncodedPoint>>> = {
+    static ref REGISTRY: Mutex<HashMap<CurveName, Secp256k1>> = {
         let mut m = HashMap::new();
-        m.insert(CurveName::Secp256k1, Box::new(Secp256k1::default()));
-        m.insert(CurveName::Ed25519, Box::new(Ed25519::default()));
+        m.insert(CurveName::Secp256k1, Secp256k1::default());
         Mutex::new(m)
     };
 }
 
-pub fn register_curve(name: CurveName, curve: Box<dyn ToEncodedPoint>) {
+pub fn register_curve(name: CurveName, curve: Secp256k1) {
     let mut registry = REGISTRY.lock().unwrap();
     registry.insert(name, curve);
 }
 
-pub fn get_curve_by_name(name: CurveName) -> Option<Box<dyn ToEncodedPoint>> {
+pub fn get_curve_by_name(name: CurveName) -> Option<Secp256k1> {
     let registry = REGISTRY.lock().unwrap();
     registry.get(&name).cloned()
 }
 
-pub fn same_curve(lhs: &dyn ToEncodedPoint, rhs: &dyn ToEncodedPoint) -> bool {
-    lhs.to_encoded_point(false) == rhs.to_encoded_point(false)
+pub fn get_curve_name(curve: &Secp256k1) -> Option<CurveName> {
+    // Only one curve supported for now
+    Some(CurveName::Secp256k1)
 }
+
+pub fn same_curve(lhs: &Secp256k1, rhs: &Secp256k1) -> bool {
+    // Only one curve supported for now, always true
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -49,6 +52,6 @@ mod tests {
     fn test_same_curve() {
         let curve1 = get_curve_by_name(CurveName::Secp256k1).unwrap();
         let curve2 = get_curve_by_name(CurveName::Secp256k1).unwrap();
-        assert!(same_curve(&*curve1, &*curve2));
+        assert!(same_curve(&curve1, &curve2));
     }
 }

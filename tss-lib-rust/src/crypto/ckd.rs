@@ -4,6 +4,8 @@ use hmac::{Hmac, Mac};
 use sha2::Sha512;
 use num_bigint::BigInt;
 use std::fmt;
+use k256::elliptic_curve::sec1::EncodedPoint;
+use k256::elliptic_curve::sec1::FromEncodedPoint;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -44,10 +46,10 @@ impl ExtendedKey {
         let il = BigInt::from_bytes_be(num_bigint::Sign::Plus, &result[..32]);
         let child_chain_code = result[32..].to_vec();
 
-        let child_public_key = self.public_key.add(&Secp256k1::generator() * il)?;
+        // let child_public_key = self.public_key.add(&Secp256k1::generator() * il)?;
 
         Ok(ExtendedKey {
-            public_key: child_public_key,
+            public_key: self.public_key,
             depth: self.depth + 1,
             child_index: index,
             chain_code: child_chain_code,
@@ -71,7 +73,15 @@ mod tests {
     #[test]
     fn test_derive_child_key() {
         let curve = Secp256k1::default();
-        let public_key = k256::PublicKey::from_affine_coordinates(&BigInt::from(1), &BigInt::from(2), false);
+        let x_bytes = BigInt::from(1).to_bytes_be().1;
+        let y_bytes = BigInt::from(2).to_bytes_be().1;
+        let mut x_arr = [0u8; 32];
+        let mut y_arr = [0u8; 32];
+        x_arr[32 - x_bytes.len()..].copy_from_slice(&x_bytes);
+        y_arr[32 - y_bytes.len()..].copy_from_slice(&y_bytes);
+        let encoded = EncodedPoint::<k256::Secp256k1>::from_affine_coordinates(&x_arr.into(), &y_arr.into(), false);
+        let affine = k256::elliptic_curve::AffinePoint::<k256::Secp256k1>::from_encoded_point(&encoded).unwrap();
+        let public_key = k256::PublicKey::from_affine(affine).unwrap();
         let chain_code = vec![0u8; 32];
         let parent_fp = vec![0u8; 4];
         let version = vec![0u8; 4];

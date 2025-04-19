@@ -1,9 +1,9 @@
-use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::Secp256k1;
 use std::time::Duration;
 use num_bigint::BigInt;
 
 pub struct Parameters {
-    ec: Box<dyn ToEncodedPoint>,
+    ec: Secp256k1,
     party_id: PartyID,
     parties: PeerContext,
     party_count: usize,
@@ -16,7 +16,7 @@ pub struct Parameters {
 }
 
 impl Parameters {
-    pub fn new(ec: Box<dyn ToEncodedPoint>, party_id: PartyID, parties: PeerContext, party_count: usize, threshold: usize) -> Self {
+    pub fn new(ec: Secp256k1, party_id: PartyID, parties: PeerContext, party_count: usize, threshold: usize) -> Self {
         Parameters {
             ec,
             party_id,
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_parameters_creation() {
-        let ec = Box::new(Secp256k1::default());
+        let ec = Secp256k1::default();
         let party_id = PartyID::new("id".to_string(), "moniker".to_string(), BigInt::from(1));
         let parties = PeerContext::new(vec![party_id.clone()]);
         let params = Parameters::new(ec, party_id.clone(), parties, 1, 1);

@@ -1,5 +1,6 @@
 use num_bigint::BigInt;
 use crate::common::hash::sha512_256i;
+use num_traits::One;
 
 pub struct ProofBob {
     pub z: BigInt,

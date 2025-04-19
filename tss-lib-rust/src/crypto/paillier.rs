@@ -31,8 +31,8 @@ impl PrivateKey {
     pub fn decrypt(&self, c: &BigInt) -> Result<BigInt, String> {
         let n2 = &self.public_key.n * &self.public_key.n;
         let lc = (c.modpow(&self.lambda_n, &n2) - 1) / &self.public_key.n;
-        let lg = (self.public_key.n + 1).modpow(&self.lambda_n, &n2) - 1 / &self.public_key.n;
-        let inv_lg = lg.mod_inverse(&self.public_key.n).ok_or("No modular inverse")?;
+        let lg = ((self.public_key.n.clone() + 1u32).modpow(&self.lambda_n, &n2) - 1u32.clone()) / &self.public_key.n;
+        let inv_lg = lg.modinv(&self.public_key.n).ok_or("No modular inverse")?;
         Ok((lc * inv_lg) % &self.public_key.n)
     }
 }

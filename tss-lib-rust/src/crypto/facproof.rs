@@ -1,6 +1,6 @@
 use num_bigint::BigInt;
 use num_traits::One;
-use crate::common::hash::sha512_256i_tagged as sha512_256i;
+use crate::common::hash::sha512_256i;
 
 pub struct ProofFac {
     pub p: BigInt,
@@ -43,13 +43,13 @@ impl ProofFac {
         let b = &modncap * s.modpow(&beta, ncap) * t.modpow(&y, ncap);
         let t = &modncap * q.modpow(&alpha, ncap) * t.modpow(&r, ncap);
 
-        let e = sha512_256i_tagged(session, &[n0, ncap, s, t, &p, &q, &a, &b, &t, &sigma]);
+        let e = sha512_256i(&[n0, ncap, s, &t, &p, &q, &a, &b, &t, &sigma]);
 
-        let z1 = e * n0p + alpha;
-        let z2 = e * n0q + beta;
-        let w1 = e * mu + x;
-        let w2 = e * nu + y;
-        let v = e * (nu * n0p - sigma) + r;
+        let z1 = e.clone() * n0p + alpha;
+        let z2 = e.clone() * n0q + beta;
+        let w1 = e.clone() * mu + x;
+        let w2 = e.clone() * nu.clone() + y;
+        let v = e * (nu * n0p - sigma.clone()) + r;
 
         Ok(ProofFac { p, q, a, b, t, sigma, z1, z2, w1, w2, v })
     }

@@ -26,6 +26,18 @@ impl MessageWrapper {
             message,
         }
     }
+
+    pub fn to(&self) -> &Vec<PartyID> {
+        &self.to
+    }
+
+    pub fn is_to_old_committee(&self) -> bool {
+        self.is_to_old_committee
+    }
+
+    pub fn is_to_old_and_new_committees(&self) -> bool {
+        self.is_to_old_and_new_committees
+    }
 }
 
 pub struct ParsedMessage {
@@ -64,7 +76,7 @@ mod tests {
     use super::*;
     use prost::Message;
 
-    #[derive(Message, Debug)]
+    #[derive(Message)]
     struct TestMessage {
         #[prost(string, tag = "1")]
         content: String,
@@ -83,7 +95,7 @@ mod tests {
         let message = Box::new(TestMessage { content: "test".to_string() });
         let wrapper = MessageWrapper::new(false, false, false, from.clone(), to.clone(), message);
 
-        assert_eq!(wrapper.from.id, from.id);
+        assert_eq!(wrapper.from.id(), from.id());
         assert_eq!(wrapper.to.len(), to.len());
     }
 }
