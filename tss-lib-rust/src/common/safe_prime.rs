@@ -20,6 +20,6 @@ impl GermainSafePrime {
     }
 
     pub fn validate(&self) -> bool {
-        self.q.is_probably_prime(30) && self.p == &(&self.q * 2 + BigInt::one()) && self.p.is_probably_prime(30)
+        self.q.is_probable_prime(30) && self.p == &(&self.q * 2 + BigInt::one()) && self.p.is_probable_prime(30)
     }
 }

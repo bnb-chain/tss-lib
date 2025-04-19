@@ -27,7 +27,7 @@ impl ModInt {
     }
 
     pub fn mod_inverse(&self, g: &BigInt) -> Option<BigInt> {
-        g.mod_inverse(&self.modulus)
+        g.mod_inverse(&self.modulus).map(|inv| inv % &self.modulus)
     }
 }
 
