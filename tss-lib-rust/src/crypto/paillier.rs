@@ -1,6 +1,8 @@
-use num_bigint::BigInt;
+use num_bigint::{BigInt, RandBigInt, ToBigInt};
 use num_traits::{One, Zero};
+use rand::rngs::OsRng;
 use std::fmt;
+use num_primes::Generator;
 
 pub struct PublicKey {
     pub n: BigInt,
@@ -15,15 +17,23 @@ pub struct PrivateKey {
 }
 
 impl PublicKey {
-    pub fn encrypt(&self, m: &BigInt) -> Result<BigInt, String> {
+    pub fn encrypt<R: rand::RngCore>(&self, rng: &mut R, m: &BigInt) -> Result<BigInt, String> {
         if m < &BigInt::zero() || m >= &self.n {
             return Err("Message is too large or < 0".to_string());
         }
-        let x = BigInt::one(); // Placeholder for random value
-        let n2 = &self.n * &self.n;
-        let gm = m.modpow(&self.n, &n2);
-        let xn = x.modpow(&self.n, &n2);
-        Ok((gm * xn) % n2)
+        let n = &self.n;
+        let n2 = n * n;
+        // r must be in [1, n) and gcd(r, n) == 1
+        let mut r;
+        loop {
+            r = rng.gen_bigint_range(&BigInt::one(), n);
+            if num_integer::gcd(r.clone(), n.clone()) == BigInt::one() {
+                break;
+            }
+        }
+        let gm = (n + BigInt::one()).modpow(m, &n2);
+        let rn = r.modpow(n, &n2);
+        Ok((gm * rn) % &n2)
     }
 }
 
@@ -37,6 +47,26 @@ impl PrivateKey {
     }
 }
 
+// Minimal key generation for testing (not constant-time, not for production)
+pub fn generate_keypair(bits: usize) -> (PrivateKey, PublicKey) {
+    let p_biguint = Generator::new_prime(bits / 2);
+    let q_biguint = Generator::new_prime(bits / 2);
+    let p = BigInt::from_bytes_be(num_bigint::Sign::Plus, &p_biguint.to_bytes_be());
+    let q = BigInt::from_bytes_be(num_bigint::Sign::Plus, &q_biguint.to_bytes_be());
+    let n = &p * &q;
+    let lambda_n = num_integer::lcm(p.clone() - 1u32, q.clone() - 1u32);
+    let phi_n = (&p - 1u32) * (&q - 1u32);
+    let pk = PublicKey { n: n.clone() };
+    let sk = PrivateKey {
+        public_key: PublicKey { n },
+        lambda_n,
+        phi_n,
+        p,
+        q,
+    };
+    (sk, pk)
+}
+
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "PublicKey {{ n: {} }}", self.n)
@@ -48,6 +78,7 @@ impl fmt::Display for PrivateKey {
         write!(f, "PrivateKey {{ n: {}, lambda_n: {}, phi_n: {}, p: {}, q: {} }}", self.public_key.n, self.lambda_n, self.phi_n, self.p, self.q)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,10 +86,13 @@ mod tests {
 
     #[test]
     fn test_public_key_encrypt() {
-        let n = 1.to_bigint().unwrap();
-        let pk = PublicKey { n };
+        // Use a small key for test speed (not secure!)
+        let (_sk, pk) = generate_keypair(128);
         let m = 2.to_bigint().unwrap();
-        let result = pk.encrypt(&m);
+        let mut rng = rand::thread_rng();
+        let result = pk.encrypt(&mut rng, &m);
         assert!(result.is_ok());
+        let cipher = result.unwrap();
+        assert_ne!(cipher, BigInt::zero());
     }
 }
