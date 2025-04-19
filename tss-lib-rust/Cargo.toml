@@ -7,7 +7,7 @@ edition = "2021"
 path = "src/lib.rs"
 
 [dependencies]
-num-bigint = "0.4"
+num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
 rand = "0.8"
 sha2 = "0.10"

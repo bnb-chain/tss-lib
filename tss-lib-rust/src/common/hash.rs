@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn test_sha512_256() {
         let input = vec![b"hello", b"world"];
-        let hash = sha512_256(&input);
+        let hash = sha512_256(&input.iter().map(|&s| s as &[u8]).collect::<Vec<_>>());
         assert_eq!(hash.len(), 32); // SHA-512/256 produces a 32-byte hash
     }
 
