@@ -1,5 +1,5 @@
 use num_bigint::BigInt;
-use num_traits::{One, Zero};
+use num_traits::Zero;
 
 pub struct ModInt {
     modulus: BigInt,

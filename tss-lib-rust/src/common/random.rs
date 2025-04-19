@@ -26,8 +26,8 @@ pub fn get_random_positive_int<R: Rng>(rng: &mut R, less_than: &BigInt) -> BigIn
 
 pub fn get_random_prime_int<R: Rng>(rng: &mut R, bits: usize) -> BigInt {
     loop {
-        let candidate = rng.gen_bigint(bits);
-        if candidate.is_probable_prime(30) {
+        let candidate = rng.gen_bigint(bits as u64);
+        if candidate.is_probably_prime(30) {
             return candidate;
         }
     }
