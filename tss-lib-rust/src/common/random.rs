@@ -17,9 +17,9 @@ pub fn get_random_positive_int<R: Rng>(rng: &mut R, less_than: &BigInt) -> BigIn
         return BigInt::zero();
     }
     loop {
-        let try = must_get_random_int(rng, less_than.bits() as usize);
-        if &try < less_than {
-            return try;
+        let candidate = must_get_random_int(rng, less_than.bits() as usize);
+        if &candidate < less_than {
+            return candidate;
         }
     }
 }
