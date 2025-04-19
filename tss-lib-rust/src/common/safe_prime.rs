@@ -23,3 +23,16 @@ impl GermainSafePrime {
         self.q.is_probable_prime(30) && self.p == &(&self.q * 2 + BigInt::one()) && self.p.is_probable_prime(30)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_germain_safe_prime_validate() {
+        let q = 11.to_bigint().unwrap();
+        let p = 23.to_bigint().unwrap(); // p = 2q + 1
+        let gsp = GermainSafePrime::new(q, p);
+        assert!(gsp.validate());
+    }
+}

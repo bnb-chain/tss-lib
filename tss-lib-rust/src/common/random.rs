@@ -32,3 +32,23 @@ pub fn get_random_prime_int<R: Rng>(rng: &mut R, bits: usize) -> BigInt {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::thread_rng;
+
+    #[test]
+    fn test_must_get_random_int() {
+        let mut rng = thread_rng();
+        let random_int = must_get_random_int(&mut rng, 256);
+        assert!(random_int.bits() <= 256);
+    }
+
+    #[test]
+    fn test_get_random_positive_int() {
+        let mut rng = thread_rng();
+        let less_than = BigInt::from(100);
+        let random_int = get_random_positive_int(&mut rng, &less_than);
+        assert!(random_int < less_than);
+    }
+}

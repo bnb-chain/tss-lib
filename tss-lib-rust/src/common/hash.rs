@@ -38,3 +38,21 @@ pub fn sha512_256i(inputs: &[&BigInt]) -> BigInt {
     hasher.update(&data);
     BigInt::from_bytes_le(num_bigint::Sign::Plus, &hasher.finalize())
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sha512_256() {
+        let input = vec![b"hello", b"world"];
+        let hash = sha512_256(&input);
+        assert_eq!(hash.len(), 32); // SHA-512/256 produces a 32-byte hash
+    }
+
+    #[test]
+    fn test_sha512_256i() {
+        let input = vec![BigInt::from(123), BigInt::from(456)];
+        let hash = sha512_256i(&input.iter().collect::<Vec<_>>());
+        assert!(!hash.is_zero());
+    }
+}

@@ -34,3 +34,24 @@ impl ModInt {
 pub fn is_in_interval(b: &BigInt, bound: &BigInt) -> bool {
     b < bound && b >= &BigInt::zero()
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_mod_int_add() {
+        let modulus = 7.to_bigint().unwrap();
+        let mi = ModInt::new(modulus);
+        let x = 3.to_bigint().unwrap();
+        let y = 5.to_bigint().unwrap();
+        assert_eq!(mi.add(&x, &y), 1.to_bigint().unwrap());
+    }
+
+    #[test]
+    fn test_is_in_interval() {
+        let bound = 10.to_bigint().unwrap();
+        let b = 5.to_bigint().unwrap();
+        assert!(is_in_interval(&b, &bound));
+    }
+}
