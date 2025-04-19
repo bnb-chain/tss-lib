@@ -30,3 +30,19 @@ impl Parameters {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k256::Secp256k1;
+
+    #[test]
+    fn test_parameters_creation() {
+        let ec = Box::new(Secp256k1::default());
+        let party_id = PartyID::new("id".to_string(), "moniker".to_string(), BigInt::from(1));
+        let parties = PeerContext::new(vec![party_id.clone()]);
+        let params = Parameters::new(ec, party_id.clone(), parties, 1, 1);
+
+        assert_eq!(params.party_count, 1);
+        assert_eq!(params.threshold, 1);
+    }
+}

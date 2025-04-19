@@ -58,3 +58,31 @@ impl MessageRouting {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+
+    #[derive(Message, Debug)]
+    struct TestMessage {
+        #[prost(string, tag = "1")]
+        content: String,
+    }
+
+    impl MessageContent for TestMessage {
+        fn validate_basic(&self) -> bool {
+            !self.content.is_empty()
+        }
+    }
+
+    #[test]
+    fn test_message_wrapper_creation() {
+        let from = PartyID::new("id".to_string(), "moniker".to_string(), BigInt::from(1));
+        let to = vec![PartyID::new("id2".to_string(), "moniker2".to_string(), BigInt::from(2))];
+        let message = Box::new(TestMessage { content: "test".to_string() });
+        let wrapper = MessageWrapper::new(false, false, false, from.clone(), to.clone(), message);
+
+        assert_eq!(wrapper.from.id, from.id);
+        assert_eq!(wrapper.to.len(), to.len());
+    }
+}

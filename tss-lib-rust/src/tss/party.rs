@@ -28,3 +28,44 @@ impl BaseParty {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestRound;
+
+    impl Round for TestRound {
+        fn start(&self) -> Result<(), Error> {
+            Ok(())
+        }
+        fn update(&self) -> Result<(), Error> {
+            Ok(())
+        }
+        fn can_proceed(&self) -> bool {
+            true
+        }
+        fn next_round(&self) -> Box<dyn Round> {
+            Box::new(TestRound)
+        }
+        fn waiting_for(&self) -> Vec<PartyID> {
+            vec![]
+        }
+        fn wrap_error(&self, err: Box<dyn std::error::Error>, culprits: Vec<PartyID>) -> Error {
+            Error::new(err, "test", 0, None, culprits)
+        }
+        fn params(&self) -> &Parameters {
+            unimplemented!()
+        }
+        fn round_number(&self) -> u32 {
+            1
+        }
+    }
+
+    #[test]
+    fn test_base_party_creation() {
+        let first_round = Box::new(TestRound);
+        let base_party = BaseParty::new(first_round);
+
+        assert!(!base_party.running());
+    }
+}
