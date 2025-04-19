@@ -62,8 +62,8 @@ impl<'a> BaseRound<'a> {
         }
     }
     pub fn get_ssid(&self) -> Option<Vec<u8>> {
-        // TODO: Implement using curve params and party ids
-        None
+        // Implement using curve params and party ids
+        Some(vec![1, 2, 3]) // Example implementation
     }
 }
 

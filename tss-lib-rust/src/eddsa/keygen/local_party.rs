@@ -100,8 +100,7 @@ impl LocalParty {
     }
 
     pub fn first_round(&self) -> Option<Round> {
-        // TODO: Implement newRound1 equivalent
-        None
+        Some(Round::new(self.params.clone(), self.out.clone(), self.end.clone()))
     }
 
     pub fn start(&self) -> Result<(), Error> {

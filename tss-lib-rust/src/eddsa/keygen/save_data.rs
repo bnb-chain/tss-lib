@@ -1,7 +1,10 @@
 use num_bigint::BigInt;
 
 // Placeholder for ECPoint type (to be replaced with real implementation)
-pub struct ECPoint;
+pub struct ECPoint {
+    pub x: BigInt,
+    pub y: BigInt,
+}
 
 pub struct LocalSecrets {
     pub xi: Option<BigInt>,

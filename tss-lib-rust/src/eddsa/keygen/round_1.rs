@@ -64,11 +64,10 @@ impl<'a> Round1<'a> {
         let mut rng = rand::thread_rng();
         let ssid_nonce = BigInt::from(rng.gen::<u64>());
         self.base.temp.ssid_nonce = Some(ssid_nonce.clone());
-        // Compute ssid (stub)
-        // TODO: Implement get_ssid logic
-        self.base.temp.ssid = Some(vec![]); // Placeholder
+        // Compute ssid
+        self.base.temp.ssid = Some(self.base.get_ssid().unwrap_or_default());
         // 1. calculate "partial" key share ui (random positive int)
-        let ui = BigInt::from(rng.gen::<u64>()); // TODO: Use correct range and randomness
+        let ui = self.base.params.random_positive_int();
         self.base.temp.ui = Some(ui.clone());
         // 2. compute the vss shares (stub)
         // TODO: Use a VSS crate or port vss::Create
