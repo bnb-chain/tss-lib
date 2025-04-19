@@ -56,3 +56,23 @@ pub fn parse_secrets(secrets: &[BigInt]) -> Result<Vec<Vec<BigInt>>, String> {
     }
     Ok(parts)
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_builder_secrets() {
+        let mut builder = Builder::new();
+        builder.add_part(vec![1.to_bigint().unwrap(), 2.to_bigint().unwrap()]);
+        let secrets = builder.secrets();
+        assert!(secrets.is_ok());
+    }
+
+    #[test]
+    fn test_parse_secrets() {
+        let secrets = vec![2.to_bigint().unwrap(), 1.to_bigint().unwrap(), 2.to_bigint().unwrap()];
+        let parsed = parse_secrets(&secrets);
+        assert!(parsed.is_ok());
+    }
+}

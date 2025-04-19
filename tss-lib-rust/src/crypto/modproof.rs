@@ -24,3 +24,18 @@ impl ProofMod {
         Ok(ProofMod { w, x, a, b, z })
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_proof_mod_new() {
+        let session = b"session";
+        let n = 1.to_bigint().unwrap();
+        let p = 2.to_bigint().unwrap();
+        let q = 3.to_bigint().unwrap();
+        let proof = ProofMod::new(session, &n, &p, &q);
+        assert!(proof.is_ok());
+    }
+}

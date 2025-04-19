@@ -30,3 +30,18 @@ impl HashCommitDecommit {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_hash_commit_decommit() {
+        let r = 1.to_bigint().unwrap();
+        let secrets = vec![2.to_bigint().unwrap(), 3.to_bigint().unwrap()];
+        let commit_decommit = HashCommitDecommit::new_with_randomness(r, &secrets);
+
+        assert!(commit_decommit.verify());
+        assert_eq!(commit_decommit.decommit(), Some(&secrets[..]));
+    }
+}

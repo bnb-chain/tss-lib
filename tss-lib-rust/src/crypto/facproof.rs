@@ -54,3 +54,21 @@ impl ProofFac {
         Ok(ProofFac { p, q, a, b, t, sigma, z1, z2, w1, w2, v })
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_proof_fac_new() {
+        let session = b"session";
+        let n0 = 1.to_bigint().unwrap();
+        let ncap = 2.to_bigint().unwrap();
+        let s = 3.to_bigint().unwrap();
+        let t = 4.to_bigint().unwrap();
+        let n0p = 5.to_bigint().unwrap();
+        let n0q = 6.to_bigint().unwrap();
+        let proof = ProofFac::new(session, &n0, &ncap, &s, &t, &n0p, &n0q);
+        assert!(proof.is_ok());
+    }
+}

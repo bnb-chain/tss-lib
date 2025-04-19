@@ -30,3 +30,24 @@ impl ProofBob {
         Ok(ProofBob { z, zprm, t, v, w, s, s1, s2, t1, t2 })
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_proof_bob_new() {
+        let session = b"session";
+        let pk = 1.to_bigint().unwrap();
+        let ntilde = 2.to_bigint().unwrap();
+        let h1 = 3.to_bigint().unwrap();
+        let h2 = 4.to_bigint().unwrap();
+        let c1 = 5.to_bigint().unwrap();
+        let c2 = 6.to_bigint().unwrap();
+        let x = 7.to_bigint().unwrap();
+        let y = 8.to_bigint().unwrap();
+        let r = 9.to_bigint().unwrap();
+        let proof = ProofBob::new(session, &pk, &ntilde, &h1, &h2, &c1, &c2, &x, &y, &r);
+        assert!(proof.is_ok());
+    }
+}

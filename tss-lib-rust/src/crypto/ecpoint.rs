@@ -37,3 +37,17 @@ impl fmt::Display for ECPoint {
         write!(f, "ECPoint {{ x: {}, y: {} }}", self.x, self.y)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_ecpoint_add() {
+        let curve = k256::Secp256k1::default();
+        let point1 = ECPoint::new(curve, 1.to_bigint().unwrap(), 2.to_bigint().unwrap()).unwrap();
+        let point2 = ECPoint::new(curve, 3.to_bigint().unwrap(), 4.to_bigint().unwrap()).unwrap();
+        let result = point1.add(&point2);
+        assert!(result.is_ok());
+    }
+}

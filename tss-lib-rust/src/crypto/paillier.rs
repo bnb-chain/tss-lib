@@ -48,3 +48,17 @@ impl fmt::Display for PrivateKey {
         write!(f, "PrivateKey {{ n: {}, lambda_n: {}, phi_n: {}, p: {}, q: {} }}", self.public_key.n, self.lambda_n, self.phi_n, self.p, self.q)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_public_key_encrypt() {
+        let n = 1.to_bigint().unwrap();
+        let pk = PublicKey { n };
+        let m = 2.to_bigint().unwrap();
+        let result = pk.encrypt(&m);
+        assert!(result.is_ok());
+    }
+}

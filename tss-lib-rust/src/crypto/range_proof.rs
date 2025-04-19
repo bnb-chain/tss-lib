@@ -22,3 +22,21 @@ impl RangeProofAlice {
         Ok(RangeProofAlice { z, u, w, s, s1, s2 })
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::ToBigInt;
+
+    #[test]
+    fn test_range_proof_alice_new() {
+        let pk = 1.to_bigint().unwrap();
+        let c = 2.to_bigint().unwrap();
+        let ntilde = 3.to_bigint().unwrap();
+        let h1 = 4.to_bigint().unwrap();
+        let h2 = 5.to_bigint().unwrap();
+        let m = 6.to_bigint().unwrap();
+        let r = 7.to_bigint().unwrap();
+        let proof = RangeProofAlice::new(&pk, &c, &ntilde, &h1, &h2, &m, &r);
+        assert!(proof.is_ok());
+    }
+}

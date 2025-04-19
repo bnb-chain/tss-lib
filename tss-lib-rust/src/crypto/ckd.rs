@@ -63,3 +63,22 @@ impl fmt::Display for ExtendedKey {
         write!(f, "ExtendedKey {{ depth: {}, child_index: {}, chain_code: {:?}, parent_fp: {:?}, version: {:?} }}", self.depth, self.child_index, self.chain_code, self.parent_fp, self.version)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k256::Secp256k1;
+    use rand::thread_rng;
+
+    #[test]
+    fn test_derive_child_key() {
+        let curve = Secp256k1::default();
+        let public_key = k256::PublicKey::from_affine_coordinates(&BigInt::from(1), &BigInt::from(2), false);
+        let chain_code = vec![0u8; 32];
+        let parent_fp = vec![0u8; 4];
+        let version = vec![0u8; 4];
+        let extended_key = ExtendedKey::new(public_key, 0, 0, chain_code, parent_fp, version);
+
+        let child_key = extended_key.derive_child_key(1);
+        assert!(child_key.is_ok());
+    }
+}
