@@ -1,5 +1,6 @@
 use num_bigint::BigInt;
 use num_traits::One;
+use crate::common::random::is_probable_prime;
 
 pub struct GermainSafePrime {
     q: BigInt,

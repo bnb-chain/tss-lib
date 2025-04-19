@@ -1,6 +1,6 @@
 use rand::Rng;
 use num_bigint::{BigInt, RandBigInt};
-use num_traits::Zero;
+use num_traits::{Zero, One};
 
 const MUST_GET_RANDOM_INT_MAX_BITS: usize = 5000;
 
@@ -12,7 +12,7 @@ pub fn must_get_random_int<R: Rng>(rng: &mut R, bits: usize) -> BigInt {
     rng.gen_bigint_range(&BigInt::zero(), &max)
 }
 
-fn is_probable_prime(n: &BigInt, k: u32) -> bool {
+pub fn is_probable_prime(n: &BigInt, _k: u32) -> bool {
     if n <= &BigInt::from(1) {
         return false;
     }
