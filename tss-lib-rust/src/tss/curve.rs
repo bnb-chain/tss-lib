@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use lazy_static::lazy_static;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::Secp256k1;
-use ed25519_dalek::Ed25519;
+use ed25519_dalek::ed25519::Ed25519;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub enum CurveName {

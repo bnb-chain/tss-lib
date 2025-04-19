@@ -1,5 +1,6 @@
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use std::time::Duration;
+use num_bigint::BigInt;
 
 pub struct Parameters {
     ec: Box<dyn ToEncodedPoint>,

@@ -1,5 +1,16 @@
 use std::sync::{Arc, Mutex};
 
+pub trait Round {
+    fn start(&self) -> Result<(), Error>;
+    fn update(&self) -> Result<(), Error>;
+    fn can_proceed(&self) -> bool;
+    fn next_round(&self) -> Box<dyn Round>;
+    fn waiting_for(&self) -> Vec<PartyID>;
+    fn wrap_error(&self, err: Box<dyn std::error::Error>, culprits: Vec<PartyID>) -> Error;
+    fn params(&self) -> &Parameters;
+    fn round_number(&self) -> u32;
+}
+
 pub trait Party {
     fn start(&self) -> Result<(), Error>;
     fn update_from_bytes(&self, wire_bytes: &[u8], from: &PartyID, is_broadcast: bool) -> Result<bool, Error>;

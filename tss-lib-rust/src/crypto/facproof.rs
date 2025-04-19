@@ -1,6 +1,6 @@
 use num_bigint::BigInt;
 use num_traits::One;
-use crate::common::hash::sha512_256i;
+use crate::common::hash::sha512_256i_tagged as sha512_256i;
 
 pub struct ProofFac {
     pub p: BigInt,

@@ -1,6 +1,6 @@
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::Secp256k1;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use sha2::Sha512;
 use num_bigint::BigInt;
 use std::fmt;

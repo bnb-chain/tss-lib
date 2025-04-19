@@ -1,5 +1,6 @@
 use prost::Message;
 use std::fmt;
+use num_bigint::BigInt;
 
 pub trait MessageContent: Message + fmt::Debug {
     fn validate_basic(&self) -> bool;
