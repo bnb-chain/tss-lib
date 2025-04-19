@@ -70,16 +70,16 @@ impl<'a> Round1<'a> {
         let ui = self.base.params.random_positive_int();
         self.base.temp.ui = Some(ui.clone());
         // 2. compute the vss shares (stub)
-        // TODO: Use a VSS crate or port vss::Create
-        // let (vs, shares) = vss_create(...);
-        // self.base.temp.vs = Some(vs);
-        // self.base.temp.shares = Some(shares);
-        // self.base.save.ks = ...;
+        // Use a VSS crate or port vss::Create
+        let (vs, shares) = self.base.params.vss_create(ui.clone());
+        self.base.temp.vs = Some(vs);
+        self.base.temp.shares = Some(shares);
+        self.base.save.ks = shares.iter().map(|s| Some(s.clone())).collect();
         // 3. make commitment (stub)
-        // TODO: Use EC point flattening and hash commitment
-        // let p_g_flat = flatten_ec_points(&vs);
-        // let cmt = hash_commitment(&p_g_flat);
-        // self.base.temp.de_commit_poly_g = Some(cmt.decommitment);
+        // Use EC point flattening and hash commitment
+        let p_g_flat = self.base.params.flatten_ec_points(&vs);
+        let cmt = self.base.params.hash_commitment(&p_g_flat);
+        self.base.temp.de_commit_poly_g = Some(cmt.decommitment);
         // Store shareID, vs, shares, de_commit_poly_g (stub)
         // TODO: Use real party index and IDs
         // self.base.save.share_id = ...;

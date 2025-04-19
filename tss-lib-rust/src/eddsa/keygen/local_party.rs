@@ -99,12 +99,13 @@ impl LocalParty {
         }
     }
 
-    pub fn first_round(&self) -> Option<Round> {
-        Some(Round::new(self.params.clone(), self.out.clone(), self.end.clone()))
+    pub fn first_round(&self) -> Option<Round1> {
+        Some(Round1::new(&self.params, &mut self.data, &mut self.temp))
     }
 
-    pub fn start(&self) -> Result<(), Error> {
-        // TODO: Implement BaseStart equivalent
+    pub fn start(&mut self) -> Result<(), Error> {
+        let mut round1 = self.first_round().ok_or(Error)?;
+        round1.start()?;
         Ok(())
     }
 

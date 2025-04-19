@@ -32,3 +32,8 @@ pub struct KGRound3Message {
     #[prost(bytes, tag = "1")]
     pub final_share: Vec<u8>,
 }
+#[derive(Clone, PartialEq, Message, Serialize, Deserialize, Debug)]
+pub struct KGRound3Message {
+    #[prost(bytes, tag = "1")]
+    pub final_share: Vec<u8>,
+}

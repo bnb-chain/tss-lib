@@ -4,6 +4,7 @@ use num_bigint::BigInt;
 pub struct ECPoint {
     pub x: BigInt,
     pub y: BigInt,
+    // Add additional fields or methods if necessary
 }
 
 pub struct LocalSecrets {
