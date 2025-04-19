@@ -1,4 +1,5 @@
 use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 const PARTS_CAP: usize = 3;
 const MAX_PART_SIZE: usize = 1 * 1024 * 1024; // 1 MB

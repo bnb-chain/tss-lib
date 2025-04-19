@@ -1,5 +1,5 @@
 use num_bigint::BigInt;
-use num_traits::One;
+use num_traits::{One, Zero};
 use std::fmt;
 
 pub struct PublicKey {

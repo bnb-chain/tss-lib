@@ -1,5 +1,5 @@
 use k256::elliptic_curve::sec1::ToEncodedPoint;
-use k256::Secp256k1;
+use k256::{Secp256k1, PublicKey};
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 use num_bigint::BigInt;
@@ -8,7 +8,7 @@ use std::fmt;
 type HmacSha512 = Hmac<Sha512>;
 
 pub struct ExtendedKey {
-    pub public_key: k256::PublicKey,
+    pub public_key: PublicKey,
     pub depth: u8,
     pub child_index: u32,
     pub chain_code: Vec<u8>,
@@ -17,7 +17,7 @@ pub struct ExtendedKey {
 }
 
 impl ExtendedKey {
-    pub fn new(public_key: k256::PublicKey, depth: u8, child_index: u32, chain_code: Vec<u8>, parent_fp: Vec<u8>, version: Vec<u8>) -> Self {
+    pub fn new(public_key: PublicKey, depth: u8, child_index: u32, chain_code: Vec<u8>, parent_fp: Vec<u8>, version: Vec<u8>) -> Self {
         ExtendedKey {
             public_key,
             depth,

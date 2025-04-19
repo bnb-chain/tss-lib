@@ -1,4 +1,5 @@
 use num_bigint::BigInt;
+use num_traits::One;
 use crate::common::hash::sha512_256i;
 
 pub struct ProofMod {
