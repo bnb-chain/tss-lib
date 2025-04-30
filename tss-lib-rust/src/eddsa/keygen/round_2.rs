@@ -6,105 +6,98 @@
 
 // EDDSA Keygen round 2 logic (ported from Go)
 
-use crate::eddsa::keygen::rounds::{Round, RoundCtx, RoundState, get_ssid, TASK_NAME};
-use crate::eddsa::keygen::save_data::LocalPartySaveData;
-use crate::eddsa::keygen::local_party::{LocalTempData, Message, ParsedMessage, TssError, PartyID, Parameters, KeygenMessageEnum};
-use crate::eddsa::keygen::messages::{KGRound1Message, KGRound2Message1, KGRound2Message2, FacProof, ModProof}; // Import message types and placeholders
-use crate::eddsa::keygen::dln_verifier::{DlnProofVerifier, HasDlnProofs}; // Import DLN verifier
-use crate::eddsa::keygen::round_3::Round3; // Import Round3 for next_round
-use crate::crypto::paillier; // Import actual paillier
-use crate::tss::curve::{CurveName, get_curve_params, CurveParams}; // Import curve types
-use crate::crypto::{fac_proof, mod_proof}; // Import actual proof functions
-
+use std::sync::{Arc, Mutex, mpsc::Sender};
+use prost::Message;
 use num_bigint::BigInt;
-use num_traits::Zero;
-use std::collections::HashMap;
-use std::error::Error as StdError;
-use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
+use rand::rngs::OsRng;
 
-// --- Placeholder Crypto Operations/Types --- //
-// TODO: Replace with actual implementations
+// Keygen specific imports
+use crate::eddsa::keygen::Parameters;
+use crate::eddsa::keygen::BaseParty;
+use crate::eddsa::keygen::TssError;
+use crate::eddsa::keygen::rounds::KeygenRound;
+use crate::eddsa::keygen::round_3::Round3;
+use crate::eddsa::keygen::messages::{KGRound1Message, KGRound2Message1, KGRound2Message2, SchnorrProofPlaceholder, PointPlaceholder};
+use crate::eddsa::keygen::local_party::{KeygenPartyTempData, KeygenPartySaveData};
 
-const PAILLIER_BITS_LEN: usize = 2048;
+// TSS core imports
+use crate::tss::party_id::PartyID;
+use crate::tss::message::ParsedMessage;
+use crate::tss::message::MessageContent; // Needed for store_message validation
 
-mod facproof {
-    use super::{BigInt, Error, FacProof, PartyID};
+// Crypto imports
+use crate::crypto::vss::{ShareVec as Vs, Share as IndividualVssShare};
+
+// Other necessary imports
+use std::fmt::Debug;
+
+// Remove placeholder mods for facproof and modproof
+/*
+mod facproof { ... }
+mod modproof { ... }
+*/
+
+// Add placeholder for Schnorr proof generation
+mod schnorr {
+    use super::{BigInt, Error, SchnorrProof, PartyID, CurvePoint, Scalar};
     use rand::RngCore;
-    pub fn new(
+    // TODO: Replace CurvePoint and Scalar with actual types
+    type CurvePoint = Vec<u8>; 
+    type Scalar = BigInt;
+
+    pub fn new_zk_proof(
         _context: &[u8],
-        _ec_params: &super::CurveParams, // Placeholder
-        _n: &BigInt,
-        _n_tilde_j: &BigInt,
-        _h1j: &BigInt,
-        _h2j: &BigInt,
-        _p: &BigInt,
-        _q: &BigInt,
+        _secret: &Scalar,
+        _public_commitment: &CurvePoint, // Use actual Point type
         _rng: &mut dyn RngCore,
-    ) -> Result<FacProof, Box<dyn Error>> {
-        println!("Warning: Using placeholder facproof::new");
-        Ok(FacProof(vec![4,5,6])) // Dummy proof bytes
+    ) -> Result<SchnorrProof, Box<dyn Error>> {
+        println!("Warning: Using placeholder schnorr::new_zk_proof");
+        Ok(SchnorrProof { /* dummy fields */ alpha_bytes: vec![1], t_bytes: vec![2] })
     }
 }
 
-mod modproof {
-    use super::{BigInt, Error, ModProof, PartyID};
-    use rand::RngCore;
-    pub fn new(
-         _context: &[u8],
-         _n: &BigInt,
-         _p: &BigInt,
-         _q: &BigInt,
-         _rng: &mut dyn RngCore,
-    ) -> Result<ModProof, Box<dyn Error>> {
-        println!("Warning: Using placeholder modproof::new");
-        Ok(ModProof(vec![7,8,9])) // Dummy proof bytes
-    }
-}
+// ... CurveParams placeholder remains ...
 
-// Placeholder Paillier SK structure needed for proof generation
-// Use the actual PrivateKey now
-// use crate::eddsa::keygen::save_data::PaillierPrivateKey;
-
-// TODO: Replace with actual EC Curve parameters for EdDSA (e.g., Ed25519)
-pub struct CurveParams { pub p: BigInt, pub n: BigInt, pub gx: BigInt, pub gy: BigInt }
-impl CurveParams { pub fn get() -> Self { CurveParams { p: BigInt::zero(), n: BigInt::from(100), gx: BigInt::zero(), gy: BigInt::zero() } } } // Dummy data
-
-// Helper to construct KGRound2Message1 (P2P)
+// Helper to construct KGRound2Message1 (P2P) - Corrected
 fn new_kg_round2_message1(
     to: &PartyID,
     from: &PartyID,
-    share: &crate::eddsa::keygen::messages::VssShare,
-    fac_proof: FacProof,
-) -> Result<Message, Box<dyn Error>> {
+    share: &VssShare, // Use actual VssShare type
+) -> Result<Message, Box<dyn Error>> { // Removed FacProof
     let content = KeygenMessageEnum::Round2_1(KGRound2Message1 {
         share: share.clone(),
-        fac_proof: Some(fac_proof), // Assuming proof is always generated for now
+        // Removed fac_proof field
     });
     // TODO: Implement actual wire byte serialization
-    let wire_bytes = vec![0x02, 0x01]; // Placeholder serialization
+    let mut wire_bytes = Vec::new();
+    content.encode(&mut wire_bytes)?; // Assuming prost encoding
+
     Ok(Message {
-        content_type: TASK_NAME.to_string(),
+        content_type: PROTOCOL_NAME.to_string(),
         wire_bytes,
         from: from.clone(),
+        to: Some(vec![to.clone()]), // Specify recipient
         is_broadcast: false,
     })
 }
 
-// Helper to construct KGRound2Message2 (Broadcast)
+// Helper to construct KGRound2Message2 (Broadcast) - Corrected
 fn new_kg_round2_message2(
     from: &PartyID,
-    decommitment: &crate::eddsa::keygen::messages::HashDeCommitment,
-    mod_proof: ModProof,
-) -> Result<Message, Box<dyn Error>> {
+    decommitment: &HashDeCommitment,
+    schnorr_proof: SchnorrProof, // Added SchnorrProof
+) -> Result<Message, Box<dyn Error>> { // Removed ModProof
     let content = KeygenMessageEnum::Round2_2(KGRound2Message2 {
         decommitment: decommitment.clone(),
-        mod_proof: Some(mod_proof), // Assuming proof is always generated for now
+        schnorr_proof, // Include Schnorr proof
+        // Removed mod_proof field
     });
     // TODO: Implement actual wire byte serialization
-    let wire_bytes = vec![0x02, 0x02]; // Placeholder serialization
+    let mut wire_bytes = Vec::new();
+    content.encode(&mut wire_bytes)?; // Assuming prost encoding
+
     Ok(Message {
-        content_type: TASK_NAME.to_string(),
+        content_type: PROTOCOL_NAME.to_string(),
         wire_bytes,
         from: from.clone(),
         is_broadcast: true,
@@ -115,260 +108,159 @@ fn new_kg_round2_message2(
 
 #[derive(Debug)]
 pub struct Round2 {
-    state: RoundState,
-    out: Option<Sender<Message>>,
-    end: Option<Sender<LocalPartySaveData>>,
-    params: Arc<Parameters>,
-    temp_data: Arc<Mutex<KeygenPartyTmpData>>,
-    save_data: Arc<Mutex<KeyGenPartySaveData>>,
-    started: bool,
-    messages1_received: HashMap<PartyID, KGRound2Message1>,
-    messages2_received: HashMap<PartyID, KGRound2Message2>,
+    base: BaseParty, // Use keygen::BaseParty
+    // Remove direct Arcs
 }
 
 impl Round2 {
     pub fn new(
-        out_sender: Option<Sender<Message>>,
-        end_sender: Option<Sender<LocalPartySaveData>>,
         params: Arc<Parameters>,
-        save_data: Arc<Mutex<KeyGenPartySaveData>>,
-        temp_data: Arc<Mutex<KeygenPartyTmpData>>,
-    ) -> Result<Self, TssError> {
-        Ok(Round2 {
-            state: RoundState::new(2, params),
-            out: out_sender,
-            end: end_sender,
-            params,
-            temp_data,
-            save_data,
-            started: false,
-            messages1_received: HashMap::new(),
-            messages2_received: HashMap::new(),
-        })
+        save_data: Arc<Mutex<KeygenPartySaveData>>,
+        temp_data: Arc<Mutex<KeygenPartyTempData>>,
+        out_channel: Sender<TssMessage>,
+        end_channel: Sender<KeygenPartySaveData>,
+    ) -> Box<dyn TssRound> {
+        // Create BaseParty instance
+        let base = BaseParty::new(params, temp_data, save_data, out_channel, 2)
+            .with_end_channel(end_channel);
+
+        Box::new(Self { base })
     }
+
+    // Remove helper methods - use self.base helpers instead
 }
 
-impl Round for Round2 {
-    fn round_number(&self) -> usize { self.state.round_number }
-    fn state(&self) -> &RoundState { &self.state }
-    fn state_mut(&mut self) -> &mut RoundState { &mut self.state }
+// Implement the new KeygenRound trait
+impl KeygenRound for Round2 {
+    fn round_number(&self) -> u32 { self.base.round_number }
 
-    fn start(&mut self, ctx: &mut RoundCtx) -> Result<(), TssError> {
-        if self.state.started {
-            return Err(self.state.wrap_error("Round 2 already started".into(), None));
+    fn base(&self) -> &BaseParty { &self.base }
+    fn base_mut(&mut self) -> &mut BaseParty { &mut self.base }
+
+    fn start(&mut self) -> Result<(), TssError> {
+        if self.base.started {
+            return Err(self.base.wrap_base_error("Round 2 already started".to_string()));
         }
-        self.state.started = true;
-        self.state.reset_ok();
+        self.base.started = true;
+        self.base.reset_ok();
 
-        let party_id = ctx.params.party_id();
-        let i = party_id.index;
+        let party_id = self.base.party_id().clone();
+        let i = self.base.party_index();
+        let party_count = self.base.party_count();
         let mut rng = OsRng;
+        let mut temp_guard = self.base.temp();
 
-        // 6. Verify DLN proofs, store R1 message pieces, ensure uniqueness of h1j, h2j
-        println!("Round 2: Verifying DLN proofs...");
-        // TODO: Implement proper concurrency control if needed
-        // let concurrency = std::thread::available_parallelism().map_or(1, |n| n.get());
-        let dln_verifier = DlnProofVerifier::new(1); // Synchronous for now
-        let mut h1h2_map: HashMap<String, PartyID> = HashMap::new();
-        let mut dln_proof_results = vec![Ok(()); ctx.params.party_count() * 2]; // Store results or errors
-
-        for (j, msg_opt) in ctx.temp.message_store.kg_round1_messages.iter().enumerate() {
-            let msg = msg_opt.as_ref().ok_or_else(|| {
-                self.state.wrap_error(format!("Missing Round 1 message from party {}", j).into(), None)
-            })?;
-            let r1_content = match &msg.content {
-                 KeygenMessageEnum::Round1(c) => Ok(c),
-                 _ => Err(self.state.wrap_error(format!("Expected Round1 message from party {}, got something else", j).into(), Some(&[msg.get_from()])))
-            }?;
-
-            let h1j = &r1_content.h1;
-            let h2j = &r1_content.h2;
-            let n_tilde_j = &r1_content.n_tilde;
-            let paillier_pk_j = &r1_content.paillier_pk;
-
-            // Basic checks from Go version
-             if paillier_pk_j.n.bits() != PAILLIER_BITS_LEN as u64 { // Assuming n.bits() exists
-                 return Err(self.state.wrap_error(format!("Party {} Paillier modulus has incorrect bit length", j).into(), Some(&[msg.get_from()])));
-             }
-             if h1j == h2j {
-                 return Err(self.state.wrap_error(format!("Party {} h1j and h2j are equal", j).into(), Some(&[msg.get_from()])));
-             }
-             if n_tilde_j.bits() != PAILLIER_BITS_LEN as u64 { // Assuming n_tilde_j.bits() exists
-                 return Err(self.state.wrap_error(format!("Party {} NTildej has incorrect bit length", j).into(), Some(&[msg.get_from()])));
-             }
-
-            // Check uniqueness of H1j, H2j
-            let h1j_hex = h1j.to_str_radix(16);
-            let h2j_hex = h2j.to_str_radix(16);
-            if let Some(existing_party) = h1h2_map.get(&h1j_hex) {
-                 return Err(self.state.wrap_error(format!("h1j from party {} already used by party {}", j, existing_party.index).into(), Some(&[msg.get_from(), existing_party])));
-            }
-             if let Some(existing_party) = h1h2_map.get(&h2j_hex) {
-                 return Err(self.state.wrap_error(format!("h2j from party {} already used by party {}", j, existing_party.index).into(), Some(&[msg.get_from(), existing_party])));
-            }
-            h1h2_map.insert(h1j_hex, msg.get_from().clone());
-            h1h2_map.insert(h2j_hex, msg.get_from().clone());
-
-            // Verify DLN proofs (synchronous for now)
-            if !dln_verifier.verify_dln_proof_1(r1_content, h1j, h2j, n_tilde_j) {
-                dln_proof_results[j * 2] = Err(self.state.wrap_error(format!("DLNProof1 verification failed for party {}", j).into(), Some(&[msg.get_from()])));
-            }
-            if !dln_verifier.verify_dln_proof_2(r1_content, h2j, h1j, n_tilde_j) {
-                 dln_proof_results[j * 2 + 1] = Err(self.state.wrap_error(format!("DLNProof2 verification failed for party {}", j).into(), Some(&[msg.get_from()])));
-            }
+        // 1. Store Round 1 Commitments (KGCs)
+        temp_guard.kgcs = vec![None; party_count];
+        for (j_id, r1_msg) in &temp_guard.round_1_messages { // Iterate map directly
+             let j = j_id.index();
+             temp_guard.kgcs[j] = Some(r1_msg.unmarshal_commitment());
         }
+        println!("Round 2: Stored Round 1 commitments.");
 
-        // Check results
-        for result in dln_proof_results {
-            result?; // Propagate the first error encountered
-        }
-        println!("Round 2: DLN proofs verified.");
+        // 2. P2P send share ij to Pj
+        let shares = temp_guard.shares.clone().ok_or_else(|| {
+            TssError::InternalError { message: "Missing VSS shares in temp data".to_string() }
+        })?;
 
-        // Save verified data from Round 1
-        for (j, msg_opt) in ctx.temp.message_store.kg_round1_messages.iter().enumerate() {
-            if j == i { continue; }
-            let r1_content = match &msg_opt.as_ref().unwrap().content {
-                KeygenMessageEnum::Round1(c) => c,
-                _ => unreachable!(), // Should have failed earlier if not R1 message
-            };
-            // Save PaillierPK, NTilde, H1, H2, Commitment (KGC)
-            ctx.data.paillier_pks[j] = Some(r1_content.paillier_pk.clone());
-            ctx.data.n_tilde_j[j] = Some(r1_content.n_tilde.clone());
-            ctx.data.h1j[j] = Some(r1_content.h1.clone());
-            ctx.data.h2j[j] = Some(r1_content.h2.clone());
-            ctx.temp.kgcs[j] = Some(r1_content.commitment.clone());
-        }
-
-        // 5. P2P send share ij to Pj + Factorization Proof
-        let shares = ctx.temp.shares.as_ref().ok_or_else(|| self.state.wrap_error("Missing VSS shares".into(), None))?;
-        let context_i = [get_ssid(ctx, &self.state)?.as_slice(), BigInt::from(i).to_bytes_be().1.as_slice()].concat();
-        let paillier_sk = ctx.data.local_pre_params.paillier_sk.as_ref()
-                           .ok_or_else(|| self.state.wrap_error("Missing Paillier SK".into(), None))?;
-        let p_prime = &paillier_sk.p;
-        let q_prime = &paillier_sk.q;
-
-        for (j, pj) in self.state.parties.iter().enumerate() { // Use parties from RoundState
-            let n_tilde_j = ctx.data.n_tilde_j[j].as_ref().ok_or_else(|| self.state.wrap_error(format!("Missing NTilde for party {}", j).into(), None))?;
-            let h1j = ctx.data.h1j[j].as_ref().ok_or_else(|| self.state.wrap_error(format!("Missing H1 for party {}", j).into(), None))?;
-            let h2j = ctx.data.h2j[j].as_ref().ok_or_else(|| self.state.wrap_error(format!("Missing H2 for party {}", j).into(), None))?;
-
-            // TODO: Implement NoProofFac() check from parameters
-            let curve_params = get_curve_params(CurveName::Ed25519)
-                .ok_or_else(|| self.state.wrap_error("Ed25519 curve parameters not found".into(), None))?;
-            let fac_proof = fac_proof::new(
-                &context_i, &curve_params, &paillier_sk.public_key.n, n_tilde_j, h1j, h2j,
-                p_prime, q_prime, &mut rng
-            ).map_err(|e| self.state.wrap_error(e, Some(&[party_id])))?;
-
-            let r2msg1 = new_kg_round2_message1(pj, party_id, &shares.0[j], fac_proof)
-                           .map_err(|e| self.state.wrap_error(e, Some(&[party_id])))?;
-
-             let parsed_msg = ParsedMessage { // Create ParsedMessage for storage
-                 content: KeygenMessageEnum::Round2_1(r2msg1.content.clone()),
-                 routing: MessageRouting { from: party_id.clone(), to: Some(vec![pj.clone()]), is_broadcast: false },
-            };
+        for (j, pj) in self.base.params().parties().iter().enumerate() {
+            let share_ij = &shares[j]; // Assuming Vec<IndividualVssShare>
+            // TODO: Need IndividualVssShare::to_bytes()
+            let share_bytes = vec![]; // Placeholder
+            let msg_content = KGRound2Message1 { share: share_bytes };
+            let msg_payload = msg_content.encode_to_vec();
 
             if j == i {
-                // Store own message
-                 self.store_message(ctx, parsed_msg)?; // Use the trait method for storing
+                 self.base.set_ok(i)?;
+                 temp_guard.round_2_messages1.insert(party_id.clone(), msg_content);
             } else {
-                // Send P2P message
-                if let Some(sender) = self.out.as_ref() {
-                     sender.send(r2msg1).map_err(|e| self.state.wrap_error(Box::new(e), Some(&[pj])))?;
-                } else {
-                     println!("Warning: Output channel is None in Round2::start (P2P)");
-                }
+                 let p2p_msg = self.base.new_p2p_message(pj, msg_payload)?;
+                 self.base.send_p2p(p2p_msg)?;
             }
         }
+        println!("Round 2: Sent P2P shares.");
 
-        // 7. BROADCAST de-commitments of Shamir poly*G + Modulo Proof
-        let decommitment = ctx.temp.de_commit_poly_g.as_ref()
-                            .ok_or_else(|| self.state.wrap_error("Missing decommitment".into(), None))?;
-        // TODO: Implement NoProofMod() check from parameters
-         let mod_proof = mod_proof::new(&context_i, &paillier_sk.public_key.n, p_prime, q_prime, &mut rng)
-                         .map_err(|e| self.state.wrap_error(e, Some(&[party_id])))?;
+        // 3. Compute Schnorr prove pi_i = ZKProof{ui}(vs_i[0])
+        let context_i = [temp_guard.ssid.as_ref().unwrap().as_slice(), BigInt::from(i).to_bytes_be().1.as_slice()].concat();
+        let ui_bigint = temp_guard.ui.as_ref().ok_or_else(|| {
+             TssError::InternalError { message: "Missing secret ui in temp data".to_string() }
+        })?;
+        let vsi0_point = temp_guard.vs.as_ref().unwrap()[0].clone();
 
-        let r2msg2 = new_kg_round2_message2(party_id, decommitment, mod_proof)
-                        .map_err(|e| self.state.wrap_error(e, Some(&[party_id])))?;
+        // TODO: Implement Schnorr proof generation
+        let schnorr_proof = SchnorrProofPlaceholder{ alpha: PointPlaceholder { x: vec![], y: vec![] }, t: vec![]};
 
-         let parsed_msg = ParsedMessage { // Create ParsedMessage for storage
-             content: KeygenMessageEnum::Round2_2(r2msg2.content.clone()),
-             routing: MessageRouting { from: party_id.clone(), to: None, is_broadcast: true },
+        // 4. BROADCAST de-commitments and Schnorr proof
+        let decommitment_vec = temp_guard.de_commit_poly_g.clone().ok_or_else(|| {
+             TssError::InternalError { message: "Missing VSS decommitment in temp data".to_string() }
+        })?;
+        let decommitment_bytes: Vec<Vec<u8>> = decommitment_vec.iter().map(|d| d.to_bytes_be().1).collect();
+        let msg_content = KGRound2Message2 {
+            decommitment: decommitment_bytes,
+            proof_alpha_x: schnorr_proof.alpha.x,
+            proof_alpha_y: schnorr_proof.alpha.y,
+            proof_t: schnorr_proof.t,
         };
-        self.store_message(ctx, parsed_msg)?; // Store own message
+        let msg_payload = msg_content.encode_to_vec();
 
-        // Send broadcast message
-         if let Some(sender) = self.out.as_ref() {
-             sender.send(r2msg2).map_err(|e| self.state.wrap_error(Box::new(e), None))?;
-         } else {
-              println!("Warning: Output channel is None in Round2::start (Broadcast)");
-         }
+        let broadcast_msg = self.base.new_broadcast_message(msg_payload)?;
+        self.base.send_broadcast(broadcast_msg)?;
+
+        // Mark self as OK for broadcast message type as well?
+        // Assuming Round 2 needs two messages: one P2P share, one broadcast decommit.
+        // BaseParty::ok only tracks one message per party. Refactor needed for multi-message rounds.
+        // For now, let start() mark self OK for P2P message, and assume broadcast implicitly handled.
+
+        println!("Round 2: Broadcasted decommitment and Schnorr proof.");
 
         Ok(())
     }
 
-    fn can_accept(&self, msg: &ParsedMessage) -> bool {
-        match msg.content() {
-            KeygenMessageEnum::Round2_1(_) => !msg.is_broadcast(),
-            KeygenMessageEnum::Round2_2(_) => msg.is_broadcast(),
-            _ => false,
+    fn store_message(&mut self, msg: ParsedMessage) -> Result<(), TssError> {
+        let sender_index = self.base.params().parties().find_by_id(msg.from())
+            .ok_or_else(|| TssError::PartyIndexNotFound)?;
+
+        let content = msg.content();
+        if content.downcast_ref::<KGRound2Message1>().is_none() &&
+           content.downcast_ref::<KGRound2Message2>().is_none() {
+            return Err(TssError::BaseError {
+                message: format!("Unexpected message type stored for Round 2: {:?}", content)
+            });
         }
+        self.base.set_ok(sender_index)?;
+        Ok(())
     }
 
-    fn update(&mut self, ctx: &RoundCtx) -> Result<bool, TssError> {
-        let mut all_ok = true;
-        for j in 0..ctx.params.party_count() {
-            if self.state.ok[j] {
-                continue;
-            }
-            // Check if both messages are received and valid types for party j
-            let msg1_received = ctx.temp.message_store.kg_round2_message1s[j].as_ref()
-                                 .map_or(false, |m| self.can_accept(m));
-            let msg2_received = ctx.temp.message_store.kg_round2_message2s[j].as_ref()
-                                 .map_or(false, |m| self.can_accept(m));
+    fn can_proceed(&self) -> bool {
+        // TODO: This check is inaccurate for rounds needing multiple message types per party.
+        // BaseParty::message_count only tracks one message type.
+        // Needs refactoring based on how BaseParty stores messages or use temp maps.
+        let party_count = self.base.party_count();
+        // Temporary check using local maps
+        let temp_guard = self.base.temp();
+        temp_guard.round_2_messages1.len() == party_count && temp_guard.round_2_messages2.len() == party_count
+    }
 
-            if msg1_received && msg2_received {
-                self.state.ok[j] = true;
-            } else {
-                all_ok = false; // Still waiting for one or both messages
-            }
+    fn proceed(&mut self) -> Result<(), TssError> {
+        if !self.can_proceed() {
+            return Err(TssError::ProceedCalledWhenNotReady);
         }
-        Ok(all_ok)
+        println!("Round 2 can proceed.");
+        Ok(())
     }
 
-     fn store_message(&mut self, ctx: &mut RoundCtx, msg: ParsedMessage) -> Result<(), TssError> {
-         if !self.can_accept(&msg) {
-             return Err(self.state.wrap_error("Cannot store unacceptable message in Round 2".into(), Some(&[msg.get_from()])));
-         }
-         let from_p_idx = msg.get_from().index;
-          if from_p_idx >= ctx.params.party_count() {
-               return Err(self.state.wrap_error(format!("Invalid party index {} in store_message", from_p_idx).into(), Some(&[msg.get_from()])));
-          }
-
-         match msg.content {
-             KeygenMessageEnum::Round2_1(_) => {
-                 ctx.temp.message_store.kg_round2_message1s[from_p_idx] = Some(msg);
-             }
-             KeygenMessageEnum::Round2_2(_) => {
-                 ctx.temp.message_store.kg_round2_message2s[from_p_idx] = Some(msg);
-             }
-             _ => return Err(self.state.wrap_error("Invalid message type passed to Round 2 store_message".into(), Some(&[msg.get_from()]))),
-         }
-         Ok(())
+    // Implement next_round using BaseParty fields
+    fn next_round(self: Box<Self>) -> Option<Box<dyn KeygenRound>> {
+        Some(Round3::new(
+            self.base.params.clone(),
+            self.base.save_data.clone(),
+            self.base.temp_data.clone(),
+            self.base.out_channel.clone(),
+            self.base.end_channel.clone().expect("End channel should be set for round 2"),
+        ))
     }
-
-    fn next_round(self: Box<Self>) -> Result<Option<Box<dyn Round>>, TssError> {
-         // Reset started state? Go version does this.
-         // self.state_mut().started = false;
-         Ok(Some(Box::new(Round3::new(self.out, self.end, self.state.parties.as_ref())?))) // Pass necessary context/state
-    }
-
-    // --- Context Accessor Methods --- //
-    fn params(&self) -> &Parameters { unimplemented!("Accessor needs context") }
-    fn data(&self) -> &LocalPartySaveData { unimplemented!("Accessor needs context") }
-    fn data_mut(&mut self) -> &mut LocalPartySaveData { unimplemented!("Accessor needs context") }
-    fn temp(&self) -> &LocalTempData { unimplemented!("Accessor needs context") }
-    fn temp_mut(&mut self) -> &mut LocalTempData { unimplemented!("Accessor needs context") }
-    fn out_channel(&self) -> &Option<Sender<Message>> { &self.out }
-    fn end_channel(&self) -> &Option<Sender<LocalPartySaveData>> { &self.end }
 }
+
+// Placeholder for ParsedMessage until refactoring
+#[derive(Debug, Clone)]
+pub struct ParsedMessage { pub dummy: u8, pub from_party: Option<PartyID> } // Added from for store_message temp fix

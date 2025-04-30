@@ -1,128 +1,83 @@
-use crate::crypto::paillier; // Import the actual paillier module
-use crate::tss::party_id::{PartyID, SortedPartyIDs}; // Use actual types
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+// LocalPartySaveData defines the save data structure for the EdDSA keygen protocol.
+
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
+ed25519_dalek::{EdwardsPoint, Scalar as Ed25519Scalar};
 
-// Placeholder for ECPoint type (to be replaced with real implementation)
-pub struct ECPoint {
-    pub x: BigInt,
-    pub y: BigInt,
-    // Add additional fields or methods if necessary
-}
+// TSS core imports
+use crate::tss::party_id::{PartyID, SortedPartyIDs};
+use crate::tss::error::Error as TssGenError;
 
-// --- Placeholders for Crypto Types (replace with actual types) ---
-// TODO: Replace with actual Paillier private key type
-// Placeholder PaillierPrivateKey removed
+// Keygen specific imports
+use crate::eddsa::keygen::TssError;
 
-// TODO: Replace with actual Paillier public key type
-// Placeholder PaillierPublicKey removed
+// Crypto imports
+use crate::crypto::vss::Share as VssShare;
 
-// TODO: Replace with actual EdDSA Point/Scalar types from the chosen library
-// (e.g., from curve25519-dalek or ed25519-dalek)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EdDSASecretShareScalar { // Corresponds to Go's Xi (*big.Int scalar)
-    pub scalar: BigInt, // Or specific scalar type from the library
-}
+// Remove ECDSA-specific LocalPreParams
+/*
+#[derive(Debug, Clone /* Serialize, Deserialize */)]
+pub struct LocalPreParams { ... }
+impl LocalPreParams { ... }
+*/
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EdDSAPublicKeyPoint { // Corresponds to Go's *crypto.ECPoint
-    pub point: Vec<u8>, // Or specific point type from the library (compressed or full)
-}
-// --- End Placeholders ---
-
-#[derive(Debug, Clone /* Serialize, Deserialize */)] // Paillier keys might not be directly serializable
-pub struct LocalPreParams {
-    // Use the actual Paillier PrivateKey type
-    pub paillier_sk: Option<paillier::PrivateKey>, // ski
-    pub n_tilde_i: Option<BigInt>,
-    pub h1i: Option<BigInt>,
-    pub h2i: Option<BigInt>,
-    pub alpha: Option<BigInt>,
-    pub beta: Option<BigInt>,
-    // Note: p and q are already fields within paillier::PrivateKey
-    // Keep these separate based on Go struct, might be redundant?
-    pub p: Option<BigInt>, // Paillier prime p (from SK)
-    pub q: Option<BigInt>, // Paillier prime q (from SK)
-}
-
-impl LocalPreParams {
-    // Validation now needs to check fields inside paillier_sk if needed
-    pub fn validate(&self) -> bool {
-        self.paillier_sk.is_some() &&
-        self.n_tilde_i.is_some() &&
-        self.h1i.is_some() &&
-        self.h2i.is_some()
-    }
-
-    // Validation now checks p and q from the actual paillier_sk
-    pub fn validate_with_proof(&self) -> bool {
-        self.validate() &&
-        // self.paillier_sk.as_ref().map_or(false, |sk| sk.p.is_some() && sk.q.is_some()) && // p, q are not Option in actual SK
-        self.alpha.is_some() &&
-        self.beta.is_some() &&
-        self.p.is_some() && // Keep checking the separate p, q as per original Go struct logic
-        self.q.is_some()
-        // We might also check self.p == self.paillier_sk.p etc. if desired
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// Define LocalSecrets for EdDSA keygen
+#[derive(Debug, Clone, Serialize, Deserialize)] // Can derive traits if BigInt supports them
 pub struct LocalSecrets {
-    pub xi: Option<EdDSASecretShareScalar>,
-    pub share_id: Option<BigInt>,
+    // secret fields (not shared, but stored locally)
+    pub xi: BigInt, // Use BigInt directly for xi
+    pub share_id: BigInt, // Use BigInt directly for kj (party's VSS ID)
 }
 
 // Everything in LocalPartySaveData is saved locally when done
-#[derive(Debug, Clone /* Serialize, Deserialize */)] // Paillier keys might not be directly serializable
+#[derive(Debug, Clone, Serialize, Deserialize)] // Use derives if EdwardsPoint supports them (needs feature or wrapper)
 pub struct LocalPartySaveData {
-    // Embed PreParams and Secrets directly (Rust doesn't have Go's embedding)
-    pub local_pre_params: LocalPreParams,
+    // Embed Secrets directly
     pub local_secrets: LocalSecrets,
 
-    // Original indexes (ki in signing preparation phase)
-    pub ks: Vec<Option<BigInt>>,
+    // original indexes (ki in signing preparation phase)
+    pub ks: Vec<BigInt>, // Store BigInt directly, assuming None isn't needed after generation
 
-    // n-tilde, h1, h2 for range proofs from other parties
-    pub n_tilde_j: Vec<Option<BigInt>>,
-    pub h1j: Vec<Option<BigInt>>,
-    pub h2j: Vec<Option<BigInt>>,
+    // public keys (Xj = uj*G for each Pj)
+    pub big_x_j: Vec<EdwardsPoint>, // Use concrete EdwardsPoint type
 
-    // Public keys (Xj = uj*G for each Pj)
-    pub big_x_j: Vec<Option<EdDSAPublicKeyPoint>>, // Xj (public key shares)
-    // Use the actual Paillier PublicKey type
-    pub paillier_pks: Vec<Option<paillier::PublicKey>>, // pkj
+    // used for test assertions (may be discarded)
+    pub eddsa_pub: EdwardsPoint, // Use concrete EdwardsPoint type
 
-    // Combined public key (may be discarded after verification)
-    pub eddsa_pub: Option<EdDSAPublicKeyPoint>, // y (combined EdDSA public key)
+    // Removed ECDSA fields: local_pre_params, n_tilde_j, h1j, h2j, paillier_pks
 }
 
 impl LocalPartySaveData {
     // Creates a new LocalPartySaveData with vectors initialized for party_count
-    pub fn new(party_count: usize) -> Self {
+    // Requires initial secret values.
+    pub fn new(party_count: usize, secrets: LocalSecrets) -> Self {
         LocalPartySaveData {
-            local_pre_params: LocalPreParams {
-                paillier_sk: None,
-                n_tilde_i: None,
-                h1i: None,
-                h2i: None,
-                alpha: None,
-                beta: None,
-                p: None, // Initialize the separate p, q
-                q: None,
-            },
+            local_secrets: secrets,
+            ks: vec![BigInt::default(); party_count],
+            big_x_j: vec![EdwardsPoint::default(); party_count], // Requires Default impl for EdwardsPoint
+            // Initialize eddsa_pub with a default/identity value
+            eddsa_pub: EdwardsPoint::default(), // Requires Default impl for EdwardsPoint
+        }
+    }
+
+    // Creates an empty/default save data structure (useful for initialization before rounds)
+    pub fn new_empty(party_count: usize) -> Self {
+        LocalPartySaveData {
             local_secrets: LocalSecrets {
-                xi: None,
-                share_id: None,
+                xi: BigInt::default(), // Initialize with default
+                share_id: BigInt::default(),
             },
-            ks: vec![None; party_count],
-            n_tilde_j: vec![None; party_count],
-            h1j: vec![None; party_count],
-            h2j: vec![None; party_count],
-            big_x_j: vec![None; party_count],
-            paillier_pks: vec![None; party_count],
-            eddsa_pub: None,
+            ks: vec![BigInt::default(); party_count],
+            big_x_j: vec![EdwardsPoint::default(); party_count],
+            eddsa_pub: EdwardsPoint::default(),
         }
     }
 
@@ -130,34 +85,27 @@ impl LocalPartySaveData {
     pub fn build_subset(&self, sorted_ids: &SortedPartyIDs) -> Result<Self, Box<dyn Error>> {
         let signer_count = sorted_ids.len();
         let mut keys_to_indices: HashMap<&BigInt, usize> = HashMap::with_capacity(self.ks.len());
-        for (j, k_opt) in self.ks.iter().enumerate() {
-            if let Some(k) = k_opt {
-                keys_to_indices.insert(k, j);
-            } else {
-                // Handle error: Found None in Ks, which might indicate incomplete data
-                return Err(From::from("BuildLocalSaveDataSubset: Found None in source Ks list"));
-            }
+        for (j, k) in self.ks.iter().enumerate() {
+             keys_to_indices.insert(k, j);
         }
 
-        let mut new_data = Self::new(signer_count);
-        // Cloning LocalPreParams and LocalPartySaveData now clones the actual paillier keys
-        new_data.local_pre_params = self.local_pre_params.clone();
+        // Create new data structure with the signer count
+        let mut new_data = Self::new_empty(signer_count);
+
+        // Copy common secret and public key data
         new_data.local_secrets = self.local_secrets.clone();
-        new_data.eddsa_pub = self.eddsa_pub.clone();
+        new_data.eddsa_pub = self.eddsa_pub.clone(); // EdwardsPoint should be Clone
 
         for (j, id) in sorted_ids.iter().enumerate() {
-            // id.key corresponds to the BigInt share_id (kj)
+            // id.key() corresponds to the BigInt share_id (kj)
             let saved_idx = keys_to_indices.get(id.key()).ok_or_else(|| {
                 format!("BuildLocalSaveDataSubset: unable to find party key {:?} in the local save data", id.key())
             })?;
 
             // Clone data from the original index into the new structure
             new_data.ks[j] = self.ks[*saved_idx].clone();
-            new_data.n_tilde_j[j] = self.n_tilde_j[*saved_idx].clone();
-            new_data.h1j[j] = self.h1j[*saved_idx].clone();
-            new_data.h2j[j] = self.h2j[*saved_idx].clone();
-            new_data.big_x_j[j] = self.big_x_j[*saved_idx].clone();
-            new_data.paillier_pks[j] = self.paillier_pks[*saved_idx].clone(); // Clones Option<paillier::PublicKey>
+            new_data.big_x_j[j] = self.big_x_j[*saved_idx].clone(); // EdwardsPoint should be Clone
+            // Removed copying of ECDSA fields (n_tilde_j, h1j, h2j, paillier_pks)
         }
 
         Ok(new_data)
@@ -166,22 +114,18 @@ impl LocalPartySaveData {
     // Add implementation for original_index if not already present
     // (It was added in local_party.rs previously, might be better placed here)
     pub fn original_index(&self) -> Result<usize, String> {
-        let share_id = self.local_secrets.share_id.as_ref()
-            .ok_or_else(|| "Missing share_id in local secrets".to_string())?;
+        let share_id = &self.local_secrets.share_id;
 
-        for (j, k_opt) in self.ks.iter().enumerate() {
-            if let Some(k) = k_opt {
-                if k == share_id {
-                    return Ok(j);
-                }
-            }
+        for (j, k) in self.ks.iter().enumerate() {
+             if k == share_id {
+                 return Ok(j);
+             }
         }
         Err("A party index could not be recovered from Ks".to_string())
     }
 }
 
-// Note: Serialization/Deserialization for LocalPreParams and LocalPartySaveData
-// might need custom implementations (e.g., using serde_bytes or custom serialize/deserialize)
-// if the underlying paillier::PrivateKey/PublicKey don't derive Serialize/Deserialize
-// or if a specific byte format is needed for the BigInts within them.
-// Commented out derive(Serialize, Deserialize) for now.
+// Note: Serialization/Deserialization for LocalPartySaveData
+// needs handling for EdwardsPoint (e.g., using serde_bytes for compressed representation
+// or a wrapper struct that implements Serialize/Deserialize).
+// The derive(Serialize, Deserialize) might fail depending on EdwardsPoint implementation.

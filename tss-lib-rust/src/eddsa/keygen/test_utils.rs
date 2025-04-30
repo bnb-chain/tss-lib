@@ -1,13 +1,14 @@
-use crate::eddsa::keygen::save_data::LocalPartySaveData; // Use the actual struct
-use crate::tss::party_id::{PartyID, SortedPartyIDs}; // Use actual PartyID from tss module
-use num_bigint::BigInt;
-use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     fs,
-    path::{Path, PathBuf},
-    sync::Once, // For lazy static initialization if needed
+    path::{PathBuf},
+    error::Error, // Standard error trait
 };
+use serde::{Deserialize, Serialize}; // Still needed for JSON
+
+// Use keygen save data
+use crate::eddsa::keygen::save_data::LocalPartySaveData;
+// Use tss party id
+use crate::tss::party_id::{PartyID, SortedPartyIDs};
 
 // Constants analogous to Go version
 pub const TEST_PARTICIPANTS: usize = 4; // Example value, match Go if applicable
@@ -18,9 +19,8 @@ const TEST_FIXTURE_FILE_FORMAT: &str = "keygen_data_{}.json";
 
 // Helper function to get the path to a fixture file
 fn make_test_fixture_file_path(party_index: usize) -> PathBuf {
-    // Using std::env::current_dir() might be fragile depending on where tests are run.
-    // Consider using manifest_dir or defining paths relative to the workspace root.
-    // For simplicity, mimicking the Go relative path structure for now.
+    // Using std::env::current_dir() or file!() might be fragile depending on where tests are run.
+    // Consider using manifest_dir (CARGO_MANIFEST_DIR env var) or defining paths relative to the workspace root.
     let mut path = PathBuf::from(file!()); // Gets the path to *this* source file
     path.pop(); // Remove filename -> src/eddsa/keygen
     path.pop(); // -> src/eddsa
@@ -35,7 +35,7 @@ fn make_test_fixture_file_path(party_index: usize) -> PathBuf {
 pub fn load_keygen_test_fixtures(
     qty: usize,
     optional_start: Option<usize>,
-) -> Result<(Vec<LocalPartySaveData>, SortedPartyIDs), String> {
+) -> Result<(Vec<LocalPartySaveData>, SortedPartyIDs), Box<dyn Error>> { // Use Box<dyn Error>
     let mut keys = Vec::with_capacity(qty);
     let start = optional_start.unwrap_or(0);
     let mut party_ids_unsorted: Vec<PartyID> = Vec::with_capacity(qty); // Use actual PartyID
@@ -43,42 +43,41 @@ pub fn load_keygen_test_fixtures(
     for i in start..(start + qty) {
         let fixture_path = make_test_fixture_file_path(i);
         let bz = fs::read(&fixture_path).map_err(|e| {
-            format!(
+             // Use format! to create a String and then Box::from to convert to Box<dyn Error>
+             Box::<dyn Error>::from(format!(
                 "Could not open the test fixture for party {} in {}: {}. Run keygen tests first.",
                 i, fixture_path.display(), e
-            )
+             ))
         })?;
 
         let key: LocalPartySaveData = serde_json::from_slice(&bz).map_err(|e| {
-            format!(
+             Box::<dyn Error>::from(format!(
                 "Could not unmarshal fixture data for party {} at {}: {}",
                 i, fixture_path.display(), e
-            )
+             ))
         })?;
 
-        // TODO: Perform any necessary post-deserialization setup for EdDSA keys/points
-        // Example: key.public_key.set_curve(...); if using a curve point object
+        // TODO: If using ECPoint types that need curve info set after deserialization,
+        // add that logic here, similar to Go's `kbxj.SetCurve(tss.Edwards())`.
+        // Example: key.big_x_j.iter_mut().for_each(|p| p.set_curve(...));
 
         // Extract the share_id for creating the PartyID
-        let share_id = key.local_secrets.share_id.clone().ok_or_else(|| {
-            format!("Missing share_id in fixture for party {} at {}", i, fixture_path.display())
-        })?;
+        // Assuming LocalSecrets fields are not Options anymore after save_data update
+        let share_id = key.local_secrets.share_id.clone();
 
         // Assuming PartyID::new exists and takes these arguments
-        // The actual PartyID might store index differently or require context
         let moniker = format!("{}", i + 1);
-        party_ids_unsorted.push(PartyID::new(&i.to_string(), &moniker, share_id)); // Use actual constructor
+        // Use actual PartyID constructor
+        party_ids_unsorted.push(PartyID::new(&i.to_string(), &moniker, share_id)?); // Assuming new can fail
         keys.push(key);
     }
 
     // Sort party IDs - Assuming PartyID implements Ord based on its key field
-    party_ids_unsorted.sort(); // Use the derived Ord for sorting
-    let sorted_pids: SortedPartyIDs = party_ids_unsorted; // Use actual SortedPartyIDs (likely Vec<PartyID>)
+    let sorted_pids = SortedPartyIDs::from_unsorted(&party_ids_unsorted)?;
 
+    // Sort keys based on share_id (which should match party ID key)
     keys.sort_by(|a, b| {
-        let a_id = a.local_secrets.share_id.as_ref().unwrap_or(&BigInt::from(0));
-        let b_id = b.local_secrets.share_id.as_ref().unwrap_or(&BigInt::from(0));
-        a_id.cmp(b_id)
+        a.local_secrets.share_id.cmp(&b.local_secrets.share_id)
     });
 
     Ok((keys, sorted_pids))

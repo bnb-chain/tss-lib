@@ -8,11 +8,12 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 use k256::{Secp256k1, ProjectivePoint as Secp256k1Point};
 use k256::elliptic_curve::Curve;
+use k256::elliptic_curve::crypto_bigint::Encoding;
 use num_bigint::BigInt;
-// Ed25519/Curve25519 imports from curve25519-dalek
-use curve25519_dalek::edwards::EdwardsPoint;
-use curve25519_dalek::scalar::Scalar as Ed25519Scalar;
-use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
+// Ed25519/Curve25519 imports from ed25519-dalek (Corrected from curve25519_dalek)
+use ed25519_dalek::edwards::EdwardsPoint;
+use ed25519_dalek::scalar::Scalar as Ed25519Scalar;
+use ed25519_dalek::constants::ED25519_BASEPOINT_POINT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CurveName {
