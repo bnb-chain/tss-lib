@@ -10,13 +10,13 @@ import (
 	"crypto/sha512"
 	"math/big"
 
-	"github.com/agl/ed25519/edwards25519"
-	"github.com/bnb-chain/tss-lib/v2/common"
+	"filippo.io/edwards25519"
+	"github.com/mt-solt/tss-lib/common"
 	"github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/crypto"
+	"github.com/mt-solt/tss-lib/crypto/commitments"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -29,13 +29,16 @@ func (round *round3) Start() *tss.Error {
 	round.resetOK()
 
 	// 1. init R
-	var R edwards25519.ExtendedGroupElement
 	riBytes := bigIntToEncodedBytes(round.temp.ri)
-	edwards25519.GeScalarMultBase(&R, riBytes)
+	riScalar, err := edwards25519.NewScalar().SetCanonicalBytes(riBytes[:])
+	if err != nil {
+		return round.WrapError(errors.Wrap(err, "SetCanonicalBytes(ri)"))
+	}
+	R := new(edwards25519.Point).ScalarBaseMult(riScalar)
 
 	// 2-6. compute R
-	i := round.PartyID().Index
-	for j, Pj := range round.Parties().IDs() {
+	i := round.Params().PartyID().Index
+	for j, Pj := range round.Params().Parties().IDs() {
 		if j == i {
 			continue
 		}
@@ -66,13 +69,13 @@ func (round *round3) Start() *tss.Error {
 			return round.WrapError(errors.New("failed to prove Rj"), Pj)
 		}
 
-		extendedRj := ecPointToExtendedElement(round.Params().EC(), Rj.X(), Rj.Y(), round.Rand())
-		R = addExtendedElements(R, extendedRj)
+		extendedRj := ecPointToExtendedElement(round.Params().EC(), Rj.X(), Rj.Y(), round.Params().Rand())
+		R.Add(R, extendedRj)
 	}
 
 	// 7. compute lambda
 	var encodedR [32]byte
-	R.ToBytes(&encodedR)
+	copy(encodedR[:], R.Bytes())
 	encodedPubKey := ecPointToEncodedBytes(round.key.EDDSAPub.X(), round.key.EDDSAPub.Y())
 
 	// h = hash512(k || A || M)
@@ -90,20 +93,26 @@ func (round *round3) Start() *tss.Error {
 
 	var lambda [64]byte
 	h.Sum(lambda[:0])
-	var lambdaReduced [32]byte
-	edwards25519.ScReduce(&lambdaReduced, &lambda)
+	lambdaScalar, _ := edwards25519.NewScalar().SetUniformBytes(lambda[:])
 
 	// 8. compute si
-	var localS [32]byte
-	edwards25519.ScMulAdd(&localS, &lambdaReduced, bigIntToEncodedBytes(round.temp.wi), riBytes)
+	wiScalar, err := edwards25519.NewScalar().SetCanonicalBytes(bigIntToEncodedBytes(round.temp.wi)[:])
+	if err != nil {
+		return round.WrapError(errors.Wrap(err, "SetCanonicalBytes(wi)"))
+	}
+	localS := edwards25519.NewScalar().Multiply(lambdaScalar, wiScalar)
+	localS.Add(localS, riScalar)
 
 	// 9. store r3 message pieces
-	round.temp.si = &localS
+	localSBytes := localS.Bytes()
+	var localSArr [32]byte
+	copy(localSArr[:], localSBytes)
+	round.temp.si = &localSArr
 	round.temp.r = encodedBytesToBigInt(&encodedR)
 
 	// 10. broadcast si to other parties
-	r3msg := NewSignRound3Message(round.PartyID(), encodedBytesToBigInt(&localS))
-	round.temp.signRound3Messages[round.PartyID().Index] = r3msg
+	r3msg := NewSignRound3Message(round.Params().PartyID(), encodedBytesToBigInt(&localSArr))
+	round.temp.signRound3Messages[round.Params().PartyID().Index] = r3msg
 	round.out <- r3msg
 
 	return nil

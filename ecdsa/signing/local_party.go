@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/mta"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/common"
+	"github.com/mt-solt/tss-lib/crypto"
+	cmt "github.com/mt-solt/tss-lib/crypto/commitments"
+	"github.com/mt-solt/tss-lib/crypto/mta"
+	"github.com/mt-solt/tss-lib/ecdsa/keygen"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 // Implements Party

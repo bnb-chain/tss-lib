@@ -11,12 +11,12 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmts "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/common"
+	"github.com/mt-solt/tss-lib/crypto"
+	cmts "github.com/mt-solt/tss-lib/crypto/commitments"
+	"github.com/mt-solt/tss-lib/crypto/dlnproof"
+	"github.com/mt-solt/tss-lib/crypto/vss"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 var zero = big.NewInt(0)

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/mt-solt/tss-lib/common"
 )
 
 type Party interface {

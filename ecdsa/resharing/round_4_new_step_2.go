@@ -12,16 +12,16 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/facproof"
+	"github.com/mt-solt/tss-lib/crypto/facproof"
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/common"
+	"github.com/mt-solt/tss-lib/crypto"
+	"github.com/mt-solt/tss-lib/crypto/commitments"
+	"github.com/mt-solt/tss-lib/crypto/vss"
+	"github.com/mt-solt/tss-lib/ecdsa/keygen"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 func (round *round4) Start() *tss.Error {

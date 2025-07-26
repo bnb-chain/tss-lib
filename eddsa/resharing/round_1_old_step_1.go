@@ -10,12 +10,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/signing"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/crypto"
+	"github.com/mt-solt/tss-lib/crypto/commitments"
+	"github.com/mt-solt/tss-lib/crypto/vss"
+	"github.com/mt-solt/tss-lib/eddsa/keygen"
+	"github.com/mt-solt/tss-lib/eddsa/signing"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 // round 1 represents round 1 of the keygen part of the EDDSA TSS spec

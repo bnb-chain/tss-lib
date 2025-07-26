@@ -13,15 +13,15 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/agl/ed25519/edwards25519"
+	"filippo.io/edwards25519"
 	"github.com/decred/dcrd/dcrec/edwards/v2"
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/test"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/common"
+	"github.com/mt-solt/tss-lib/eddsa/keygen"
+	"github.com/mt-solt/tss-lib/test"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 const (
@@ -113,7 +113,11 @@ signing:
 					}
 
 					var tmpSumS [32]byte
-					edwards25519.ScMulAdd(&tmpSumS, sumS, bigIntToEncodedBytes(big.NewInt(1)), p.temp.si)
+					sumSScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(sumS[:])
+					oneScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(bigIntToEncodedBytes(big.NewInt(1))[:])
+					siScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(p.temp.si[:])
+					tmpSumSScalar := edwards25519.NewScalar().MultiplyAdd(oneScalar, siScalar, sumSScalar)
+					copy(tmpSumS[:], tmpSumSScalar.Bytes())
 					sumS = &tmpSumS
 				}
 				fmt.Printf("S: %s\n", encodedBytesToBigInt(sumS).String())
@@ -218,7 +222,11 @@ signing:
 					}
 
 					var tmpSumS [32]byte
-					edwards25519.ScMulAdd(&tmpSumS, sumS, bigIntToEncodedBytes(big.NewInt(1)), p.temp.si)
+					sumSScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(sumS[:])
+					oneScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(bigIntToEncodedBytes(big.NewInt(1))[:])
+					siScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(p.temp.si[:])
+					tmpSumSScalar := edwards25519.NewScalar().MultiplyAdd(oneScalar, siScalar, sumSScalar)
+					copy(tmpSumS[:], tmpSumSScalar.Bytes())
 					sumS = &tmpSumS
 				}
 				fmt.Printf("S: %s\n", encodedBytesToBigInt(sumS).String())

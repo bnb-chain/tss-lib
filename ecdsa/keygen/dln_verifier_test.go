@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
+	"github.com/mt-solt/tss-lib/crypto/dlnproof"
 )
 
 func BenchmarkDlnProof_Verify(b *testing.B) {

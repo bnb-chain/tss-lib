@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/agl/ed25519/edwards25519"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"filippo.io/edwards25519"
 	"github.com/decred/dcrd/dcrec/edwards/v2"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 func (round *finalization) Start() *tss.Error {
@@ -33,7 +33,11 @@ func (round *finalization) Start() *tss.Error {
 		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
 		sjBytes := bigIntToEncodedBytes(r3msg.UnmarshalS())
 		var tmpSumS [32]byte
-		edwards25519.ScMulAdd(&tmpSumS, sumS, bigIntToEncodedBytes(big.NewInt(1)), sjBytes)
+		sumSScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(sumS[:])
+		oneScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(bigIntToEncodedBytes(big.NewInt(1))[:])
+		sjScalar, _ := edwards25519.NewScalar().SetCanonicalBytes(sjBytes[:])
+		tmpSumSScalar := edwards25519.NewScalar().MultiplyAdd(oneScalar, sjScalar, sumSScalar)
+		copy(tmpSumS[:], tmpSumSScalar.Bytes())
 		sumS = &tmpSumS
 	}
 	s := encodedBytesToBigInt(sumS)

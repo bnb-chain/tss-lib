@@ -11,11 +11,11 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/modproof"
+	"github.com/mt-solt/tss-lib/crypto/modproof"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/mt-solt/tss-lib/crypto/dlnproof"
+	"github.com/mt-solt/tss-lib/ecdsa/keygen"
+	"github.com/mt-solt/tss-lib/tss"
 )
 
 var zero = big.NewInt(0)

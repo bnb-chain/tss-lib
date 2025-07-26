@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/mt-solt/tss-lib/common"
 )
 
 type (
