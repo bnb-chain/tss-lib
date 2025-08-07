@@ -38,7 +38,6 @@ func (round *round1) Start() *tss.Error {
 	if !round.ReSharingParams().IsOldCommittee() {
 		return nil
 	}
-	round.allOldOK()
 
 	round.temp.ssidNonce = new(big.Int).SetUint64(uint64(0))
 	ssid, err := round.getSSID()
