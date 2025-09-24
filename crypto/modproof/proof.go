@@ -122,6 +122,10 @@ func (pf *ProofMod) Verify(Session []byte, N *big.Int) bool {
 	if pf.W.Sign() != 1 || pf.W.Cmp(N) != -1 {
 		return false
 	}
+	gcd := new(big.Int).GCD(nil, nil, pf.W, N)
+	if gcd.Cmp(one) != 0 {
+		return false
+	}
 	for i := range pf.Z {
 		if pf.Z[i].Sign() != 1 || pf.Z[i].Cmp(N) != -1 {
 			return false
