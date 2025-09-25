@@ -1,0 +1,31 @@
+[package]
+name = "tss-lib-rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+num-bigint = { version = "0.4.4", features = ["rand", "serde"] }
+num-traits = "0.2"
+num-integer = "0.1"
+rand = "0.8"
+sha2 = "0.10"
+prost = "0.11"
+log = "0.4"
+k256 = "0.11"
+prost-types = "0.11"
+hmac = "0.12"
+lazy_static = "1.4"
+ed25519-dalek = "2.0"
+num_cpus = "1.13"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0.219"
+rand_core = "0.6"
+bip32 = "0.4"
+num-primes = "0.3"
+
+[dev-dependencies]
+# Add any dependencies needed for testing here
