@@ -246,7 +246,7 @@ func TestE2EWithHDKeyDerivation(t *testing.T) {
 
 	keyDerivationDelta := il
 
-	err = UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta, keys, &extendedChildPk.PublicKey, btcec.S256())
+	err = UpdatePublicKeyAndAdjustBigXj(keyDerivationDelta, keys, extendedChildPk.PublicKey, btcec.S256())
 	assert.NoErrorf(t, err, "there should not be an error setting the derived keys")
 
 	// PHASE: signing
