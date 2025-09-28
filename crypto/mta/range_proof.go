@@ -141,15 +141,6 @@ func (pf *RangeProofAlice) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTi
 	if pf.S2.Cmp(q) == -1 {
 		return false
 	}
-	if pf.S.Cmp(one) == 0 {
-		return false
-	}
-	if pf.Z.Cmp(one) == 0 {
-		return false
-	}
-	if pf.S1.Cmp(pf.S2) == 0 {
-		return false
-	}
 
 	// 3.
 	if pf.S1.Cmp(q3) == 1 {
