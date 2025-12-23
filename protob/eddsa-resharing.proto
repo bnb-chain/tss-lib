@@ -5,16 +5,17 @@
 // file LICENSE at the root of the source code distribution tree.
 
 syntax = "proto3";
-package binance.tsslib.eddsa.resharing;
-option go_package = "eddsa/resharing";
+
+option go_package = "github.com/binance-chain/tss-lib/eddsa/resharing";
+
+import "protob/shared.proto";
 
 /*
  * The Round 1 data is broadcast to peers of the New Committee in this message.
  */
 message DGRound1Message {
-    bytes eddsa_pub_x = 1;
-    bytes eddsa_pub_y = 2;
-    bytes v_commitment = 3;
+    ECPoint eddsa_pub = 1;
+    bytes v_commitment = 2;
 }
 
 /*

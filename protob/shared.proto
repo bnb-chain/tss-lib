@@ -1,0 +1,28 @@
+// Copyright © 2019 Binance
+//
+// This file is part of Binance. The full Binance copyright notice, including
+// terms governing use, modification, and redistribution, is contained in the
+// file LICENSE at the root of the source code distribution tree.
+
+syntax = "proto3";
+
+option go_package = "github.com/binance-chain/tss-lib/common";
+
+message ECPoint {
+    bytes x = 1;
+    bytes y = 2;
+}
+
+message ECSignature {
+    bytes signature = 1;
+
+    // Ethereum-style Recovery ID: Used to enable extracting the public key from the signature.
+    bytes signature_recovery = 2;
+
+    // Signature components R, S
+    bytes r = 3;
+    bytes s = 4;
+
+    // M represents the original message digest that was signed M
+    bytes m = 5;
+}

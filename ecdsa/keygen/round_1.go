@@ -7,25 +7,26 @@
 package keygen
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmts "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
-var zero = big.NewInt(0)
+var (
+	zero = big.NewInt(0)
+)
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
-func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *LocalPartySaveData) tss.Round {
+func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1},
-	}
+		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -40,13 +41,13 @@ func (round *round1) Start() *tss.Error {
 	i := Pi.Index
 
 	// 1. calculate "partial" key share ui
-	ui := common.GetRandomPositiveInt(round.PartialKeyRand(), round.EC().Params().N)
+	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
 
 	round.temp.ui = ui
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
-	vs, shares, err := vss.Create(round.EC(), round.Threshold(), ui, ids, round.Rand())
+	vs, shares, err := vss.Create(round.Threshold(), ui, ids)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -61,7 +62,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	cmt := cmts.NewHashCommitment(round.Rand(), pGFlat...)
+	cmt := cmts.NewHashCommitment(pGFlat...)
 
 	// 4. generate Paillier public key E_i, private key and proof
 	// 5-7. generate safe primes for ZKPs used later on
@@ -74,13 +75,9 @@ func (round *round1) Start() *tss.Error {
 	} else if round.save.LocalPreParams.ValidateWithProof() {
 		preParams = &round.save.LocalPreParams
 	} else {
-		{
-			ctx, cancel := context.WithTimeout(context.Background(), round.SafePrimeGenTimeout())
-			defer cancel()
-			preParams, err = GeneratePreParamsWithContextAndRandom(ctx, round.Rand(), round.Concurrency())
-			if err != nil {
-				return round.WrapError(errors.New("pre-params generation failed"), Pi)
-			}
+		preParams, err = GeneratePreParams(round.SafePrimeGenTimeout(), 3)
+		if err != nil {
+			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
 	}
 	round.save.LocalPreParams = *preParams
@@ -88,29 +85,29 @@ func (round *round1) Start() *tss.Error {
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	// generate the dlnproofs for keygen
-	h1i, h2i, alpha, beta, p, q, NTildei := preParams.H1i,
+	h1i, h2i, alpha, beta, p, q, NTildei :=
+		preParams.H1i,
 		preParams.H2i,
 		preParams.Alpha,
 		preParams.Beta,
 		preParams.P,
 		preParams.Q,
 		preParams.NTildei
-	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei, round.Rand())
-	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei, round.Rand())
-
+	dlnProof1, err := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
+	if err != nil {
+		return round.WrapError(fmt.Errorf("failed to generate dln proof1: %v", err))
+	}
+	dlnProof2, err := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
+	if err != nil {
+		return round.WrapError(fmt.Errorf("failed to generate dln proof2: %v", err))
+	}
 	// for this P: SAVE
 	// - shareID
 	// and keep in temporary storage:
 	// - VSS Vs
 	// - our set of Shamir shares
-	round.temp.ssidNonce = new(big.Int).SetUint64(0)
 	round.save.ShareID = ids[i]
 	round.temp.vs = vs
-	ssid, err := round.getSSID()
-	if err != nil {
-		return round.WrapError(errors.New("failed to generate ssid"))
-	}
-	round.temp.ssid = ssid
 	round.temp.shares = shares
 
 	// for this P: SAVE de-commitments, paillier keys for round 2
@@ -139,19 +136,17 @@ func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
-	ret := true
 	for j, msg := range round.temp.kgRound1Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		// vss check is in round 2
 		round.ok[j] = true
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round1) NextRound() tss.Round {

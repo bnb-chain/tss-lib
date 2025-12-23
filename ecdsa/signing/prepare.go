@@ -7,17 +7,17 @@
 package signing
 
 import (
-	"crypto/elliptic"
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // PrepareForSigning(), GG18Spec (11) Fig. 14
-func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint) {
-	modQ := common.ModInt(ec.Params().N)
+func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int, bigXs []*crypto.ECPoint) (wi *big.Int, bigWs []*crypto.ECPoint, err error) {
+	modQ := common.ModInt(tss.EC().Params().N)
 	if len(ks) != len(bigXs) {
 		panic(fmt.Errorf("PrepareForSigning: len(ks) != len(bigXs) (%d != %d)", len(ks), len(bigXs)))
 	}
@@ -29,18 +29,13 @@ func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int
 	}
 
 	// 2-4.
-	wi = xi
+	wi = new(big.Int).Set(xi)
 	for j := 0; j < pax; j++ {
 		if j == i {
 			continue
 		}
-		ksj := ks[j]
-		ksi := ks[i]
-		if ksj.Cmp(ksi) == 0 {
-			panic(fmt.Errorf("index of two parties are equal"))
-		}
 		// big.Int Div is calculated as: a/b = a * modInv(b,q)
-		coef := modQ.Mul(ks[j], modQ.ModInverse(new(big.Int).Sub(ksj, ksi)))
+		coef := modQ.Mul(ks[j], modQ.Inverse(new(big.Int).Sub(ks[j], ks[i])))
 		wi = modQ.Mul(wi, coef)
 	}
 
@@ -52,16 +47,22 @@ func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int
 			if j == c {
 				continue
 			}
-			ksc := ks[c]
-			ksj := ks[j]
+			ksc, ksj := ks[c], ks[j]
 			if ksj.Cmp(ksc) == 0 {
-				panic(fmt.Errorf("index of two parties are equal"))
+				err = fmt.Errorf("the indices of two parties are equal")
+				return
 			}
 			// big.Int Div is calculated as: a/b = a * modInv(b,q)
-			iota := modQ.Mul(ksc, modQ.ModInverse(new(big.Int).Sub(ksc, ksj)))
+			iota := modQ.Mul(ksc, modQ.Inverse(new(big.Int).Sub(ksc, ksj)))
 			bigWj = bigWj.ScalarMult(iota)
 		}
 		bigWs[j] = bigWj
+	}
+
+	// assertion: g^w_i == W_i
+	if !crypto.ScalarBaseMult(tss.EC(), wi).Equals(bigWs[i]) {
+		err = fmt.Errorf("assertion failed: g^w_i == W_i")
+		return
 	}
 	return
 }

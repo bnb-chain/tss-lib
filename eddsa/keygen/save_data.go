@@ -10,8 +10,9 @@ import (
 	"encoding/hex"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
@@ -30,7 +31,7 @@ type (
 		// public keys (Xj = uj*G for each Pj)
 		BigXj []*crypto.ECPoint // Xj
 
-		// used for test assertions (may be discarded)
+		// the EdDSA public key
 		EDDSAPub *crypto.ECPoint // y
 	}
 )
@@ -53,7 +54,7 @@ func BuildLocalSaveDataSubset(sourceData LocalPartySaveData, sortedIDs tss.Sorte
 	for j, id := range sortedIDs {
 		savedIdx, ok := keysToIndices[hex.EncodeToString(id.Key)]
 		if !ok {
-			panic("BuildLocalSaveDataSubset: unable to find a signer party in the local save data")
+			common.Logger.Warn("BuildLocalSaveDataSubset: unable to find a signer party in the local save data", id)
 		}
 		newData.Ks[j] = sourceData.Ks[savedIdx]
 		newData.BigXj[j] = sourceData.BigXj[savedIdx]

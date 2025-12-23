@@ -9,9 +9,9 @@ package keygen
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func (round *round4) Start() *tss.Error {
@@ -63,7 +63,7 @@ func (round *round4) Start() *tss.Error {
 	for j, ok := range round.ok {
 		if !ok {
 			culprits = append(culprits, Ps[j])
-			common.Logger.Warningf("paillier verify failed for party %s", Ps[j])
+			common.Logger.Warnf("paillier verify failed for party %s", Ps[j])
 			continue
 		}
 		common.Logger.Debugf("paillier verify passed for party %s", Ps[j])
@@ -73,7 +73,7 @@ func (round *round4) Start() *tss.Error {
 		return round.WrapError(errors.New("paillier verify failed"), culprits...)
 	}
 
-	round.end <- round.save
+	round.end <- *round.save
 
 	return nil
 }

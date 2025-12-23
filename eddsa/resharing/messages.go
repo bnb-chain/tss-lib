@@ -7,14 +7,13 @@
 package resharing
 
 import (
-	"crypto/elliptic"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into eddsa-resharing.pb.go
@@ -45,8 +44,7 @@ func NewDGRound1Message(
 		IsToOldCommittee: false,
 	}
 	content := &DGRound1Message{
-		EddsaPubX:   eddsaPub.X().Bytes(),
-		EddsaPubY:   eddsaPub.Y().Bytes(),
+		EddsaPub:    eddsaPub.ToProtobufPoint(),
 		VCommitment: vct.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
@@ -55,16 +53,13 @@ func NewDGRound1Message(
 
 func (m *DGRound1Message) ValidateBasic() bool {
 	return m != nil &&
-		common.NonEmptyBytes(m.EddsaPubX) &&
-		common.NonEmptyBytes(m.EddsaPubY) &&
+		m.GetEddsaPub() != nil &&
+		m.GetEddsaPub().ValidateBasic() &&
 		common.NonEmptyBytes(m.VCommitment)
 }
 
-func (m *DGRound1Message) UnmarshalEDDSAPub(ec elliptic.Curve) (*crypto.ECPoint, error) {
-	return crypto.NewECPoint(
-		ec,
-		new(big.Int).SetBytes(m.EddsaPubX),
-		new(big.Int).SetBytes(m.EddsaPubY))
+func (m *DGRound1Message) UnmarshalEDDSAPub() (*crypto.ECPoint, error) {
+	return crypto.NewECPointFromProtobuf(m.GetEddsaPub())
 }
 
 func (m *DGRound1Message) UnmarshalVCommitment() *big.Int {

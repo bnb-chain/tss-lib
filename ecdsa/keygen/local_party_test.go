@@ -20,13 +20,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/test"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/test"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -46,7 +46,7 @@ func TestStartRound1Paillier(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
-	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -86,7 +86,7 @@ func TestFinishAndSaveH1H2(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(1)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
-	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
+	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), threshold)
 
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -133,7 +133,7 @@ func TestBadMessageCulprits(t *testing.T) {
 
 	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
-	params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[0], len(pIDs), 1)
+	params := tss.NewParameters(p2pCtx, pIDs[0], len(pIDs), 1)
 
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -152,7 +152,7 @@ func TestBadMessageCulprits(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	}
 
-	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, new(dlnproof.Proof), new(dlnproof.Proof))
+	badMsg, _ := NewKGRound1Message(pIDs[1], zero, &paillier.PublicKey{N: zero}, zero, zero, zero, new(dlnp.Proof), new(dlnp.Proof))
 	ok, err2 := lp.Update(badMsg)
 	t.Log(err2)
 	assert.False(t, ok)
@@ -162,7 +162,7 @@ func TestBadMessageCulprits(t *testing.T) {
 	assert.Equal(t, 1, len(err2.Culprits()))
 	assert.Equal(t, pIDs[1], err2.Culprits()[0])
 	assert.Equal(t,
-		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,2}]: message failed ValidateBasic: Type: binance.tsslib.ecdsa.keygen.KGRound1Message, From: {1,2}, To: all",
+		"task ecdsa-keygen, party {0,P[1]}, round 1, culprits [{1,2}]: message failed ValidateBasic: Type: KGRound1Message, From: {1,2}",
 		err2.Error())
 }
 
@@ -183,7 +183,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	errCh := make(chan *tss.Error, len(pIDs))
 	outCh := make(chan tss.Message, len(pIDs))
-	endCh := make(chan *LocalPartySaveData, len(pIDs))
+	endCh := make(chan LocalPartySaveData, len(pIDs))
 
 	updater := test.SharedPartyUpdater
 
@@ -192,11 +192,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
-		params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[i], len(pIDs), threshold)
-		// do not use in untrusted setting
-		params.SetNoProofMod()
-		// do not use in untrusted setting
-		params.SetNoProofFac()
+		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		if i < len(fixtures) {
 			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
 		} else {
@@ -243,7 +239,7 @@ keygen:
 			// .. here comes a workaround to recover this party's index (it was removed from save data)
 			index, err := save.OriginalIndex()
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-			tryWriteTestFixtureFile(t, index, *save)
+			tryWriteTestFixtureFile(t, index, save)
 
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
@@ -253,7 +249,10 @@ keygen:
 				u := new(big.Int)
 				for j, Pj := range parties {
 					pShares := make(vss.Shares, 0)
-					for _, P := range parties {
+					for j2, P := range parties {
+						if j2 == j {
+							continue
+						}
 						vssMsgs := P.temp.kgRound2Message1s
 						share := vssMsgs[j].Content().(*KGRound2Message1).Share
 						shareStruct := &vss.Share{
@@ -263,7 +262,7 @@ keygen:
 						}
 						pShares = append(pShares, shareStruct)
 					}
-					uj, err := pShares[:threshold+1].ReConstruct(tss.S256())
+					uj, err := pShares[:threshold+1].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
@@ -281,7 +280,7 @@ keygen:
 					{
 						badShares := pShares[:threshold]
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
-						uj, err := pShares[:threshold].ReConstruct(tss.S256())
+						uj, err := pShares[:threshold].ReConstruct()
 						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
 						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())

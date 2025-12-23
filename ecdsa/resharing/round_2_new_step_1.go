@@ -7,18 +7,13 @@
 package resharing
 
 import (
-	"bytes"
 	"errors"
-	"math/big"
+	"fmt"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/modproof"
-
-	"github.com/bnb-chain/tss-lib/v2/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/crypto/dlnp"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	"github.com/binance-chain/tss-lib/tss"
 )
-
-var zero = big.NewInt(0)
 
 func (round *round2) Start() *tss.Error {
 	if round.started {
@@ -35,21 +30,6 @@ func (round *round2) Start() *tss.Error {
 
 	Pi := round.PartyID()
 	i := Pi.Index
-
-	// check consistency of SSID
-	r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
-	SSID := r1msg.UnmarshalSSID()
-	for j, Pj := range round.OldParties().IDs() {
-		if j == 0 || j == i {
-			continue
-		}
-		r1msg := round.temp.dgRound1Messages[j].Content().(*DGRound1Message)
-		SSIDj := r1msg.UnmarshalSSID()
-		if !bytes.Equal(SSID, SSIDj) {
-			return round.WrapError(errors.New("ssid mismatch"), Pj)
-		}
-	}
-	round.temp.ssid = SSID
 
 	// 2. "broadcast" "ACK" members of the OLD committee
 	r2msg1 := NewDGRound2Message2(
@@ -70,7 +50,7 @@ func (round *round2) Start() *tss.Error {
 		preParams = &round.save.LocalPreParams
 	} else {
 		var err error
-		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout(), round.Concurrency())
+		preParams, err = keygen.GeneratePreParams(round.SafePrimeGenTimeout())
 		if err != nil {
 			return round.WrapError(errors.New("pre-params generation failed"), Pi)
 		}
@@ -80,28 +60,27 @@ func (round *round2) Start() *tss.Error {
 	round.save.H1j[i], round.save.H2j[i] = preParams.H1i, preParams.H2i
 
 	// generate the dlnproofs for resharing
-	h1i, h2i, alpha, beta, p, q, NTildei := preParams.H1i,
+	h1i, h2i, alpha, beta, p, q, NTildei :=
+		preParams.H1i,
 		preParams.H2i,
 		preParams.Alpha,
 		preParams.Beta,
 		preParams.P,
 		preParams.Q,
 		preParams.NTildei
-	dlnProof1 := dlnproof.NewDLNProof(h1i, h2i, alpha, p, q, NTildei, round.Rand())
-	dlnProof2 := dlnproof.NewDLNProof(h2i, h1i, beta, p, q, NTildei, round.Rand())
-
-	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
-	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
-	if !round.Parameters.NoProofMod() {
-		var err error
-		modProof, err = modproof.NewProof(ContextI, preParams.PaillierSK.N, preParams.PaillierSK.P, preParams.PaillierSK.Q, round.Rand())
-		if err != nil {
-			return round.WrapError(err, Pi)
-		}
+	dlnProof1, err := dlnp.NewProof(h1i, h2i, alpha, p, q, NTildei)
+	if err != nil {
+		return round.WrapError(fmt.Errorf("failed to generate dln proof1: %v", err))
 	}
+	dlnProof2, err := dlnp.NewProof(h2i, h1i, beta, p, q, NTildei)
+	if err != nil {
+		return round.WrapError(fmt.Errorf("failed to generate dln proof2: %v", err))
+	}
+
+	paillierPf := preParams.PaillierSK.Proof(Pi.KeyInt(), round.save.ECDSAPub)
 	r2msg2, err := NewDGRound2Message1(
 		round.NewParties().IDs().Exclude(round.PartyID()), round.PartyID(),
-		&preParams.PaillierSK.PublicKey, modProof, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
+		&preParams.PaillierSK.PublicKey, paillierPf, preParams.NTildei, preParams.H1i, preParams.H2i, dlnProof1, dlnProof2)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -132,7 +111,6 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	ret := true
 	if round.ReSharingParams().IsOldCommittee() && round.ReSharingParameters.IsNewCommittee() {
 		// accept messages from new -> old committee
 		for j, msg1 := range round.temp.dgRound2Message2s {
@@ -140,14 +118,12 @@ func (round *round2) Update() (bool, *tss.Error) {
 				continue
 			}
 			if msg1 == nil || !round.CanAccept(msg1) {
-				ret = false
-				continue
+				return false, nil
 			}
 			// accept message from new -> committee
 			msg2 := round.temp.dgRound2Message1s[j]
 			if msg2 == nil || !round.CanAccept(msg2) {
-				ret = false
-				continue
+				return false, nil
 			}
 			round.newOK[j] = true
 		}
@@ -158,8 +134,7 @@ func (round *round2) Update() (bool, *tss.Error) {
 				continue
 			}
 			if msg == nil || !round.CanAccept(msg) {
-				ret = false
-				continue
+				return false, nil
 			}
 			round.newOK[j] = true
 		}
@@ -170,15 +145,14 @@ func (round *round2) Update() (bool, *tss.Error) {
 				continue
 			}
 			if msg == nil || !round.CanAccept(msg) {
-				ret = false
-				continue
+				return false, nil
 			}
 			round.newOK[j] = true
 		}
 	} else {
 		return false, round.WrapError(errors.New("this party is not in the old or the new committee"), round.PartyID())
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round2) NextRound() tss.Round {

@@ -19,11 +19,11 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/test"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/test"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -40,6 +40,8 @@ func setUp(level string) {
 func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	setUp("info")
 
+	tss.SetCurve(edwards.Edwards())
+
 	threshold := testThreshold
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -52,7 +54,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 
 	errCh := make(chan *tss.Error, len(pIDs))
 	outCh := make(chan tss.Message, len(pIDs))
-	endCh := make(chan *LocalPartySaveData, len(pIDs))
+	endCh := make(chan LocalPartySaveData, len(pIDs))
 
 	updater := test.SharedPartyUpdater
 
@@ -61,7 +63,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
-		params := tss.NewParameters(tss.Edwards(), p2pCtx, pIDs[i], len(pIDs), threshold)
+		params := tss.NewParameters(p2pCtx, pIDs[i], len(pIDs), threshold)
 		if i < len(fixtures) {
 			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
 		} else {
@@ -108,7 +110,7 @@ keygen:
 			// .. here comes a workaround to recover this party's index (it was removed from save data)
 			index, err := save.OriginalIndex()
 			assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-			tryWriteTestFixtureFile(t, index, *save)
+			tryWriteTestFixtureFile(t, index, save)
 
 			atomic.AddInt32(&ended, 1)
 			if atomic.LoadInt32(&ended) == int32(len(pIDs)) {
@@ -131,17 +133,17 @@ keygen:
 						}
 						pShares = append(pShares, shareStruct)
 					}
-					uj, err := pShares[:threshold+1].ReConstruct(tss.Edwards())
+					uj, err := pShares[:threshold+1].ReConstruct()
 					assert.NoError(t, err, "vss.ReConstruct should not throw error")
 
 					// uG test: u*G[j] == V[0]
 					assert.Equal(t, uj, Pj.temp.ui)
-					uG := crypto.ScalarBaseMult(tss.Edwards(), uj)
+					uG := crypto.ScalarBaseMult(tss.EC(), uj)
 					assert.True(t, uG.Equals(Pj.temp.vs[0]), "ensure u*G[j] == V_0")
 
 					// xj tests: BigXj == xj*G
 					xj := Pj.data.Xi
-					gXj := crypto.ScalarBaseMult(tss.Edwards(), xj)
+					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
 					BigXj := Pj.data.BigXj[j]
 					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
 
@@ -149,28 +151,28 @@ keygen:
 					{
 						badShares := pShares[:threshold]
 						badShares[len(badShares)-1].Share.Set(big.NewInt(0))
-						uj, err := pShares[:threshold].ReConstruct(tss.Edwards())
+						uj, err := pShares[:threshold].ReConstruct()
 						assert.NoError(t, err)
 						assert.NotEqual(t, parties[j].temp.ui, uj)
-						BigXjX, BigXjY := tss.Edwards().ScalarBaseMult(uj.Bytes())
+						BigXjX, BigXjY := tss.EC().ScalarBaseMult(uj.Bytes())
 						assert.NotEqual(t, BigXjX, Pj.temp.vs[0].X())
 						assert.NotEqual(t, BigXjY, Pj.temp.vs[0].Y())
 					}
 					u = new(big.Int).Add(u, uj)
 				}
-				u = new(big.Int).Mod(u, tss.Edwards().Params().N)
+				u = new(big.Int).Mod(u, tss.EC().Params().N)
 				scalar := make([]byte, 0, 32)
 				copy(scalar, u.Bytes())
 
 				// build eddsa key pair
 				pkX, pkY := save.EDDSAPub.X(), save.EDDSAPub.Y()
 				pk := edwards.PublicKey{
-					Curve: tss.Edwards(),
+					Curve: tss.EC(),
 					X:     pkX,
 					Y:     pkY,
 				}
 				println("u len: ", len(u.Bytes()))
-				sk, _, err := edwards.PrivKeyFromScalar(common.PadToLengthBytesInPlace(u.Bytes(), 32))
+				sk, _, err := edwards.PrivKeyFromScalar(u.Bytes())
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -180,7 +182,7 @@ keygen:
 
 				// public key tests
 				assert.NotZero(t, u, "u should not be zero")
-				ourPkX, ourPkY := tss.Edwards().ScalarBaseMult(u.Bytes())
+				ourPkX, ourPkY := tss.EC().ScalarBaseMult(u.Bytes())
 				assert.Equal(t, pkX, ourPkX, "pkX should match expected pk derived from u")
 				assert.Equal(t, pkY, ourPkY, "pkY should match expected pk derived from u")
 				t.Log("Public key tests done.")

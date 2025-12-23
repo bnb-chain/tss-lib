@@ -11,18 +11,16 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // Implements Party
 // Implements Stringer
-var (
-	_ tss.Party    = (*LocalParty)(nil)
-	_ fmt.Stringer = (*LocalParty)(nil)
-)
+var _ tss.Party = (*LocalParty)(nil)
+var _ fmt.Stringer = (*LocalParty)(nil)
 
 type (
 	LocalParty struct {
@@ -34,7 +32,7 @@ type (
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- *LocalPartySaveData
+		end chan<- LocalPartySaveData
 	}
 
 	localMessageStore struct {
@@ -51,8 +49,6 @@ type (
 		ui            *big.Int // used for tests
 		KGCs          []cmt.HashCommitment
 		vs            vss.Vs
-		ssid          []byte
-		ssidNonce     *big.Int
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
 	}
@@ -62,7 +58,7 @@ type (
 func NewLocalParty(
 	params *tss.Parameters,
 	out chan<- tss.Message,
-	end chan<- *LocalPartySaveData,
+	end chan<- LocalPartySaveData,
 	optionalPreParams ...LocalPreParams,
 ) tss.Party {
 	partyCount := params.PartyCount()
@@ -146,7 +142,7 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	case *KGRound3Message:
 		p.temp.kgRound3Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
-		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		common.Logger.Warnf("unrecognised message ignored: %v", msg)
 		return false, nil
 	}
 	return true, nil

@@ -9,7 +9,7 @@ package resharing
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func (round *round2) Start() *tss.Error {
@@ -50,20 +50,18 @@ func (round *round2) Update() (bool, *tss.Error) {
 		return true, nil
 	}
 
-	ret := true
 	// accept messages from new -> old committee
 	for j, msg := range round.temp.dgRound2Messages {
 		if round.newOK[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		round.newOK[j] = true
 	}
 
-	return ret, nil
+	return true, nil
 }
 
 func (round *round2) NextRound() tss.Round {

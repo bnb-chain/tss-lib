@@ -10,19 +10,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/signing"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/eddsa/keygen"
+	"github.com/binance-chain/tss-lib/eddsa/signing"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // round 1 represents round 1 of the keygen part of the EDDSA TSS spec
-func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *keygen.LocalPartySaveData) tss.Round {
+func newRound1(params *tss.ReSharingParameters, input, save *keygen.LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- keygen.LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1},
-	}
+		&base{params, temp, input, save, out, end, make([]bool, len(params.OldParties().IDs())), make([]bool, len(params.NewParties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -48,10 +47,10 @@ func (round *round1) Start() *tss.Error {
 		return round.WrapError(fmt.Errorf("t+1=%d is not satisfied by the key count of %d", round.Threshold()+1, len(ks)), round.PartyID())
 	}
 	newKs := round.NewParties().IDs().Keys()
-	wi := signing.PrepareForSigning(round.Params().EC(), i, len(round.OldParties().IDs()), xi, ks)
+	wi := signing.PrepareForSigning(i, len(round.OldParties().IDs()), xi, ks)
 
 	// 2.
-	vi, shares, err := vss.Create(round.Params().EC(), round.NewThreshold(), wi, newKs, round.Rand())
+	vi, shares, err := vss.Create(round.NewThreshold(), wi, newKs)
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
@@ -61,7 +60,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, round.PartyID())
 	}
-	vCmt := commitments.NewHashCommitment(round.Rand(), flatVis...)
+	vCmt := commitments.NewHashCommitment(flatVis...)
 
 	// 4. populate temp data
 	round.temp.VD = vCmt.D
@@ -91,24 +90,18 @@ func (round *round1) Update() (bool, *tss.Error) {
 		return true, nil
 	}
 	// accept messages from old -> new committee
-	ret := true
 	for j, msg := range round.temp.dgRound1Messages {
 		if round.oldOK[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		round.oldOK[j] = true
 
-		if round.temp.dgRound1Messages[0] == nil {
-			ret = false
-			continue
-		}
 		// save the eddsa pub received from the old committee
 		r1msg := round.temp.dgRound1Messages[0].Content().(*DGRound1Message)
-		candidate, err := r1msg.UnmarshalEDDSAPub(round.Params().EC())
+		candidate, err := r1msg.UnmarshalEDDSAPub()
 		if err != nil {
 			return false, round.WrapError(errors.New("unable to unmarshal the eddsa pub key"), msg.GetFrom())
 		}
@@ -119,7 +112,7 @@ func (round *round1) Update() (bool, *tss.Error) {
 		}
 		round.save.EDDSAPub = candidate
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round1) NextRound() tss.Round {

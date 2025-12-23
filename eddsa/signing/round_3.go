@@ -8,15 +8,13 @@ package signing
 
 import (
 	"crypto/sha512"
-	"math/big"
 
 	"github.com/agl/ed25519/edwards25519"
-	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -40,7 +38,6 @@ func (round *round3) Start() *tss.Error {
 			continue
 		}
 
-		ContextJ := common.AppendBigIntToBytesSlice(round.temp.ssid, big.NewInt(int64(j)))
 		msg := round.temp.signRound2Messages[j]
 		r2msg := msg.Content().(*SignRound2Message)
 		cmtDeCmt := commitments.HashCommitDecommit{C: round.temp.cjs[j], D: r2msg.UnmarshalDeCommitment()}
@@ -52,21 +49,21 @@ func (round *round3) Start() *tss.Error {
 			return round.WrapError(errors.New("length of de-commitment should be 2"))
 		}
 
-		Rj, err := crypto.NewECPoint(round.Params().EC(), coordinates[0], coordinates[1])
+		Rj, err := crypto.NewECPoint(tss.EC(), coordinates[0], coordinates[1])
 		Rj = Rj.EightInvEight()
 		if err != nil {
 			return round.WrapError(errors.Wrapf(err, "NewECPoint(Rj)"), Pj)
 		}
-		proof, err := r2msg.UnmarshalZKProof(round.Params().EC())
+		proof, err := r2msg.UnmarshalZKProof()
 		if err != nil {
 			return round.WrapError(errors.New("failed to unmarshal Rj proof"), Pj)
 		}
-		ok = proof.Verify(ContextJ, Rj)
+		ok = proof.Verify(Rj)
 		if !ok {
 			return round.WrapError(errors.New("failed to prove Rj"), Pj)
 		}
 
-		extendedRj := ecPointToExtendedElement(round.Params().EC(), Rj.X(), Rj.Y(), round.Rand())
+		extendedRj := ecPointToExtendedElement(Rj.X(), Rj.Y())
 		R = addExtendedElements(R, extendedRj)
 	}
 
@@ -78,15 +75,9 @@ func (round *round3) Start() *tss.Error {
 	// h = hash512(k || A || M)
 	h := sha512.New()
 	h.Reset()
-	h.Write(encodedR[:])
-	h.Write(encodedPubKey[:])
-	if round.temp.fullBytesLen == 0 {
-		h.Write(round.temp.m.Bytes())
-	} else {
-		var mBytes = make([]byte, round.temp.fullBytesLen)
-		round.temp.m.FillBytes(mBytes)
-		h.Write(mBytes)
-	}
+	_, _ = h.Write(encodedR[:])
+	_, _ = h.Write(encodedPubKey[:])
+	_, _ = h.Write(round.temp.m.Bytes())
 
 	var lambda [64]byte
 	h.Sum(lambda[:0])
@@ -110,18 +101,16 @@ func (round *round3) Start() *tss.Error {
 }
 
 func (round *round3) Update() (bool, *tss.Error) {
-	ret := true
 	for j, msg := range round.temp.signRound3Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		round.ok[j] = true
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round3) CanAccept(msg tss.ParsedMessage) bool {

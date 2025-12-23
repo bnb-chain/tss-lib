@@ -5,8 +5,8 @@
 // file LICENSE at the root of the source code distribution tree.
 
 syntax = "proto3";
-package binance.tsslib;
-option go_package = "./tss";
+
+option go_package = "github.com/binance-chain/tss-lib/tss";
 
 import "google/protobuf/any.proto";
 

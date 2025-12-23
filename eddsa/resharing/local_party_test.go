@@ -15,13 +15,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
-	. "github.com/bnb-chain/tss-lib/v2/eddsa/resharing"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/signing"
-	"github.com/bnb-chain/tss-lib/v2/test"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/eddsa/keygen"
+	. "github.com/binance-chain/tss-lib/eddsa/resharing"
+	"github.com/binance-chain/tss-lib/eddsa/signing"
+	"github.com/binance-chain/tss-lib/test"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -33,18 +33,17 @@ func setUp(level string) {
 	if err := log.SetLogLevel("tss-lib", level); err != nil {
 		panic(err)
 	}
-
-	// only for test
-	tss.SetCurve(tss.Edwards())
 }
 
 func TestE2EConcurrent(t *testing.T) {
 	setUp("info")
 
+	tss.SetCurve(edwards.Edwards())
+
 	threshold, newThreshold := testThreshold, testThreshold
 
 	// PHASE: load keygen fixtures
-	firstPartyIdx, extraParties := 1, 1 // // extra can be 0 to N-first
+	firstPartyIdx, extraParties := 0, 1 // // extra can be 0 to N-first
 	oldKeys, oldPIDs, err := keygen.LoadKeygenTestFixtures(testThreshold+1+extraParties+firstPartyIdx, firstPartyIdx)
 	assert.NoError(t, err, "should load keygen fixtures")
 
@@ -62,20 +61,20 @@ func TestE2EConcurrent(t *testing.T) {
 
 	errCh := make(chan *tss.Error, bothCommitteesPax)
 	outCh := make(chan tss.Message, bothCommitteesPax)
-	endCh := make(chan *keygen.LocalPartySaveData, bothCommitteesPax)
+	endCh := make(chan keygen.LocalPartySaveData, bothCommitteesPax)
 
 	updater := test.SharedPartyUpdater
 
 	// init the old parties first
 	for j, pID := range oldPIDs {
-		params := tss.NewReSharingParameters(tss.Edwards(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		P := NewLocalParty(params, oldKeys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 
 	// init the new parties
 	for _, pID := range newPIDs {
-		params := tss.NewReSharingParameters(tss.Edwards(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params := tss.NewReSharingParameters(oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
 		save := keygen.NewLocalPartySaveData(newPCount)
 		P := NewLocalParty(params, save, outCh, endCh).(*LocalParty)
 		newCommittee = append(newCommittee, P)
@@ -129,7 +128,7 @@ func TestE2EConcurrent(t *testing.T) {
 			if save.Xi != nil {
 				index, err := save.OriginalIndex()
 				assert.NoErrorf(t, err, "should not be an error getting a party's index from save data")
-				newKeys[index] = *save
+				newKeys[index] = save
 			} else {
 				endedOldCommittee++
 			}
@@ -142,7 +141,7 @@ func TestE2EConcurrent(t *testing.T) {
 				for j, key := range newKeys {
 					// xj test: BigXj == xj*G
 					xj := key.Xi
-					gXj := crypto.ScalarBaseMult(tss.Edwards(), xj)
+					gXj := crypto.ScalarBaseMult(tss.EC(), xj)
 					BigXj := key.BigXj[j]
 					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
 				}
@@ -161,10 +160,10 @@ signing:
 
 	signErrCh := make(chan *tss.Error, len(signPIDs))
 	signOutCh := make(chan tss.Message, len(signPIDs))
-	signEndCh := make(chan *common.SignatureData, len(signPIDs))
+	signEndCh := make(chan *signing.SignatureData, len(signPIDs))
 
 	for j, signPID := range signPIDs {
-		params := tss.NewParameters(tss.Edwards(), signP2pCtx, signPID, len(signPIDs), newThreshold)
+		params := tss.NewParameters(signP2pCtx, signPID, len(signPIDs), newThreshold)
 		P := signing.NewLocalParty(big.NewInt(42), params, signKeys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {
@@ -206,12 +205,12 @@ signing:
 				// BEGIN EDDSA verify
 				pkX, pkY := signKeys[0].EDDSAPub.X(), signKeys[0].EDDSAPub.Y()
 				pk := edwards.PublicKey{
-					Curve: tss.Edwards(),
+					Curve: tss.EC(),
 					X:     pkX,
 					Y:     pkY,
 				}
 
-				newSig, err := edwards.ParseSignature(signData.Signature)
+				newSig, err := edwards.ParseSignature(signData.Signature.Signature)
 				if err != nil {
 					println("new sig error, ", err.Error())
 				}

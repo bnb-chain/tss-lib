@@ -17,8 +17,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v2/test"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/test"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -52,10 +52,6 @@ func LoadKeygenTestFixtures(qty int, optionalStart ...int) ([]LocalPartySaveData
 				"could not unmarshal fixture data for party %d located at: %s",
 				i, fixtureFilePath)
 		}
-		for _, kbxj := range key.BigXj {
-			kbxj.SetCurve(tss.Edwards())
-		}
-		key.EDDSAPub.SetCurve(tss.Edwards())
 		keys = append(keys, key)
 	}
 	partyIDs := make(tss.UnSortedPartyIDs, len(keys))
@@ -90,10 +86,6 @@ func LoadKeygenTestFixturesRandomSet(qty, fixtureCount int) ([]LocalPartySaveDat
 				"could not unmarshal fixture data for party %d located at: %s",
 				i, fixtureFilePath)
 		}
-		for _, kbxj := range key.BigXj {
-			kbxj.SetCurve(tss.Edwards())
-		}
-		key.EDDSAPub.SetCurve(tss.Edwards())
 		keys = append(keys, key)
 	}
 	partyIDs := make(tss.UnSortedPartyIDs, len(keys))

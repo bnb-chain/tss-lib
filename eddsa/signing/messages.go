@@ -7,18 +7,16 @@
 package signing
 
 import (
-	"crypto/elliptic"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/schnorr"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // These messages were generated from Protocol Buffers definitions into eddsa-signing.pb.go
-// The following messages are registered on the Protocol Buffers "wire"
 
 var (
 	// Ensure that signing messages implement ValidateBasic
@@ -60,7 +58,7 @@ func (m *SignRound1Message) UnmarshalCommitment() *big.Int {
 func NewSignRound2Message(
 	from *tss.PartyID,
 	deCommitment cmt.HashDeCommitment,
-	proof *schnorr.ZKProof,
+	proof *zkp.DLogProof,
 ) tss.ParsedMessage {
 	meta := tss.MessageRouting{
 		From:        from,
@@ -69,8 +67,7 @@ func NewSignRound2Message(
 	dcBzs := common.BigIntsToBytes(deCommitment)
 	content := &SignRound2Message{
 		DeCommitment: dcBzs,
-		ProofAlphaX:  proof.Alpha.X().Bytes(),
-		ProofAlphaY:  proof.Alpha.Y().Bytes(),
+		ProofAlpha:   proof.Alpha.ToProtobufPoint(),
 		ProofT:       proof.T.Bytes(),
 	}
 	msg := tss.NewMessageWrapper(meta, content)
@@ -79,9 +76,9 @@ func NewSignRound2Message(
 
 func (m *SignRound2Message) ValidateBasic() bool {
 	return m != nil &&
+		m.ProofAlpha != nil &&
 		common.NonEmptyMultiBytes(m.DeCommitment, 3) &&
-		common.NonEmptyBytes(m.ProofAlphaX) &&
-		common.NonEmptyBytes(m.ProofAlphaY) &&
+		m.ProofAlpha.ValidateBasic() &&
 		common.NonEmptyBytes(m.ProofT)
 }
 
@@ -90,15 +87,12 @@ func (m *SignRound2Message) UnmarshalDeCommitment() []*big.Int {
 	return cmt.NewHashDeCommitmentFromBytes(deComBzs)
 }
 
-func (m *SignRound2Message) UnmarshalZKProof(ec elliptic.Curve) (*schnorr.ZKProof, error) {
-	point, err := crypto.NewECPoint(
-		ec,
-		new(big.Int).SetBytes(m.GetProofAlphaX()),
-		new(big.Int).SetBytes(m.GetProofAlphaY()))
+func (m *SignRound2Message) UnmarshalZKProof() (*zkp.DLogProof, error) {
+	point, err := crypto.NewECPointFromProtobuf(m.GetProofAlpha())
 	if err != nil {
 		return nil, err
 	}
-	return &schnorr.ZKProof{
+	return &zkp.DLogProof{
 		Alpha: point,
 		T:     new(big.Int).SetBytes(m.GetProofT()),
 	}, nil

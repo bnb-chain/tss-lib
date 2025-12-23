@@ -8,12 +8,11 @@ package keygen
 
 import (
 	"errors"
-	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/schnorr"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func (round *round2) Start() *tss.Error {
@@ -46,10 +45,9 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 5. compute Schnorr prove
-	ContextI := append(round.temp.ssid, new(big.Int).SetUint64(uint64(i)).Bytes()...)
-	pii, err := schnorr.NewZKProof(ContextI, round.temp.ui, round.temp.vs[0], round.Rand())
+	pii, err := zkp.NewDLogProof(round.temp.ui, round.temp.vs[0])
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewZKProof(ui, vi0)"))
+		return round.WrapError(errors2.Wrapf(err, "NewDLogProof(ui, vi0)"))
 	}
 
 	// 5. BROADCAST de-commitments of Shamir poly*G and Schnorr prove
@@ -72,23 +70,20 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 
 func (round *round2) Update() (bool, *tss.Error) {
 	// guard - VERIFY de-commit for all Pj
-	ret := true
 	for j, msg := range round.temp.kgRound2Message1s {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		msg2 := round.temp.kgRound2Message2s[j]
 		if msg2 == nil || !round.CanAccept(msg2) {
-			ret = false
-			continue
+			return false, nil
 		}
 		round.ok[j] = true
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round2) NextRound() tss.Round {

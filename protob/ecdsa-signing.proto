@@ -5,11 +5,13 @@
 // file LICENSE at the root of the source code distribution tree.
 
 syntax = "proto3";
-package binance.tsslib.ecdsa.signing;
-option go_package = "ecdsa/signing";
+
+option go_package = "github.com/binance-chain/tss-lib/ecdsa/signing";
+
+import "protob/shared.proto";
 
 /*
- * Represents a P2P message sent to each party during Round 1 of the ECDSA TSS signing protocol.
+ * Represents a P2P message sent to each party during Phase 1 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound1Message1 {
     bytes c = 1;
@@ -17,14 +19,14 @@ message SignRound1Message1 {
 }
 
 /*
- * Represents a BROADCAST message sent to all parties during Round 1 of the ECDSA TSS signing protocol.
+ * Represents a BROADCAST message sent to all parties during Phase 1 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound1Message2 {
     bytes commitment = 1;
 }
 
 /*
- * Represents a P2P message sent to each party during Round 2 of the ECDSA TSS signing protocol.
+ * Represents a P2P message sent to each party during Phase 2 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound2Message {
     bytes c1 = 1;
@@ -34,60 +36,69 @@ message SignRound2Message {
 }
 
 /*
- * Represents a BROADCAST message sent to all parties during Round 3 of the ECDSA TSS signing protocol.
+ * Represents a BROADCAST message sent to all parties during Phase 3 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound3Message {
-    bytes theta = 1;
+    bytes delta_i = 1;
+    ECPoint t_i = 2;
+    ECPoint t_proof_alpha = 3;
+    bytes t_proof_t = 4;
+    bytes t_proof_u = 5;
 }
 
 /*
- * Represents a BROADCAST message sent to all parties during Round 4 of the ECDSA TSS signing protocol.
+ * Represents a BROADCAST message sent to all parties during Phase 4 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound4Message {
     repeated bytes de_commitment = 1;
-    bytes proof_alpha_x = 2;
-    bytes proof_alpha_y = 3;
-    bytes proof_t = 4;
 }
 
 /*
- * Represents a BROADCAST message sent to all parties during Round 5 of the ECDSA TSS signing protocol.
+ * Represents a BROADCAST message sent to all parties during Phase 5 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound5Message {
-    bytes commitment = 1;
+    ECPoint r_i = 1;
+    repeated bytes proof_pdl_w_slack = 2;
 }
 
 /*
- * Represents a BROADCAST message sent to all parties during Round 6 of the ECDSA TSS signing protocol.
+ * Represents a BROADCAST message sent to all parties during Phase 6 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound6Message {
-    repeated bytes de_commitment = 1;
-    bytes proof_alpha_x = 2;
-    bytes proof_alpha_y = 3;
-    bytes proof_t = 4;
-    bytes v_proof_alpha_x = 5;
-    bytes v_proof_alpha_y = 6;
-    bytes v_proof_t = 7;
-    bytes v_proof_u = 8;
+    message SuccessData {
+        ECPoint s_i = 1;
+        ECPoint st_proof_alpha = 2;
+        ECPoint st_proof_beta = 3;
+        bytes st_proof_t = 4;
+        bytes st_proof_u = 5;
+    }
+    message AbortData {
+        bytes k_i = 1;
+        bytes gamma_i = 3;
+        repeated bytes alpha_i_j = 4;
+        repeated bytes beta_j_i = 5;
+    }
+    oneof content {
+        SuccessData success = 1;
+        AbortData abort = 2;
+    }
 }
 
 /*
- * Represents a BROADCAST message sent to all parties during Round 7 of the ECDSA TSS signing protocol.
+ * Represents a BROADCAST message sent to all parties during online mode Phase 7 of the GG20 ECDSA TSS signing protocol.
  */
 message SignRound7Message {
-    bytes commitment = 1;
-}
-
-/*
- * Represents a BROADCAST message sent to all parties during Round 8 of the ECDSA TSS signing protocol.
- */
-message SignRound8Message {
-    repeated bytes de_commitment = 1;
-}
-
-/*
- * Represents a BROADCAST message sent to all parties during Round 9 of the ECDSA TSS signing protocol.
- */
-message SignRound9Message {
-    bytes s = 1;
+    message AbortData {
+        bytes k_i = 1;
+        bytes k_rand_i = 2;
+        repeated bytes mu_i_j = 3;
+        repeated bytes mu_rand_i_j = 4;
+        ECPoint ecddh_proof_a1 = 5;
+        ECPoint ecddh_proof_a2 = 6;
+        bytes ecddh_proof_z = 7;
+    }
+    oneof content {
+        bytes s_i = 1;
+        AbortData abort = 2;
+    }
 }

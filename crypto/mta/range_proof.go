@@ -7,14 +7,13 @@
 package mta
 
 import (
-	"crypto/elliptic"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -23,7 +22,6 @@ const (
 
 var (
 	zero = big.NewInt(0)
-	one  = big.NewInt(1)
 )
 
 type (
@@ -33,27 +31,27 @@ type (
 )
 
 // ProveRangeAlice implements Alice's range proof used in the MtA and MtAwc protocols from GG18Spec (9) Fig. 9.
-func ProveRangeAlice(ec elliptic.Curve, pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int, rand io.Reader) (*RangeProofAlice, error) {
+func ProveRangeAlice(pk *paillier.PublicKey, c, NTilde, h1, h2, m, r *big.Int) (*RangeProofAlice, error) {
 	if pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil || m == nil || r == nil {
 		return nil, errors.New("ProveRangeAlice constructor received nil value(s)")
 	}
 
-	q := ec.Params().N
+	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
+	q3.Mul(q3, q)
 	qNTilde := new(big.Int).Mul(q, NTilde)
 	q3NTilde := new(big.Int).Mul(q3, NTilde)
 
 	// 1.
-	alpha := common.GetRandomPositiveInt(rand, q3)
+	alpha := common.GetRandomPositiveInt(q3)
 	// 2.
-	beta := common.GetRandomPositiveRelativelyPrimeInt(rand, pk.N)
+	beta := common.GetRandomPositiveRelativelyPrimeInt(pk.N)
 
 	// 3.
-	gamma := common.GetRandomPositiveInt(rand, q3NTilde)
+	gamma := common.GetRandomPositiveInt(q3NTilde)
 
 	// 4.
-	rho := common.GetRandomPositiveInt(rand, qNTilde)
+	rho := common.GetRandomPositiveInt(qNTilde)
 
 	// 5.
 	modNTilde := common.ModInt(NTilde)
@@ -61,9 +59,9 @@ func ProveRangeAlice(ec elliptic.Curve, pk *paillier.PublicKey, c, NTilde, h1, h
 	z = modNTilde.Mul(z, modNTilde.Exp(h2, rho))
 
 	// 6.
-	modNSquared := common.ModInt(pk.NSquare())
-	u := modNSquared.Exp(pk.Gamma(), alpha)
-	u = modNSquared.Mul(u, modNSquared.Exp(beta, pk.N))
+	modNSq := common.ModInt(pk.NSquare())
+	u := modNSq.Exp(pk.Gamma(), alpha)
+	u = modNSq.Mul(u, modNSq.Exp(beta, pk.N))
 
 	// 7.
 	w := modNTilde.Exp(h1, alpha)
@@ -105,51 +103,15 @@ func RangeProofAliceFromBytes(bzs [][]byte) (*RangeProofAlice, error) {
 	}, nil
 }
 
-func (pf *RangeProofAlice) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
+func (pf *RangeProofAlice) Verify(pk *paillier.PublicKey, NTilde, h1, h2, c *big.Int) bool {
 	if pf == nil || !pf.ValidateBasic() || pk == nil || NTilde == nil || h1 == nil || h2 == nil || c == nil {
 		return false
 	}
 
-	q := ec.Params().N
+	NSq := new(big.Int).Mul(pk.N, pk.N)
+	q := tss.EC().Params().N
 	q3 := new(big.Int).Mul(q, q)
-	q3 = new(big.Int).Mul(q, q3)
-
-	if !common.IsInInterval(pf.Z, NTilde) {
-		return false
-	}
-	if !common.IsInInterval(pf.U, pk.NSquare()) {
-		return false
-	}
-	if !common.IsInInterval(pf.W, NTilde) {
-		return false
-	}
-	if !common.IsInInterval(pf.S, pk.N) {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.Z, NTilde).Cmp(one) != 0 {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.U, pk.NSquare()).Cmp(one) != 0 {
-		return false
-	}
-	if new(big.Int).GCD(nil, nil, pf.W, NTilde).Cmp(one) != 0 {
-		return false
-	}
-	if pf.S1.Cmp(q) == -1 {
-		return false
-	}
-	if pf.S2.Cmp(q) == -1 {
-		return false
-	}
-	if pf.S.Cmp(one) == 0 {
-		return false
-	}
-	if pf.Z.Cmp(one) == 0 {
-		return false
-	}
-	if pf.S1.Cmp(pf.S2) == 0 {
-		return false
-	}
+	q3.Mul(q3, q)
 
 	// 3.
 	if pf.S1.Cmp(q3) == 1 {
@@ -167,14 +129,14 @@ func (pf *RangeProofAlice) Verify(ec elliptic.Curve, pk *paillier.PublicKey, NTi
 	minusE := new(big.Int).Sub(zero, e)
 
 	{ // 4. gamma^s_1 * s^N * c^-e
-		modNSquared := common.ModInt(pk.NSquare())
+		modNSq := common.ModInt(NSq)
 
-		cExpMinusE := modNSquared.Exp(c, minusE)
-		sExpN := modNSquared.Exp(pf.S, pk.N)
-		gammaExpS1 := modNSquared.Exp(pk.Gamma(), pf.S1)
+		cExpMinusE := modNSq.Exp(c, minusE)
+		sExpN := modNSq.Exp(pf.S, pk.N)
+		gammaExpS1 := modNSq.Exp(pk.Gamma(), pf.S1)
 		// u != (4)
-		products = modNSquared.Mul(gammaExpS1, sExpN)
-		products = modNSquared.Mul(products, cExpMinusE)
+		products = modNSq.Mul(gammaExpS1, sExpN)
+		products = modNSq.Mul(products, cExpMinusE)
 		if pf.U.Cmp(products) != 0 {
 			return false
 		}

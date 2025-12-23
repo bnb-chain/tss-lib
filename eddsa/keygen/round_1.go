@@ -10,20 +10,21 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmts "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmts "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
-var zero = big.NewInt(0)
+var (
+	zero = big.NewInt(0)
+)
 
 // round 1 represents round 1 of the keygen part of the EDDSA TSS spec
-func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *LocalPartySaveData) tss.Round {
+func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- LocalPartySaveData) tss.Round {
 	return &round1{
-		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1},
-	}
+		&base{params, save, temp, out, end, make([]bool, len(params.Parties().IDs())), false, 1}}
 }
 
 func (round *round1) Start() *tss.Error {
@@ -37,20 +38,13 @@ func (round *round1) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	round.temp.ssidNonce = new(big.Int).SetUint64(0)
-	ssid, err := round.getSSID()
-	if err != nil {
-		return round.WrapError(err)
-	}
-	round.temp.ssid = ssid
-
 	// 1. calculate "partial" key share ui
-	ui := common.GetRandomPositiveInt(round.PartialKeyRand(), round.Params().EC().Params().N)
+	ui := common.GetRandomPositiveInt(tss.EC().Params().N)
 	round.temp.ui = ui
 
 	// 2. compute the vss shares
 	ids := round.Parties().IDs().Keys()
-	vs, shares, err := vss.Create(round.EC(), round.Threshold(), ui, ids, round.Rand())
+	vs, shares, err := vss.Create(round.Threshold(), ui, ids)
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
@@ -65,7 +59,7 @@ func (round *round1) Start() *tss.Error {
 	if err != nil {
 		return round.WrapError(err, Pi)
 	}
-	cmt := cmts.NewHashCommitment(round.Rand(), pGFlat...)
+	cmt := cmts.NewHashCommitment(pGFlat...)
 
 	// for this P: SAVE
 	// - shareID
@@ -95,19 +89,17 @@ func (round *round1) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round1) Update() (bool, *tss.Error) {
-	ret := true
 	for j, msg := range round.temp.kgRound1Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		// vss check is in round 2
 		round.ok[j] = true
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round1) NextRound() tss.Round {

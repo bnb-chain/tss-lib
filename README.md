@@ -3,23 +3,25 @@
 
 [1]: https://img.shields.io/badge/license-MIT-blue.svg
 [2]: LICENSE
-[3]: https://godoc.org/github.com/bnb-chain/tss-lib?status.svg
-[4]: https://godoc.org/github.com/bnb-chain/tss-lib
-[5]: https://goreportcard.com/badge/github.com/bnb-chain/tss-lib
-[6]: https://goreportcard.com/report/github.com/bnb-chain/tss-lib
+[3]: https://godoc.org/github.com/binance-chain/tss-lib?status.svg
+[4]: https://godoc.org/github.com/binance-chain/tss-lib
+[5]: https://goreportcard.com/badge/github.com/binance-chain/tss-lib
+[6]: https://goreportcard.com/report/github.com/binance-chain/tss-lib
 
 Permissively MIT Licensed.
 
-Note! This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
+Note: This is a library for developers. You may find a TSS tool that you can use with the Binance Chain CLI [here](https://docs.binance.org/tss.html).
 
 ## Introduction
-This is an implementation of multi-party {t,n}-threshold ECDSA (Elliptic Curve Digital Signature Algorithm) based on Gennaro and Goldfeder CCS 2018 [1] and EdDSA (Edwards-curve Digital Signature Algorithm) following a similar approach.
+This is an implementation of multi-party {t,n}-threshold ECDSA (Elliptic Curve Digital Signature Algorithm) based on Gennaro and Goldfeder __2020__ \[1\] and EdDSA (Edwards-curve Digital Signature Algorithm) following a similar approach.
 
 This library includes three protocols:
 
 * Key Generation for creating secret shares with no trusted dealer ("keygen").
-* Signing for using the secret shares to generate a signature ("signing").
+* Signing for using the secret shares to generate a signature ("signing"). 
 * Dynamic Groups to change the group of participants while keeping the secret ("resharing").
+
+😍 This library now supports one-round signing introduced in the new GG20 paper. See the dedicated section about that below.
 
 ⚠️ Do not miss [these important notes](#how-to-use-this-securely) on implementing this library securely
 
@@ -43,6 +45,12 @@ The `LocalParty` that you use should be from the `keygen`, `signing` or `reshari
 
 ### Setup
 ```go
+// Set up elliptic curve
+// use ECDSA, which is used by default
+tss.SetCurve(s256k1.S256()) 
+// or use EdDSA
+// tss.SetCurve(edwards.Edwards()) 
+
 // When using the keygen party it is recommended that you pre-compute the "safe primes" and Paillier secret beforehand because this can take some time.
 // This code will generate those parameters using a concurrency limit equal to the number of available CPU cores.
 preParams, _ := keygen.GeneratePreParams(1 * time.Minute)
@@ -56,14 +64,7 @@ parties := tss.SortPartyIDs(getParticipantPartyIDs())
 // The `uniqueKey` is a unique identifying key for this peer (such as its p2p public key) as a big.Int.
 thisParty := tss.NewPartyID(id, moniker, uniqueKey)
 ctx := tss.NewPeerContext(parties)
-
-// Select an elliptic curve
-// use ECDSA
-curve := tss.S256()
-// or use EdDSA
-// curve := tss.Edwards()
-
-params := tss.NewParameters(curve, ctx, thisParty, len(parties), threshold)
+params := tss.NewParameters(ctx, thisParty, len(parties), threshold)
 
 // You should keep a local mapping of `id` strings to `*PartyID` instances so that an incoming message can have its origin party's `*PartyID` recovered for passing to `UpdateFromBytes` (see below)
 partyIDMap := make(map[string]*PartyID)
@@ -86,7 +87,7 @@ go func() {
 ### Signing
 Use the `signing.LocalParty` for signing and provide it with a `message` to sign. It requires the key data obtained from the keygen protocol. The signature will be sent through the `endCh` once completed.
 
-Please note that `t+1` signers are required to sign a message and for optimal usage no more than this should be involved. Each signer should have the same view of who the `t+1` signers are.
+Please note that `t+1` signers are required to sign a message and no more than this should be involved in the messaging rounds. Each signer should have the same view of who the `t+1` signers are.
 
 ```go
 party := signing.NewLocalParty(message, params, ourKeyData, outCh, endCh)
@@ -95,6 +96,21 @@ go func() {
     // handle err ...
 }()
 ```
+
+By default the library will perform all signing rounds "online" in a similar way to GG18. If you would like to use one-round signing see the next section.
+
+#### One-Round Signing
+
+The new implementation for GG20 supports one-round signing.
+
+There are some pre-processing rounds that need to be done when you know the T+1 signers, but the message doesn't have to be known until the final round.
+Here's a brief summary of how to use this mode:
+
+1. Use nil as the `msg` in the `signing.NewLocalParty` constructor function.
+2. The `SignatureData` produced through the `end` channel contains `OneRoundData` but no final signature.
+3. Pass this partial `SignatureData` to `signing.FinalizeGetOurSigShare` with your `msg`; this produces `s_i`.
+4. Share `s_i` with other parties that know that msg however you'd like. This could even happen on-chain.
+5. Pass all party IDs and `s_i` to `signing.FinalizeGetAndVerifyFinalSig`. You will get a `SignatureData` populated with a full ECDSA signature.
 
 ### Re-Sharing
 Use the `resharing.LocalParty` to re-distribute the secret shares. The save data received through the `endCh` should overwrite the existing key data in storage, or write new data if the party is receiving a new share.
@@ -136,10 +152,6 @@ In a typical use case, it is expected that a transport implementation will consu
 
 This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to implement a transport.
 
-## Changes of Preparams of ECDSA in v2.0
-
-Two fields PaillierSK.P and PaillierSK.Q is added in version 2.0. They are used to generate Paillier key proofs. Key valuts generated from versions before 2.0 need to regenerate(resharing) the key valuts to update the praparams with the necessary fileds filled.
-
 ## How to use this securely
 
 ⚠️ This section is important. Be sure to read it!
@@ -155,8 +167,7 @@ Additionally, there should be a mechanism in your transport to allow for "reliab
 Timeouts and errors should be handled by your application. The method `WaitingFor` may be called on a `Party` to get the set of other parties that it is still waiting for messages from. You may also get the set of culprit parties that caused an error from a `*tss.Error`.
 
 ## Security Audit
-A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report [`audit-binance-tss-lib-final-20191018.pdf`](https://github.com/bnb-chain/tss-lib/releases/download/v1.0.0/audit-binance-tss-lib-final-20191018.pdf) may be found in the v1.0.0 release notes of this repository.
+A full review of this library was carried out by Kudelski Security and their final report was made available in October, 2019. A copy of this report [`audit-binance-tss-lib-final-20191018.pdf`](https://github.com/binance-chain/tss-lib/releases/download/v1.0.0/audit-binance-tss-lib-final-20191018.pdf) may be found in the v1.0.0 release notes of this repository.
 
 ## References
-\[1\] https://eprint.iacr.org/2019/114.pdf
-
+\[1\] https://eprint.iacr.org/2020/540.pdf

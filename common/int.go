@@ -51,21 +51,20 @@ func (mi *modInt) Exp(x, y *big.Int) *big.Int {
 	return new(big.Int).Exp(x, y, mi.i())
 }
 
-func (mi *modInt) ModInverse(g *big.Int) *big.Int {
+func (mi *modInt) Neg(x *big.Int) *big.Int {
+	i := new(big.Int)
+	i.Neg(x)
+	return i.Mod(i, mi.i())
+}
+
+func (mi *modInt) Inverse(g *big.Int) *big.Int {
 	return new(big.Int).ModInverse(g, mi.i())
+}
+
+func (mi *modInt) Sqrt(x *big.Int) *big.Int {
+	return new(big.Int).ModSqrt(x, mi.i())
 }
 
 func (mi *modInt) i() *big.Int {
 	return (*big.Int)(mi)
-}
-
-func IsInInterval(b *big.Int, bound *big.Int) bool {
-	return b.Cmp(bound) == -1 && b.Cmp(zero) >= 0
-}
-
-func AppendBigIntToBytesSlice(commonBytes []byte, appended *big.Int) []byte {
-	resultBytes := make([]byte, len(commonBytes), len(commonBytes)+len(appended.Bytes()))
-	copy(resultBytes, commonBytes)
-	resultBytes = append(resultBytes, appended.Bytes()...)
-	return resultBytes
 }

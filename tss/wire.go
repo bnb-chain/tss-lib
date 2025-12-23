@@ -8,14 +8,16 @@ package tss
 
 import (
 	"errors"
+
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Used externally to update a LocalParty with a valid ParsedMessage
 func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast bool) (ParsedMessage, error) {
 	wire := new(MessageWrapper)
-	wire.Message = new(anypb.Any)
+	wire.Message = new(any.Any)
 	wire.From = from.MessageWrapper_PartyID
 	wire.IsBroadcast = isBroadcast
 	if err := proto.Unmarshal(wireBytes, wire.Message); err != nil {
@@ -25,15 +27,15 @@ func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast bool) (Parsed
 }
 
 func parseWrappedMessage(wire *MessageWrapper, from *PartyID) (ParsedMessage, error) {
-	m, err := wire.Message.UnmarshalNew()
-	if err != nil {
-		return nil, err
-	}
+	var any ptypes.DynamicAny
 	meta := MessageRouting{
 		From:        from,
 		IsBroadcast: wire.IsBroadcast,
 	}
-	if content, ok := m.(MessageContent); ok {
+	if err := ptypes.UnmarshalAny(wire.Message, &any); err != nil {
+		return nil, err
+	}
+	if content, ok := any.Message.(MessageContent); ok {
 		return NewMessage(meta, content, wire), nil
 	}
 	return nil, errors.New("ParseWireMessage: the message contained unknown content")

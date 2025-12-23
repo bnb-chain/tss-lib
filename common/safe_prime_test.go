@@ -7,8 +7,6 @@
 package common
 
 import (
-	"context"
-	"crypto/rand"
 	"math/big"
 	"runtime"
 	"testing"
@@ -44,9 +42,7 @@ func Test_Validate_Bad(t *testing.T) {
 }
 
 func TestGetRandomGermainPrimeConcurrent(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-	defer cancel()
-	sgps, err := GetRandomSafePrimesConcurrent(ctx, 1024, 2, runtime.NumCPU(), rand.Reader)
+	sgps, err := GetRandomSafePrimesConcurrent(1024, 2, 20*time.Minute, runtime.NumCPU())
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(sgps))
 	for _, sgp := range sgps {

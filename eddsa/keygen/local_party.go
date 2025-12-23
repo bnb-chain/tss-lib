@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/vss"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // Implements Party
@@ -32,7 +32,7 @@ type (
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- *LocalPartySaveData
+		end chan<- LocalPartySaveData
 	}
 
 	localMessageStore struct {
@@ -51,9 +51,6 @@ type (
 		vs            vss.Vs
 		shares        vss.Shares
 		deCommitPolyG cmt.HashDeCommitment
-
-		ssid      []byte
-		ssidNonce *big.Int
 	}
 )
 
@@ -61,7 +58,7 @@ type (
 func NewLocalParty(
 	params *tss.Parameters,
 	out chan<- tss.Message,
-	end chan<- *LocalPartySaveData,
+	end chan<- LocalPartySaveData,
 ) tss.Party {
 	partyCount := params.PartyCount()
 	data := NewLocalPartySaveData(partyCount)
@@ -132,7 +129,7 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	case *KGRound2Message2:
 		p.temp.kgRound2Message2s[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
-		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		common.Logger.Warnf("unrecognised message ignored: %v", msg)
 		return false, nil
 	}
 	return true, nil

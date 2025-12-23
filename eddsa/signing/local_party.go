@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/eddsa/keygen"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // Implements Party
@@ -30,11 +30,11 @@ type (
 
 		keys keygen.LocalPartySaveData
 		temp localTempData
-		data *common.SignatureData
+		data SignatureData
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- *common.SignatureData
+		end chan<- *SignatureData
 	}
 
 	localMessageStore struct {
@@ -50,9 +50,8 @@ type (
 		wi,
 		m,
 		ri *big.Int
-		fullBytesLen int
-		pointRi      *crypto.ECPoint
-		deCommit     cmt.HashDeCommitment
+		pointRi  *crypto.ECPoint
+		deCommit cmt.HashDeCommitment
 
 		// round 2
 		cjs []*big.Int
@@ -60,9 +59,6 @@ type (
 
 		// round 3
 		r *big.Int
-
-		ssid      []byte
-		ssidNonce *big.Int
 	}
 )
 
@@ -71,8 +67,7 @@ func NewLocalParty(
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- *common.SignatureData,
-	fullBytesLen ...int,
+	end chan<- *SignatureData,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -80,7 +75,7 @@ func NewLocalParty(
 		params:    params,
 		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
 		temp:      localTempData{},
-		data:      &common.SignatureData{},
+		data:      SignatureData{},
 		out:       out,
 		end:       end,
 	}
@@ -91,17 +86,12 @@ func NewLocalParty(
 
 	// temp data init
 	p.temp.m = msg
-	if len(fullBytesLen) > 0 {
-		p.temp.fullBytesLen = fullBytesLen[0]
-	} else {
-		p.temp.fullBytesLen = 0
-	}
 	p.temp.cjs = make([]*big.Int, partyCount)
 	return p
 }
 
 func (p *LocalParty) FirstRound() tss.Round {
-	return newRound1(p.params, &p.keys, p.data, &p.temp, p.out, p.end)
+	return newRound1(p.params, &p.keys, &p.data, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
@@ -161,7 +151,7 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		p.temp.signRound3Messages[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!
-		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		common.Logger.Warnf("unrecognised message ignored: %v", msg)
 		return false, nil
 	}
 	return true, nil

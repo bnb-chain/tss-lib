@@ -5,8 +5,10 @@
 // file LICENSE at the root of the source code distribution tree.
 
 syntax = "proto3";
-package binance.tsslib.eddsa.keygen;
-option go_package = "eddsa/keygen";
+
+option go_package = "github.com/binance-chain/tss-lib/eddsa/keygen";
+
+import "protob/shared.proto";
 
 /*
  * Represents a BROADCAST message sent during Round 1 of the EDDSA TSS keygen protocol.
@@ -27,7 +29,6 @@ message KGRound2Message1 {
  */
 message KGRound2Message2 {
     repeated bytes de_commitment = 1;
-    bytes proof_alpha_x = 2;
-    bytes proof_alpha_y = 3;
-    bytes proof_t = 4;
+    ECPoint proof_alpha = 2;
+    bytes proof_t = 3;
 }

@@ -8,12 +8,11 @@ package signing
 
 import (
 	"errors"
-	"math/big"
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto/schnorr"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/crypto/zkp"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 func (round *round2) Start() *tss.Error {
@@ -33,16 +32,15 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 2. compute Schnorr prove
-	ContextI := append(round.temp.ssid, new(big.Int).SetUint64(uint64(i)).Bytes()...)
-	pir, err := schnorr.NewZKProof(ContextI, round.temp.ri, round.temp.pointRi, round.Rand())
+	pir, err := zkp.NewDLogProof(round.temp.ri, round.temp.pointRi)
 	if err != nil {
-		return round.WrapError(errors2.Wrapf(err, "NewZKProof(ri, pointRi)"))
+		return round.WrapError(errors2.Wrapf(err, "NewDLogProof(ri, pointRi)"))
 	}
 
 	// 3. BROADCAST de-commitments of Shamir poly*G and Schnorr prove
-	r2msg2 := NewSignRound2Message(round.PartyID(), round.temp.deCommit, pir)
-	round.temp.signRound2Messages[i] = r2msg2
-	round.out <- r2msg2
+	r2msg := NewSignRound2Message(round.PartyID(), round.temp.deCommit, pir)
+	round.temp.signRound2Messages[i] = r2msg
+	round.out <- r2msg
 
 	return nil
 }
@@ -55,18 +53,16 @@ func (round *round2) CanAccept(msg tss.ParsedMessage) bool {
 }
 
 func (round *round2) Update() (bool, *tss.Error) {
-	ret := true
 	for j, msg := range round.temp.signRound2Messages {
 		if round.ok[j] {
 			continue
 		}
 		if msg == nil || !round.CanAccept(msg) {
-			ret = false
-			continue
+			return false, nil
 		}
 		round.ok[j] = true
 	}
-	return ret, nil
+	return true, nil
 }
 
 func (round *round2) NextRound() tss.Round {

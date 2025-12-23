@@ -15,16 +15,21 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync/atomic"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/edwards/v2"
 
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
-// ECPoint convenience helper
+// ECPoint represents a point on an elliptic curve in affine form. It is designed to be immutable
 type ECPoint struct {
 	curve  elliptic.Curve
 	coords [2]*big.Int
+	// get/set with atomic; avoids a data race in ValidateBasic
+	onCurveKnown uint32
 }
 
 var (
@@ -37,13 +42,20 @@ func NewECPoint(curve elliptic.Curve, X, Y *big.Int) (*ECPoint, error) {
 	if !isOnCurve(curve, X, Y) {
 		return nil, fmt.Errorf("NewECPoint: the given point is not on the elliptic curve")
 	}
-	return &ECPoint{curve, [2]*big.Int{X, Y}}, nil
+	return &ECPoint{curve, [2]*big.Int{X, Y}, 1}, nil
 }
 
 // Creates a new ECPoint without checking that the coordinates are on the elliptic curve.
 // Only use this function when you are completely sure that the point is already on the curve.
 func NewECPointNoCurveCheck(curve elliptic.Curve, X, Y *big.Int) *ECPoint {
-	return &ECPoint{curve, [2]*big.Int{X, Y}}
+	return &ECPoint{curve, [2]*big.Int{X, Y}, 0}
+}
+
+func NewECPointFromProtobuf(p *common.ECPoint) (*ECPoint, error) {
+	if p == nil || p.GetX() == nil || p.GetY() == nil {
+		return nil, errors.New("nil protobuf point provided")
+	}
+	return NewECPoint(tss.EC(), new(big.Int).SetBytes(p.GetX()), new(big.Int).SetBytes(p.GetY()))
 }
 
 func (p *ECPoint) X() *big.Int {
@@ -54,18 +66,80 @@ func (p *ECPoint) Y() *big.Int {
 	return new(big.Int).Set(p.coords[1])
 }
 
-func (p *ECPoint) Add(p1 *ECPoint) (*ECPoint, error) {
-	x, y := p.curve.Add(p.X(), p.Y(), p1.X(), p1.Y())
+func (p *ECPoint) Add(b *ECPoint) (*ECPoint, error) {
+	x, y := p.curve.Add(p.X(), p.Y(), b.X(), b.Y())
 	return NewECPoint(p.curve, x, y)
 }
 
-func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
-	x, y := p.curve.ScalarMult(p.X(), p.Y(), k.Bytes())
-	newP, err := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
-	if err != nil {
-		panic(fmt.Errorf("scalar mult to an ecpoint %s", err.Error()))
-	}
+func (p *ECPoint) Sub(b *ECPoint) (*ECPoint, error) {
+	return p.Add(b.Neg())
+}
+
+func (p *ECPoint) Neg() *ECPoint {
+	order := p.curve.Params().P
+	negY := new(big.Int).Neg(p.Y())
+	negY.Mod(negY, order) // ok here because we're describing a curve point.
+	return NewECPointNoCurveCheck(p.curve, p.X(), negY)
+}
+
+func (p *ECPoint) ScalarMultBytes(k []byte) *ECPoint {
+	x, y := p.curve.ScalarMult(p.X(), p.Y(), k)
+	newP, _ := NewECPoint(p.curve, x, y) // it must be on the curve, no need to check.
 	return newP
+}
+
+func (p *ECPoint) ScalarMult(k *big.Int) *ECPoint {
+	return p.ScalarMultBytes(k.Bytes())
+}
+
+func (p *ECPoint) IsOnCurve() bool {
+	return isOnCurve(p.curve, p.coords[0], p.coords[1])
+}
+
+func (p *ECPoint) Equals(b *ECPoint) bool {
+	if p == nil || b == nil {
+		return false
+	}
+	return p.X().Cmp(b.X()) == 0 && p.Y().Cmp(b.Y()) == 0
+}
+
+func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
+	p.curve = curve
+	return p
+}
+
+func (p *ECPoint) ValidateBasic() bool {
+	onCurveKnown := atomic.LoadUint32(&p.onCurveKnown) == 1
+	res := p != nil && p.coords[0] != nil && p.coords[1] != nil && (onCurveKnown || p.IsOnCurve())
+	if res && !onCurveKnown {
+		atomic.StoreUint32(&p.onCurveKnown, 1)
+	}
+	return res
+}
+
+func (p *ECPoint) Bytes() []byte {
+	bzX, bzY := p.X().Bytes(), p.Y().Bytes()
+	byteSize := p.curve.Params().BitSize / 8
+	tmpX := make([]byte, byteSize-len(bzX), byteSize) // pad
+	tmpY := make([]byte, byteSize-len(bzY), byteSize)
+	if 0 < len(bzX) {
+		tmpX = append(tmpX, bzX...)
+	}
+	if 0 < len(bzY) {
+		tmpY = append(tmpY, bzY...)
+	}
+	return append(tmpX, tmpY...)
+}
+
+func (p *ECPoint) EightInvEight() *ECPoint {
+	return p.ScalarMult(eight).ScalarMult(eightInv)
+}
+
+func (p *ECPoint) ToProtobufPoint() *common.ECPoint {
+	return &common.ECPoint{
+		X: p.X().Bytes(),
+		Y: p.Y().Bytes(),
+	}
 }
 
 func (p *ECPoint) ToECDSAPubKey() *ecdsa.PublicKey {
@@ -76,48 +150,89 @@ func (p *ECPoint) ToECDSAPubKey() *ecdsa.PublicKey {
 	}
 }
 
-func (p *ECPoint) IsOnCurve() bool {
-	return isOnCurve(p.curve, p.coords[0], p.coords[1])
-}
-
-func (p *ECPoint) Curve() elliptic.Curve {
-	return p.curve
-}
-
-func (p *ECPoint) Equals(p2 *ECPoint) bool {
-	if p == nil || p2 == nil {
-		return false
-	}
-	return p.X().Cmp(p2.X()) == 0 && p.Y().Cmp(p2.Y()) == 0
-}
-
-func (p *ECPoint) SetCurve(curve elliptic.Curve) *ECPoint {
-	p.curve = curve
-	return p
-}
-
-func (p *ECPoint) ValidateBasic() bool {
-	return p != nil && p.coords[0] != nil && p.coords[1] != nil && p.IsOnCurve()
-}
-
-func (p *ECPoint) EightInvEight() *ECPoint {
-	return p.ScalarMult(eight).ScalarMult(eightInv)
-}
-
-func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
-	x, y := curve.ScalarBaseMult(k.Bytes())
-	p, err := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
-	if err != nil {
-		panic(fmt.Errorf("scalar mult to an ecpoint %s", err.Error()))
-	}
-	return p
-}
+// ----- //
 
 func isOnCurve(c elliptic.Curve, x, y *big.Int) bool {
 	if x == nil || y == nil {
 		return false
 	}
 	return c.IsOnCurve(x, y)
+}
+
+func ScalarBaseMult(curve elliptic.Curve, k *big.Int) *ECPoint {
+	x, y := curve.ScalarBaseMult(k.Bytes())
+	p, _ := NewECPoint(curve, x, y) // it must be on the curve, no need to check.
+	return p
+}
+
+func DecompressPoint(curve elliptic.Curve, x *big.Int, sign byte) (*ECPoint, error) {
+	if curve == nil || x == nil {
+		return nil, errors.New("DecompressPoint() received one or more nil args")
+	}
+	switch curve {
+	case btcec.S256():
+		return decompressPoint_Secp256k1(curve, x, sign)
+	case elliptic.P256():
+		return decompressPoint_P256(curve, x, sign)
+	default:
+		return nil, fmt.Errorf("DecompressPoint() unsupported curve provided; please implement DecompressPoint for that curve")
+	}
+}
+
+func decompressPoint_Secp256k1(curve elliptic.Curve, x *big.Int, sign byte) (*ECPoint, error) {
+	params := curve.Params()
+	modP := common.ModInt(params.P)
+
+	// secp256k1: y^2 = x^3 + 7
+	x3 := new(big.Int).Mul(x, x)
+	x3.Mul(x3, x)
+
+	y2 := x3.Add(x3, big.NewInt(7))
+	// y2.Mod(y2, params.P)
+
+	// find the sq root mod P
+	y := modP.Sqrt(y2)
+	if y == nil {
+		return nil, errors.New("DecompressPoint() invalid point")
+	}
+	if y.Bit(0) != uint(sign)&1 {
+		y = modP.Neg(y)
+	}
+	return &ECPoint{
+		curve:  curve,
+		coords: [2]*big.Int{x, y},
+	}, nil
+}
+
+// Adapted from IsOnCurve from the stdlib: https://golang.org/src/crypto/elliptic/elliptic.go?s=2055:2110#L45
+// With an extra modular square root to recover the Y co-ord
+// It's only implemented for secp256k1, secp256r1 and P256 curves for now (ECDSA only)
+func decompressPoint_P256(curve elliptic.Curve, x *big.Int, sign byte) (*ECPoint, error) {
+	params := curve.Params()
+	modP := common.ModInt(params.P)
+	three := big.NewInt(3)
+
+	// P-256/secp256r1/prime256v1: y^2 = x^3 - 3x + b
+	x3 := modP.Exp(x, three)
+	threeX := modP.Mul(x, three)
+
+	// x^3 - 3x
+	y2 := new(big.Int).Sub(x3, threeX)
+	// .. + b mod P
+	y2 = modP.Add(y2, params.B)
+
+	// find the sq root mod P
+	y := modP.Sqrt(y2)
+	if y == nil {
+		return nil, errors.New("DecompressPoint() invalid point")
+	}
+	if y.Bit(0) != uint(sign)&1 {
+		y = modP.Neg(y)
+	}
+	return &ECPoint{
+		curve:  curve,
+		coords: [2]*big.Int{x, y},
+	}, nil
 }
 
 // ----- //
@@ -229,44 +344,24 @@ func (p *ECPoint) GobDecode(buf []byte) error {
 
 // crypto.ECPoint is not inherently json marshal-able
 func (p *ECPoint) MarshalJSON() ([]byte, error) {
-	ecName, ok := tss.GetCurveName(p.curve)
-	if !ok {
-		return nil, fmt.Errorf("cannot find %T name in curve registry, please call tss.RegisterCurve(name, curve) to register it first", p.curve)
-	}
-
 	return json.Marshal(&struct {
-		Curve  string
 		Coords [2]*big.Int
 	}{
-		Curve:  string(ecName),
 		Coords: p.coords,
 	})
 }
 
 func (p *ECPoint) UnmarshalJSON(payload []byte) error {
 	aux := &struct {
-		Curve  string
 		Coords [2]*big.Int
 	}{}
 	if err := json.Unmarshal(payload, &aux); err != nil {
 		return err
 	}
+	p.curve = tss.EC()
 	p.coords = [2]*big.Int{aux.Coords[0], aux.Coords[1]}
-
-	if len(aux.Curve) > 0 {
-		ec, ok := tss.GetCurveByName(tss.CurveName(aux.Curve))
-		if !ok {
-			return fmt.Errorf("cannot find curve named with %s in curve registry, please call tss.RegisterCurve(name, curve) to register it first", aux.Curve)
-		}
-		p.curve = ec
-	} else {
-		// forward compatible, use global ec as default value
-		p.curve = tss.EC()
-	}
-
 	if !p.IsOnCurve() {
-		return fmt.Errorf("ECPoint.UnmarshalJSON: the point is not on the elliptic curve (%T) ", p.curve)
+		return errors.New("ECPoint.UnmarshalJSON: the point is not on the elliptic curve")
 	}
-
 	return nil
 }

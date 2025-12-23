@@ -7,16 +7,16 @@
 package signing
 
 import (
-	"crypto/elliptic"
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // PrepareForSigning(), Fig. 7
-func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int) (wi *big.Int) {
-	modQ := common.ModInt(ec.Params().N)
+func PrepareForSigning(i, pax int, xi *big.Int, ks []*big.Int) (wi *big.Int) {
+	modQ := common.ModInt(tss.EC().Params().N)
 	if len(ks) != pax {
 		panic(fmt.Errorf("PrepareForSigning: len(ks) != pax (%d != %d)", len(ks), pax))
 	}
@@ -30,13 +30,8 @@ func PrepareForSigning(ec elliptic.Curve, i, pax int, xi *big.Int, ks []*big.Int
 		if j == i {
 			continue
 		}
-		ksj := ks[j]
-		ksi := ks[i]
-		if ksj.Cmp(ksi) == 0 {
-			panic(fmt.Errorf("index of two parties are equal"))
-		}
 		// big.Int Div is calculated as: a/b = a * modInv(b,q)
-		coef := modQ.Mul(ks[j], modQ.ModInverse(new(big.Int).Sub(ksj, ksi)))
+		coef := modQ.Mul(ks[j], modQ.Inverse(new(big.Int).Sub(ks[j], ks[i])))
 		wi = modQ.Mul(wi, coef)
 	}
 

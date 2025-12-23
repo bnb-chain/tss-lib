@@ -7,13 +7,8 @@
 package signing
 
 import (
-	"errors"
-	"math/big"
-
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 const (
@@ -24,10 +19,10 @@ type (
 	base struct {
 		*tss.Parameters
 		key     *keygen.LocalPartySaveData
-		data    *common.SignatureData
+		data    *SignatureData
 		temp    *localTempData
 		out     chan<- tss.Message
-		end     chan<- *common.SignatureData
+		end     chan<- *SignatureData
 		ok      []bool // `ok` tracks parties which have been verified by Update()
 		started bool
 		number  int
@@ -49,18 +44,19 @@ type (
 	}
 	round6 struct {
 		*round5
+
+		// Trigger for when a consistency check fails during Phase 5 of the protocol, resulting in a Type 5 identifiable abort (GG20)
+		abortingT5 bool
 	}
+	// The final round for the one-round signing mode (see the README)
 	round7 struct {
 		*round6
-	}
-	round8 struct {
-		*round7
-	}
-	round9 struct {
-		*round8
+
+		// Trigger for when a consistency check fails during Phase 6 of the protocol, resulting in a Type 7 identifiable abort (GG20)
+		abortingT7 bool
 	}
 	finalization struct {
-		*round9
+		*round7
 	}
 )
 
@@ -72,8 +68,6 @@ var (
 	_ tss.Round = (*round5)(nil)
 	_ tss.Round = (*round6)(nil)
 	_ tss.Round = (*round7)(nil)
-	_ tss.Round = (*round8)(nil)
-	_ tss.Round = (*round9)(nil)
 	_ tss.Round = (*finalization)(nil)
 )
 
@@ -124,23 +118,4 @@ func (round *base) resetOK() {
 	for j := range round.ok {
 		round.ok[j] = false
 	}
-}
-
-// get ssid from local params
-func (round *base) getSSID() ([]byte, error) {
-	ssidList := []*big.Int{round.EC().Params().P, round.EC().Params().N, round.EC().Params().B, round.EC().Params().Gx, round.EC().Params().Gy} // ec curve
-	ssidList = append(ssidList, round.Parties().IDs().Keys()...)                                                                                // parties
-	BigXjList, err := crypto.FlattenECPoints(round.key.BigXj)
-	if err != nil {
-		return nil, round.WrapError(errors.New("read BigXj failed"), round.PartyID())
-	}
-	ssidList = append(ssidList, BigXjList...)                    // BigXj
-	ssidList = append(ssidList, round.key.NTildej...)            // NTilde
-	ssidList = append(ssidList, round.key.H1j...)                // h1
-	ssidList = append(ssidList, round.key.H2j...)                // h2
-	ssidList = append(ssidList, big.NewInt(int64(round.number))) // round number
-	ssidList = append(ssidList, round.temp.ssidNonce)
-	ssid := common.SHA512_256i(ssidList...).Bytes()
-
-	return ssid, nil
 }

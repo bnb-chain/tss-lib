@@ -11,20 +11,18 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/common"
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v2/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v2/crypto/mta"
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	cmt "github.com/binance-chain/tss-lib/crypto/commitments"
+	"github.com/binance-chain/tss-lib/crypto/mta"
+	"github.com/binance-chain/tss-lib/ecdsa/keygen"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 // Implements Party
 // Implements Stringer
-var (
-	_ tss.Party    = (*LocalParty)(nil)
-	_ fmt.Stringer = (*LocalParty)(nil)
-)
+var _ tss.Party = (*LocalParty)(nil)
+var _ fmt.Stringer = (*LocalParty)(nil)
 
 type (
 	LocalParty struct {
@@ -33,11 +31,11 @@ type (
 
 		keys keygen.LocalPartySaveData
 		temp localTempData
-		data *common.SignatureData
+		data SignatureData
 
 		// outbound messaging
 		out chan<- tss.Message
-		end chan<- *common.SignatureData
+		end chan<- *SignatureData
 	}
 
 	localMessageStore struct {
@@ -48,77 +46,58 @@ type (
 		signRound4Messages,
 		signRound5Messages,
 		signRound6Messages,
-		signRound7Messages,
-		signRound8Messages,
-		signRound9Messages []tss.ParsedMessage
+		signRound7Messages []tss.ParsedMessage
 	}
 
 	localTempData struct {
 		localMessageStore
 
 		// temp data (thrown away after sign) / round 1
-		w,
 		m,
-		k,
-		theta,
-		thetaInverse,
-		sigma,
-		keyDerivationDelta,
-		gamma *big.Int
-		fullBytesLen int
-		cis          []*big.Int
-		bigWs        []*crypto.ECPoint
-		pointGamma   *crypto.ECPoint
-		deCommit     cmt.HashDeCommitment
+		wI,
+		cAKI,
+		rAKI,
+		deltaI,
+		sigmaI,
+		gammaI *big.Int
+		c1Is     []*big.Int
+		bigWs    []*crypto.ECPoint
+		gammaIG  *crypto.ECPoint
+		deCommit cmt.HashDeCommitment
 
 		// round 2
 		betas, // return value of Bob_mid
-		c1jis,
-		c2jis,
-		vs []*big.Int // return value of Bob_mid_wc
-		pi1jis []*mta.ProofBob
-		pi2jis []*mta.ProofBobWC
+		c1JIs,
+		c2JIs,
+		vJIs []*big.Int // return value of Bob_mid_wc
+		pI1JIs []*mta.ProofBob
+		pI2JIs []*mta.ProofBobWC
+
+		// round 3
+		lI *big.Int
 
 		// round 5
-		li,
-		si,
-		rx,
-		ry,
-		roi *big.Int
-		bigR,
-		bigAi,
-		bigVi *crypto.ECPoint
-		DPower cmt.HashDeCommitment
+		bigGammaJs  []*crypto.ECPoint
+		r5AbortData SignRound6Message_AbortData
+
+		// round 6
+		SignatureData_OneRoundData
 
 		// round 7
-		Ui,
-		Ti *crypto.ECPoint
-		DTelda cmt.HashDeCommitment
-
-		ssidNonce *big.Int
-		ssid      []byte
+		sI *big.Int
+		rI,
+		TI *crypto.ECPoint
+		r7AbortData SignRound7Message_AbortData
 	}
 )
 
+// Constructs a new ECDSA signing party. Note: msg may be left nil for one-round signing mode to only do the pre-processing steps.
 func NewLocalParty(
 	msg *big.Int,
 	params *tss.Parameters,
 	key keygen.LocalPartySaveData,
 	out chan<- tss.Message,
-	end chan<- *common.SignatureData,
-	fullBytesLen ...int) tss.Party {
-	return NewLocalPartyWithKDD(msg, params, key, nil, out, end, fullBytesLen...)
-}
-
-// NewLocalPartyWithKDD returns a party with key derivation delta for HD support
-func NewLocalPartyWithKDD(
-	msg *big.Int,
-	params *tss.Parameters,
-	key keygen.LocalPartySaveData,
-	keyDerivationDelta *big.Int,
-	out chan<- tss.Message,
-	end chan<- *common.SignatureData,
-	fullBytesLen ...int,
+	end chan<- *SignatureData,
 ) tss.Party {
 	partyCount := len(params.Parties().IDs())
 	p := &LocalParty{
@@ -126,7 +105,7 @@ func NewLocalPartyWithKDD(
 		params:    params,
 		keys:      keygen.BuildLocalSaveDataSubset(key, params.Parties().IDs()),
 		temp:      localTempData{},
-		data:      &common.SignatureData{},
+		data:      SignatureData{},
 		out:       out,
 		end:       end,
 	}
@@ -139,29 +118,34 @@ func NewLocalPartyWithKDD(
 	p.temp.signRound5Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound6Messages = make([]tss.ParsedMessage, partyCount)
 	p.temp.signRound7Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.signRound8Messages = make([]tss.ParsedMessage, partyCount)
-	p.temp.signRound9Messages = make([]tss.ParsedMessage, partyCount)
 	// temp data init
-	p.temp.keyDerivationDelta = keyDerivationDelta
 	p.temp.m = msg
-	if len(fullBytesLen) > 0 {
-		p.temp.fullBytesLen = fullBytesLen[0]
-	} else {
-		p.temp.fullBytesLen = 0
-	}
-	p.temp.cis = make([]*big.Int, partyCount)
+	p.temp.c1Is = make([]*big.Int, partyCount)
 	p.temp.bigWs = make([]*crypto.ECPoint, partyCount)
 	p.temp.betas = make([]*big.Int, partyCount)
-	p.temp.c1jis = make([]*big.Int, partyCount)
-	p.temp.c2jis = make([]*big.Int, partyCount)
-	p.temp.pi1jis = make([]*mta.ProofBob, partyCount)
-	p.temp.pi2jis = make([]*mta.ProofBobWC, partyCount)
-	p.temp.vs = make([]*big.Int, partyCount)
+	p.temp.c1JIs = make([]*big.Int, partyCount)
+	p.temp.c2JIs = make([]*big.Int, partyCount)
+	p.temp.pI1JIs = make([]*mta.ProofBob, partyCount)
+	p.temp.pI2JIs = make([]*mta.ProofBobWC, partyCount)
+	p.temp.vJIs = make([]*big.Int, partyCount)
+	p.temp.bigGammaJs = make([]*crypto.ECPoint, partyCount)
+	p.temp.r5AbortData.AlphaIJ = make([][]byte, partyCount)
+	p.temp.r5AbortData.BetaJI = make([][]byte, partyCount)
 	return p
 }
 
+// Constructs a new ECDSA signing party for one-round signing. The final SignatureData struct will be a partial struct containing only the data for a final signing round (see the readme).
+func NewLocalPartyWithOneRoundSign(
+	params *tss.Parameters,
+	key keygen.LocalPartySaveData,
+	out chan<- tss.Message,
+	end chan<- *SignatureData,
+) tss.Party {
+	return NewLocalParty(nil, params, key, out, end)
+}
+
 func (p *LocalParty) FirstRound() tss.Round {
-	return newRound1(p.params, &p.keys, p.data, &p.temp, p.out, p.end)
+	return newRound1(p.params, &p.keys, &p.data, &p.temp, p.out, p.end)
 }
 
 func (p *LocalParty) Start() *tss.Error {
@@ -227,12 +211,8 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 		p.temp.signRound6Messages[fromPIdx] = msg
 	case *SignRound7Message:
 		p.temp.signRound7Messages[fromPIdx] = msg
-	case *SignRound8Message:
-		p.temp.signRound8Messages[fromPIdx] = msg
-	case *SignRound9Message:
-		p.temp.signRound9Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
-		common.Logger.Warningf("unrecognised message ignored: %v", msg)
+		common.Logger.Warnf("unrecognised message ignored: %v", msg)
 		return false, nil
 	}
 	return true, nil

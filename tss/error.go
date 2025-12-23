@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-// fundamental is an error that has a message and a stack, but no caller.
+// Represents an error that occurred during execution of the TSS protocol rounds.
 type Error struct {
 	cause    error
 	task     string
@@ -34,6 +34,10 @@ func (err *Error) Round() int { return err.round }
 func (err *Error) Victim() *PartyID { return err.victim }
 
 func (err *Error) Culprits() []*PartyID { return err.culprits }
+
+func (err *Error) SelfCaused() bool {
+	return len(err.culprits) == 0 || (len(err.culprits) == 1 && err.culprits[0] == err.victim)
+}
 
 func (err *Error) Error() string {
 	if err == nil || err.cause == nil {

@@ -8,12 +8,12 @@ package keygen
 
 import (
 	"encoding/hex"
-	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v2/crypto"
-	"github.com/bnb-chain/tss-lib/v2/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/crypto"
+	"github.com/binance-chain/tss-lib/crypto/paillier"
+	"github.com/binance-chain/tss-lib/tss"
 )
 
 type (
@@ -45,7 +45,7 @@ type (
 		BigXj       []*crypto.ECPoint     // Xj
 		PaillierPKs []*paillier.PublicKey // pkj
 
-		// used for test assertions (may be discarded)
+		// the ECDSA public key
 		ECDSAPub *crypto.ECPoint // y
 	}
 )
@@ -68,8 +68,6 @@ func (preParams LocalPreParams) Validate() bool {
 
 func (preParams LocalPreParams) ValidateWithProof() bool {
 	return preParams.Validate() &&
-		preParams.PaillierSK.P != nil &&
-		preParams.PaillierSK.Q != nil &&
 		preParams.Alpha != nil &&
 		preParams.Beta != nil &&
 		preParams.P != nil &&
@@ -89,7 +87,7 @@ func BuildLocalSaveDataSubset(sourceData LocalPartySaveData, sortedIDs tss.Sorte
 	for j, id := range sortedIDs {
 		savedIdx, ok := keysToIndices[hex.EncodeToString(id.Key)]
 		if !ok {
-			panic(errors.New("BuildLocalSaveDataSubset: unable to find a signer party in the local save data"))
+			common.Logger.Warn("BuildLocalSaveDataSubset: unable to find a signer party in the local save data", id)
 		}
 		newData.Ks[j] = sourceData.Ks[savedIdx]
 		newData.NTildej[j] = sourceData.NTildej[savedIdx]
