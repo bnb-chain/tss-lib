@@ -38,7 +38,6 @@ func (round *round1) Start() *tss.Error {
 	if !round.ReSharingParams().IsOldCommittee() {
 		return nil
 	}
-	round.allOldOK()
 
 	// GG20 session binding: use caller-provided session nonce if available.
 	// For resharing, all parties must agree on the nonce via external coordination
