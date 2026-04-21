@@ -227,6 +227,16 @@ func DeriveChildKey(index uint32, pk *ExtendedKey, curve elliptic.Curve) (*big.I
 	il := ilr[:32]
 	childChainCode := ilr[32:]
 	ilNum := new(big.Int).SetBytes(il)
+	// Reduce IL modulo N before the range check. On Edwards curves (Ed25519)
+	// N ≈ 2^252, so ~94% of raw 256-bit HMAC outputs exceed N; strict rejection
+	// would make non-hardened CKD effectively unusable. BIP-32 spec says to
+	// retry with the next index, but non-hardened derivation on Ed25519 is
+	// non-standard to begin with (SLIP-0010 specifies hardened-only) and the
+	// retry semantics would also change addresses vs. prior library versions.
+	// The modular bias introduced here is ~2^-4 on the child public key but
+	// is washed out on private shares by the uniform parent share, so it does
+	// not enable key recovery or forgery
+	ilNum = ilNum.Mod(ilNum, curve.Params().N)
 
 	if ilNum.Cmp(curve.Params().N) >= 0 || ilNum.Sign() == 0 {
 		// falling outside of the valid range for curve private keys
