@@ -9,9 +9,9 @@ package keygen
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round4) Start() *tss.Error {

@@ -20,13 +20,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v3/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/test"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v4/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/test"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -43,10 +43,14 @@ func setUp(level string) {
 func TestStartRound1Paillier(t *testing.T) {
 	setUp("debug")
 
-	pIDs := tss.GenerateTestPartyIDs(1)
+	// Use n=2 / t=1 as the minimum valid threshold configuration; the
+	// scaffolding here only exercises single-party Paillier prep and
+	// then overrides pIDs from fixtures below.
+	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
 	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
+	params.SetSessionNonce(big.NewInt(1))
 
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -83,10 +87,13 @@ func TestStartRound1Paillier(t *testing.T) {
 func TestFinishAndSaveH1H2(t *testing.T) {
 	setUp("debug")
 
-	pIDs := tss.GenerateTestPartyIDs(1)
+	// Minimum valid (t, n) for NewParameters; this scaffolding only
+	// exercises Paillier H1/H2 save and then overrides pIDs below.
+	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	threshold := 1
 	params := tss.NewParameters(tss.EC(), p2pCtx, pIDs[0], len(pIDs), threshold)
+	params.SetSessionNonce(big.NewInt(1))
 
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -134,6 +141,7 @@ func TestBadMessageCulprits(t *testing.T) {
 	pIDs := tss.GenerateTestPartyIDs(2)
 	p2pCtx := tss.NewPeerContext(pIDs)
 	params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[0], len(pIDs), 1)
+	params.SetSessionNonce(big.NewInt(1))
 
 	fixtures, pIDs, err := LoadKeygenTestFixtures(testParticipants)
 	if err != nil {
@@ -193,10 +201,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
 		params := tss.NewParameters(tss.S256(), p2pCtx, pIDs[i], len(pIDs), threshold)
-		// do not use in untrusted setting
-		params.SetNoProofMod()
-		// do not use in untrusted setting
-		params.SetNoProofFac()
+		params.SetSessionNonce(big.NewInt(1))
 		if i < len(fixtures) {
 			P = NewLocalParty(params, outCh, endCh, fixtures[i].LocalPreParams).(*LocalParty)
 		} else {

@@ -16,9 +16,9 @@ vendor
 *.out
 
 # IDE
-.idea/*
-!.idea/copyright/
-!.idea/codeStyles/
+.idea/
 *.swp
 .vscode/*.json
 
+# Local-only audit artefacts (audit reports, PoC tests, etc.)
+_local_only/

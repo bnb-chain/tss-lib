@@ -10,8 +10,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round5) Start() *tss.Error {
@@ -49,23 +49,31 @@ func (round *round5) Start() *tss.Error {
 				continue
 			}
 			r4msg1 := msg.Content().(*DGRound4Message1)
+			// FacProof verification is mandatory — the NoProofFac compatibility
+			// switch was removed alongside NoProofMod (SRC-2026-926).
 			proof, err := r4msg1.UnmarshalFacProof()
-			if err != nil && round.Parameters.NoProofFac() {
-				common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
-			} else {
-				if err != nil {
-					common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
-					return round.WrapError(err, round.NewParties().IDs()[j])
-				}
-				if ok := proof.Verify(ContextI, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
-					round.save.H1i, round.save.H2i); !ok {
-					common.Logger.Warningf("facProof verify failed for party %s", msg.GetFrom(), err)
-					return round.WrapError(err, round.NewParties().IDs()[j])
-				}
+			if err != nil {
+				common.Logger.Warningf("facProof unmarshal failed for party %s: %v", msg.GetFrom(), err)
+				return round.WrapError(err, round.NewParties().IDs()[j])
 			}
-
+			if ok := proof.Verify(ContextI, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+				round.save.H1i, round.save.H2i); !ok {
+				// err is nil in this branch (UnmarshalFacProof succeeded); build a
+				// real cause so the failure is not surfaced as "Error is nil".
+				common.Logger.Warningf("facProof verification failed for party %s", msg.GetFrom())
+				return round.WrapError(errors.New("facProof verification failed"), round.NewParties().IDs()[j])
+			}
 		}
 	} else if round.IsOldCommittee() {
+		// Set this round's own copy of the old share to zero.
+		//
+		// Two things this is NOT. It is not the caller's copy: since
+		// keygen.BuildLocalSaveDataSubset deep-copies LocalSecrets, this cannot
+		// reach the save data the caller passed in, and must not.
+		// And it is not an erasure. big.Int.SetInt64 truncates the abs slice to
+		// length zero; the backing array keeps every word, so the value reads as
+		// 0 while the secret is still in that allocation. Nothing in Go erases a
+		// big.Int -- see doc/maintenance-invariants.md section 7.
 		round.input.Xi.SetInt64(0)
 	}
 

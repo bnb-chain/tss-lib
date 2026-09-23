@@ -35,6 +35,20 @@ message KGRound2Message1 {
 message KGRound2Message2 {
     repeated bytes de_commitment = 1;
     repeated bytes modProof = 2;
+    // Mod proof for the sender's NTilde. SCOPE: the verifier is
+    // ProofMod.Verify(Session, N) (crypto/modproof/proof.go#Verify), whose only
+    // statement input is the modulus, so this proof attests properties of
+    // NTilde alone (Blum-integer shape). It does NOT attest that NTilde is a
+    // product of safe primes: safe-primality is a property of NTilde's two
+    // prime factors — for each factor f, that (f-1)/2 is prime — and those
+    // factors never enter Verify, which receives only their product. It says
+    // nothing about h1/h2 either. <h1> == <h2> is established by the
+    // two-directional DLN proof pair in KGRound1Message.dlnproof_1 /
+    // dlnproof_2 — dlnproof.Proof.Verify(Session, h1, h2, N)
+    // (crypto/dlnproof/proof.go#Verify) — verified at
+    // ecdsa/keygen/round_2.go#Start, by the VerifyDLNProof1 and
+    // VerifyDLNProof2 calls.
+    repeated bytes nTildeModProof = 3;
 }
 
 /*

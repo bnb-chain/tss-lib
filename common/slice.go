@@ -53,12 +53,20 @@ func NonEmptyMultiBytes(bzs [][]byte, expectLen ...int) bool {
 
 // PadToLengthBytesInPlace pad {0, ...} to the front of src if len(src) < length
 // output length is equal to the parameter length
+//
+// Despite the name it does not write through to the caller's slice: it returns
+// a new one when padding is needed, and src itself when it is not. That is what
+// it has always done — `append` to a full slice reallocates — and callers rely
+// on it, so the one-shot allocation below keeps it. What changes is the cost:
+// prepending a byte at a time reallocated and copied the whole buffer on every
+// one of the length-oriLen rounds, which is Θ(length²) time and one allocation
+// per padding byte for a job that needs one allocation and one copy.
 func PadToLengthBytesInPlace(src []byte, length int) []byte {
 	oriLen := len(src)
-	if oriLen < length {
-		for i := 0; i < length-oriLen; i++ {
-			src = append([]byte{0}, src...)
-		}
+	if oriLen >= length {
+		return src
 	}
-	return src
+	dst := make([]byte, length)
+	copy(dst[length-oriLen:], src)
+	return dst
 }

@@ -9,7 +9,7 @@ package resharing
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -30,11 +30,26 @@ func (round *round3) Start() *tss.Error {
 	i := Pi.Index
 
 	// 1-2. send share to Pj from the new committee
+	//
+	// Nothing is written to dgRound3Message1s[i] here, and there is nothing to
+	// write. That slot means "the round-3 share message received FROM old party
+	// i". DGRound3Message1 is point-to-point and carries a DIFFERENT payload per
+	// recipient, so there is no single "my message" to record; storing it once
+	// per iteration left the slot holding the share addressed to the LAST
+	// new-committee member -- another party's private share, filed under this
+	// party's own index.
+	//
+	// Removing that write changes no behaviour: the only reader of the payload
+	// is round_4_new_step_2.go, in the new-committee branch, and a party cannot
+	// be in both committees (tss.NewReSharingParameters rejects an overlapping
+	// roster, and round 1 rejects the dual role again at run time).
+	//
+	// Contrast dgRound3Message2s[i] below. That one is a single broadcast with
+	// one payload, so filing it in the sender's own slot is at least
+	// shape-correct. The two writes looked alike; only this one was wrong.
 	for j, Pj := range round.NewParties().IDs() {
 		share := round.temp.NewShares[j]
-		r3msg1 := NewDGRound3Message1(Pj, round.PartyID(), share)
-		round.temp.dgRound3Message1s[i] = r3msg1
-		round.out <- r3msg1
+		round.out <- NewDGRound3Message1(Pj, round.PartyID(), share)
 	}
 
 	// 3. broadcast de-commitment to new committees

@@ -71,6 +71,34 @@ func SameCurve(lhs, rhs elliptic.Curve) bool {
 	return false
 }
 
+// HasCompositeCofactor reports whether the curve has cofactor > 1, in
+// which case on-curve membership is strictly weaker than prime-order
+// subgroup membership and callers consuming attacker-controlled EC
+// points must additionally check `[curve.N]P == identity`.
+//
+// secp256k1 (and other NIST/Weierstrass curves used in tss-lib) have
+// cofactor 1, so this returns false and the subgroup check can be
+// skipped as a perf optimization. Ed25519 has cofactor 8, so this
+// returns true and the subgroup check is required to defend against
+// small-subgroup-injection attacks.
+//
+// Unknown curves return true conservatively (better to pay the extra
+// ScalarMult than to skip a needed defense).
+func HasCompositeCofactor(curve elliptic.Curve) bool {
+	name, ok := GetCurveName(curve)
+	if !ok {
+		return true
+	}
+	switch name {
+	case Secp256k1:
+		return false
+	case Ed25519:
+		return true
+	default:
+		return true
+	}
+}
+
 // EC returns the current elliptic curve in use. The default is secp256k1
 func EC() elliptic.Curve {
 	return ec

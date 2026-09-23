@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	. "github.com/bnb-chain/tss-lib/v3/crypto/modproof"
-	"github.com/bnb-chain/tss-lib/v3/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	. "github.com/bnb-chain/tss-lib/v4/crypto/modproof"
+	"github.com/bnb-chain/tss-lib/v4/ecdsa/keygen"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -126,6 +126,57 @@ func mustSetString(s string) *big.Int {
 	return i
 }
 
+func TestVerifyRejectsMalformedN(test *testing.T) {
+	preParams, err := keygen.GeneratePreParams(time.Minute*10, 8)
+	assert.NoError(test, err)
+	P, Q, N := preParams.PaillierSK.P, preParams.PaillierSK.Q, preParams.PaillierSK.N
+	proof, err := NewProof(Session, N, P, Q, rand.Reader)
+	assert.NoError(test, err)
+
+	test.Run("nil N", func(t *testing.T) {
+		assert.False(t, proof.Verify(Session, nil))
+	})
+	test.Run("zero N", func(t *testing.T) {
+		assert.False(t, proof.Verify(Session, big.NewInt(0)))
+	})
+	test.Run("negative N", func(t *testing.T) {
+		assert.False(t, proof.Verify(Session, big.NewInt(-1)))
+	})
+	test.Run("even N", func(t *testing.T) {
+		even := new(big.Int).Lsh(N, 1)
+		assert.False(t, proof.Verify(Session, even))
+	})
+	test.Run("too small N", func(t *testing.T) {
+		small := big.NewInt(15) // 3*5: composite, odd, but only 4 bits
+		assert.False(t, proof.Verify(Session, small))
+	})
+	test.Run("prime N", func(t *testing.T) {
+		// A 2048-bit prime: passes bit-length and oddness, must be rejected
+		// by the ProbablyPrime check before the proof structure is examined.
+		primeN := common.GetRandomPrimeInt(rand.Reader, 2048)
+		assert.False(t, proof.Verify(Session, primeN))
+	})
+}
+
+func TestVerifyRejectsNonUnitZX(test *testing.T) {
+	preParams, err := keygen.GeneratePreParams(time.Minute*10, 8)
+	assert.NoError(test, err)
+	P, Q, N := preParams.PaillierSK.P, preParams.PaillierSK.Q, preParams.PaillierSK.N
+	proof, err := NewProof(Session, N, P, Q, rand.Reader)
+	assert.NoError(test, err)
+
+	test.Run("Z[0] non-unit (factor of N)", func(t *testing.T) {
+		bad := *proof
+		bad.Z[0] = new(big.Int).Set(P)
+		assert.False(t, bad.Verify(Session, N))
+	})
+	test.Run("X[0] non-unit (factor of N)", func(t *testing.T) {
+		bad := *proof
+		bad.X[0] = new(big.Int).Set(Q)
+		assert.False(t, bad.Verify(Session, N))
+	})
+}
+
 func TestAttackMod(test *testing.T) {
 	fmt.Printf("Starting TestAttackMod\n")
 
@@ -152,4 +203,44 @@ func TestAttackMod(test *testing.T) {
 	assert.NoError(test, err)
 	ok := proof.Verify(Session, N)
 	assert.Falsef(test, ok, "false proof should not verify")
+}
+
+// NewProof samples its W from GetRandomQuadraticNonResidue, which has nothing
+// to return when N is a perfect square: Jacobi(w, m²) = Jacobi(w, m)² is never
+// -1, so the sampler's acceptance probability is exactly zero. NewProof is
+// called from keygen round 2 while the party mutex is held, so it has to come
+// back with an error rather than park there.
+func TestNewProofRejectsAModulusItCannotSampleFor(test *testing.T) {
+	// m², for m the first prime above 3·2^1022: an odd, composite, 2048-bit
+	// modulus that clears every check Verify makes. P·Q = N holds too, so the
+	// only thing wrong with it is the shape of N.
+	m, ok := new(big.Int).SetString("c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000013f7", 16)
+	assert.True(test, ok)
+	N := new(big.Int).Mul(m, m)
+	assert.Equal(test, 2048, N.BitLen())
+
+	type result struct {
+		proof *ProofMod
+		err   error
+	}
+	done := make(chan result, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				test.Errorf("NewProof panicked: %v", r)
+				done <- result{}
+			}
+		}()
+		proof, err := NewProof(Session, N, m, m, rand.Reader)
+		done <- result{proof, err}
+	}()
+	// The goroutine is abandoned on timeout rather than joined: before the fix
+	// it spins in the sampler and would hang `go test` itself.
+	select {
+	case got := <-done:
+		assert.Error(test, got.err, "must reject a modulus it cannot sample a non-residue for")
+		assert.Nil(test, got.proof)
+	case <-time.After(20 * time.Second):
+		test.Fatal("NewProof must return rather than sample forever")
+	}
 }

@@ -9,7 +9,7 @@ package resharing
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round5) Start() *tss.Error {
@@ -30,6 +30,15 @@ func (round *round5) Start() *tss.Error {
 		round.save.Ks = round.temp.newKs
 
 	} else if round.IsOldCommittee() {
+		// Set this round's own copy of the old share to zero.
+		//
+		// Two things this is NOT. It is not the caller's copy: since
+		// keygen.BuildLocalSaveDataSubset deep-copies LocalSecrets, this cannot
+		// reach the save data the caller passed in, and must not.
+		// And it is not an erasure. big.Int.SetInt64 truncates the abs slice to
+		// length zero; the backing array keeps every word, so the value reads as
+		// 0 while the secret is still in that allocation. Nothing in Go erases a
+		// big.Int -- see doc/maintenance-invariants.md section 7.
 		round.input.Xi.SetInt64(0)
 	}
 

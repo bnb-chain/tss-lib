@@ -19,11 +19,11 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/test"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/test"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -62,6 +62,7 @@ func TestE2EConcurrentAndSaveFixtures(t *testing.T) {
 	for i := 0; i < len(pIDs); i++ {
 		var P *LocalParty
 		params := tss.NewParameters(tss.Edwards(), p2pCtx, pIDs[i], len(pIDs), threshold)
+		params.SetSessionNonce(big.NewInt(1))
 		if i < len(fixtures) {
 			P = NewLocalParty(params, outCh, endCh).(*LocalParty)
 		} else {

@@ -11,11 +11,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round4) Start() *tss.Error {
@@ -49,9 +49,21 @@ func (round *round4) Start() *tss.Error {
 		vCj, vDj := r1msg.UnmarshalVCommitment(), r3msg2.UnmarshalVDeCommitment()
 
 		// 3. unpack flat "v" commitment content
+		//
+		// The part count is checked BEFORE DeCommit, which hashes every part it
+		// is handed. Nothing upstream bounds how many arrive: ValidateBasic calls
+		// NonEmptyMultiBytes with no expected length and cannot supply one,
+		// because the length is a function of the new threshold and the message
+		// layer does not know it. The accept set is unchanged -- D[0] is the
+		// commitment randomness, so a payload of (t+1)*2 coordinates is exactly
+		// (t+1)*2+1 parts on the wire.
+		if len(vDj) != (round.NewThreshold()+1)*2+1 { // they're points so * 2, plus r
+			// TODO collect culprits and return a list of them as per convention
+			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
+		}
 		vCmtDeCmt := commitments.HashCommitDecommit{C: vCj, D: vDj}
 		ok, flatVs := vCmtDeCmt.DeCommit()
-		if !ok || len(flatVs) != (round.NewThreshold()+1)*2 { // they're points so * 2
+		if !ok {
 			// TODO collect culprits and return a list of them as per convention
 			return round.WrapError(errors.New("de-commitment of v_j0..v_jt failed"), round.Parties().IDs()[j])
 		}
@@ -94,7 +106,11 @@ func (round *round4) Start() *tss.Error {
 
 	// 13-15.
 	if !Vc[0].Equals(round.save.EDDSAPub) {
-		return round.WrapError(errors.New("assertion failed: V_0 != y"), round.PartyID())
+		// The reshared aggregate key does not match the old public key, which means
+		// some old committee member decommitted an inconsistent VSS constant. The
+		// aggregate sum cannot pinpoint which one, so attribute the whole old
+		// committee rather than falsely blaming ourselves (was: round.PartyID()).
+		return round.WrapError(errors.New("assertion failed: V_0 != y (an old party committed an inconsistent VSS constant)"), round.OldParties().IDs()...)
 	}
 
 	// 16-20.
@@ -117,7 +133,9 @@ func (round *round4) Start() *tss.Error {
 		newBigXjs[j] = newBigXj
 	}
 	if len(culprits) > 0 {
-		return round.WrapError(errors.Wrapf(err, "newBigXj.Add(Vc[c].ScalarMult(z))"), culprits...)
+		// Build a fresh (non-nil) cause: err may have been reset to nil by a later
+		// successful Add, which previously surfaced as an uninformative "Error is nil".
+		return round.WrapError(errors.New("newBigXj.Add(Vc[c].ScalarMult(z)) failed"), culprits...)
 	}
 
 	round.temp.newXi = newXi

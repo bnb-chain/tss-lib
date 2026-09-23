@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/eddsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 // Implements Party
@@ -148,16 +148,35 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	}
 	fromPIdx := msg.GetFrom().Index
 
-	// switch/case is necessary to store any messages beyond current round
-	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
+	// switch/case is necessary to store any messages beyond current round.
+	// Each branch rejects duplicate messages from the same party-index to
+	// prevent intra-session message replacement.
+	selfIdx := p.PartyID().Index
+
+	isDup := fromPIdx != selfIdx
+
+	dupErr := func() (bool, *tss.Error) {
+		return false, p.WrapError(
+			fmt.Errorf("duplicate %T from party %d", msg.Content(), fromPIdx),
+			msg.GetFrom())
+	}
 	switch msg.Content().(type) {
 	case *SignRound1Message:
+		if isDup && p.temp.signRound1Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound1Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound1Messages[fromPIdx] = msg
 
 	case *SignRound2Message:
+		if isDup && p.temp.signRound2Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound2Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound2Messages[fromPIdx] = msg
 
 	case *SignRound3Message:
+		if isDup && p.temp.signRound3Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound3Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound3Messages[fromPIdx] = msg
 
 	default: // unrecognised message, just ignore!

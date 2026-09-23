@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
+	. "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
 )
 
 func TestCreateVerify(t *testing.T) {
@@ -36,4 +36,20 @@ func TestDeCommit(t *testing.T) {
 	assert.True(t, pass, "must pass")
 
 	assert.NotZero(t, len(secrets), "len(secrets) must be non-zero")
+}
+
+func TestVerifyHandlesMalformedInputs(t *testing.T) {
+	t.Run("nil receiver", func(tt *testing.T) {
+		var cmt *HashCommitDecommit
+		assert.NotPanics(tt, func() {
+			assert.False(tt, cmt.Verify())
+		})
+	})
+	t.Run("nil decommitment element", func(tt *testing.T) {
+		good := NewHashCommitment(rand.Reader, big.NewInt(1), big.NewInt(2))
+		bad := &HashCommitDecommit{C: good.C, D: HashDeCommitment{good.D[0], nil}}
+		assert.NotPanics(tt, func() {
+			assert.False(tt, bad.Verify())
+		})
+	})
 }

@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -72,6 +72,24 @@ func (round *round3) Start() *tss.Error {
 			KGCj := round.temp.KGCs[j]
 			r2msg2 := round.temp.kgRound2Message2s[j].Content().(*KGRound2Message2)
 			KGDj := r2msg2.UnmarshalDeCommitment()
+			// SECURITY (SRC-2026-925): enforce the exact decommitment length.
+			// ECDSA reaches PjVs via PjShare.Verify (which checks len) and the
+			// later Vc[c].Add(PjVs[c]) indexing; guarding here keeps the path
+			// uniform with the EdDSA fix and rejects a short/empty decommitment
+			// (e.g. a 1-element [r]) before any out-of-range indexing.
+			//
+			// It runs BEFORE DeCommit, which hashes every part it is handed, and
+			// nothing upstream bounds how many arrive: ValidateBasic calls
+			// NonEmptyMultiBytes with no expected length and cannot supply one,
+			// because the length is a function of the threshold and the message
+			// layer does not know it. Here the threshold IS known, so this is
+			// both the exact bound and the cheap place for it. The accept set is
+			// unchanged -- D[0] is the commitment randomness, so a payload of
+			// (t+1)*2 is exactly (t+1)*2+1 parts on the wire.
+			if len(KGDj) != (round.Threshold()+1)*2+1 {
+				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
+				return
+			}
 			cmtDeCmt := commitments.HashCommitDecommit{C: KGCj, D: KGDj}
 			ok, flatPolyGs := cmtDeCmt.DeCommit()
 			if !ok || flatPolyGs == nil {
@@ -83,20 +101,53 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{err, nil}
 				return
 			}
+			// SECURITY (SRC-2026-926): ModProof verification is mandatory.
+			// A missing or invalid Paillier ModProof is a hard reject. The
+			// NoProofMod compatibility bypass was removed.
+			//
+			// What it attests is the Blum-integer shape of N — N ≡ 1 mod 4 and a
+			// product of exactly two prime powers — and that is all
+			// ProofMod.Verify(Session, N) (crypto/modproof/proof.go#Verify) can
+			// attest, because N is its only statement input. It is NOT the only
+			// check on this modulus, and it does not establish the absence of
+			// small factors: that is FacProof's statement
+			// (crypto/facproof/proof.go#Verify), verified below in this same
+			// handler and likewise unconditional since the NoProofFac switch was
+			// removed. Naming one check "the only" one is the kind of claim this
+			// file cannot support about a codebase it does not enumerate.
 			modProof, err := r2msg2.UnmarshalModProof()
-			if err != nil && round.Parameters.NoProofMod() {
-				// For old parties, the modProof could be not exist
-				// Not return error for compatibility reason
-				common.Logger.Warningf("modProof not exist:%s", Ps[j])
-			} else {
-				if err != nil {
-					ch <- vssOut{errors.New("modProof verify failed"), nil}
-					return
-				}
-				if ok = modProof.Verify(ContextJ, round.save.PaillierPKs[j].N); !ok {
-					ch <- vssOut{errors.New("modProof verify failed"), nil}
-					return
-				}
+			if err != nil {
+				ch <- vssOut{errors.New("modProof verify failed"), nil}
+				return
+			}
+			if ok = modProof.Verify(ContextJ, round.save.PaillierPKs[j].N); !ok {
+				ch <- vssOut{errors.New("modProof verify failed"), nil}
+				return
+			}
+			// Verify the ModProof for the peer's NTilde. Also mandatory.
+			// SCOPE: the verifier is ProofMod.Verify(Session, N)
+			// (crypto/modproof/proof.go#Verify), whose only statement input is
+			// the modulus, so this attests properties of NTildej alone
+			// (Blum-integer shape). It does NOT attest that NTildej is a
+			// product of safe primes: safe-primality is a property of
+			// NTildej's two prime factors — for each factor f, that (f-1)/2
+			// is prime — and those factors never enter Verify, which receives
+			// only their product. It therefore does not by itself exclude an
+			// NTildej whose multiplicative group has smooth order, and it
+			// constrains neither h1 nor h2, which are not its inputs. For the
+			// peer's ring, <h1> == <h2> is established by the two-directional
+			// DLN proof pair instead — dlnproof.Proof.Verify(Session, h1, h2,
+			// N) (crypto/dlnproof/proof.go#Verify) — verified in
+			// round_2.go#Start, by the VerifyDLNProof1 and VerifyDLNProof2
+			// calls.
+			nTildeModProof, err := r2msg2.UnmarshalNTildeModProof()
+			if err != nil {
+				ch <- vssOut{errors.New("nTildeModProof verify failed"), nil}
+				return
+			}
+			if ok = nTildeModProof.Verify(ContextJ, round.save.NTildej[j]); !ok {
+				ch <- vssOut{errors.New("nTildeModProof verify failed"), nil}
+				return
 			}
 			r2msg1 := round.temp.kgRound2Message1s[j].Content().(*KGRound2Message1)
 			PjShare := vss.Share{
@@ -108,21 +159,19 @@ func (round *round3) Start() *tss.Error {
 				ch <- vssOut{errors.New("vss verify failed"), nil}
 				return
 			}
+			// FacProof verification is mandatory — the legacy "old parties may
+			// not send a facProof" bypass (NoProofFac) was removed alongside
+			// NoProofMod (SRC-2026-926). It is not redundant with the ModProof
+			// verified above: the two cover different properties of the modulus.
 			facProof, err := r2msg1.UnmarshalFacProof()
-			if err != nil && round.NoProofFac() {
-				// For old parties, the facProof could be not exist
-				// Not return error for compatibility reason
-				common.Logger.Warningf("facProof not exist:%s", Ps[j])
-			} else {
-				if err != nil {
-					ch <- vssOut{errors.New("facProof verify failed"), nil}
-					return
-				}
-				if ok = facProof.Verify(ContextJ, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
-					round.save.H1i, round.save.H2i); !ok {
-					ch <- vssOut{errors.New("facProof verify failed"), nil}
-					return
-				}
+			if err != nil {
+				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				return
+			}
+			if ok = facProof.Verify(ContextJ, round.EC(), round.save.PaillierPKs[j].N, round.save.NTildei,
+				round.save.H1i, round.save.H2i); !ok {
+				ch <- vssOut{errors.New("facProof verify failed"), nil}
+				return
 			}
 
 			// (9) handled above

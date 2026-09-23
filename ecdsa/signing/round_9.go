@@ -9,8 +9,11 @@ package signing
 import (
 	"errors"
 
-	"github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	errors2 "github.com/pkg/errors"
+
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round9) Start() *tss.Error {
@@ -33,15 +36,35 @@ func (round *round9) Start() *tss.Error {
 		cj, dj := r7msg.UnmarshalCommitment(), r8msg.UnmarshalDeCommitment()
 		cmt := commitments.HashCommitDecommit{C: cj, D: dj}
 		ok, values := cmt.DeCommit()
-		if !ok && len(values) != 4 {
+		if !ok || len(values) != 4 {
 			return round.WrapError(errors.New("de-commitment for bigVj and bigAj failed"), Pj)
 		}
 		UjX, UjY, TjX, TjY := values[0], values[1], values[2], values[3]
-		UX, UY = round.Params().EC().Add(UX, UY, UjX, UjY)
-		TX, TY = round.Params().EC().Add(TX, TY, TjX, TjY)
+		Uj, err := crypto.NewECPoint(round.Params().EC(), UjX, UjY)
+		if err != nil {
+			return round.WrapError(errors2.Wrapf(err, "NewECPoint(Uj)"), Pj)
+		}
+		Tj, err := crypto.NewECPoint(round.Params().EC(), TjX, TjY)
+		if err != nil {
+			return round.WrapError(errors2.Wrapf(err, "NewECPoint(Tj)"), Pj)
+		}
+		UX, UY = round.Params().EC().Add(UX, UY, Uj.X(), Uj.Y())
+		TX, TY = round.Params().EC().Add(TX, TY, Tj.X(), Tj.Y())
 	}
 	if UX.Cmp(TX) != 0 || UY.Cmp(TY) != 0 {
-		return round.WrapError(errors.New("U doesn't equal T"), round.PartyID())
+		// This check sums a contribution from every party, so it cannot pinpoint
+		// which peer supplied an inconsistent (U_j, T_j) -- but the culprit is
+		// never the reporting party, which merely detected the mismatch.
+		// Attributing it to round.PartyID() charged the detector and left a
+		// misbehaving peer unnamed across repeated attempts.
+		culprits := make([]*tss.PartyID, 0, len(round.Parties().IDs())-1)
+		for j, Pj := range round.Parties().IDs() {
+			if j == round.PartyID().Index {
+				continue
+			}
+			culprits = append(culprits, Pj)
+		}
+		return round.WrapError(errors.New("U doesn't equal T"), culprits...)
 	}
 
 	r9msg := NewSignRound9Message(round.PartyID(), round.temp.si)

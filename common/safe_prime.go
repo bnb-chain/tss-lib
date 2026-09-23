@@ -317,7 +317,22 @@ func runGenPrimeRoutine(
 					q.BitLen() == qBitLen {
 
 					if sgp := (&GermainSafePrime{p: p, q: q}); sgp.Validate() {
-						primeCh <- &GermainSafePrime{p: p, q: q}
+						// Hand the result over under the same cancellation the
+						// loop above selects on. GetRandomSafePrimesConcurrent
+						// takes its numPrimes results, cancels this context and
+						// then waits for this goroutine: a plain send parks here
+						// with no reader left, and the deferred
+						// waitGroup.Wait() never returns, so the caller hangs
+						// with no error and no deadline that can reach it.
+						// Dropping the value costs nothing — the context is done
+						// only once the consumer has what it asked for or has
+						// itself given up, which is the error this function
+						// already documents.
+						select {
+						case primeCh <- &GermainSafePrime{p: p, q: q}:
+						case <-ctx.Done():
+							return
+						}
 					}
 					p, q = new(big.Int), new(big.Int)
 				}

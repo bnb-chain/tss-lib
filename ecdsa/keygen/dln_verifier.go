@@ -10,7 +10,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v4/crypto/dlnproof"
 )
 
 type DlnProofVerifier struct {

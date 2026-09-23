@@ -10,14 +10,20 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	cmts "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	cmts "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 var zero = big.NewInt(0)
+
+// nonPositiveNonceErrText is worded identically at every round-1 site that
+// reads Parameters.SessionNonce().
+const nonPositiveNonceErrText = "session nonce must be positive; call " +
+	"Parameters.SetSessionNonce with a positive value agreed by all parties " +
+	"before starting the round"
 
 // round 1 represents round 1 of the keygen part of the EDDSA TSS spec
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *LocalPartySaveData) tss.Round {
@@ -37,14 +43,20 @@ func (round *round1) Start() *tss.Error {
 	Pi := round.PartyID()
 	i := Pi.Index
 
-	// GG20 session binding: use caller-provided session nonce if available.
-	// For keygen, all parties must agree on the nonce via external coordination
-	// (e.g., coordinator-assigned session ID) since no shared session-unique
-	// value is available within the protocol itself.
+	// Require caller-provided SessionNonce — see ecdsa/keygen/round_1.go
+	// for full rationale.
 	if nonce := round.Params().SessionNonce(); nonce != nil {
+		// See ecdsa/keygen/round_1.go: the SSID hash takes Bytes(), the
+		// magnitude only, so -n and +n collide and 0 is one constant for
+		// every session.
+		if nonce.Sign() <= 0 {
+			return round.WrapError(errors.New(nonPositiveNonceErrText))
+		}
 		round.temp.ssidNonce = new(big.Int).Set(nonce)
 	} else {
-		round.temp.ssidNonce = new(big.Int).SetUint64(0)
+		return round.WrapError(errors.New(
+			"keygen requires a session nonce; call Parameters.SetSessionNonce " +
+				"with a value agreed by all parties before starting the round"))
 	}
 	ssid, err := round.getSSID()
 	if err != nil {

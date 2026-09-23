@@ -16,10 +16,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 // Using a modulus length of 2048 is recommended in the GG18 spec
@@ -121,4 +121,158 @@ func TestProveRangeAliceBypassed(t *testing.T) {
 	// this also means that the homo mul and add needs to be checked with this!
 	fmt.Println("Did verify proof bogus with data from bogus?", ok2)
 	fmt.Println("Did we bypass proof 3?", bypassresult3)
+}
+
+func TestRangeProofAliceRejectsOversizedS2(t *testing.T) {
+	q := tss.EC().Params().N
+	NTilde := big.NewInt(101)
+	q3 := new(big.Int).Mul(q, q)
+	q3.Mul(q3, q)
+	upperS2 := new(big.Int).Mul(q3, NTilde)
+	upperS2.Lsh(upperS2, 1)
+
+	proof := &RangeProofAlice{
+		Z:  big.NewInt(2),
+		U:  big.NewInt(2),
+		W:  big.NewInt(2),
+		S:  big.NewInt(2),
+		S1: new(big.Int).Set(q),
+		S2: upperS2,
+	}
+	pk := &paillier.PublicKey{N: big.NewInt(101)}
+
+	assert.False(t, proof.Verify(Session, tss.EC(), pk, NTilde, big.NewInt(2), big.NewInt(3), big.NewInt(2)))
+}
+
+func TestRangeProofAliceVerifyRejectsMalformedInputs(t *testing.T) {
+	q := tss.EC().Params().N
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, rand.Reader, testPaillierKeyLength)
+	assert.NoError(t, err)
+	m := common.GetRandomPositiveInt(rand.Reader, q)
+	c, r, err := sk.EncryptAndReturnRandomness(rand.Reader, m)
+	assert.NoError(t, err)
+
+	primes := [2]*big.Int{common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits), common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits)}
+	NTilde, h1, h2, err := crypto.GenerateNTildei(rand.Reader, primes)
+	assert.NoError(t, err)
+	proof, err := ProveRangeAlice(Session, tss.EC(), pk, c, NTilde, h1, h2, m, r, rand.Reader)
+	assert.NoError(t, err)
+	assert.True(t, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h2, c), "sanity: honest proof must verify")
+
+	t.Run("prime pk.N", func(tt *testing.T) {
+		primePk := &paillier.PublicKey{N: common.GetRandomPrimeInt(rand.Reader, 2048)}
+		assert.False(tt, proof.Verify(Session, tss.EC(), primePk, NTilde, h1, h2, c))
+	})
+	t.Run("prime NTilde", func(tt *testing.T) {
+		primeNTilde := common.GetRandomPrimeInt(rand.Reader, 2048)
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, primeNTilde, h1, h2, c))
+	})
+	t.Run("small NTilde", func(tt *testing.T) {
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, big.NewInt(101), h1, h2, c))
+	})
+	t.Run("h1 == h2", func(tt *testing.T) {
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h1, c))
+	})
+	t.Run("h1 == 1", func(tt *testing.T) {
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, big.NewInt(1), h2, c))
+	})
+	t.Run("c == 0", func(tt *testing.T) {
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h2, big.NewInt(0)))
+	})
+	t.Run("c >= N^2 (non-canonical)", func(tt *testing.T) {
+		nonCanonical := new(big.Int).Add(pk.NSquare(), c)
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h2, nonCanonical))
+	})
+	t.Run("S shares factor with pk.N", func(tt *testing.T) {
+		bad := *proof
+		// sk.P is a prime factor of pk.N, so gcd(sk.P, pk.N) = sk.P > 1
+		// while sk.P < pk.N keeps IsInInterval(S, pk.N) happy.
+		bad.S = new(big.Int).Set(sk.P)
+		assert.False(tt, bad.Verify(Session, tss.EC(), pk, NTilde, h1, h2, c))
+	})
+}
+
+func TestProofBobWCVerifyRejectsMalformedInputs(t *testing.T) {
+	q := tss.EC().Params().N
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	sk, pk, err := paillier.GenerateKeyPair(ctx, rand.Reader, testPaillierKeyLength)
+	assert.NoError(t, err)
+
+	primes := [2]*big.Int{common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits), common.GetRandomPrimeInt(rand.Reader, testSafePrimeBits)}
+	NTilde, h1, h2, err := crypto.GenerateNTildei(rand.Reader, primes)
+	assert.NoError(t, err)
+
+	// Alice's secret a (cA = Enc(a) using Alice's key), Bob's secret b. WC
+	// proof attests cB = cA^b · Enc(betaPrm) with B = g^b, where Bob's
+	// witness is (b, betaPrm, cRand).
+	a := common.GetRandomPositiveInt(rand.Reader, q)
+	b := common.GetRandomPositiveInt(rand.Reader, q)
+	cA, _, err := sk.EncryptAndReturnRandomness(rand.Reader, a)
+	assert.NoError(t, err)
+	q5 := new(big.Int).Mul(q, q)
+	q5 = new(big.Int).Mul(q5, q5)
+	q5 = new(big.Int).Mul(q5, q)
+	betaPrm := common.GetRandomPositiveInt(rand.Reader, q5)
+	cBeta, cRand, err := pk.EncryptAndReturnRandomness(rand.Reader, betaPrm)
+	assert.NoError(t, err)
+	cB, err := pk.HomoMult(b, cA)
+	assert.NoError(t, err)
+	cB, err = pk.HomoAdd(cB, cBeta)
+	assert.NoError(t, err)
+	B := crypto.ScalarBaseMult(tss.EC(), b)
+	proof, err := ProveBobWC(Session, tss.EC(), pk, NTilde, h1, h2, cA, cB, b, betaPrm, cRand, B, rand.Reader)
+	assert.NoError(t, err)
+	assert.True(t, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h2, cA, cB, B), "sanity: honest WC proof must verify")
+
+	// Below the variables c1, c2, X mirror Alice's view (cA, cB, B).
+	c1, c2, X := cA, cB, B
+
+	t.Run("prime pk.N", func(tt *testing.T) {
+		primePk := &paillier.PublicKey{N: common.GetRandomPrimeInt(rand.Reader, 2048)}
+		assert.False(tt, proof.Verify(Session, tss.EC(), primePk, NTilde, h1, h2, c1, c2, X))
+	})
+	t.Run("prime NTilde", func(tt *testing.T) {
+		primeNTilde := common.GetRandomPrimeInt(rand.Reader, 2048)
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, primeNTilde, h1, h2, c1, c2, X))
+	})
+	t.Run("h1 == h2", func(tt *testing.T) {
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h1, c1, c2, X))
+	})
+	t.Run("c1 == 0", func(tt *testing.T) {
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h2, big.NewInt(0), c2, X))
+	})
+	t.Run("c2 >= N^2 (non-canonical)", func(tt *testing.T) {
+		nonCanonical := new(big.Int).Add(pk.NSquare(), c2)
+		assert.False(tt, proof.Verify(Session, tss.EC(), pk, NTilde, h1, h2, c1, nonCanonical, X))
+	})
+}
+
+func TestProofBobRejectsOversizedS2T2(t *testing.T) {
+	q := tss.EC().Params().N
+	NTilde := big.NewInt(101)
+	q3 := new(big.Int).Mul(q, q)
+	q3.Mul(q3, q)
+	upperS2T2 := new(big.Int).Mul(q3, NTilde)
+	upperS2T2.Lsh(upperS2T2, 1)
+
+	proof := &ProofBob{
+		Z:    big.NewInt(2),
+		ZPrm: big.NewInt(2),
+		T:    big.NewInt(2),
+		V:    big.NewInt(2),
+		W:    big.NewInt(2),
+		S:    big.NewInt(2),
+		S1:   new(big.Int).Set(q),
+		S2:   upperS2T2,
+		T1:   new(big.Int).Set(q),
+		T2:   new(big.Int).Set(q),
+	}
+	pk := &paillier.PublicKey{N: big.NewInt(101)}
+
+	assert.False(t, proof.Verify(Session, tss.EC(), pk, NTilde, big.NewInt(2), big.NewInt(3), big.NewInt(2), big.NewInt(3)))
 }

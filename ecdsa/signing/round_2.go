@@ -13,8 +13,8 @@ import (
 
 	errorspkg "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v3/crypto/mta"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/crypto/mta"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round2) Start() *tss.Error {
@@ -32,6 +32,29 @@ func (round *round2) Start() *tss.Error {
 	wg := sync.WaitGroup{}
 	wg.Add((len(round.Parties().IDs()) - 1) * 2)
 	ContextI := append(round.temp.ssid, new(big.Int).SetUint64(uint64(i)).Bytes()...)
+	// attributeBobMidErr distinguishes peer-supplied proof failures (Pj's
+	// fault — Pj is the culprit) from internal pkA / arithmetic / local
+	// state failures (which may be caused by self's gamma/w inputs or by
+	// Pj's malformed pkA; we credit Pj as the culprit because the peer's
+	// pkA is the most likely source of HomoMult / HomoAdd errors). The
+	// distinction is in diagnostic clarity, not blame routing — an honest
+	// local party should not be blamed for peer-supplied data.
+	attributeBobMidErr := func(err error, Pj *tss.PartyID) *tss.Error {
+		// Bob's own proof is built under Pj's ring (NTildej[j] / H1j[j] /
+		// H2j[j] are passed as NTildeA / h1A / h2A below), so when that ring is
+		// what makes a correctly computed proof unacceptable, Pj is the source
+		// even though this party is the one that could not produce it.
+		if errors.Is(err, mta.ErrCounterpartyRingUnusable) {
+			return round.WrapError(errorspkg.Wrap(err, "peer ring rejected this party's own ProofBob"), Pj)
+		}
+		if errors.Is(err, mta.ErrRangeProofVerify) {
+			return round.WrapError(errorspkg.Wrap(err, "peer RangeProofAlice rejected"), Pj)
+		}
+		// pkA / arithmetic failures: still attribute to Pj because pkA is
+		// peer-supplied, but tag with a different message for diagnostics.
+		return round.WrapError(errorspkg.Wrap(err, "BobMid arithmetic failure"), Pj)
+	}
+
 	for j, Pj := range round.Parties().IDs() {
 		if j == i {
 			continue
@@ -65,7 +88,7 @@ func (round *round2) Start() *tss.Error {
 			round.temp.c1jis[j] = c1ji
 			round.temp.pi1jis[j] = pi1ji
 			if err != nil {
-				errChs <- round.WrapError(err, Pj)
+				errChs <- attributeBobMidErr(err, Pj)
 			}
 		}(j, Pj)
 		// Bob_mid_wc
@@ -97,7 +120,7 @@ func (round *round2) Start() *tss.Error {
 			round.temp.c2jis[j] = c2ji
 			round.temp.pi2jis[j] = pi2ji
 			if err != nil {
-				errChs <- round.WrapError(err, Pj)
+				errChs <- attributeBobMidErr(err, Pj)
 			}
 		}(j, Pj)
 	}

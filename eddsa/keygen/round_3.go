@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round3) Start() *tss.Error {
@@ -73,6 +73,25 @@ func (round *round3) Start() *tss.Error {
 			KGCj := round.temp.KGCs[j]
 			r2msg2 := round.temp.kgRound2Message2s[j].Content().(*KGRound2Message2)
 			KGDj := r2msg2.UnmarshalDeCommitment()
+			// SECURITY (SRC-2026-925): require exactly (threshold+1) VSS
+			// commitment points = (threshold+1)*2 flat coordinates. A 1-element
+			// decommitment [r] passes Verify (DeCommit returns an empty non-nil
+			// slice) and previously reached `PjVs[0]` below, panicking the
+			// keygen goroutine ("index out of range [0] with length 0") with no
+			// fault attribution and no recover().
+			//
+			// It runs BEFORE DeCommit, which hashes every part it is handed, and
+			// nothing upstream bounds how many arrive: ValidateBasic calls
+			// NonEmptyMultiBytes with no expected length and cannot supply one,
+			// because the length is a function of the threshold and the message
+			// layer does not know it. Here the threshold IS known, so this is
+			// both the exact bound and the cheap place for it. The accept set is
+			// unchanged -- D[0] is the commitment randomness, so a payload of
+			// (t+1)*2 is exactly (t+1)*2+1 parts on the wire.
+			if len(KGDj) != (round.Threshold()+1)*2+1 {
+				ch <- vssOut{errors.New("de-commitment verify failed"), nil}
+				return
+			}
 			cmtDeCmt := commitments.HashCommitDecommit{C: KGCj, D: KGDj}
 			ok, flatPolyGs := cmtDeCmt.DeCommit()
 			if !ok || flatPolyGs == nil {

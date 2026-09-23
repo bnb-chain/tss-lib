@@ -10,10 +10,10 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -156,4 +156,23 @@ func (round *base) getSSID() ([]byte, error) {
 	ssid := common.SHA512_256i(ssidList...).Bytes()
 
 	return ssid, nil
+}
+
+// sessionNonceHash is what the old committee declares and the new committee
+// checks. It is a hash rather than the nonce itself so that the value on the
+// wire does not hand a passive observer the identifier of a session it is not
+// in; every party that IS in the session already holds the nonce and can
+// recompute this.
+//
+// SCOPE. This makes a transcript non-portable between sessions for a peer that
+// cannot forge messages. It does NOT authenticate the sender: nothing in this
+// library signs or MACs a message, so an adversary who can rewrite arbitrary
+// bytes on the wire can substitute the expected hash and splice the rest of a
+// captured transcript. Transport authentication remains the host's job, exactly
+// as it is for the rest of the protocol.
+func sessionNonceHash(nonce *big.Int) []byte {
+	if nonce == nil {
+		return nil
+	}
+	return common.SHA512_256i(nonce).Bytes()
 }

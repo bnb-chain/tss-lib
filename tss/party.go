@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
+	"github.com/bnb-chain/tss-lib/v4/common"
 )
 
 type Party interface {
@@ -34,6 +34,8 @@ type Party interface {
 	setRound(Round) *Error
 	round() Round
 	advance()
+	abort(*Error) *Error
+	abortedWith() *Error
 	lock()
 	unlock()
 }
@@ -42,6 +44,19 @@ type BaseParty struct {
 	mtx        sync.Mutex
 	rnd        Round
 	FirstRound Round
+	// aborted holds the first error that ended this party's participation, or
+	// nil while it is still running. Guarded by mtx.
+	//
+	// Without it a party that has aborted keeps advancing. BaseUpdate stores
+	// each message and re-runs the round regardless of what happened last time,
+	// so a message pump that does not stop on the first error walks the party
+	// into rounds whose predecessor never finished, reading the slots that
+	// predecessor was supposed to fill. Those reads are not guarded -- they are
+	// ordinary indexing of pre-allocated slices holding nil -- so the party
+	// faults instead of reporting, with no error, no round number and no
+	// culprit. The abort itself was reported correctly one message earlier; what
+	// is lost is everything after it.
+	aborted *Error
 }
 
 func (p *BaseParty) Running() bool {
@@ -105,6 +120,23 @@ func (p *BaseParty) advance() {
 	p.rnd = p.rnd.NextRound()
 }
 
+// abort latches err as the reason this party stopped and returns it unchanged,
+// so call sites can wrap a return in it without restructuring. Only the FIRST
+// error is kept: it is the one that describes an actual protocol fault, while
+// anything after it describes a party that should not have been running.
+// Callers must hold the lock.
+func (p *BaseParty) abort(err *Error) *Error {
+	if err != nil && p.aborted == nil {
+		p.aborted = err
+	}
+	return err
+}
+
+// abortedWith returns the latched error, or nil. Callers must hold the lock.
+func (p *BaseParty) abortedWith() *Error {
+	return p.aborted
+}
+
 func (p *BaseParty) lock() {
 	p.mtx.Lock()
 }
@@ -133,14 +165,42 @@ func BaseStart(p Party, task string, prepare ...func(Round) *Error) *Error {
 	}
 	if len(prepare) == 1 {
 		if err := prepare[0](round); err != nil {
-			return err
+			return p.abort(err)
 		}
 	}
 	common.Logger.Infof("party %s: %s round %d starting", p.round().Params().PartyID(), task, 1)
 	defer func() {
 		common.Logger.Debugf("party %s: %s round %d finished", p.round().Params().PartyID(), task, 1)
 	}()
-	return p.round().Start()
+	return p.abort(p.round().Start())
+}
+
+// IsSameMessage reports whether two ParsedMessage values carry identical
+// content. Used by per-protocol StoreMessage implementations to distinguish
+// legitimate at-least-once redelivery (same content, idempotent) from
+// adversarial intra-session replacement (different content, must be
+// rejected). Returns true if the wire-encoded bytes match exactly.
+func IsSameMessage(a, b ParsedMessage) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	if a == b {
+		return true
+	}
+	aBz, _, errA := a.WireBytes()
+	bBz, _, errB := b.WireBytes()
+	if errA != nil || errB != nil {
+		return false
+	}
+	if len(aBz) != len(bBz) {
+		return false
+	}
+	for i := range aBz {
+		if aBz[i] != bBz[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // an implementation of Update that is shared across the different types of parties (keygen, signing, dynamic groups)
@@ -155,6 +215,17 @@ func BaseUpdate(p Party, msg ParsedMessage, task string) (ok bool, err *Error) {
 		return ok, err
 	}
 	p.lock() // data is written to P state below
+	// Refuse before storing anything. A party that has already reported an abort
+	// is not a party that can be caught up by more messages; carrying on reads
+	// the slots the failed round never filled. Reported with NO culprits: the
+	// abort named whoever was responsible once already, and repeating that name
+	// on every message the pump happens to deliver afterwards would let the
+	// delivery rate decide how guilty a peer looks to a host that counts them.
+	if aborted := p.abortedWith(); aborted != nil {
+		return r(false, p.WrapError(fmt.Errorf(
+			"this party aborted in round %d and cannot process further messages: %s",
+			aborted.Round(), aborted.Cause())))
+	}
 	common.Logger.Debugf("party %s received message: %s", p.PartyID(), msg.String())
 	if p.round() != nil {
 		common.Logger.Debugf("party %s round %d update: %s", p.PartyID(), p.round().RoundNumber(), msg.String())
@@ -164,13 +235,18 @@ func BaseUpdate(p Party, msg ParsedMessage, task string) (ok bool, err *Error) {
 	}
 	if p.round() != nil {
 		common.Logger.Debugf("party %s: %s round %d update", p.round().Params().PartyID(), task, p.round().RoundNumber())
+		// These two are latched, the rejections above are not. An error out of
+		// Update or Start means a round touched this party's state and did not
+		// finish it; a message that failed ValidateMessage or StoreMessage was
+		// rejected before anything was written, and one bad message from one
+		// peer must not end the party.
 		if _, err := p.round().Update(); err != nil {
-			return r(false, err)
+			return r(false, p.abort(err))
 		}
 		if p.round().CanProceed() {
 			if p.advance(); p.round() != nil {
 				if err := p.round().Start(); err != nil {
-					return r(false, err)
+					return r(false, p.abort(err))
 				}
 				rndNum := p.round().RoundNumber()
 				common.Logger.Infof("party %s: %s round %d started", p.round().Params().PartyID(), task, rndNum)

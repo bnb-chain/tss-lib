@@ -7,7 +7,7 @@
 package test
 
 import (
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func SharedPartyUpdater(party tss.Party, msg tss.Message, errCh chan<- *tss.Error) {

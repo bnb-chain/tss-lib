@@ -12,9 +12,9 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto/schnorr"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto/schnorr"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round4) Start() *tss.Error {
@@ -28,15 +28,37 @@ func (round *round4) Start() *tss.Error {
 	theta := *round.temp.theta
 	thetaInverse := &theta
 
-	modN := common.ModInt(round.Params().EC().Params().N)
+	q := round.Params().EC().Params().N
+	modN := common.ModInt(q)
 
-	for j := range round.Parties().IDs() {
+	// SECURITY: reject a non-canonical peer theta rather than
+	// normalising it. An honest theta leaves round 3 through modN.Add and is
+	// therefore always in [0, q), so neither test below can reject one. A peer
+	// that sends more bytes than the order needs, or a value at or above the
+	// order, is sending something no honest run produces: the length test bounds
+	// what SetBytes is asked to materialise, and the range test stops the silent
+	// reduction that would otherwise accept two distinct encodings of one scalar.
+	//
+	// The bound is the curve order, so it cannot live in ValidateBasic: that is a
+	// no-argument method on the message and the curve is supplied by the caller.
+	// The EdDSA side caps its own scalar field with a constant only because that
+	// protocol is single-curve. This is the same layering constraint already
+	// recorded for the round-2 de-commitment count in key generation.
+	qBytes := (q.BitLen() + 7) / 8
+	for j, Pj := range round.Parties().IDs() {
 		if j == round.PartyID().Index {
 			continue
 		}
 		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
 		theltaJ := r3msg.GetTheta()
-		thetaInverse = modN.Add(thetaInverse, new(big.Int).SetBytes(theltaJ))
+		if len(theltaJ) > qBytes {
+			return round.WrapError(errors.New("theta is longer than the curve order"), Pj)
+		}
+		theltaJInt := new(big.Int).SetBytes(theltaJ)
+		if theltaJInt.Cmp(q) >= 0 {
+			return round.WrapError(errors.New("theta is not a canonical scalar"), Pj)
+		}
+		thetaInverse = modN.Add(thetaInverse, theltaJInt)
 	}
 
 	// compute the multiplicative inverse thelta mod q
@@ -47,6 +69,9 @@ func (round *round4) Start() *tss.Error {
 		thetaInverse = ctModN.ModInverseCT(thetaInverse)
 	} else {
 		thetaInverse = modN.ModInverse(thetaInverse)
+	}
+	if thetaInverse == nil {
+		return round.WrapError(errors.New("theta inverse is nil"))
 	}
 	i := round.PartyID().Index
 	ContextI := append(round.temp.ssid, new(big.Int).SetUint64(uint64(i)).Bytes()...)

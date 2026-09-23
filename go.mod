@@ -1,4 +1,4 @@
-module github.com/bnb-chain/tss-lib/v3
+module github.com/bnb-chain/tss-lib/v4
 
 go 1.23
 

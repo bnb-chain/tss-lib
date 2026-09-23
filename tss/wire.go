@@ -14,6 +14,16 @@ import (
 
 // Used externally to update a LocalParty with a valid ParsedMessage
 func ParseWireMessage(wireBytes []byte, from *PartyID, isBroadcast bool) (ParsedMessage, error) {
+	// `from` is supplied by the caller, not decoded from `wireBytes`. Report a
+	// diagnosable error naming the absent quantity instead of dereferencing it:
+	// the first read below is a promoted-field read that would fault on either
+	// of the two malformed shapes.
+	if from == nil {
+		return nil, errors.New("ParseWireMessage: `from` is nil: the caller supplied no sender *PartyID")
+	}
+	if from.MessageWrapper_PartyID == nil {
+		return nil, errors.New("ParseWireMessage: `from.MessageWrapper_PartyID` is nil: the sender *PartyID carries no id, moniker or key")
+	}
 	wire := new(MessageWrapper)
 	wire.Message = new(anypb.Any)
 	wire.From = from.MessageWrapper_PartyID

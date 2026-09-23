@@ -26,8 +26,9 @@ import (
 )
 
 // constantTimeEnabled controls whether constant-time operations are used.
-// Default is false (disabled) for performance. Enable for high-security environments.
-var constantTimeEnabled int32 = 0
+// Default is true because private-key operations must not depend on caller
+// opt-in for timing side-channel protection.
+var constantTimeEnabled int32 = 1
 
 // EnableConstantTimeOps enables constant-time cryptographic operations.
 // Call this at application startup if timing side-channel protection is required.
@@ -35,7 +36,10 @@ func EnableConstantTimeOps() {
 	atomic.StoreInt32(&constantTimeEnabled, 1)
 }
 
-// DisableConstantTimeOps disables constant-time operations (default).
+// DisableConstantTimeOps disables constant-time operations. This is NOT the
+// default: constantTimeEnabled is initialised to 1 above, and has been since
+// the commit that flipped it. Call this only to trade side-channel resistance
+// for throughput, knowingly.
 func DisableConstantTimeOps() {
 	atomic.StoreInt32(&constantTimeEnabled, 0)
 }
@@ -51,11 +55,11 @@ func IsConstantTimeEnabled() bool {
 // 2. The same code used internally by crypto/rsa and crypto/ecdsa
 // 3. Highly optimized with architecture-specific assembly
 type CTModInt struct {
-	mod         *bigmod.Modulus
-	modBigInt   *big.Int
+	mod        *bigmod.Modulus
+	modBigInt  *big.Int
 	inverseExp []byte // Exponent for modular inverse: p-2 (prime) or phi(n)-1 (composite)
-	byteLen     int
-	bytePool    sync.Pool
+	byteLen    int
+	bytePool   sync.Pool
 }
 
 // NewCTModInt creates a constant-time modular context using bigmod.
@@ -76,7 +80,7 @@ func NewCTModInt(mod *big.Int) *CTModInt {
 		mod:        m,
 		modBigInt:  new(big.Int).Set(mod),
 		inverseExp: modMinusTwo.Bytes(),
-		byteLen:     byteLen,
+		byteLen:    byteLen,
 		bytePool: sync.Pool{
 			New: func() interface{} {
 				return make([]byte, byteLen)
@@ -206,10 +210,10 @@ func NewCTModIntWithPhi(mod, phiN *big.Int) *CTModInt {
 
 	byteLen := len(modBytes)
 	return &CTModInt{
-		mod:         m,
-		modBigInt:   new(big.Int).Set(mod),
+		mod:        m,
+		modBigInt:  new(big.Int).Set(mod),
 		inverseExp: phiMinusOne.Bytes(), // Use phi(n)-1 instead of n-2
-		byteLen:     byteLen,
+		byteLen:    byteLen,
 		bytePool: sync.Pool{
 			New: func() interface{} {
 				return make([]byte, byteLen)

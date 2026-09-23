@@ -83,12 +83,28 @@ func NewMessageWrapper(routing MessageRouting, content MessageContent) *MessageW
 	// marshal the content to the ProtoBuf Any type
 	any, _ := anypb.New(content)
 	// convert given PartyIDs to the wire format
+	// `routing.To != nil` guards the CONTAINER; the elements reached through it
+	// are nil-able too, and the read below dereferences each one. Test the
+	// element, not just the slice.
+	//
+	// This panics rather than skipping or emitting a nil entry. Skipping would
+	// silently shrink the recipient list, and a nil entry would produce a
+	// message that the receiver is guaranteed to reject with no indication of
+	// why -- both turn a caller's malformed routing into a hard-to-trace
+	// protocol fault. There is no error channel to use: this constructor returns
+	// only *MessageWrapper.
 	var to []*MessageWrapper_PartyID
 	if routing.To != nil {
 		to = make([]*MessageWrapper_PartyID, len(routing.To))
 		for i := range routing.To {
+			if routing.To[i] == nil || routing.To[i].MessageWrapper_PartyID == nil {
+				panic(fmt.Errorf("NewMessageWrapper: routing.To[%d] is a nil PartyID or has a nil embedded PartyID", i))
+			}
 			to[i] = routing.To[i].MessageWrapper_PartyID
 		}
+	}
+	if routing.From == nil || routing.From.MessageWrapper_PartyID == nil {
+		panic(fmt.Errorf("NewMessageWrapper: routing.From is a nil PartyID or has a nil embedded PartyID"))
 	}
 	return &MessageWrapper{
 		IsBroadcast:             routing.IsBroadcast,

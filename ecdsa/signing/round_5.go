@@ -12,10 +12,10 @@ import (
 
 	errors2 "github.com/pkg/errors"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 func (round *round5) Start() *tss.Error {
@@ -59,6 +59,11 @@ func (round *round5) Start() *tss.Error {
 	}
 
 	R = R.ScalarMult(round.temp.thetaInverse)
+	// SECURITY (SRC-2026-641): ScalarMult returns nil on a degenerate
+	// (identity / off-curve) result; guard before dereferencing R.X() below.
+	if R == nil {
+		return round.WrapError(errors.New("R.ScalarMult(thetaInverse) produced a nil point"))
+	}
 	N := round.Params().EC().Params().N
 	modN := common.ModInt(N)
 	rx := R.X()

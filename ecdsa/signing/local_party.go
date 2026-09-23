@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/mta"
-	"github.com/bnb-chain/tss-lib/v3/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/mta"
+	"github.com/bnb-chain/tss-lib/v4/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 // Implements Party
@@ -208,28 +208,70 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	}
 	fromPIdx := msg.GetFrom().Index
 
-	// switch/case is necessary to store any messages beyond current round
-	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
+	// switch/case is necessary to store any messages beyond current round.
+	// Each branch rejects duplicate messages from a peer (fromPIdx != self)
+	// to prevent intra-session message replacement (e.g. an attacker
+	// adaptively replacing their commitment after seeing other parties').
+	// Self-delivered echoes are tolerated because each round pre-populates
+	// its own outgoing slot in `temp.<round>s[self.Index]` before
+	// broadcasting.
+	selfIdx := p.PartyID().Index
+	isDup := fromPIdx != selfIdx
+	dupErr := func() (bool, *tss.Error) {
+		return false, p.WrapError(
+			fmt.Errorf("duplicate %T from party %d", msg.Content(), fromPIdx),
+			msg.GetFrom())
+	}
 	switch msg.Content().(type) {
 	case *SignRound1Message1:
+		if isDup && p.temp.signRound1Message1s[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound1Message1s[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound1Message1s[fromPIdx] = msg
 	case *SignRound1Message2:
+		if isDup && p.temp.signRound1Message2s[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound1Message2s[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound1Message2s[fromPIdx] = msg
 	case *SignRound2Message:
+		if isDup && p.temp.signRound2Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound2Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound2Messages[fromPIdx] = msg
 	case *SignRound3Message:
+		if isDup && p.temp.signRound3Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound3Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound3Messages[fromPIdx] = msg
 	case *SignRound4Message:
+		if isDup && p.temp.signRound4Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound4Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound4Messages[fromPIdx] = msg
 	case *SignRound5Message:
+		if isDup && p.temp.signRound5Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound5Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound5Messages[fromPIdx] = msg
 	case *SignRound6Message:
+		if isDup && p.temp.signRound6Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound6Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound6Messages[fromPIdx] = msg
 	case *SignRound7Message:
+		if isDup && p.temp.signRound7Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound7Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound7Messages[fromPIdx] = msg
 	case *SignRound8Message:
+		if isDup && p.temp.signRound8Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound8Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound8Messages[fromPIdx] = msg
 	case *SignRound9Message:
+		if isDup && p.temp.signRound9Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.signRound9Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.signRound9Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

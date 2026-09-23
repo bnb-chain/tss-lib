@@ -7,8 +7,13 @@
 package resharing
 
 import (
-	"github.com/bnb-chain/tss-lib/v3/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"errors"
+	"math/big"
+
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/eddsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -132,4 +137,47 @@ func (round *base) allNewOK() {
 	for j := range round.newOK {
 		round.newOK[j] = true
 	}
+}
+
+// getSSID derives this execution's session id from local params. Only the OLD
+// committee can call it: the pre-image is the old committee's save data (its
+// BigXj and its roster), which a new-committee party does not hold. That is
+// precisely why DGRound1Message also carries a session_nonce_hash -- see
+// sessionNonceHash below and round_2_new_step_1.go's oldSSIDUnanimous.
+//
+// The shape mirrors eddsa/keygen's getSSID (same curve fields, no B: the
+// Edwards parameters expose no B) plus the old committee's BigXj, so two
+// re-shares of two different keys never derive the same ssid.
+func (round *base) getSSID() ([]byte, error) {
+	ssidList := []*big.Int{round.EC().Params().P, round.EC().Params().N, round.EC().Params().Gx, round.EC().Params().Gy} // ec curve
+	ssidList = append(ssidList, round.Parties().IDs().Keys()...)                                                         // parties
+	BigXjList, err := crypto.FlattenECPoints(round.input.BigXj)
+	if err != nil {
+		return nil, round.WrapError(errors.New("read BigXj failed"), round.PartyID())
+	}
+	ssidList = append(ssidList, BigXjList...)                    // BigXj
+	ssidList = append(ssidList, big.NewInt(int64(round.number))) // round number
+	ssidList = append(ssidList, round.temp.ssidNonce)
+	ssid := common.SHA512_256i(ssidList...).Bytes()
+
+	return ssid, nil
+}
+
+// sessionNonceHash is what the old committee declares and the new committee
+// checks. It is a hash rather than the nonce itself so that the value on the
+// wire does not hand a passive observer the identifier of a session it is not
+// in; every party that IS in the session already holds the nonce and can
+// recompute this.
+//
+// SCOPE. This makes a transcript non-portable between sessions for a peer that
+// cannot forge messages. It does NOT authenticate the sender: nothing in this
+// library signs or MACs a message, so an adversary who can rewrite arbitrary
+// bytes on the wire can substitute the expected hash and splice the rest of a
+// captured transcript. Transport authentication remains the host's job, exactly
+// as it is for the rest of the protocol.
+func sessionNonceHash(nonce *big.Int) []byte {
+	if nonce == nil {
+		return nil
+	}
+	return common.SHA512_256i(nonce).Bytes()
 }

@@ -16,11 +16,23 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	cmts "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	cmts "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
 )
 
-const Iterations = 128
+const (
+	Iterations = 128
+	// verifyMinModulusBitLen matches the keygen NTilde bit length so the
+	// verifier rejects undersized moduli before running modular operations.
+	verifyMinModulusBitLen = 2048
+	// fsDomainTag is the per-proof-type Fiat-Shamir domain separator
+	// (see facproof.fsSession docstring for rationale).
+	fsDomainTag = "tss-lib.v4.dlnproof"
+)
+
+func fsSession(Session []byte) []byte {
+	return append([]byte(fsDomainTag+"|"), Session...)
+}
 
 type (
 	Proof struct {
@@ -52,7 +64,7 @@ func NewDLNProof(Session []byte, h1, h2, x, p, q, N *big.Int, rand io.Reader) *P
 	}
 
 	msg := append([]*big.Int{h1, h2, N}, alpha[:]...)
-	c := common.SHA512_256i_TAGGED(Session, msg...)
+	c := common.SHA512_256i_TAGGED(fsSession(Session), msg...)
 	t := [Iterations]*big.Int{}
 	cIBI := new(big.Int)
 
@@ -79,40 +91,37 @@ func (p *Proof) Verify(Session []byte, h1, h2, N *big.Int) bool {
 	if p == nil {
 		return false
 	}
-	if N.Sign() != 1 {
+	// N must be a plausible safe-prime-product NTilde before any modular op.
+	if !common.IsUsableUnknownOrderModulus(N, verifyMinModulusBitLen) {
 		return false
 	}
 	modN := common.ModInt(N)
-	h1_ := new(big.Int).Mod(h1, N)
-	if h1_.Cmp(one) != 1 || h1_.Cmp(N) != -1 {
+	// h1, h2 must be canonical generator-shaped elements (1 < h < N and a
+	// unit). The earlier code allowed non-canonical h ≡ h' mod N inputs;
+	// require the raw bytes to already be in canonical range so any consumer
+	// that hashes the wire bytes outside Verify sees the same value.
+	if !common.IsCanonicalGenerator(N, h1) || !common.IsCanonicalGenerator(N, h2) {
 		return false
 	}
-	h2_ := new(big.Int).Mod(h2, N)
-	if h2_.Cmp(one) != 1 || h2_.Cmp(N) != -1 {
-		return false
-	}
-	if h1_.Cmp(h2_) == 0 {
+	if h1.Cmp(h2) == 0 {
 		return false
 	}
 	for i := range p.T {
-		a := new(big.Int).Mod(p.T[i], N)
-		if a.Cmp(one) != 1 || a.Cmp(N) != -1 {
+		if p.T[i] == nil || p.T[i].Cmp(one) != 1 || p.T[i].Cmp(N) != -1 {
 			return false
 		}
 	}
 	for i := range p.Alpha {
-		a := new(big.Int).Mod(p.Alpha[i], N)
-		if a.Cmp(one) != 1 || a.Cmp(N) != -1 {
+		// Alpha[i] = h1^a[i] mod N is also in Z_N* and != 1 for honest
+		// provers; same canonical-generator shape applies.
+		if !common.IsCanonicalGenerator(N, p.Alpha[i]) {
 			return false
 		}
 	}
 	msg := append([]*big.Int{h1, h2, N}, p.Alpha[:]...)
-	c := common.SHA512_256i_TAGGED(Session, msg...)
+	c := common.SHA512_256i_TAGGED(fsSession(Session), msg...)
 	cIBI := new(big.Int)
 	for i := 0; i < Iterations; i++ {
-		if p.Alpha[i] == nil || p.T[i] == nil {
-			return false
-		}
 		cI := c.Bit(i)
 		cIBI = cIBI.SetInt64(int64(cI))
 		h1ExpTi := modN.Exp(h1, p.T[i])

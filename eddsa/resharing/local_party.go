@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	cmt "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/eddsa/keygen"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	cmt "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/eddsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 // Implements Party
@@ -56,13 +56,18 @@ type (
 		newXi     *big.Int
 		newKs     []*big.Int
 		newBigXjs []*crypto.ECPoint // Xj to save in round 5
+
+		ssid      []byte
+		ssidNonce *big.Int
 	}
 )
 
 // Exported, used in `tss` client
-// The `key` is read from and/or written to depending on whether this party is part of the old or the new committee.
-// You may optionally generate and set the LocalPreParams if you would like to use pre-generated safe primes and Paillier secret.
-// (This is similar to providing the `optionalPreParams` to `keygen.LocalParty`).
+// The `key` is READ FROM and never written to. An old-committee party works on
+// a deep copy of `key.LocalSecrets`, so nothing this library does reaches the
+// caller's own save data.
+// This library does not erase your pre-re-share secret -- and could not time it
+// if it did. See doc/maintenance-invariants.md section 7.
 func NewLocalParty(
 	params *tss.ReSharingParameters,
 	key keygen.LocalPartySaveData,
@@ -117,17 +122,49 @@ func (p *LocalParty) ValidateMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	if ok, err := p.BaseParty.ValidateMessage(msg); !ok || err != nil {
 		return ok, err
 	}
-	// check that the message's "from index" will fit into the array
-	var maxFromIdx int
+	// Resolve which committee this message type is sourced from, then check the
+	// sender against THAT committee twice: the array bound, and identity-to-slot.
+	//
+	// The bound alone is not an admission check. The old and new committees have
+	// INDEPENDENT index spaces, so "old slot j" and "new slot j" are different
+	// parties; an index that merely fits the array says nothing about whether the
+	// sender belongs to the committee the message type implies. Without the second
+	// test an old-committee-only party can, using its own PartyID, occupy the
+	// new-committee slot at its own old index (SRC-2026-1721).
+	//
+	// The second test compares against roster[Index] rather than scanning the
+	// whole roster, because StoreMessage below files the message by that same
+	// Index. Mere membership ("the sender is somewhere on this roster") would
+	// still let a message be filed into a slot belonging to a different member.
+	// Comparison is by KEY: PartyID.Index is assigned per sorted roster and is not
+	// carried on the wire, so it is the receiver's own view, while Key is the
+	// sender's identity. StoreMessage's self-echo dedup uses KeyInt() for the same
+	// reason.
+	//
+	// Ordering is load-bearing. BaseParty.ValidateMessage above has already
+	// established From != nil and Index >= 0; the bound check below establishes
+	// Index <= len(roster)-1. Only then is roster[Index] safe to evaluate. An
+	// empty roster yields maxFromIdx == -1 and is rejected by the bound check.
+	//
+	// This mirrors the ecdsa/resharing fix verbatim; the only difference is that
+	// this package carries DGRound2Message / DGRound4Message where ecdsa splits
+	// each into a ...1 / ...2 pair.
+	var roster tss.SortedPartyIDs
 	switch msg.Content().(type) {
 	case *DGRound2Message, *DGRound4Message:
-		maxFromIdx = len(p.params.NewParties().IDs()) - 1
+		roster = p.params.NewParties().IDs()
 	default:
-		maxFromIdx = len(p.params.OldParties().IDs()) - 1
+		roster = p.params.OldParties().IDs()
 	}
+	maxFromIdx := len(roster) - 1
 	if maxFromIdx < msg.GetFrom().Index {
 		return false, p.WrapError(fmt.Errorf("received msg with a sender index too great (%d <= %d)",
 			maxFromIdx, msg.GetFrom().Index), msg.GetFrom())
+	}
+	if roster[msg.GetFrom().Index].KeyInt().Cmp(msg.GetFrom().KeyInt()) != 0 {
+		return false, p.WrapError(fmt.Errorf(
+			"received %T from a party that is not on the committee that message type comes from",
+			msg.Content()), msg.GetFrom())
 	}
 	return true, nil
 }
@@ -139,18 +176,51 @@ func (p *LocalParty) StoreMessage(msg tss.ParsedMessage) (bool, *tss.Error) {
 	}
 	fromPIdx := msg.GetFrom().Index
 
-	// switch/case is necessary to store any messages beyond current round
-	// this does not handle message replays. we expect the caller to apply replay and spoofing protection.
+	// switch/case is necessary to store any messages beyond current round.
+	// Each branch rejects intra-session message replacement: once a slot is
+	// filled, a different-content message for it is rejected (idempotent
+	// identical re-sends are tolerated via tss.IsSameMessage).
+	//
+	// Resharing spans two independent, overlapping committee index spaces:
+	// old-committee-sourced slots (dgRound1Messages, dgRound3Message1s,
+	// dgRound3Message2s) are indexed by the sender's OLD index, new-sourced
+	// slots (dgRound2Messages, dgRound4Messages) by the sender's NEW index. A
+	// peer's index in one committee can numerically equal this party's index in
+	// the other, so p.PartyID().Index is NOT a safe self-echo discriminator: it
+	// would mis-read a colliding cross-committee peer as "self" and skip the
+	// duplicate guard. Detect our own echoes by sender IDENTITY (key) instead.
+	isDup := msg.GetFrom().KeyInt().Cmp(p.PartyID().KeyInt()) != 0
+
+	dupErr := func() (bool, *tss.Error) {
+		return false, p.WrapError(
+			fmt.Errorf("duplicate %T from party %d", msg.Content(), fromPIdx),
+			msg.GetFrom())
+	}
 	switch msg.Content().(type) {
 	case *DGRound1Message:
+		if isDup && p.temp.dgRound1Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.dgRound1Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.dgRound1Messages[fromPIdx] = msg
 	case *DGRound2Message:
+		if isDup && p.temp.dgRound2Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.dgRound2Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.dgRound2Messages[fromPIdx] = msg
 	case *DGRound3Message1:
+		if isDup && p.temp.dgRound3Message1s[fromPIdx] != nil && !tss.IsSameMessage(p.temp.dgRound3Message1s[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.dgRound3Message1s[fromPIdx] = msg
 	case *DGRound3Message2:
+		if isDup && p.temp.dgRound3Message2s[fromPIdx] != nil && !tss.IsSameMessage(p.temp.dgRound3Message2s[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.dgRound3Message2s[fromPIdx] = msg
 	case *DGRound4Message:
+		if isDup && p.temp.dgRound4Messages[fromPIdx] != nil && !tss.IsSameMessage(p.temp.dgRound4Messages[fromPIdx], msg) {
+			return dupErr()
+		}
 		p.temp.dgRound4Messages[fromPIdx] = msg
 	default: // unrecognised message, just ignore!
 		common.Logger.Warningf("unrecognised message ignored: %v", msg)

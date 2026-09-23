@@ -101,6 +101,8 @@ Use the `resharing.LocalParty` to re-distribute the secret shares. The save data
 
 Please note that `ReSharingParameters` is used to give this Party more context about the re-sharing that should be carried out.
 
+⚠️ **The old and the new committee must be disjoint.** No party may appear in both. Membership is decided by the party's `key` — two parties are the same party exactly when their keys are equal, regardless of their `Index` in either committee. `tss.NewReSharingParameters` **panics** if the two committees share a member, naming the offending key(s); call `tss.CommitteeOverlapKeys(oldCtx, newCtx)` first if you would rather branch than recover. Re-sharing "in place" — handing the same set of parties a fresh set of shares — is not supported: a party that is both a sender and a receiver is not a shape any round of this protocol is written for.
+
 ```go
 party := resharing.NewLocalParty(params, ourKeyData, outCh, endCh)
 go func() {
@@ -140,6 +142,16 @@ This way there is no need to deal with Marshal/Unmarshalling Protocol Buffers to
 
 Two fields PaillierSK.P and PaillierSK.Q is added in version 2.0. They are used to generate Paillier key proofs. Key valuts generated from versions before 2.0 need to regenerate(resharing) the key valuts to update the praparams with the necessary fileds filled.
 
+Because the old and the new committee must be disjoint (see [Re-Sharing](#re-sharing)), this migration cannot be done in place. The recipe is:
+
+1. Give every operator a **new** `tss.PartyID` key, distinct from the key it uses today.
+2. Run re-sharing with the pre-2.0 vault's parties as the old committee and the new keys as the new committee.
+3. The new committee's parties generate fresh pre-params, so the resulting vault carries `PaillierSK.P` / `PaillierSK.Q`.
+
+**The cost of this is real and you should plan for it: every share ID changes.** A `PartyID`'s key *is* the party's `x` coordinate in the Shamir scheme — it is what `LocalPartySaveData.ShareID` and the `Ks` list hold. Anything outside this library that indexes a vault, an HSM slot, a backup or an audit log by share ID has to be migrated alongside. The public key and the signing key itself are unchanged; only the identities holding the shares are.
+
+Note that this library has no separate proactive-refresh operation — that is, no way to give the *same* parties, at the *same* `x` coordinates, freshly randomised shares. If that is what you need, this migration is not it.
+
 ## How to use this securely
 
 ⚠️ This section is important. Be sure to read it!
@@ -149,6 +161,8 @@ The transport for messaging is left to the application layer and is not provided
 When you build a transport, it should offer a broadcast channel as well as point-to-point channels connecting every pair of parties. Your transport should also employ suitable end-to-end encryption (TLS with an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)) is recommended) between parties to ensure that a party can only read the messages sent to it.
 
 Within your transport, each message should be wrapped with a **session ID** that is unique to a single run of the keygen, signing or re-sharing rounds. This session ID should be agreed upon out-of-band and known only by the participating parties before the rounds begin. Upon receiving any message, your program should make sure that the received session ID matches the one that was agreed upon at the start.
+
+The library needs that same agreed value itself, and will not invent one: before calling `Start()` on a keygen, signing or re-sharing party you **must** call `Parameters.SetSessionNonce` with a value all participants in that run have agreed on. It is mixed into the SSID that binds every zero-knowledge proof in the run, so a proof produced in one run is not accepted in another, and round 1 returns an error if it has not been set. In re-sharing, on both curves, the new committee derives no session ID of its own — the pre-image of `getSSID` is the old committee's save data, which the new committee does not have — but round 1 requires the nonce from it regardless, and round 2 checks what the old committee declares against it before adopting anything. Note that `Parameters` belongs to a party rather than to a single execution: if you keep one around across runs, set a fresh nonce for each of them, or every run will share an SSID.
 
 Additionally, there should be a mechanism in your transport to allow for "reliable broadcasts", meaning parties can broadcast a message to other parties such that it's guaranteed that each one receives the same message. There are several examples of algorithms online that do this by sharing and comparing hashes of received messages.
 

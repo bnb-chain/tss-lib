@@ -12,7 +12,7 @@ import (
 	"math/big"
 
 	"github.com/agl/ed25519/edwards25519"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 	"github.com/decred/dcrd/dcrec/edwards/v2"
 )
 
@@ -25,13 +25,24 @@ func (round *finalization) Start() *tss.Error {
 	round.resetOK()
 
 	sumS := round.temp.si
-	for j := range round.Parties().IDs() {
+	// Edwards curve order L (= 2^252 + 27742317777372353535851937790883648493).
+	L := round.Params().EC().Params().N
+	for j, Pj := range round.Parties().IDs() {
 		round.ok[j] = true
 		if j == round.PartyID().Index {
 			continue
 		}
 		r3msg := round.temp.signRound3Messages[j].Content().(*SignRound3Message)
-		sjBytes := bigIntToEncodedBytes(r3msg.UnmarshalS())
+		sj := r3msg.UnmarshalS()
+		// Reject scalars outside [1, L-1] before they enter the silent
+		// 32-byte truncation in bigIntToEncodedBytes. Attributes the
+		// failure to the actual culprit Pj rather than producing an
+		// opaque "signature verification failed" at the aggregate level.
+		if sj.Sign() <= 0 || sj.Cmp(L) >= 0 {
+			return round.WrapError(errors.New(
+				"partial signature S out of range [1, L-1]"), Pj)
+		}
+		sjBytes := bigIntToEncodedBytes(sj)
 		var tmpSumS [32]byte
 		edwards25519.ScMulAdd(&tmpSumS, sumS, bigIntToEncodedBytes(big.NewInt(1)), sjBytes)
 		sumS = &tmpSumS

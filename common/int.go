@@ -63,6 +63,14 @@ func IsInInterval(b *big.Int, bound *big.Int) bool {
 	return b.Cmp(bound) == -1 && b.Cmp(zero) >= 0
 }
 
+// IsInIntervalPositive reports whether b ∈ (0, bound). Stricter than
+// IsInInterval, which accepts b == 0; use this for prover-supplied values
+// that the honest sampler always draws from a positive range
+// (e.g. GetRandomPositiveInt outputs).
+func IsInIntervalPositive(b *big.Int, bound *big.Int) bool {
+	return b != nil && b.Sign() > 0 && b.Cmp(bound) < 0
+}
+
 func AppendBigIntToBytesSlice(commonBytes []byte, appended *big.Int) []byte {
 	resultBytes := make([]byte, len(commonBytes), len(commonBytes)+len(appended.Bytes()))
 	copy(resultBytes, commonBytes)

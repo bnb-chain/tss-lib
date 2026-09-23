@@ -11,9 +11,9 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/crypto/paillier"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/crypto/paillier"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 type (
@@ -59,6 +59,20 @@ func NewLocalPartySaveData(partyCount int) (saveData LocalPartySaveData) {
 	return
 }
 
+// copyLocalSecrets returns a LocalSecrets whose *big.Int fields are fresh, so the
+// result shares no mutable state with `s`. A nil field stays nil rather than
+// becoming a zero-valued big.Int: callers distinguish "absent" from "zero".
+func copyLocalSecrets(s LocalSecrets) LocalSecrets {
+	out := LocalSecrets{}
+	if s.Xi != nil {
+		out.Xi = new(big.Int).Set(s.Xi)
+	}
+	if s.ShareID != nil {
+		out.ShareID = new(big.Int).Set(s.ShareID)
+	}
+	return out
+}
+
 func (preParams LocalPreParams) Validate() bool {
 	return preParams.PaillierSK != nil &&
 		preParams.NTildei != nil &&
@@ -77,6 +91,19 @@ func (preParams LocalPreParams) ValidateWithProof() bool {
 }
 
 // BuildLocalSaveDataSubset re-creates the LocalPartySaveData to contain data for only the list of signing parties.
+//
+// LocalSecrets is DEEP-COPIED, not assigned. Its fields are *big.Int, so a plain
+// struct assignment would leave the returned value sharing the caller's numbers,
+// and anything this library writes through them would reach the caller's own save
+// data. This is load-bearing: see doc/maintenance-invariants.md.
+//
+// LocalSecrets is the ONLY thing copied. Everything else in the returned value is
+// shared with the caller: LocalPreParams is assigned as a struct (so PaillierSK,
+// NTildei, H1i, H2i, Alpha, Beta, P and Q are the caller's objects), ECDSAPub is
+// the caller's pointer, and while Ks, NTildej, H1j, H2j, BigXj and PaillierPKs are
+// freshly allocated slices, the elements they hold are the caller's pointers.
+// None of that is secret material, which is why only LocalSecrets is copied. If
+// this library ever writes through any of it, extend the copy first.
 func BuildLocalSaveDataSubset(sourceData LocalPartySaveData, sortedIDs tss.SortedPartyIDs) LocalPartySaveData {
 	keysToIndices := make(map[string]int, len(sourceData.Ks))
 	for j, kj := range sourceData.Ks {
@@ -84,9 +111,19 @@ func BuildLocalSaveDataSubset(sourceData LocalPartySaveData, sortedIDs tss.Sorte
 	}
 	newData := NewLocalPartySaveData(sortedIDs.Len())
 	newData.LocalPreParams = sourceData.LocalPreParams
-	newData.LocalSecrets = sourceData.LocalSecrets
+	newData.LocalSecrets = copyLocalSecrets(sourceData.LocalSecrets)
 	newData.ECDSAPub = sourceData.ECDSAPub
 	for j, id := range sortedIDs {
+		// `id.Key` is a PROMOTED field: reading it dereferences the embedded
+		// *MessageWrapper_PartyID, which is nil in the PartyID shapes that
+		// encoding/json and a shallow copy produce. Attribute that here instead
+		// of faulting one expression later with no message: this function has no
+		// return channel, and an unresolvable roster entry already panics with a
+		// named error just below, so a roster entry that cannot be read at all
+		// belongs in the same place.
+		if id == nil || id.MessageWrapper_PartyID == nil {
+			panic(errors.New("BuildLocalSaveDataSubset: a party in the given roster has no PartyID content"))
+		}
 		savedIdx, ok := keysToIndices[hex.EncodeToString(id.Key)]
 		if !ok {
 			panic(errors.New("BuildLocalSaveDataSubset: unable to find a signer party in the local save data"))

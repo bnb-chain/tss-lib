@@ -20,10 +20,10 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/ecdsa/keygen"
-	"github.com/bnb-chain/tss-lib/v3/test"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v4/test"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -60,6 +60,7 @@ func TestE2EConcurrent(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
+		params.SetSessionNonce(big.NewInt(1))
 		P := NewLocalParty(big.NewInt(42), params, keys[i], outCh, endCh).(*LocalParty)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
@@ -155,6 +156,7 @@ func TestE2EConcurrentWithLeadingZeroInMSG(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
+		params.SetSessionNonce(big.NewInt(1))
 		P := NewLocalParty(new(big.Int).SetBytes(msgData), params, keys[i], outCh, endCh, len(msgData)).(*LocalParty)
 		parties = append(parties, P)
 		go func(P *LocalParty) {
@@ -263,6 +265,7 @@ func TestE2EWithHDKeyDerivation(t *testing.T) {
 	// init the parties
 	for i := 0; i < len(signPIDs); i++ {
 		params := tss.NewParameters(tss.S256(), p2pCtx, signPIDs[i], len(signPIDs), threshold)
+		params.SetSessionNonce(big.NewInt(1))
 
 		P := NewLocalPartyWithKDD(big.NewInt(42), params, keys[i], keyDerivationDelta, outCh, endCh, 0).(*LocalParty)
 		parties = append(parties, P)

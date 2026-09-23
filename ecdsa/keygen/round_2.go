@@ -12,11 +12,11 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/bnb-chain/tss-lib/v3/crypto/facproof"
-	"github.com/bnb-chain/tss-lib/v3/crypto/modproof"
+	"github.com/bnb-chain/tss-lib/v4/crypto/facproof"
+	"github.com/bnb-chain/tss-lib/v4/crypto/modproof"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -114,18 +114,13 @@ func (round *round2) Start() *tss.Error {
 	ContextI := append(round.temp.ssid, big.NewInt(int64(i)).Bytes()...)
 	for j, Pj := range round.Parties().IDs() {
 
-		facProof := &facproof.ProofFac{
-			P: zero, Q: zero, A: zero, B: zero, T: zero, Sigma: zero,
-			Z1: zero, Z2: zero, W1: zero, W2: zero, V: zero,
-		}
-		if !round.Params().NoProofFac() {
-			var err error
-			facProof, err = facproof.NewProof(ContextI, round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
-				round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
-			if err != nil {
-				return round.WrapError(err, round.PartyID())
-			}
-
+		// FacProof generation is unconditional — the NoProofFac compatibility
+		// switch was removed alongside NoProofMod (SRC-2026-926). The zero-filled
+		// placeholder proof is gone; every peer receives a real proof.
+		facProof, err := facproof.NewProof(ContextI, round.EC(), round.save.PaillierSK.N, round.save.NTildej[j],
+			round.save.H1j[j], round.save.H2j[j], round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
+		if err != nil {
+			return round.WrapError(err, round.PartyID())
 		}
 		r2msg1 := NewKGRound2Message1(Pj, round.PartyID(), shares[j], facProof)
 		// do not send to this Pj, but store for round 3
@@ -137,16 +132,41 @@ func (round *round2) Start() *tss.Error {
 	}
 
 	// 7. BROADCAST de-commitments of Shamir poly*G
-	modProof := &modproof.ProofMod{W: zero, X: *new([80]*big.Int), A: zero, B: zero, Z: *new([80]*big.Int)}
-	if !round.Parameters.NoProofMod() {
-		var err error
-		modProof, err = modproof.NewProof(ContextI, round.save.PaillierSK.N,
-			round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
-		if err != nil {
-			return round.WrapError(err, round.PartyID())
-		}
+	// SECURITY (SRC-2026-926): ModProof is mandatory — the NoProofMod
+	// compatibility switch was removed. Always generate the Paillier ModProof
+	// (Blum-integer attestation) and the NTilde ModProof.
+	modProof, err := modproof.NewProof(ContextI, round.save.PaillierSK.N,
+		round.save.PaillierSK.P, round.save.PaillierSK.Q, round.Rand())
+	if err != nil {
+		return round.WrapError(err, round.PartyID())
 	}
-	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG, modProof)
+	// nTildeModProof is a ModProof over this party's own NTilde.
+	// SCOPE: the verifier is ProofMod.Verify(Session, N)
+	// (crypto/modproof/proof.go#Verify), whose only statement input is the
+	// modulus N, so the proof can attest properties of N alone (Blum-integer
+	// shape). It does NOT attest that NTilde is a product of safe primes:
+	// safe-primality is a property of NTilde's two prime factors — for each
+	// factor f, that (f-1)/2 is prime — and those factors never enter Verify,
+	// which receives only their product. It also constrains neither h1 nor
+	// h2, which are not its inputs at all. For a peer's ring, <h1> == <h2> is
+	// established by the two-directional DLN proof pair instead —
+	// dlnproof.Proof.Verify(Session, h1, h2, N) (crypto/dlnproof/proof.go#Verify),
+	// verified at round_2.go#Start above, by the VerifyDLNProof1 and
+	// VerifyDLNProof2 calls: proof 1 gives h2 in <h1>, proof 2 gives h1 in
+	// <h2>.
+	// NTilde = (2p+1)(2q+1); LocalPreParams.P, Q store the Germain primes
+	// p, q (used for the DLN proof's subgroup order), NOT the safe-prime
+	// factors of NTilde. Derive the safe primes 2p+1, 2q+1 here so the
+	// ModProof is built from the actual factors of NTilde.
+	one := big.NewInt(1)
+	safePrimeP := new(big.Int).Add(new(big.Int).Lsh(round.save.LocalPreParams.P, 1), one)
+	safePrimeQ := new(big.Int).Add(new(big.Int).Lsh(round.save.LocalPreParams.Q, 1), one)
+	nTildeModProof, err := modproof.NewProof(ContextI, round.save.NTildei,
+		safePrimeP, safePrimeQ, round.Rand())
+	if err != nil {
+		return round.WrapError(err, round.PartyID())
+	}
+	r2msg2 := NewKGRound2Message2(round.PartyID(), round.temp.deCommitPolyG, modProof, nTildeModProof)
 	round.temp.kgRound2Message2s[i] = r2msg2
 	round.out <- r2msg2
 

@@ -17,13 +17,13 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	"github.com/bnb-chain/tss-lib/v3/ecdsa/keygen"
-	. "github.com/bnb-chain/tss-lib/v3/ecdsa/resharing"
-	"github.com/bnb-chain/tss-lib/v3/ecdsa/signing"
-	"github.com/bnb-chain/tss-lib/v3/test"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	"github.com/bnb-chain/tss-lib/v4/ecdsa/keygen"
+	. "github.com/bnb-chain/tss-lib/v4/ecdsa/resharing"
+	"github.com/bnb-chain/tss-lib/v4/ecdsa/signing"
+	"github.com/bnb-chain/tss-lib/v4/test"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 const (
@@ -73,16 +73,14 @@ func TestE2EConcurrent(t *testing.T) {
 	// init the old parties first
 	for j, pID := range oldPIDs {
 		params := tss.NewReSharingParameters(tss.S256(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
+		params.SetSessionNonce(big.NewInt(1))
 		P := NewLocalParty(params, oldKeys[j], outCh, endCh).(*LocalParty) // discard old key data
 		oldCommittee = append(oldCommittee, P)
 	}
 	// init the new parties
 	for j, pID := range newPIDs {
 		params := tss.NewReSharingParameters(tss.S256(), oldP2PCtx, newP2PCtx, pID, testParticipants, threshold, newPCount, newThreshold)
-		// do not use in untrusted setting
-		params.SetNoProofMod()
-		// do not use in untrusted setting
-		params.SetNoProofFac()
+		params.SetSessionNonce(big.NewInt(1))
 		save := keygen.NewLocalPartySaveData(newPCount)
 		if j < len(fixtures) && len(newPIDs) <= len(fixtures) {
 			save.LocalPreParams = fixtures[j].LocalPreParams
@@ -177,6 +175,7 @@ signing:
 
 	for j, signPID := range signPIDs {
 		params := tss.NewParameters(tss.S256(), signP2pCtx, signPID, len(signPIDs), newThreshold)
+		params.SetSessionNonce(big.NewInt(1))
 		P := signing.NewLocalParty(big.NewInt(42), params, signKeys[j], signOutCh, signEndCh).(*signing.LocalParty)
 		signParties = append(signParties, P)
 		go func(P *signing.LocalParty) {

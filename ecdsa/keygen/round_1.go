@@ -11,15 +11,21 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
-	"github.com/bnb-chain/tss-lib/v3/crypto"
-	cmts "github.com/bnb-chain/tss-lib/v3/crypto/commitments"
-	"github.com/bnb-chain/tss-lib/v3/crypto/dlnproof"
-	"github.com/bnb-chain/tss-lib/v3/crypto/vss"
-	"github.com/bnb-chain/tss-lib/v3/tss"
+	"github.com/bnb-chain/tss-lib/v4/common"
+	"github.com/bnb-chain/tss-lib/v4/crypto"
+	cmts "github.com/bnb-chain/tss-lib/v4/crypto/commitments"
+	"github.com/bnb-chain/tss-lib/v4/crypto/dlnproof"
+	"github.com/bnb-chain/tss-lib/v4/crypto/vss"
+	"github.com/bnb-chain/tss-lib/v4/tss"
 )
 
 var zero = big.NewInt(0)
+
+// nonPositiveNonceErrText is worded identically at every round-1 site that
+// reads Parameters.SessionNonce().
+const nonPositiveNonceErrText = "session nonce must be positive; call " +
+	"Parameters.SetSessionNonce with a positive value agreed by all parties " +
+	"before starting the round"
 
 // round 1 represents round 1 of the keygen part of the GG18 ECDSA TSS spec (Gennaro, Goldfeder; 2018)
 func newRound1(params *tss.Parameters, save *LocalPartySaveData, temp *localTempData, out chan<- tss.Message, end chan<- *LocalPartySaveData) tss.Round {
@@ -96,10 +102,24 @@ func (round *round1) Start() *tss.Error {
 	// For keygen, all parties must agree on the nonce via external coordination
 	// (e.g., coordinator-assigned session ID) since no shared session-unique
 	// value is available within the protocol itself.
+	// Keygen has no protocol-internal session-unique value (unlike signing,
+	// which can fall back to the message hash). Require the caller to set
+	// a coordinator-assigned SessionNonce so each keygen run has a fresh
+	// SSID — preventing cross-session DLN/ModProof/FacProof replay.
 	if nonce := round.Params().SessionNonce(); nonce != nil {
+		// The SSID hash takes Bytes() of every input, which is the magnitude
+		// only: -n and +n hash to the same digest, and 0 hashes to the empty
+		// string for every session alike. A caller that means two runs to be
+		// separate would get one SSID for both. Reject at the entry point
+		// instead of changing the hash, which would move every existing SSID.
+		if nonce.Sign() <= 0 {
+			return round.WrapError(errors.New(nonPositiveNonceErrText))
+		}
 		round.temp.ssidNonce = new(big.Int).Set(nonce)
 	} else {
-		round.temp.ssidNonce = new(big.Int).SetUint64(0)
+		return round.WrapError(errors.New(
+			"keygen requires a session nonce; call Parameters.SetSessionNonce " +
+				"with a value agreed by all parties before starting the round"))
 	}
 	round.save.ShareID = ids[i]
 	round.temp.vs = vs

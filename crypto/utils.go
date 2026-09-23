@@ -11,7 +11,7 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/bnb-chain/tss-lib/v3/common"
+	"github.com/bnb-chain/tss-lib/v4/common"
 )
 
 func GenerateNTildei(rand io.Reader, safePrimes [2]*big.Int) (NTildei, h1i, h2i *big.Int, err error) {

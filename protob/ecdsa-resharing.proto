@@ -16,6 +16,12 @@ message DGRound1Message {
     bytes ecdsa_pub_y = 2;
     bytes v_commitment = 3;
     bytes ssid = 4;
+    // Binds this message to the session the SENDER believes it is in.
+    // The new committee cannot recompute `ssid` -- its pre-image is the OLD
+    // committee's save data, which a new party does not hold -- so without this
+    // field the new committee has nothing of its own to compare against and
+    // adopts whatever the old committee declares.
+    bytes session_nonce_hash = 5;
 }
 
 /*
@@ -29,6 +35,26 @@ message DGRound2Message1 {
     bytes h2 = 5;
     repeated bytes dlnproof_1 = 6;
     repeated bytes dlnproof_2 = 7;
+    // ModProof over n_tilde. SCOPE: the verifier is
+    // ProofMod.Verify(Session, N) (crypto/modproof/proof.go#Verify), whose only
+    // statement input is the modulus, so this proof attests properties of
+    // n_tilde alone (Blum-integer shape). It does NOT attest that n_tilde is
+    // a product of safe primes: safe-primality is a property of n_tilde's two
+    // prime factors — for each factor f, that (f-1)/2 is prime — and those
+    // factors never enter Verify, which receives only their product. It
+    // constrains neither h1 nor h2 either. <h1> == <h2> is established by the
+    // two-directional DLN proof pair in dlnproof_1 / dlnproof_2 above —
+    // dlnproof.Proof.Verify(Session, h1, h2, N) (crypto/dlnproof/proof.go#Verify)
+    // — verified at ecdsa/resharing/round_4_new_step_2.go#Start, by the
+    // VerifyDLNProof1 and VerifyDLNProof2 calls.
+    // Not optional: since v4 the NoProofMod() compatibility switch and its
+    // warn-only fallback no longer exist (deleted in c487b67). A missing,
+    // unparseable or failing proof makes the sender a culprit
+    // (ecdsa/resharing/round_4_new_step_2.go#Start, at the
+    // UnmarshalNTildeModProof / nTildeModProof.Verify branches) and aborts the
+    // round (ecdsa/resharing/round_4_new_step_2.go#Start, at the culprit loop
+    // returning WrapError).
+    repeated bytes nTildeModProof = 8;
 }
 
 /*

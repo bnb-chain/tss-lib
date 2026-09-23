@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+func TestConstantTimeOpsEnabledByDefault(t *testing.T) {
+	if !IsConstantTimeEnabled() {
+		t.Fatal("constant-time operations must be enabled by default")
+	}
+}
+
 // TestExpCTCorrectness verifies that constant-time exponentiation produces
 // correct results by comparing with math/big.Exp
 func TestExpCTCorrectness(t *testing.T) {

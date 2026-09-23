@@ -15,6 +15,13 @@ message DGRound1Message {
     bytes eddsa_pub_x = 1;
     bytes eddsa_pub_y = 2;
     bytes v_commitment = 3;
+    bytes ssid = 4;
+    // Binds this message to the session the SENDER believes it is in.
+    // The new committee cannot recompute `ssid` -- its pre-image is the OLD
+    // committee's save data, which a new party does not hold -- so without this
+    // field the new committee has nothing of its own to compare against and
+    // adopts whatever the old committee declares.
+    bytes session_nonce_hash = 5;
 }
 
 /*
