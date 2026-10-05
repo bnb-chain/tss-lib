@@ -95,7 +95,6 @@ func (round *round1) Start() *tss.Error {
 	if !round.ReSharingParams().IsOldCommittee() {
 		return nil
 	}
-	round.allOldOK()
 
 	ssid, err := round.getSSID()
 	if err != nil {
