@@ -29,13 +29,15 @@ type (
 		// sessionNonce provides per-session SSID uniqueness for GG20 session binding.
 		// The caller MUST set it — to a value agreed upon by all parties, e.g. a
 		// coordinator-assigned session ID — before starting round 1. Every party
-		// that derives an SSID fails round 1 without it, and none of them has a
-		// fallback: ECDSA and EdDSA keygen, ECDSA and EdDSA signing, and the old
-		// committee in ECDSA resharing. A value the library picks for itself is
-		// one no participant agreed to and one it cannot check for freshness.
+		// fails round 1 without it, and none of them has a fallback: ECDSA and
+		// EdDSA keygen, ECDSA and EdDSA signing, and both committees of ECDSA and
+		// EdDSA resharing. A value the library picks for itself is one no
+		// participant agreed to and one it cannot check for freshness.
 		//
-		// Two paths do not read it, because they derive no SSID at all: the new
-		// committee's first round in ECDSA resharing, and EdDSA resharing.
+		// The ECDSA resharing new committee does not derive an SSID of its own in
+		// round 1; it adopts the old committee's unanimous ssid in round 2 after
+		// checking the session-nonce hash. It still requires a positive nonce
+		// before it will start.
 		sessionNonce *big.Int
 		// NOTE: the former noProofMod and noProofFac legacy-compatibility flags
 		// have both been removed — ModProof (SRC-2026-926) and FacProof are now

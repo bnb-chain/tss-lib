@@ -148,13 +148,19 @@ func TestE2EConcurrent(t *testing.T) {
 				assert.Equal(t, len(oldCommittee), endedOldCommittee)
 				t.Logf("Resharing done. Reshared %d participants", reSharingEnded)
 
-				// xj tests: BigXj == xj*G
+				// xj tests: BigXj == xj*G, and Xi is a canonical scalar in
+				// [1, q) — the same stored shape keygen round 3 produces after
+				// Mod(xi, N).
+				q := tss.S256().Params().N
 				for j, key := range newKeys {
 					// xj test: BigXj == xj*G
 					xj := key.Xi
 					gXj := crypto.ScalarBaseMult(tss.S256(), xj)
 					BigXj := key.BigXj[j]
 					assert.True(t, BigXj.Equals(gXj), "ensure BigX_j == g^x_j")
+					assert.NotNil(t, xj)
+					assert.True(t, xj.Sign() > 0, "newXi must be positive")
+					assert.True(t, xj.Cmp(q) < 0, "newXi must be reduced mod q to match the keygen convention")
 				}
 
 				// more verification of signing is implemented within local_party_test.go of keygen package

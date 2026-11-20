@@ -217,6 +217,12 @@ func (round *round4) Start() *tss.Error {
 		newXi = new(big.Int).Add(newXi, sharej.Share)
 	}
 
+	// Canonicalise the reconstructed scalar into [0, q), matching the keygen
+	// convention (ecdsa/keygen/round_3.go). Every share summed above is already
+	// in (0, q) after Share.Verify, so the sum is congruent to the secret either
+	// way; this only stores the canonical representative.
+	newXi = new(big.Int).Mod(newXi, round.Params().EC().Params().N)
+
 	// 10-13.
 	var err error
 	Vc := make([]*crypto.ECPoint, round.NewThreshold()+1)
